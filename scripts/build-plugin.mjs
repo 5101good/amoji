@@ -1,0 +1,17 @@
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+const destination = resolve(root, 'plugins/amoji');
+await mkdir(`${destination}/runtime`, { recursive: true });
+await cp(`${root}/dist/src`, `${destination}/runtime/src`, { recursive: true });
+await cp(`${root}/dist/docs`, `${destination}/runtime/docs`, { recursive: true });
+await mkdir(`${destination}/assets/samples`, { recursive: true });
+await cp(`${root}/assets/samples/blobs`, `${destination}/assets/samples/blobs`, { recursive: true });
+await cp(`${root}/assets/samples/manifest.json`, `${destination}/assets/samples/manifest.json`);
+await cp(`${root}/web`, `${destination}/web`, { recursive: true });
+await cp(`${root}/package.json`, `${destination}/runtime/package.json`);
+await cp(`${root}/package-lock.json`, `${destination}/runtime/package-lock.json`);
+await cp(`${root}/node_modules`, `${destination}/runtime/node_modules`, { recursive: true });
+const metadata = JSON.parse(await readFile(`${root}/package.json`, 'utf8'));
+await writeFile(`${destination}/BUILD.json`, JSON.stringify({ version: metadata.version, node: process.version, platform: process.platform, arch: process.arch, entry: 'runtime/src/main.js', source: 'Amoji local repository; run npm ci --omit=dev in runtime on other compatible machines' }, null, 2) + '\n');
+console.log(`Built local plugin at ${destination}`);

@@ -1,0 +1,152 @@
+{
+  "kind": "amoji.pack",
+  "schema_version": "0.1",
+  "pack_id": "40000000-0000-4000-8000-000000000001",
+  "name": "Amoji 三样本接入验证",
+  "created_at": "2026-09-05T00:00:00Z",
+  "expressions": [
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "10000000-0000-4000-8000-000000000001",
+      "revision_id": "30000000-0000-4000-8000-000000000001",
+      "name": "一起庆祝",
+      "created_at": "2026-09-05T00:00:00Z",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "为刚完成的进展真诚高兴并庆祝。",
+        "fallback": "[一起庆祝]",
+        "tone": "开心、真诚",
+        "use_when": [
+          "完成阶段目标或分享好消息时"
+        ],
+        "avoid_when": [
+          "对方正在表达痛苦时"
+        ]
+      },
+      "tags": [
+        "庆祝",
+        "高兴",
+        "完成"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "5684c88497966b68b1081c18d0bd60667e020a9771558fdebf9defcf67fbb154",
+          "mime": "image/png",
+          "bytes": 735307,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "Amoji development fixture; distribution license pending",
+        "creator": "Amoji / Codex imagegen",
+        "source": "生成提示见 assets/samples/generation.json"
+      }
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "10000000-0000-4000-8000-000000000002",
+      "revision_id": "30000000-0000-4000-8000-000000000002",
+      "name": "挠头苦笑",
+      "created_at": "2026-09-05T00:00:00Z",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "面对自己无伤大雅的小失误，带着善意自嘲和无奈。",
+        "fallback": "[挠头苦笑]",
+        "tone": "温和、自嘲",
+        "use_when": [
+          "承认自己的小失误时"
+        ],
+        "avoid_when": [
+          "讽刺他人",
+          "对方正在认真表达痛苦时"
+        ]
+      },
+      "tags": [
+        "自嘲",
+        "无奈",
+        "失误"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "7d755db2140bc72de9072a5867b08bea06ba79aa82426118fc9e3ecc4679e8ba",
+          "mime": "image/png",
+          "bytes": 706223,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "Amoji development fixture; distribution license pending",
+        "creator": "Amoji / Codex imagegen",
+        "source": "生成提示见 assets/samples/generation.json"
+      }
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "10000000-0000-4000-8000-000000000003",
+      "revision_id": "30000000-0000-4000-8000-000000000003",
+      "name": "一步一步来",
+      "created_at": "2026-09-05T00:00:00Z",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "支持你的努力，我们一步一步来。",
+        "fallback": "[给你加油]",
+        "tone": "温暖、坚定",
+        "use_when": [
+          "对方需要支持和鼓励时"
+        ],
+        "avoid_when": [
+          "用表情代替具体帮助或必要解释"
+        ]
+      },
+      "tags": [
+        "鼓励",
+        "支持",
+        "加油"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "477edc002d150c0db9f40cf06d8e346d642a4dcc9a394c7565983b35df99f997",
+          "mime": "image/webp",
+          "bytes": 538634,
+          "width": 887,
+          "height": 887
+        },
+        "animated": true,
+        "duration_ms": 1000,
+        "poster": {
+          "sha256": "5dd2653e91467ba9a797f7070e12e9c3dc6f72b3d80e1777a6881ea39e4a6434",
+          "mime": "image/png",
+          "bytes": 466198,
+          "width": 887,
+          "height": 887
+        }
+      },
+      "rights": {
+        "license": "Amoji development fixture; distribution license pending",
+        "creator": "Amoji / Codex imagegen",
+        "source": "生成提示见 assets/samples/generation.json"
+      }
+    }
+  ],
+  "defaults": [
+    {
+      "asset_id": "10000000-0000-4000-8000-000000000001",
+      "revision_id": "30000000-0000-4000-8000-000000000001"
+    },
+    {
+      "asset_id": "10000000-0000-4000-8000-000000000002",
+      "revision_id": "30000000-0000-4000-8000-000000000002"
+    },
+    {
+      "asset_id": "10000000-0000-4000-8000-000000000003",
+      "revision_id": "30000000-0000-4000-8000-000000000003"
+    }
+  ]
+}

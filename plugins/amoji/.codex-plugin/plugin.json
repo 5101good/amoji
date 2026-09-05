@@ -1,0 +1,19 @@
+{
+  "name": "amoji",
+  "version": "0.1.0-dev.1",
+  "description": "AI 原生表情的 Codex 三样本接入验证",
+  "author": {
+    "name": "Amoji"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Amoji",
+    "shortDescription": "你看图像，AI 理解固定语义。",
+    "longDescription": "使用配套选择器发送表情，并让 AI 根据文字语义选择表情回应。当前为三个样本的开发验证版。",
+    "developerName": "Amoji",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": "打开 Amoji 表情选择器。"
+  },
+  "mcpServers": "./.mcp.json"
+}

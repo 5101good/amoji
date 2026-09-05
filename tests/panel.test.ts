@@ -1,0 +1,34 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { SampleCatalog } from '../src/sample-catalog.js';
+import { SampleRuntime } from '../src/sample-runtime.js';
+import { PanelServer } from '../src/panel-server.js';
+
+test('面板点选只完成对应会话的待选请求，其他会话和未授权网页不能代发', async t => {
+  const runtime = new SampleRuntime(await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)));
+  const opened: string[] = [];
+  const panel = await PanelServer.start(runtime, async url => { opened.push(url); }, new URL('../web/', import.meta.url));
+  t.after(() => panel.close());
+  const a = { host: 'codex' as const, sessionId: 'a', turnId: '1' };
+  const b = { ...a, sessionId: 'b' };
+  const abortB = new AbortController();
+  const first = panel.pick(a, new AbortController().signal);
+  const second = panel.pick(b, abortB.signal).catch(error => error as Error);
+  const url = new URL(opened[0]!);
+  const other = new URL(opened[1]!);
+  const headers = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' };
+  assert.match(await (await fetch(url.origin)).text(), /表情选择器/);
+  assert.equal((await fetch(`${url.origin}/api/state`)).status, 401);
+  assert.equal((await fetch(`${url.origin}/api/state`, { headers: { ...headers, Origin: 'https://elsewhere.test' } })).status, 403);
+  const state = await (await fetch(`${url.origin}/api/state`, { headers })).json();
+  const otherState = await (await fetch(`${url.origin}/api/state`, { headers: { Authorization: `Bearer ${other.hash.slice(1)}` } })).json();
+  const expression = state.expressions[0];
+  const select = (pickId: string) => fetch(`${url.origin}/api/select`, { method: 'POST', headers, body: JSON.stringify({ pick_id: pickId, asset_id: expression.asset_id, revision_id: expression.revision_id }) });
+  assert.equal((await select(otherState.pending_pick)).status, 409);
+  assert.equal((await select(state.pending_pick)).status, 200);
+  assert.equal((await first).revision.revision_id, expression.revision_id);
+  assert.equal(runtime.messages(a).length, 1);
+  assert.equal(runtime.messages(b).length, 0);
+  abortB.abort();
+  assert.match((await second as Error).message, /取消/);
+});

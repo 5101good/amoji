@@ -4,5 +4,5 @@
   "platform": "darwin",
   "arch": "arm64",
   "entry": "runtime/src/main.js",
-  "source": "Amoji local repository; run npm ci --omit=dev in runtime on other compatible machines"
+  "source": "Local installation; regenerate with scripts/build-plugin.mjs at the destination on each machine. Keep this source directory after marketplace installation."
 }

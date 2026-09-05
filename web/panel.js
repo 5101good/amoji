@@ -34,13 +34,20 @@ async function picture(expression, messageId) {
   return image;
 }
 function text(tag, value, className) { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; }
+function definition(expression) {
+  const details = document.createElement('details');
+  details.append(text('summary', '查看完整固定语义与版本'), text('pre', JSON.stringify({ asset_id: expression.asset_id, revision_id: expression.revision_id, name: expression.name, semantics: expression.semantics }, null, 2)));
+  return details;
+}
 function preview() {
   $('preview').replaceChildren();
   if (!selected) { $('preview').append(text('p', '选一个表情，看看它想表达什么。')); }
   else {
     $('preview').append(text('h2', selected.name), text('p', selected.semantics.meaning));
     if (selected.semantics.tone) $('preview').append(text('p', selected.semantics.tone, 'avoid'));
+    if (selected.semantics.use_when?.length) $('preview').append(text('p', `适用于：${selected.semantics.use_when.join('；')}`, 'avoid'));
     if (selected.semantics.avoid_when?.length) $('preview').append(text('p', `不适用于：${selected.semantics.avoid_when.join('；')}`, 'avoid'));
+    $('preview').append(definition(selected));
   }
   $('send').disabled = !selected || !state?.pending_pick;
   $('cancel').disabled = !state?.pending_pick;
@@ -64,6 +71,7 @@ async function render() {
   for (const message of state.messages) {
     const article = document.createElement('article'); article.className = 'message';
     article.append(text('span', message.direction === 'human_to_ai' ? '你 → AI' : 'AI → 你', 'direction'), await picture(message.revision, message.message_id), text('p', message.revision.semantics.meaning), text('small', message.message_id.slice(0, 8)));
+    article.append(definition(message.revision));
     $('messages').append(article);
   }
   preview();

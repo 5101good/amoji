@@ -2,6 +2,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import type { HostContext } from './codex-context.js';
 import { modelProjection, type ExpressionText } from './projection.js';
 import { SampleCatalog, type Expression, type ExpressionRef } from './sample-catalog.js';
+import type { MessageJournal } from './message-journal.js';
 
 interface Selection { context: HostContext; ref: ExpressionRef; expires: number; messageId?: string }
 export interface SampleMessage {
@@ -13,23 +14,34 @@ export interface SampleMessage {
   delivery: 'pending';
   presentation: 'pending' | 'rendered' | 'fallback';
 }
-interface Session { bindingId: string; messages: SampleMessage[]; emittedTurns: Set<string>; received: Map<string, string> }
+interface Session { version: number; bindingId: string; messages: SampleMessage[]; emittedTurns: Set<string>; received: Map<string, string> }
 export interface Candidate extends ExpressionText { selection_token: string }
 
-/** Narrow integration runtime. It deliberately makes no shared-library or restart guarantees. */
+/** Narrow integration runtime with optional history journal; not the editable shared library. */
 export class SampleRuntime {
   private readonly selections = new Map<string, Selection>();
   private readonly sessions = new Map<string, Session>();
-  constructor(readonly catalog: SampleCatalog, private readonly now: () => number = Date.now) {}
+  constructor(readonly catalog: SampleCatalog, private readonly now: () => number = Date.now, private readonly journal?: MessageJournal) {}
 
   private session(context: HostContext): Session {
     const key = `${context.host}:${context.sessionId}`;
     let session = this.sessions.get(key);
-    if (!session) {
-      session = { bindingId: randomUUID(), messages: [], emittedTurns: new Set(), received: new Map() };
+    const stored = this.journal?.load(context);
+    if (!session || (stored && stored.version !== session.version)) {
+      session = { version: stored?.version ?? 0, bindingId: stored?.bindingId ?? randomUUID(), messages: stored?.messages ?? [], emittedTurns: new Set(stored?.emittedTurns), received: new Map(stored?.received) };
       this.sessions.set(key, session);
     }
     return session;
+  }
+
+  private persist(context: HostContext, session: Session): void {
+    if (!this.journal) return;
+    try {
+      session.version = this.journal.save(context, { bindingId: session.bindingId, messages: session.messages, emittedTurns: [...session.emittedTurns], received: [...session.received] }, session.version);
+    } catch (error) {
+      this.sessions.delete(`${context.host}:${context.sessionId}`);
+      throw error;
+    }
   }
 
   search(context: HostContext, query: string, limit = 3): { candidates: Candidate[]; policy: string } {
@@ -56,6 +68,7 @@ export class SampleRuntime {
     };
     session.messages.push(message);
     session.emittedTurns.add(context.turnId);
+    this.persist(context, session);
     selection.messageId = message.message_id;
     return structuredClone(message);
   }
@@ -74,12 +87,15 @@ export class SampleRuntime {
       revision: this.catalog.resolve(ref), delivery: 'pending', presentation: 'pending' };
     session.messages.push(message);
     session.received.set(requestId, message.message_id);
+    this.persist(context, session);
     return structuredClone(message);
   }
 
   acknowledge(context: HostContext, messageId: string, presentation: 'rendered' | 'fallback'): void {
-    const message = this.session(context).messages.find(m => m.message_id === messageId);
+    const session = this.session(context);
+    const message = session.messages.find(m => m.message_id === messageId);
     if (!message) throw new Error('当前会话不存在此消息');
     message.presentation = presentation;
+    this.persist(context, session);
   }
 }

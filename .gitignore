@@ -6,3 +6,4 @@ dist/
 plugins/amoji/runtime/
 plugins/amoji/assets/
 plugins/amoji/web/
+plugins/amoji/.mcp.json

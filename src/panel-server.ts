@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 import type { HostContext } from './codex-context.js';
 import type { SampleRuntime, SampleMessage } from './sample-runtime.js';
 
-interface PendingPick { id: string; resolve: (message: SampleMessage) => void; reject: (error: Error) => void; cleanup: () => void }
-interface PanelSession { context: HostContext; capability: string; pending?: PendingPick }
+interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
+interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
 
 export class PanelServer {
   private readonly sessions = new Map<string, PanelSession>();
@@ -29,7 +29,7 @@ export class PanelServer {
     const key = `${context.host}:${context.sessionId}`;
     let session = this.sessions.get(key);
     if (!session) {
-      session = { context: { ...context }, capability: randomBytes(32).toString('base64url') };
+      session = { context: { ...context }, capability: randomBytes(32).toString('base64url'), completed: new Map() };
       this.sessions.set(key, session);
     }
     return `${this.origin}/#${session.capability}`;
@@ -42,12 +42,18 @@ export class PanelServer {
     if (signal.aborted) return Promise.reject(new Error('选择已取消'));
     session.context = { ...context };
     return new Promise((resolve, reject) => {
-      const cancel = () => { session.pending?.cleanup(); session.pending = undefined; reject(new Error('选择已取消或超时')); };
+      const pending: PendingPick = { id: randomUUID(), finish: result => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', cancel);
+        if (session.pending !== pending) return;
+        session.pending = undefined;
+        if (result instanceof Error) reject(result); else resolve(result);
+      } };
+      const cancel = () => pending.finish(new Error('选择已取消或超时'));
       const timer = setTimeout(cancel, 300000);
-      const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', cancel); };
-      session.pending = { id: randomUUID(), resolve, reject, cleanup };
+      session.pending = pending;
       signal.addEventListener('abort', cancel, { once: true });
-      void this.open(url).catch(error => { cleanup(); session.pending = undefined; reject(error); });
+      void this.open(url).catch(error => pending.finish(error instanceof Error ? error : new Error('打开浏览器失败')));
     });
   }
 
@@ -55,9 +61,7 @@ export class PanelServer {
     if (this.closed) return;
     this.closed = true;
     for (const session of this.sessions.values()) {
-      session.pending?.cleanup();
-      session.pending?.reject(new Error('连接已关闭'));
-      session.pending = undefined;
+      session.pending?.finish(new Error('连接已关闭'));
     }
     this.http.closeAllConnections();
     await new Promise<void>((resolve, reject) => this.http.close(error => error ? reject(error) : resolve()));
@@ -89,7 +93,8 @@ export class PanelServer {
     }
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);
-      const blob = this.runtime.catalog.all().flatMap(e => [e.visual.primary, e.visual.poster]).find(b => b?.sha256 === digest);
+      const visible = [...this.runtime.catalog.all(), ...this.runtime.messages(session.context).map(m => m.revision)];
+      const blob = visible.flatMap(e => [e.visual.primary, e.visual.poster]).find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
       const bytes = await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
       res.writeHead(200, { 'Content-Type': blob.mime, 'Cache-Control': 'private, max-age=3600' }); res.end(bytes); return;
@@ -106,15 +111,24 @@ export class PanelServer {
       catch { this.json(res, 404, { error: '当前会话不存在此消息' }); }
       return;
     }
+    if (url.pathname === '/api/select') {
+      if (typeof body.pick_id !== 'string' || typeof body.asset_id !== 'string' || typeof body.revision_id !== 'string' || Object.keys(body).some(k => !['pick_id', 'asset_id', 'revision_id'].includes(k))) { this.json(res, 400, { error: '只能选择固定版本，不能覆盖语义' }); return; }
+      const completed = session.completed.get(body.pick_id);
+      if (completed) {
+        if (completed.asset_id !== body.asset_id || completed.revision_id !== body.revision_id) { this.json(res, 409, { error: '该请求已用于其他表情' }); return; }
+        this.json(res, 200, { message_id: completed.message_id }); return;
+      }
+    }
     const pending = session.pending;
     if (!pending || body.pick_id !== pending.id) { this.json(res, 409, { error: '选择请求已结束或不属于当前会话' }); return; }
     if (url.pathname === '/api/cancel') {
-      pending.cleanup(); session.pending = undefined; pending.reject(new Error('用户取消选择')); this.json(res, 200, { ok: true }); return;
+      pending.finish(new Error('用户取消选择')); this.json(res, 200, { ok: true }); return;
     }
     if (typeof body.asset_id !== 'string' || typeof body.revision_id !== 'string' || Object.keys(body).some(k => !['pick_id', 'asset_id', 'revision_id'].includes(k))) { this.json(res, 400, { error: '只能选择固定版本，不能覆盖语义' }); return; }
     try {
       const message = this.runtime.receive(session.context, { asset_id: body.asset_id, revision_id: body.revision_id }, pending.id);
-      pending.cleanup(); session.pending = undefined; pending.resolve(message);
+      session.completed.set(pending.id, { message_id: message.message_id, asset_id: body.asset_id, revision_id: body.revision_id });
+      pending.finish(message);
       this.json(res, 200, { message_id: message.message_id });
     } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '选择失败' }); }
   }

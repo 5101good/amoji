@@ -43,7 +43,7 @@ async function setup(t: TestContext) {
   const adapter = new DshAdapter(ctx, runtime, 'fixture-host');
   const exec = (session: Session, callId = 'call-1'): DshExecution => ({ agent: { id: session.id, session }, callId, rootCallId: 'root-call', signal: signal() });
   const call = (name: string, args: unknown, context: DshExecution) => tools.get(name)!.execute(args, context);
-  return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call };
+  return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call, disposers };
 }
 
 test('固定源码 defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
@@ -181,4 +181,25 @@ test('幂等 submit job 与各 RPC waiter 的取消独立；无人等待仍完�
     const survivor = mode === 'all' ? f.adapter.rpc('amoji/submit', request, signal()) : mode === 'first' ? second : first;
     release(); const result = await survivor as HistoryEntry; assert.equal(result.host!.status, 'accepted'); assert.equal(calls, 1);
   }
+});
+
+test('共享 submit 生命周期：连接断开或 adapter 卸载中止工作，迟到 prompt 不落 accepted', async t => {
+  for (const mode of ['connection', 'adapter'] as const) await t.test(mode, async t => {
+    const f = await setup(t); const e = (await f.client.list())[0]!;
+    let release!: () => void; let entered!: () => void; let internal: AbortSignal | undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; }); const started = new Promise<void>(resolve => { entered = resolve; });
+    f.ctx.sessionController.prompt = async (_request, jobSignal) => { internal = jobSignal; entered(); await gate; return { accepted: true }; }; // Deliberately ignores cancellation.
+    const request = { sessionId: f.a.id, ref: { asset_id: e.asset_id, revision_id: e.revision_id }, requestId: `lifecycle-${mode}` };
+    const waiter = new AbortController(); const result = f.adapter.rpc('amoji/submit', request, waiter.signal);
+    await started;
+    const cancelled = assert.rejects(result, /waiter cancelled/); waiter.abort(new Error('waiter cancelled')); await cancelled;
+    assert.equal(internal!.aborted, false, '只有 waiter 取消时工作仍可继续');
+    try {
+      if (mode === 'connection') await f.client.close();
+      else for (const dispose of f.disposers.reverse()) await dispose();
+      assert.equal(internal!.aborted, true, '连接或 adapter 生命周期必须传播给独立 job');
+    } finally { release(); await new Promise(resolve => setTimeout(resolve, 20)); }
+    assert.equal(f.a.events.some(event => event.type === 'amoji/accepted'), false, '迟到成功不能越过生命周期终止写 accepted');
+    await assert.rejects(f.adapter.rpc('amoji/submit', { ...request, requestId: 'after-lifecycle' }, signal()));
+  });
 });

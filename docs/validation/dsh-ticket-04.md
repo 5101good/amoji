@@ -19,7 +19,7 @@ Host 注册 `amoji_search` / `amoji_resolve` / `amoji_emit`。`amoji_resolve` �
 
 浏览器通过已认证 Connection 的 `/api` 受限 `amoji/{catalog,history,visual,submit,display}` 端点，不能取得核心凭据或任意文件路径。RPC 只允许确定字段；视觉按有效会话、精确 ref 和消息归属验证后读取核心 blob；data URL 仅返回人类 UI 通道。图片组件核对版本、hash 和 alt，提供静态封面/播放/暂停、加载成功与失败回执，失败显示固定文字。失败细节保存为 `amoji/display` 事件，核心已有 `fallback` 状态继续兼容。回执保存失败会显示错误。
 
-用户输入通过 `sessionController.prompt`，content 只有核心语义 text。共享核心 `requestId` 幂等映射 messageId，宿主请求稳定为 `amoji:<messageId>`；`amoji/submission` 记录该关系，`amoji/accepted` 只记录 inbox accepted。历史读取 `source.rpcId` 对应的 `user/message`，返回真实 host message ID / seq 和此前 `turn/start`，不把 accepted 当完整投递或人类已读。提交前要求 `sessions.flush` 存在参与的持久化监听；缺少监听或失败都拒绝发送。重试始终沿用原 ID。同 key 的幂等 submit job 使用独立 30 秒协作超时，各 RPC waiter 的 abort 只结束自身等待；包括首个 waiter 在内，均不影响其他等待者。所有等待者取消后，已接纳的 job 仍继续完成并保存结果，不重新投递或丢掉未知状态；宿主必须合作响应 timeout signal，不能将超时信号称为强制终止。
+用户输入通过 `sessionController.prompt`，content 只有核心语义 text。共享核心 `requestId` 幂等映射 messageId，宿主请求稳定为 `amoji:<messageId>`；`amoji/submission` 记录该关系，`amoji/accepted` 只记录 inbox accepted。历史读取 `source.rpcId` 对应的 `user/message`，返回真实 host message ID / seq 和此前 `turn/start`，不把 accepted 当完整投递或人类已读。提交前要求 `sessions.flush` 存在参与的持久化监听；缺少监听或失败都拒绝发送。重试始终沿用原 ID。同 key 的幂等 submit job 使用独立 30 秒协作超时，并与共享连接 connectionSignal 及 adapter effect 卸载信号组合，各 RPC waiter 的 abort 只结束自身等待；包括首个 waiter 在内，均不影响其他等待者。所有等待者取消后，连接和 adapter 仍存活的已接纳 job 可以继续完成并保存结果，不重新投递或丢掉未知状态；连接断开或 adapter 卸载则中止 job，prompt 返回后再次核对信号，迟到成功不会写入 accepted；宿主必须合作响应 timeout signal，不能将超时信号称为强制终止。
 
 公共服务保持 API 2 / 数据库 1，新增可选能力 `dsh-idle-submission-v1`。只允许 dsh 的 idle submission/history/display 绑定省略 turn；Codex/Claude 仍必需真实 turn；AI search / emit 在核心再次拒绝空 turn。ConnectedRuntime 的每操作 bind/unbind 继续复用。
 

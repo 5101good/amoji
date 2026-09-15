@@ -19,7 +19,13 @@ function record(value: unknown): Record<string, unknown> { return value && typeo
 
 export class DshAdapter {
   private readonly pending = new Map<string, { ref: ExpressionRef; work: Promise<HistoryEntry> }>();
-  constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) { nonempty(hostInstanceId); }
+  private readonly lifecycle: AbortSignal;
+  constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) {
+    nonempty(hostInstanceId);
+    const disposed = new AbortController();
+    this.lifecycle = AbortSignal.any([disposed.signal, ...(runtime.connectionSignal ? [runtime.connectionSignal] : [])]);
+    ctx.effect(() => () => disposed.abort(new Error('DSH_ADAPTER_DISPOSED')), 'amoji: submission lifecycle');
+  }
   private context(sessionId: string): BindingContext { return { host: 'dsh', hostInstanceId: this.hostInstanceId, sessionId }; }
   private capture(exec: DshExecution): { context: BindingContext; check(): void } {
     const agent = exec.agent;
@@ -77,6 +83,8 @@ export class DshAdapter {
     });
   }
   async rpc(endpoint: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
+    signal = AbortSignal.any([signal, this.lifecycle]);
+    signal.throwIfAborted();
     const allowed: Record<string, string[]> = { catalog: ['sessionId'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const args = object(raw, keys, method === 'visual' ? ['sessionId', 'ref'] : keys); const sessionId = nonempty(args.sessionId);
@@ -110,8 +118,9 @@ export class DshAdapter {
     if (!job) {
       // Once admitted, the idempotent job continues even with no UI waiters. A
       // browser disconnect cannot cancel another retry or erase its saved outcome.
-      // The Host receives a separate cooperative 30-second admission deadline.
-      job = { ref, work: this.submit(sessionId, ref, requestId, AbortSignal.timeout(30000)) };
+      // Shared connection loss or adapter teardown still owns and cancels the job.
+      const jobSignal = AbortSignal.any([AbortSignal.timeout(30000), this.lifecycle]);
+      job = { ref, work: this.submit(sessionId, ref, requestId, jobSignal) };
       this.pending.set(key, job);
       const completed = () => { if (this.pending.get(key) === job) this.pending.delete(key); };
       void job.work.then(completed, completed);
@@ -136,10 +145,14 @@ export class DshAdapter {
     await this.flush(session);
     signal.throwIfAborted();
     const result = await this.ctx.sessionController.prompt({ sessionId, requestId: hostRequestId, mode: 'queue', content: [{ type: 'text', text: modelProjection(message.revision) }] }, signal);
+    signal.throwIfAborted();
     if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
     if (!session.snapshotEvents().some(e => e.type === 'amoji/accepted' && record(e.data).requestId === hostRequestId)) session.append('amoji/accepted', { requestId: hostRequestId, messageId: message.message_id });
     await this.flush(session);
-    return (await this.rows(sessionId, session.snapshotEvents())).find(r => r.message.message_id === message.message_id)!;
+    signal.throwIfAborted();
+    const entry = (await this.rows(sessionId, session.snapshotEvents())).find(r => r.message.message_id === message.message_id)!;
+    signal.throwIfAborted();
+    return entry;
   }
 }
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {

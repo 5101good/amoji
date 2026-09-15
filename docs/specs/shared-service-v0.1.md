@@ -85,3 +85,24 @@ await client.close();
 | `REQUEST_CONFLICT` | 同一用户请求 ID 不能变更所选版本 |
 
 `npm run typecheck` 与 `npm test` 执行公开服务、真实独立 MCP、面板、迁移和独立产物检查；`tests/plugin-artifact.test.ts` 同时运行编译和插件构建。进程测试全部使用各自临时数据根，不启动真实模型，也不改用户安装配置。测试覆盖 macOS arm64 / Node 24.19.0；Linux/Windows 路径实现不是跨 OS 宿主实测。新版安装版 Codex Desktop 三样本收发、双任务、回放与实际请求检查由本票主控另行执行，不能用这些合同测试代替。
+
+## Claude Hook 票据扩展（票据 03）
+
+API 版本保持 2，数据库保持 1。`identity.capabilities` 可选数组新增 `claude-hook-tickets-v1`；旧 API 2 Codex 客户端忽略此字段，其绑定、搜索和消息语义保持不变。Claude 通过 `connect({requiredCapabilities:['claude-hook-tickets-v1']})` 在连接前检查能力；旧 API 2 服务没有此能力时抛出 `CAPABILITY_UNAVAILABLE`，不替换或重启运行中的服务。客户端的票据方法也检查此能力。
+
+| 新增方法 | 可信输入 | 输出 |
+|---|---|---|
+| `issueClaudeTicket` | `{sessionId,promptId,invocationId,toolName,argumentsDigest}`，由 PreToolUse 读取宿主 stdin | `{ticket,expiresAt}` |
+| `redeemClaudeTicket` | `{ticket,toolName,argumentsDigest,invocationId?}`，由 MCP 适配层构造 | `{context:{host:'claude-code',hostInstanceId:'local',sessionId,turnId},invocationId}` |
+
+这两个方法是同一共享服务的受凭据保护本地 RPC，不是模型工具或浏览器端点。仅接受 `mcp__plugin_amoji_amoji__amoji_(search|resolve|emit|pick)`。签发记录固定真实身份、完整工具名和除 `_amoji_ticket` 外全部业务参数的 SHA-256 摘要。摘要按排序后的工具参数生成；当前工具只接受 primitive 参数值，不接受额外身份或语义字段。
+
+票据使用 256 位随机值，仅保存在现有服务内存，有效期两分钟、单次兑换。Hook 连接关闭不删除票据；服务重启会清空票据。相同 invocation 的相同签发在有效期内返回原票据，冲突拒绝；已兑换的重放拒绝。过期记录定期或签发时清理，最多保留 10000 条，达到容量后拒绝签发。此临时凭据不承担持久消息去重；已保存消息和选择凭据继续由核心负责。
+
+Hook 缺失 `session_id`、`prompt_id` 或 `tool_use_id` 即拒绝，不从 PID、CWD、转录、模型参数或工具 ID 推测回合；`agent_id` 或 `agent_type` 存在时拒绝，v0.1 不支持子代理及自定义 agent。Hook 覆盖保留字段，输出整份 `updatedInput`，省略 `permissionDecision`，仍经过宿主正常审批。MCP 兑换并剥离票据，只将返回的可信 context 交给 `ConnectedRuntime`，每次操作在 `finally` 释放绑定。可选 `_meta['claudecode/toolUseId']` 若出现会附加核对；默认路径不依赖这个未公开稳定性的字段。
+
+新增失败包括 `CLAUDE_CONTEXT_UNAVAILABLE`、`CLAUDE_SUBAGENT_UNSUPPORTED`、`CLAUDE_INVOCATION_CONFLICT`、`CLAUDE_TICKET_UNAVAILABLE`、`CLAUDE_TICKET_MISMATCH`、`CLAUDE_TICKET_CONSUMED`、`CLAUDE_TICKET_EXPIRED`、`CLAUDE_TICKET_CAPACITY`。缺失或已被清理的过期票据返回 unavailable，尚在内存但已过期返回 expired。审批超过有效期后须重新发起调用，不自动重发未知结果。
+
+Claude 普通插件的视觉在同一配套面板呈现，`amoji_emit` 不返回 Codex 专用的本地图像 Markdown；仅返回固定文字投影、消息状态和面板链接。`panel_opened` 只表示 OS 浏览器启动命令成功。面板重连以同一真实 session 读取历史，面板令牌和 URL 可换新，消息 ID 与 revision 不变。`amoji_pick` 必须由明确请求触发并在同次调用内返回文字语义；闲置面板无法主动插入 Claude 会话。未实现 Channels、宿主完成观察或投递确认状态机。
+
+身份合同依据：[官方 Hook 输入与 prompt_id 最低版本](https://code.claude.com/docs/en/hooks#common-input-fields)、[插件 MCP 工具命名](https://code.claude.com/docs/en/hooks#match-mcp-tools)、[PreToolUse 参数修改](https://code.claude.com/docs/en/hooks#pretooluse-decision-control)、[普通插件结构与路径](https://code.claude.com/docs/en/plugins-reference)。完整回合合同要求 Claude Code 2.1.196+；这些官方接口与实际宿主验证分别记录，不能互相替代。

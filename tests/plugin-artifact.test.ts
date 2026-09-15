@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, readdir, realpath, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -60,4 +60,73 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
   const descriptor = JSON.parse(await readFile(join(data, 'service.json'), 'utf8'));
   assert.equal(descriptor.dataRoot, data);
   assert.ok(message.display_markdown.includes(data));
+});
+
+test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Codex 配置', async t => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'amoji-claude-artifact-')));
+  const destination = join(directory, 'Claude plugin with spaces');
+  const codex = join(directory, 'codex'); const data = join(directory, 'data');
+  const root = fileURLToPath(new URL('../', import.meta.url)); const run = promisify(execFile);
+  const client = new Client({ name: 'claude-artifact-test', version: '1' }); let connected = false;
+  t.after(async () => {
+    if (connected) await client.close();
+    try {
+      const descriptor = JSON.parse(await readFile(join(data, 'service.json'), 'utf8'));
+      const api = await import(pathToFileURL(join(destination, 'runtime/src/shared-client.js')).href);
+      await api.stopSharedService(data, descriptor.serviceId);
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    finally { await rm(directory, { recursive: true, force: true }); }
+  });
+  await run('npm', ['run', 'build'], { cwd: root });
+  await run(process.execPath, ['scripts/build-plugin.mjs', codex], { cwd: root });
+  const originalCodex = await readFile(join(codex, '.mcp.json'), 'utf8');
+  // Script entry must be absolute when starting outside the worktree.
+  const built = await run(process.execPath, [join(root, 'scripts/build-claude-plugin.mjs'), destination], { cwd: directory }).then(() => true, () => false);
+  assert.ok(built, '独立 Claude 插件构建入口必须可执行');
+  assert.equal(await readFile(join(codex, '.mcp.json'), 'utf8'), originalCodex);
+  const manifest = JSON.parse(await readFile(join(destination, '.claude-plugin/plugin.json'), 'utf8'));
+  assert.equal(manifest.name, 'amoji');
+  const config = JSON.parse(await readFile(join(destination, '.mcp.json'), 'utf8')).mcpServers.amoji;
+  assert.ok(config.args.every((arg: string) => arg.includes('${CLAUDE_PLUGIN_ROOT}')));
+  const info = JSON.parse(await readFile(join(destination, 'BUILD.json'), 'utf8'));
+  assert.ok(info.requiredCapabilities.includes('claude-hook-tickets-v1'));
+  for (const entry of await readdir(join(destination, 'runtime/node_modules'), { recursive: true, withFileTypes: true })) {
+    if (entry.isSymbolicLink()) assert.ok((await realpath(join(entry.parentPath, entry.name))).startsWith(`${destination}/`));
+  }
+  const hooks = JSON.parse(await readFile(join(destination, 'hooks/hooks.json'), 'utf8')).hooks.PreToolUse;
+  const input = { hook_event_name: 'PreToolUse', session_id: 'artifact', prompt_id: '550e8400-e29b-41d4-a716-446655440000', tool_use_id: 'toolu_artifact', tool_name: 'mcp__plugin_amoji_amoji__amoji_search', tool_input: { query: '加油' } };
+  const selected = hooks.find((group: any) => new RegExp(group.matcher).test(input.tool_name));
+  assert.ok(selected); assert.equal(new RegExp(selected.matcher).test('mcp__plugin_other_amoji__amoji_search'), false);
+  const bin = join(directory, 'bin'); await mkdir(bin);
+  for (const name of ['open', 'xdg-open']) await writeFile(join(bin, name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const env = { PATH: `${bin}:${process.env.PATH ?? ''}`, AMOJI_DATA_DIR: data, CLAUDE_PLUGIN_ROOT: destination };
+  const invokeHook = (input: unknown) => new Promise<string>((resolve, reject) => {
+    const child = execFile('/bin/sh', ['-c', selected.hooks[0].command], { cwd: directory, env }, (err, stdout) => err ? reject(err) : resolve(stdout));
+    child.stdin!.end(JSON.stringify(input));
+  });
+  const hookOutput = await invokeHook(input);
+  const updated = JSON.parse(hookOutput).hookSpecificOutput;
+  assert.equal(updated.permissionDecision, undefined);
+  await client.connect(new StdioClientTransport({ command: config.command, args: config.args.map((arg: string) => arg.replaceAll('${CLAUDE_PLUGIN_ROOT}', destination)), cwd: directory, env, stderr: 'pipe' }));
+  connected = true;
+  const search = await client.callTool({ name: 'amoji_search', arguments: updated.updatedInput });
+  assert.equal(search.isError, undefined, JSON.stringify(search));
+  assert.deepEqual((search.content as any[]).map(c => c.type), ['text']);
+  assert.equal(JSON.parse((search.content as any[])[0].text).candidates[0].name, '一步一步来');
+  const candidate = JSON.parse((search.content as any[])[0].text).candidates[0];
+  const emitArgs = JSON.parse(await invokeHook({ ...input, tool_use_id: 'toolu_artifact_emit', tool_name: 'mcp__plugin_amoji_amoji__amoji_emit', tool_input: { selection_token: candidate.selection_token } })).hookSpecificOutput.updatedInput;
+  const sent = await client.callTool({ name: 'amoji_emit', arguments: emitArgs });
+  assert.equal(sent.isError, undefined, JSON.stringify(sent));
+  assert.deepEqual((sent.content as any[]).map(c => c.type), ['text']);
+  const message = JSON.parse((sent.content as any[])[0].text);
+  const panel = new URL(message.panel_url);
+  assert.match(await (await fetch(panel.origin)).text(), /表情选择器/);
+  const headers = { Authorization: `Bearer ${panel.hash.slice(1)}` };
+  const state = await (await fetch(`${panel.origin}/api/state`, { headers })).json();
+  assert.equal(state.host, 'claude-code'); assert.equal(state.messages[0].message_id, message.message_id);
+  for (const blob of [state.messages[0].revision.visual.primary, state.messages[0].revision.visual.poster]) {
+    const response = await fetch(`${panel.origin}/blobs/${blob.sha256}`, { headers });
+    assert.equal(response.status, 200); assert.equal((await response.arrayBuffer()).byteLength, blob.bytes);
+  }
+  assert.equal(JSON.parse(await readFile(join(data, 'service.json'), 'utf8')).dataRoot, data);
 });

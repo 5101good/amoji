@@ -3,11 +3,11 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
-interface ConnectOptions { directory?: string; apiRange?: ApiRange }
+interface ConnectOptions { directory?: string; apiRange?: ApiRange; requiredCapabilities?: string[] }
 
 /** Public adapter boundary. Only trusted adapter code may supply bind context. */
 export class SharedClient {
@@ -25,6 +25,9 @@ export class SharedClient {
     const range = options.apiRange ?? { min: API_VERSION, max: API_VERSION };
     const descriptor = await discover(directory, range);
     const identity = await health(descriptor, range);
+    for (const capability of options.requiredCapabilities ?? []) {
+      if (!identity.capabilities?.includes(capability)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${capability}；请更新服务后重新连接`);
+    }
     const client = new SharedClient(descriptor, identity);
     const response = await fetch(`${descriptor.origin}/connect`, { headers: headers(descriptor), signal: client.lease.signal });
     if (!response.ok || !response.body) { await decoded(response); fail('CONNECTION_FAILED', '无法建立服务连接'); }
@@ -51,6 +54,11 @@ export class SharedClient {
     return (await decoded(response)).result as T;
   }
   bind(context: BindingContext): Promise<string> { return this.call('bind', context); }
+  private requireClaudeTickets(): void {
+    if (!this.identity.capabilities?.includes(CLAUDE_TICKET_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${CLAUDE_TICKET_CAPABILITY}`);
+  }
+  issueClaudeTicket(invocation: ClaudeHookInvocation): Promise<{ ticket: string; expiresAt: number }> { this.requireClaudeTickets(); return this.call('issueClaudeTicket', invocation); }
+  redeemClaudeTicket(request: ClaudeTicketRequest): Promise<ClaudeTicketContext> { this.requireClaudeTickets(); return this.call('redeemClaudeTicket', request); }
   unbind(binding: string): Promise<void> { return this.call('unbind', { binding }); }
   list(): Promise<Expression[]> { return this.call('list', {}); }
   resolve(ref: ExpressionRef): Promise<Expression> { return this.call('resolve', ref); }

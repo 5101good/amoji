@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^mcp__plugin_amoji_amoji__amoji_(search|resolve|emit|pick)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/runtime/src/claude-hook.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

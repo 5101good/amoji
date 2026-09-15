@@ -1,0 +1,6 @@
+{
+  "name": "amoji",
+  "version": "0.1.0-dev.1",
+  "author": { "name": "Amoji" },
+  "description": "Amoji：在 Claude Code 中使用固定文字语义，并通过配套本地面板收发表情。需要 Claude Code 2.1.196+ 与 Node.js 24+。"
+}

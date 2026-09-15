@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import type { HostContext } from './codex-context.js';
+import { sessionKey, type BindingContext as HostContext } from './shared-contract.js';
 import type { SampleMessage } from './sample-runtime.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
 
@@ -30,18 +30,25 @@ export class PanelServer {
   }
 
   url(context: HostContext): string {
-    const key = `${context.host}:${context.sessionId}`;
+    const key = sessionKey(context);
     let session = this.sessions.get(key);
     if (!session) {
       session = { context: { ...context }, capability: randomBytes(32).toString('base64url'), completed: new Map() };
       this.sessions.set(key, session);
     }
+    if (!session.pending) session.context = { ...context };
     return `${this.origin}/#${session.capability}`;
+  }
+
+  async show(context: HostContext): Promise<string> {
+    const url = this.url(context);
+    await this.open(url);
+    return url;
   }
 
   pick(context: HostContext, signal: AbortSignal): Promise<SampleMessage> {
     const url = this.url(context);
-    const session = this.sessions.get(`${context.host}:${context.sessionId}`)!;
+    const session = this.sessions.get(sessionKey(context))!;
     if (session.pending) return Promise.reject(new Error('该会话已有待选请求'));
     if (signal.aborted) return Promise.reject(new Error('选择已取消'));
     session.context = { ...context };
@@ -92,7 +99,7 @@ export class PanelServer {
     }
     const token = req.headers.authorization?.replace(/^Bearer /, '');
     const session = [...this.sessions.values()].find(s => s.capability === token);
-    if (!session) { this.json(res, 401, { error: '请从当前 Codex 会话重新打开选择器' }); return; }
+    if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
     }

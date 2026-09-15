@@ -3,10 +3,14 @@ import { resolve } from 'node:path';
 
 export const API_VERSION = 2;
 export const DATABASE_VERSION = 1;
+export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';
 export interface ApiRange { min: number; max: number }
-export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number }
+export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number; capabilities?: string[] }
 export interface ServiceDescriptor extends ServiceIdentity { origin: string; secret: string }
 export interface BindingContext { host: 'codex' | 'claude-code' | 'dsh'; hostInstanceId?: string; sessionId: string; turnId: string }
+export interface ClaudeHookInvocation { sessionId: string; promptId: string; invocationId: string; toolName: string; argumentsDigest: string }
+export interface ClaudeTicketRequest { ticket: string; toolName: string; argumentsDigest: string; invocationId?: string }
+export interface ClaudeTicketContext { context: BindingContext; invocationId: string }
 
 export class ServiceError extends Error {
   constructor(readonly code: string, message: string) { super(`${code}：${message}`); }

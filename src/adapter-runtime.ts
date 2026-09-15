@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import type { HostContext } from './codex-context.js';
+import type { BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -19,7 +19,7 @@ export interface AdapterRuntime {
   readBlob?(digest: string): Promise<Buffer>;
 }
 
-/** Codex translates trusted metadata once; all library writes remain in the service. */
+/** Host adapters translate trusted context; all library writes remain in the service. */
 export class ConnectedRuntime implements AdapterRuntime {
   readonly catalog;
   readonly connectionSignal;
@@ -28,7 +28,7 @@ export class ConnectedRuntime implements AdapterRuntime {
     this.catalog = { root: pathToFileURL(`${client.identity.dataRoot}/`), all: () => client.list(), resolve: (ref: ExpressionRef) => client.resolve(ref) };
   }
   private async withBinding<T>(context: HostContext, operation: (binding: string) => Promise<T>): Promise<T> {
-    const binding = await this.client.bind({ ...context, hostInstanceId: 'local' });
+    const binding = await this.client.bind({ ...context, hostInstanceId: context.hostInstanceId ?? 'local' });
     try { return await operation(binding); }
     finally { if (!this.client.signal.aborted) await this.client.unbind(binding); }
   }

@@ -5,6 +5,7 @@ let state;
 let selected;
 let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let previous = '';
+const hostLabel = () => state?.host === 'claude-code' ? 'Claude Code' : 'Codex';
 const blobs = new Map();
 async function api(path, body) {
   const response = await fetch(`/api/${path}`, { headers, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
@@ -57,8 +58,12 @@ async function render() {
   const label = state.session_id.slice(-8);
   document.title = `Amoji · ${label}`;
   $('session').textContent = label;
-  $('session').title = `Codex 会话 ${state.session_id}`;
-  $('connection').textContent = state.pending_pick ? `已关联 Codex · ${label}，正在等待你选择` : `已关联 Codex · ${label}。在会话中调用 /amoji 可再次选择。`;
+  const host = hostLabel();
+  $('session').title = `${host} 会话 ${state.session_id}`;
+  $('send').textContent = `发送到 ${host}`;
+  $('history-hint').textContent = `此 ${host} 会话的表情记录保存在本机，重新打开后仍可查看。`;
+  const skill = state.host === 'claude-code' ? '/amoji:amoji' : '/amoji';
+  $('connection').textContent = state.pending_pick ? `已关联 ${host} · ${label}，正在等待你选择` : `已关联 ${host} · ${label}。在会话中调用 ${skill} 可再次选择。`;
   $('catalog').replaceChildren();
   for (const expression of state.expressions) {
     const button = document.createElement('button'); button.className = 'sticker'; button.dataset.revision = expression.revision_id; button.setAttribute('aria-pressed', 'false');
@@ -91,7 +96,7 @@ $('motion').setAttribute('aria-pressed', String(paused));
 $('send').onclick = async () => {
   if (!selected || !state?.pending_pick) return;
   $('send').disabled = true;
-  try { await api('select', { pick_id: state.pending_pick, asset_id: selected.asset_id, revision_id: selected.revision_id }); $('status').textContent = '已提交固定语义，等待 Codex 处理。'; await refresh(); }
+  try { await api('select', { pick_id: state.pending_pick, asset_id: selected.asset_id, revision_id: selected.revision_id }); $('status').textContent = `已提交固定语义，等待 ${hostLabel()} 处理。`; await refresh(); }
   catch (error) { $('status').textContent = error.message; await refresh(); }
 };
 $('cancel').onclick = async () => { try { await api('cancel', { pick_id: state.pending_pick }); $('status').textContent = '已取消选择。'; await refresh(); } catch (error) { $('status').textContent = error.message; } };

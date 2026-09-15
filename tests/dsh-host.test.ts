@@ -128,7 +128,7 @@ test('没有持久化监听时拒绝用户投递，不把内存 append 当已保
 
 test('三样本在不同真实回合使用同一核心精确版本，模型始终只有文字投影', async t => {
   const f = await setup(t); const catalog = await f.client.list();
-  const multi = await f.call('amoji_search', { query: 'zh-CN', limit: 3 }, f.exec(f.a, 'multi-search'));
+  const multi = await f.call('amoji_search', { query: '时', limit: 3 }, f.exec(f.a, 'multi-search'));
   assert.equal(JSON.parse(f.tools.get('amoji_search')!.output.render({}, multi)[0]!.text).candidates.length, 3);
   for (const [index, expression] of catalog.entries()) {
     f.turns.set(f.a.id, 20 + index);

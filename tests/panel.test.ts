@@ -23,6 +23,13 @@ test('面板点选只完成对应会话的待选请求，其他会话和未授�
   assert.equal((await fetch(`${url.origin}/api/state`, { headers: { ...headers, Origin: 'https://elsewhere.test' } })).status, 403);
   const state = await (await fetch(`${url.origin}/api/state`, { headers })).json();
   const otherState = await (await fetch(`${url.origin}/api/state`, { headers: { Authorization: `Bearer ${other.hash.slice(1)}` } })).json();
+  const searchResponse = await fetch(`${url.origin}/api/search?query=${encodeURIComponent('温暖 支持')}&limit=5`, { headers });
+  assert.equal(searchResponse.status, 200);
+  const searched = await searchResponse.json();
+  assert.deepEqual(searched.expressions.map((expression: { name: string }) => expression.name), ['一步一步来']);
+  assert.deepEqual((await (await fetch(`${url.origin}/api/search?query=${encodeURIComponent('完全不存在')}`, { headers })).json()).expressions, []);
+  assert.equal((await fetch(`${url.origin}/api/search?query=${encodeURIComponent('😀'.repeat(241))}`, { headers })).status, 400);
+  assert.equal((await fetch(`${url.origin}/api/search?query=支持&limit=6`, { headers })).status, 400);
   const expression = state.expressions[0];
   const select = (pickId: string) => fetch(`${url.origin}/api/select`, { method: 'POST', headers, body: JSON.stringify({ pick_id: pickId, asset_id: expression.asset_id, revision_id: expression.revision_id }) });
   assert.equal((await select(otherState.pending_pick)).status, 409);

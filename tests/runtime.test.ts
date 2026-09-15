@@ -31,3 +31,17 @@ test('人工选择生成固定快照，重复提交相同请求不重复发送',
   assert.equal(runtime.messages(context).length, 1);
   assert.throws(() => runtime.receive(context, catalog.all()[1]!, 'click-1'), /已用于其他/);
 });
+
+test('随机选择凭据精确有效五分钟，已消费重试先返回原消息', async () => {
+  let now = 1_000;
+  const runtime = new SampleRuntime(await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)), () => now);
+  const context = { host: 'codex' as const, sessionId: 'expiry', turnId: '1' };
+  const first = runtime.search(context, '庆祝').candidates[0]!;
+  const expiring = runtime.search({ ...context, turnId: '2' }, '庆祝').candidates[0]!;
+  assert.match(first.selection_token, /^[A-Za-z0-9_-]{32}$/);
+  assert.notEqual(first.selection_token, expiring.selection_token);
+  const message = runtime.emit(context, first.selection_token);
+  now += 300_000;
+  assert.throws(() => runtime.emit({ ...context, turnId: '2' }, expiring.selection_token), /过期/);
+  assert.equal(runtime.emit(context, first.selection_token).message_id, message.message_id);
+});

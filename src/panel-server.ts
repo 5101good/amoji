@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { sessionKey, type BindingContext as HostContext } from './shared-contract.js';
 import type { SampleMessage } from './sample-runtime.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
+import { searchExpressions } from './search.js';
 
 interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
@@ -102,6 +103,13 @@ export class PanelServer {
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/search') {
+      try {
+        const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 3;
+        this.json(res, 200, { expressions: searchExpressions(await this.runtime.catalog.all(), url.searchParams.get('query') ?? '', limit) });
+      } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '搜索参数不合法' }); }
+      return;
     }
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);

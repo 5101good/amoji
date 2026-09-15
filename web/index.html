@@ -7,6 +7,11 @@
     <section class="library" aria-labelledby="title">
       <div class="heading"><div><p class="eyebrow">给这一刻，一个表情</p><h1 id="title">不止文字。</h1></div><button id="motion" class="quiet" aria-pressed="false">暂停动图</button></div>
       <p id="connection" role="status">正在关联会话…</p>
+      <form id="search-form" class="search" role="search">
+        <label for="search">搜索名称、标签或语义</label>
+        <div><input id="search" name="query" type="search" autocomplete="off" placeholder="例如：庆祝、鼓励、温暖 支持"><button type="submit">搜索</button><button id="clear-search" class="quiet" type="button">显示全部</button></div>
+        <p id="search-status" role="status" aria-live="polite"></p>
+      </form>
       <div id="catalog" class="catalog" aria-label="表情列表"></div>
       <section id="preview" class="preview" aria-live="polite"><p>选一个表情，看看它想表达什么。</p></section>
       <div class="actions"><button id="send" disabled>发送到当前会话</button><button id="cancel" class="quiet" disabled>取消选择</button><span id="status" role="status"></span></div>

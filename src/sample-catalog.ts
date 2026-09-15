@@ -5,6 +5,7 @@ import { fullFormats } from 'ajv-formats/dist/formats.js';
 import sharp from 'sharp';
 import schema from '../docs/specs/amoji-v0.1.schema.json' with { type: 'json' };
 import type { ExpressionText } from './projection.js';
+import { searchExpressions } from './search.js';
 
 export interface ExpressionRef { asset_id: string; revision_id: string }
 export interface BlobRef { sha256: string; mime: string; bytes: number; width: number; height: number }
@@ -50,9 +51,6 @@ export class SampleCatalog {
   }
 
   search(query: string, limit = 3): Expression[] {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 5) throw new Error('候选数必须为 1–5');
-    const normalized = query.trim().toLocaleLowerCase();
-    if (!normalized || [...normalized].length > 240) throw new Error('查询须为 1–240 字');
-    return this.expressions.filter(e => JSON.stringify([e.name, e.tags, e.semantics]).toLocaleLowerCase().includes(normalized)).slice(0, limit).map(e => structuredClone(e));
+    return searchExpressions(this.expressions, query, limit);
   }
 }

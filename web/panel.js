@@ -5,6 +5,7 @@ let state;
 let selected;
 let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let previous = '';
+let searchVersion = 0;
 const hostLabel = () => state?.host === 'claude-code' ? 'Claude Code' : 'Codex';
 const blobs = new Map();
 async function api(path, body) {
@@ -64,13 +65,7 @@ async function render() {
   $('history-hint').textContent = `此 ${host} 会话的表情记录保存在本机，重新打开后仍可查看。`;
   const skill = state.host === 'claude-code' ? '/amoji:amoji' : '/amoji';
   $('connection').textContent = state.pending_pick ? `已关联 ${host} · ${label}，正在等待你选择` : `已关联 ${host} · ${label}。在会话中调用 ${skill} 可再次选择。`;
-  $('catalog').replaceChildren();
-  for (const expression of state.expressions) {
-    const button = document.createElement('button'); button.className = 'sticker'; button.dataset.revision = expression.revision_id; button.setAttribute('aria-pressed', 'false');
-    button.append(await picture(expression), text('span', expression.name, 'name'));
-    button.onclick = () => { selected = expression; preview(); };
-    $('catalog').append(button);
-  }
+  await applySearch();
   $('messages').replaceChildren();
   if (!state.messages.length) $('messages').append(text('p', '还没有表情。\n一点心意，从这里开始。', 'empty'));
   for (const message of state.messages) {
@@ -80,6 +75,31 @@ async function render() {
     $('messages').append(article);
   }
   preview();
+}
+async function renderCatalog(expressions) {
+  $('catalog').replaceChildren();
+  for (const expression of expressions) {
+    const button = document.createElement('button'); button.className = 'sticker'; button.dataset.revision = expression.revision_id; button.setAttribute('aria-pressed', 'false');
+    button.append(await picture(expression), text('span', expression.name, 'name'));
+    button.onclick = () => { selected = expression; preview(); };
+    $('catalog').append(button);
+  }
+}
+async function applySearch(event) {
+  event?.preventDefault();
+  const version = ++searchVersion;
+  const query = $('search').value;
+  try {
+    const expressions = query.trim() ? (await api(`search?query=${encodeURIComponent(query)}&limit=5`)).expressions : state.expressions;
+    if (version !== searchVersion) return;
+    if (selected && !expressions.some(expression => expression.asset_id === selected.asset_id && expression.revision_id === selected.revision_id)) selected = undefined;
+    await renderCatalog(expressions);
+    $('search-status').textContent = query.trim() ? (expressions.length ? `找到 ${expressions.length} 个候选。` : '没有合适的表情，可以继续用文字表达。') : `当前可选 ${expressions.length} 个表情。`;
+    preview();
+  } catch (error) {
+    if (version !== searchVersion) return;
+    $('search-status').textContent = error.message;
+  }
 }
 async function refresh() {
   try {
@@ -93,6 +113,8 @@ async function refresh() {
 $('motion').onclick = () => { paused = !paused; $('motion').textContent = paused ? '播放动图' : '暂停动图'; $('motion').setAttribute('aria-pressed', String(paused)); if (state) void render(); };
 $('motion').textContent = paused ? '播放动图' : '暂停动图';
 $('motion').setAttribute('aria-pressed', String(paused));
+$('search-form').onsubmit = event => { void applySearch(event); };
+$('clear-search').onclick = () => { $('search').value = ''; void applySearch(); };
 $('send').onclick = async () => {
   if (!selected || !state?.pending_pick) return;
   $('send').disabled = true;

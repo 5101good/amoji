@@ -53,3 +53,9 @@ git diff --check
 4. 双会话交错操作，恢复同一真实 session；比较原 message_id/revision/素材，确认没有串会话或改用最新版本。保留成功及失败证据。
 
 当前产物可通过 `plugins/amoji-claude` 及其 `BUILD.json` 检查。本机产物为 macOS arm64 / Node 24.19.0；Linux/Windows 启动分支未经实机验证。票据两分钟有效，过长审批需重新发起调用；服务重启时临时票据失效，持久消息不丢失。同用户恶意本地程序隔离、完整投递确认/故障恢复、Channels 和其他票据均不在本次范围。
+
+## 独立复核与构建修补
+
+实现提交 `6bfa0d0` 通过独立Spec审查。Standards发现Codex构建器反向覆盖Claude产物的P2问题，修补 `20fee0e` 已在任何写入前拒绝错误宿主目录；新增实际产物测试先复现覆盖，再确认拒绝且清单、配置、Hook、Skill与文件列表不变。针对性检查 `npm run test:file -- --test-name-pattern='生成插件从独立目录|Codex 构建器拒绝' tests/plugin-artifact.test.ts` 为2/2通过，类型检查通过；限定复审确认问题解决且无新增破坏。
+
+本票按“实现与可执行检查完成、宿主未验证”关闭。1项P3测试部分初始化环境/服务清理问题保留到最终整支审查，详见[审查记录](implementation-review-v0.1.md)。没有重跑已有33项全套或真实宿主矩阵。

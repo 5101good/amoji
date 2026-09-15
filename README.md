@@ -1,6 +1,6 @@
 # Amoji
 
-让人看见图像，让 AI 使用同一表情的固定文字语义。当前实现覆盖 **v0.1 票据 01 接入与票据 02 共享本地服务**，仍使用三个受控样本，不是完整 v0.1 产品。
+让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **Codex 接入、共享本地服务和 Claude Code 适配**，仍使用三个受控样本，不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
 
 已实现静态图、短循环 WebP、文字检索与精确版本解析、绑定会话/回合的选择凭据、幂等发送、本地选择面板和 Codex 插件包。独立共享服务统一保存不可变版本、当前库条目、素材、消息快照、展示回执和选择凭据；MCP 进程通过公共客户端访问。多个适配器使用相同库，消息按可信宿主实例与会话隔离。公共接口与后续适配方法见 [共享服务合同](docs/specs/shared-service-v0.1.md)。
 
@@ -43,6 +43,12 @@ codex plugin add amoji@personal
 
 macOS 默认数据目录继续使用 `~/Library/Application Support/Amoji/prototype`，保留原命名以兼容已发本地图片引用。新服务写入 `library.sqlite` 与 `blobs/`；首次启动只读复制旧 `messages.sqlite` 和 `samples/` 中的数据，原文件保留且不改写。以后以共享库为准，不反复从旧原型合并。测试可用 `AMOJI_DATA_DIR` 隔离。重新关联同一真实会话后可读取完整消息与固定视觉；旧面板能力凭据失效。编辑、完整故障恢复和升级/卸载界面仍属于后续票据。
 
+## Claude Code 适配
+
+Claude Code 普通插件复用同一个共享服务和面板，通过 PreToolUse Hook 将可信会话、回合与调用关联到 MCP；模型只收到固定文字语义。其独立插件构建命令为 `node scripts/build-claude-plugin.mjs`，默认生成 `plugins/amoji-claude`，与 Codex 使用各自的启动配置。
+
+Hook、MCP、面板和独立产物已执行本地合同检查；**真实 Claude 宿主尚未验证**。完整适配要求 Claude Code 2.1.196+ 的公开 `prompt_id` 合同，本机2.1.177未登录，按用户授权跳过真机。构建与使用步骤见 [Claude 插件说明](plugins/amoji-claude/README.md)，检查范围及补验条件见 [03 验证记录](docs/validation/claude-ticket-03.md)。
+
 ## 实测脚本
 
 这些脚本会使用本机 Codex 登录状态发起真实模型调用。仅观测调用结构，不保存认证头或原始模型请求。
@@ -59,4 +65,4 @@ AMOJI_RESUME_THREAD=<测试会话ID> node scripts/probes/live-tools.mjs
 
 探针要求预期工具成功且实际请求中图像输入为零，单有 Codex 进程退出码 0 不会通过。原始调用事件只保留在临时测试目录；仓库中的 [验收证据](docs/validation/codex-ticket-01.md) 是去除本地能力凭据后的摘要。
 
-完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现创作/导入导出、用户设置、Claude Code / dsh 适配及 20–30 个基础表情。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
+完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现完整创作/导入导出、用户设置、dsh 适配及 20–30 个基础表情。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。

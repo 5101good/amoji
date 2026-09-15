@@ -45,8 +45,9 @@ test('面板真实 DOM 以同一版本封面响应减少动态效果、显式播
   dom.window.document.querySelector<HTMLButtonElement>('#motion')!.click();
   await eventually(() => requested.some(value => value === `/blobs/${expression.visual.primary.sha256}`));
   assert.equal(dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent, '暂停动图');
+  const beforeReducedRender = dom.window.document.querySelector<HTMLImageElement>('#messages img');
   motionListener?.({ matches: true });
-  await eventually(() => dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent === '播放动图');
+  await eventually(() => dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent === '播放动图' && dom.window.document.querySelector<HTMLImageElement>('#messages img') !== beforeReducedRender);
 
   const historyImage = dom.window.document.querySelector<HTMLImageElement>('#messages img')!;
   historyImage.dispatchEvent(new dom.window.Event('error'));
@@ -186,4 +187,134 @@ test('面板搜索反序完成时只一次提交最新 DOM、状态与选择', a
   assert.equal(dom.window.document.querySelector<HTMLButtonElement>('#catalog .sticker')!.getAttribute('aria-pressed'), 'true');
   dom.window.document.querySelector<HTMLButtonElement>('#send')!.click(); await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(selections, [{ pick_id: 'pick-race', asset_id: awkward.asset_id, revision_id: awkward.revision_id }]);
+});
+
+for (const scenario of [
+  { name: '播放后立即暂停', reduced: true, slow: 'primary', final: 'poster' },
+  { name: '暂停后立即播放', reduced: false, slow: 'poster', final: 'primary' },
+] as const) test(`面板${scenario.name}时只原子提交最新一轮历史`, async t => {
+  const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
+  const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8'));
+  const expression = manifest.expressions.find((value: { visual: { animated: boolean } }) => value.visual.animated)!;
+  const state = { host: 'codex', session_id: `thread-${scenario.slow}`, turn_id: 'turn-1', pending_pick: null, expressions: [], messages: [{ message_id: `message-${scenario.slow}`, direction: 'ai_to_human', revision: expression, presentation: 'pending' }] };
+  const slowDigest = expression.visual[scenario.slow].sha256;
+  let releaseSlow!: () => void;
+  let slowStarted!: () => void;
+  const slowGate = new Promise<void>(resolve => { releaseSlow = resolve; });
+  const slowRequest = new Promise<void>(resolve => { slowStarted = resolve; });
+  let delaySlow = false;
+  const fakeFetch = async (input: string | URL | Request) => {
+    const value = String(input);
+    if (value.startsWith('/api/state')) return Response.json(state);
+    if (value === `/blobs/${slowDigest}` && delaySlow) { slowStarted(); await slowGate; }
+    if (value.startsWith('/blobs/')) return { ok: true, blob: async () => ({ digest: value.slice('/blobs/'.length) }) } as unknown as Response;
+    return Response.json({ ok: true });
+  };
+  const dom = new JSDOM(html, { url: `http://127.0.0.1:43123/#race-${scenario.slow}`, runScripts: 'outside-only' });
+  const globals = globalThis as Record<string, unknown>;
+  const names = ['document', 'location', 'matchMedia', 'fetch', 'addEventListener', 'setInterval'];
+  const original = new Map(names.map(name => [name, globals[name]]));
+  const originalCreateObjectURL = URL.createObjectURL;
+  t.after(() => {
+    dom.window.close(); URL.createObjectURL = originalCreateObjectURL;
+    for (const name of names) original.get(name) === undefined ? delete globals[name] : globals[name] = original.get(name);
+  });
+  URL.createObjectURL = (blob: Blob) => `blob:${(blob as unknown as { digest: string }).digest}`;
+  Object.assign(globals, { document: dom.window.document, location: dom.window.location, matchMedia: () => ({ matches: scenario.reduced, addEventListener: () => {} }), fetch: fakeFetch, addEventListener: () => {}, setInterval: () => 0 });
+  await import(`${new URL('../web/panel.js', import.meta.url).href}?render-race=${scenario.slow}-${Date.now()}`);
+  await eventually(() => dom.window.document.querySelectorAll('#messages article').length === 1);
+
+  delaySlow = true;
+  const motion = dom.window.document.querySelector<HTMLButtonElement>('#motion')!;
+  motion.click();
+  await slowRequest;
+  motion.click();
+  const finalDigest = expression.visual[scenario.final].sha256;
+  await eventually(() => dom.window.document.querySelector<HTMLImageElement>('#messages img')?.src === `blob:${finalDigest}`);
+  releaseSlow();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(dom.window.document.querySelectorAll('#messages article').length, 1);
+  assert.equal(dom.window.document.querySelectorAll('#messages img').length, 1);
+  assert.equal(dom.window.document.querySelector<HTMLImageElement>('#messages img')!.src, `blob:${finalDigest}`);
+});
+
+test('面板共享同摘要加载并在 bfcache 恢复后重绘，最终回收全部对象 URL', async t => {
+  const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
+  const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8'));
+  const expression = manifest.expressions.find((value: { visual: { animated: boolean } }) => value.visual.animated)!;
+  const other = manifest.expressions.find((value: { visual: { animated: boolean } }) => !value.visual.animated)!;
+  const state = { host: 'codex', session_id: 'thread-cache', turn_id: 'turn-1', pending_pick: null, expressions: [], messages: [{ message_id: 'message-cache', direction: 'ai_to_human', revision: expression, presentation: 'pending' }] };
+  const mainDigest = expression.visual.primary.sha256;
+  const fetchCounts = new Map<string, number>();
+  let releaseMain!: () => void;
+  let mainStarted!: () => void;
+  let releaseOther!: () => void;
+  let otherStarted!: () => void;
+  const mainGate = new Promise<void>(resolve => { releaseMain = resolve; });
+  const mainRequest = new Promise<void>(resolve => { mainStarted = resolve; });
+  const otherGate = new Promise<void>(resolve => { releaseOther = resolve; });
+  const otherRequest = new Promise<void>(resolve => { otherStarted = resolve; });
+  const listeners = new Map<string, (event: { persisted: boolean }) => void>();
+  let intervalCallback!: () => void;
+  const created: string[] = [];
+  const revoked: string[] = [];
+  let delayMain = false;
+  const fakeFetch = async (input: string | URL | Request) => {
+    const value = String(input);
+    if (value.startsWith('/api/state')) return Response.json(state);
+    if (value.startsWith('/blobs/')) {
+      const digest = value.slice('/blobs/'.length);
+      fetchCounts.set(digest, (fetchCounts.get(digest) ?? 0) + 1);
+      if (digest === mainDigest && delayMain) { mainStarted(); await mainGate; }
+      if (digest === other.visual.primary.sha256) { otherStarted(); await otherGate; }
+      return { ok: true, blob: async () => ({ digest }) } as unknown as Response;
+    }
+    return Response.json({ ok: true });
+  };
+  const dom = new JSDOM(html, { url: 'http://127.0.0.1:43123/#cache-capability', runScripts: 'outside-only' });
+  const globals = globalThis as Record<string, unknown>;
+  const names = ['document', 'location', 'matchMedia', 'fetch', 'addEventListener', 'setInterval'];
+  const original = new Map(names.map(name => [name, globals[name]]));
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
+  t.after(() => {
+    dom.window.close(); URL.createObjectURL = originalCreateObjectURL; URL.revokeObjectURL = originalRevokeObjectURL;
+    for (const name of names) original.get(name) === undefined ? delete globals[name] : globals[name] = original.get(name);
+  });
+  URL.createObjectURL = (blob: Blob) => { const url = `blob:${(blob as unknown as { digest: string }).digest}:${created.length}`; created.push(url); return url; };
+  URL.revokeObjectURL = url => { revoked.push(url); };
+  Object.assign(globals, {
+    document: dom.window.document, location: dom.window.location, matchMedia: () => ({ matches: true, addEventListener: () => {} }), fetch: fakeFetch, setInterval: (callback: () => void) => { intervalCallback = callback; return 0; },
+    addEventListener: (type: string, listener: (event: { persisted: boolean }) => void) => { listeners.set(type, listener); },
+  });
+  await import(`${new URL('../web/panel.js', import.meta.url).href}?cache=${Date.now()}`);
+  await eventually(() => dom.window.document.querySelectorAll('#messages article').length === 1);
+
+  delayMain = true;
+  const motion = dom.window.document.querySelector<HTMLButtonElement>('#motion')!;
+  motion.click();
+  await mainRequest;
+  motion.click();
+  motion.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fetchCounts.get(mainDigest), 1);
+  releaseMain();
+  await eventually(() => dom.window.document.querySelector<HTMLImageElement>('#messages img')?.src.startsWith(`blob:${mainDigest}:`) === true);
+
+  listeners.get('pagehide')!({ persisted: true });
+  assert.deepEqual(revoked, []);
+  dom.window.document.querySelector('#messages')!.replaceChildren();
+  listeners.get('pageshow')!({ persisted: true });
+  await eventually(() => dom.window.document.querySelectorAll('#messages article').length === 1);
+  assert.equal(fetchCounts.get(mainDigest), 1);
+
+  state.messages.push({ message_id: 'message-dispose', direction: 'human_to_ai', revision: other, presentation: 'pending' });
+  intervalCallback();
+  await otherRequest;
+  listeners.get('pagehide')!({ persisted: false });
+  releaseOther();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(created.some(url => url.includes(other.visual.primary.sha256)), false);
+  assert.deepEqual(new Set(revoked), new Set(created));
+  assert.equal(revoked.length, created.length);
 });

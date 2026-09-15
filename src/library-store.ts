@@ -8,6 +8,7 @@ import { SampleCatalog, type BlobRef, type Expression, type ExpressionRef } from
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import { DATABASE_VERSION, fail, sessionKey, type BindingContext } from './shared-contract.js';
 import { buildSearchResult, searchExpressions } from './search.js';
+import { validateExpressionMedia } from './media.js';
 
 interface Session { bindingId: string; messages: SampleMessage[]; emittedTurns: string[]; received: Array<[string, string]> }
 interface Selection { context: BindingContext; ref: ExpressionRef; expires: number; messageId?: string }
@@ -80,14 +81,24 @@ export class LibraryStore {
       if (prior && !isDeepStrictEqual(prior, expression)) fail('REVISION_CONFLICT', '同一版本不能改变已确认定义');
       checked.set(key, expression);
     }
+    const validated = new Map<string, Buffer>();
+    for (const expression of checked.values()) {
+      const source = sources.get(`${expression.asset_id}:${expression.revision_id}`);
+      await validateExpressionMedia(expression, async blob => {
+        const destination = join(this.directory, 'blobs', blob.sha256);
+        const bytes = await exists(destination)
+          ? await readFile(destination)
+          : await readFile(new URL(`blobs/${blob.sha256}`, source!));
+        validated.set(blob.sha256, bytes);
+        return bytes;
+      });
+    }
     for (const expression of checked.values()) {
       for (const blob of [expression.visual.primary, expression.visual.poster].filter((b): b is BlobRef => !!b)) {
         const destination = join(this.directory, 'blobs', blob.sha256);
-        if (await exists(destination)) { await this.verifyBlob(blob); continue; }
-        const bytes = await readFile(new URL(`blobs/${blob.sha256}`, sources.get(`${expression.asset_id}:${expression.revision_id}`)!));
-        verify(bytes, blob);
+        if (await exists(destination)) continue;
         const temporary = `${destination}.${randomUUID()}.tmp`;
-        await writeFile(temporary, bytes, { mode: 0o600 });
+        await writeFile(temporary, validated.get(blob.sha256)!, { mode: 0o600 });
         await rename(temporary, destination);
       }
     }

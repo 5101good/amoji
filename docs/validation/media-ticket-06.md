@@ -4,7 +4,7 @@
 
 ## 公共媒体接缝
 
-`src/media.ts` 暴露 `MEDIA_LIMITS`、`validateMediaBlob(bytes, declaration, expected)` 和 `validateExpressionMedia(expression, readBlob)`。`SampleCatalog.load` 已改为经过整体接缝，因此当前真实持久库种子和以后复用该入口的创建/导入会采用同一规则。
+`src/media.ts` 暴露 `MEDIA_LIMITS`、`validateMediaBlob(bytes, declaration, expected)` 和 `validateExpressionMedia(expression, readBlob)`。`SampleCatalog.load` 和首次共享库迁移都经过整体接缝，因此当前真实持久库种子、旧 `revision_definitions`、历史消息快照，以及以后复用该入口的创建/导入采用同一规则。迁移会先完整验证全部版本，再写 blob、revision 和 initialized 标记；失败时旧库不变且新库不产生可用的半成品。
 
 验证顺序如下：
 
@@ -22,6 +22,8 @@
 
 面板历史直接渲染 `message.revision` 快照；dsh 历史 RPC 用 `messageId + ref + visualHash + posterHash + alt` 核对同一会话的精确版本。播放状态不写回版本或语义。浏览器 `error` 显示原 fallback 与“浏览器无法解码图片”，服务端缺失/损坏显示原 fallback 与对应错误码；两者都记录 fallback/failed 展示事实，不调用模型或替换同名图片。
 
+面板每轮重绘冻结对应的 state 和 paused，以 generation 隔离迟到结果；历史先在离屏 fragment 中完整构建，再由仍为当前的轮次一次替换。只有已经提交且仍为当前的轮次可以发送 rendered/fallback 回执。对象 URL 对同一摘要共享一个 in-flight 请求，失败会移除待处理项；bfcache 的 `pagehide.persisted` 保留仍有效的 URL，恢复时重绘，最终离开则中止未完成请求并回收全部已创建 URL。
+
 共享面板 blob 边界在返回字节前继续调用 `blobPath` 的保留字节完整性检查。缺失素材返回 404，摘要损坏返回 422；测试实际破坏临时数据根中的已保留文件，确认没有 200 图片体。
 
 ## 已执行检查
@@ -32,6 +34,8 @@
 | 受影响回归 | `npm run build:dsh && npx tsx --test tests/media.test.ts tests/samples.test.ts tests/panel-ui.test.ts tests/panel.test.ts tests/shared-panel.test.ts tests/shared-service.test.ts tests/dsh-client.test.ts tests/dsh-host.test.ts tests/mcp.test.ts tests/projection.test.ts`：39/39 通过，退出码 0 |
 | 类型检查 | `npm run typecheck`：退出码 0 |
 | 构建 | `npm run build`：退出码 0 |
+| 审查修补红灯 | 受控慢主图/封面使旧实现双向切换后均留下 2 条历史；同摘要旧实现请求 3 次；截断旧版本媒体未被拒绝迁移 |
+| 审查修补回归 | `npx tsx --test tests/panel-ui.test.ts tests/shared-migration.test.ts`：10/10 通过，退出码 0；覆盖双向切换唯一历史、最终主图/封面、bfcache 恢复、并发同摘要一次请求、最终/未完成 URL 回收及截断迁移原子失败 |
 
 未重复票据 01/02 的真实模型矩阵或完整三端产物套件，未修改用户安装/配置，未调用真实宿主模型。正常模型工具仍只产生固定文字投影；Codex 已验证的 `emit.display_markdown` 入口未改变。
 

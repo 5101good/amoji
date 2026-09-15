@@ -1,6 +1,6 @@
 # Amoji
 
-让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **Codex 接入、共享本地服务和 Claude Code 适配**，仍使用三个受控样本，不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
+让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **共享本地服务和 Codex、Claude Code、dsh 三端适配**，仍使用三个受控样本，不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
 
 已实现静态图、短循环 WebP、文字检索与精确版本解析、绑定会话/回合的选择凭据、幂等发送、本地选择面板和 Codex 插件包。独立共享服务统一保存不可变版本、当前库条目、素材、消息快照、展示回执和选择凭据；MCP 进程通过公共客户端访问。多个适配器使用相同库，消息按可信宿主实例与会话隔离。公共接口与后续适配方法见 [共享服务合同](docs/specs/shared-service-v0.1.md)。
 
@@ -49,6 +49,17 @@ Claude Code 普通插件复用同一个共享服务和面板，通过 PreToolUse
 
 Hook、MCP、面板和独立产物已执行本地合同检查；**真实 Claude 宿主尚未验证**。完整适配要求 Claude Code 2.1.196+ 的公开 `prompt_id` 合同，本机2.1.177未登录，按用户授权跳过真机。构建与使用步骤见 [Claude 插件说明](plugins/amoji-claude/README.md)，检查范围及补验条件见 [03 验证记录](docs/validation/claude-ticket-03.md)。
 
+## dsh 适配
+
+dsh 分发包包含实际 Host/Client 双入口：Host 将三个日常工具映射到共享核心，Client 提供选择器、工具视觉和历史呈现。模型只接收固定文字投影，用户图像读取与精确版本关联；运行时不识图。
+
+```sh
+npm run build:dsh
+npm run test:dsh
+```
+
+`build:dsh` 构建 `adapters/dsh`；`test:dsh` 显式准备固定提交的源码基线，再执行真实 `defineTool`/`SlotCore` 与 loader/组件合同检查，首次准备需要网络和 `curl`。普通 `npm test` 不含此下载前置。构建与使用见 [dsh 插件说明](adapters/dsh/README.md)。**完整 dsh 宿主未验证**；Session/Connection 测试端口和 JSDOM 图片事件不能证明原生持久化、浏览器解码或模型请求。边界与补验步骤见 [04 验证记录](docs/validation/dsh-ticket-04.md)。
+
 ## 实测脚本
 
 这些脚本会使用本机 Codex 登录状态发起真实模型调用。仅观测调用结构，不保存认证头或原始模型请求。
@@ -65,4 +76,4 @@ AMOJI_RESUME_THREAD=<测试会话ID> node scripts/probes/live-tools.mjs
 
 探针要求预期工具成功且实际请求中图像输入为零，单有 Codex 进程退出码 0 不会通过。原始调用事件只保留在临时测试目录；仓库中的 [验收证据](docs/validation/codex-ticket-01.md) 是去除本地能力凭据后的摘要。
 
-完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现完整创作/导入导出、用户设置、dsh 适配及 20–30 个基础表情。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
+完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现完整创作/导入导出及用户设置；24个基础表情的视觉/语义草稿已制作，仍待正式包集成、许可与完整验收。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。

@@ -61,3 +61,13 @@ Standards：0 项未关闭，4 项 P2 已修复；Spec：2 项未闭环，本轴
 Standards初审发现P2反向构建防覆盖遗漏：Codex构建器可能写入Claude目录。已补写入前检查，真实产物测试先复现覆盖再验证拒绝且目录内容不变；正常Codex产物检查同样通过，限定复审确认解决且无新增破坏。未重复33项既有检查或宿主模型矩阵。
 
 Standards另有1项P3保留到最终整支审查：`tests/shared-claude-ticket.test.ts` 在连接失败时，全局测试环境恢复及部分初始化资源清理不完整。此项已进入ledger，不作为产品功能或宿主真机通过依据，也未被悄悄丢弃。当前Spec无阻塞项；Standards无未修复P2及以上问题，仍有这1项测试清理minor待处理。
+
+## 2026-09-16：票据04独立复核
+
+实现82e7336..0795101。Spec发现dsh Host遗漏amoji_resolve；Standards发现Slot注册未释放、跨会话异步状态串扰、幂等等待者取消生命周期共用，以及默认测试隐式依赖下载。第一轮57a53c0补齐三工具与严格文字解析，并修复四项生命周期/测试问题；10项dsh及1项无网络检查通过。
+
+第一轮限定复核确认原发现全部解决，但Standards在fix中发现共享submit job未绑定adapter/连接退出。第二轮8cb1ce7只修这一回归，真实连接关闭和effect卸载共4项限定检查通过；复核确认ADDRESSED且无新增破坏。Spec门槛保持通过。
+
+票据04以“实际实现及可执行检查完成、完整dsh宿主未验证”关闭。固定源码身份、真实defineTool/SlotCore与JSDOM不替代原生Session/Connection、浏览器解码或供应商请求证据。代码未启动真实dsh或模型请求。
+
+Standards新增1项P3留最终整支审查：scripts/build-dsh-plugin.mjs的BUILD元数据重复硬编码API、数据库、capability和dsh版本，需与真实常量保持一致。连同03的测试清理minor，均在ledger中保留。

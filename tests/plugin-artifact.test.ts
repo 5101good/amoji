@@ -9,6 +9,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+test('Codex 构建器拒绝覆盖 Claude 产物且保留配置、Hook 和 Skill', async t => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'amoji-host-guard-')));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const destination = join(directory, 'claude-plugin');
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const run = promisify(execFile);
+  await run('npm', ['run', 'build'], { cwd: root });
+  await run(process.execPath, [join(root, 'scripts/build-claude-plugin.mjs'), destination], { cwd: directory });
+  const protectedPaths = ['.mcp.json', '.claude-plugin/plugin.json', 'hooks/hooks.json', 'skills/amoji/SKILL.md', 'BUILD.json'];
+  const original = await Promise.all(protectedPaths.map(path => readFile(join(destination, path), 'utf8')));
+  const entries = (await readdir(destination, { recursive: true })).sort();
+  await assert.rejects(run(process.execPath, [join(root, 'scripts/build-plugin.mjs'), destination], { cwd: directory }), /不能覆盖 Claude 插件产物/);
+  assert.deepEqual(await Promise.all(protectedPaths.map(path => readFile(join(destination, path), 'utf8'))), original);
+  assert.deepEqual((await readdir(destination, { recursive: true })).sort(), entries, '拒绝发生在复制或创建任何文件之前');
+});
+
 test('生成插件从独立目录启动共享服务与面板，素材及运行依赖不回指开发工作树', async t => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'amoji-artifact-')));
   const destination = join(directory, 'plugin');

@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { configurePlugin } from './configure-plugin.mjs';
 import { copyRuntime } from './build-runtime.mjs';
@@ -6,6 +6,10 @@ import { API_VERSION } from '../dist/src/shared-contract.js';
 const root = resolve(import.meta.dirname, '..');
 const source = resolve(root, 'plugins/amoji');
 const destination = resolve(process.argv[2] || source);
+try {
+  await stat(`${destination}/.claude-plugin`);
+  throw new Error('Codex 包必须使用独立目录，不能覆盖 Claude 插件产物');
+} catch (error) { if (error.code !== 'ENOENT') throw error; }
 if (destination !== source) {
   await mkdir(destination, { recursive: true });
   for (const name of ['.codex-plugin', 'skills']) await cp(`${source}/${name}`, `${destination}/${name}`, { recursive: true });

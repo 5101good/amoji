@@ -14,10 +14,15 @@ const blobs = new Map();
 const blobLoads = new Map();
 const objectUrls = new Set();
 async function api(path, body) {
-  const response = await fetch(`/api/${path}`, { headers, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || '连接失败');
-  return data;
+  try {
+    const response = await fetch(`/api/${path}`, { headers, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
+    const data = await response.json();
+    if (!response.ok) throw Object.assign(new Error(data.error || '连接失败'), { code: data.code || 'REQUEST_FAILED' });
+    return data;
+  } catch (error) {
+    if (['draft/save', 'draft/confirm'].includes(path) && !error.code) throw Object.assign(new Error('DRAFT_OUTCOME_UNKNOWN：操作可能仍在处理，结果尚待核对；请重试同一次操作。'), { code: 'DRAFT_OUTCOME_UNKNOWN' });
+    throw error;
+  }
 }
 async function blobUrl(blob) {
   if (disposed) throw new Error('页面已关闭');
@@ -206,13 +211,17 @@ let previewed;
 let draftBusy = false;
 let draftPreviewGeneration = 0;
 let draftPreviewPaused = true;
+let draftPreviewLoaded = 0;
+let previewInput = '';
+let pendingSave;
 function draftControls() {
-  $('draft-fields').disabled = !draft || draftBusy || !!previewed || !!draft.confirmed;
-  $('new-draft').disabled = draftBusy;
-  $('restore-draft').disabled = draftBusy || !$('draft-list').value;
+  $('draft-fields').disabled = !draft || draftBusy || !!previewed || !!draft.confirmed || !!pendingSave;
+  $('new-draft').disabled = draftBusy || !!pendingSave;
+  $('restore-draft').disabled = draftBusy || !!pendingSave || !$('draft-list').value;
   $('save-draft').disabled = !draft || draftBusy || !!previewed || !!draft.confirmed;
-  $('preview-draft').disabled = $('save-draft').disabled;
-  $('confirm-draft').disabled = !previewed || draftBusy;
+  $('preview-draft').disabled = $('save-draft').disabled || !!pendingSave;
+  $('save-draft').textContent = pendingSave ? '核对保存结果' : '保存草稿';
+  $('confirm-draft').disabled = !canConfirmDraft() || draftBusy;
   $('back-draft').disabled = !previewed || draftBusy;
 }
 async function draftOperation(operation) {
@@ -229,7 +238,7 @@ async function draftList() {
   draftControls();
 }
 function loadDraft(value) {
-  draft = value; uploadFile = undefined; previewed = undefined;
+  draft = value; uploadFile = undefined; invalidateDraftPreview();
   const fields = draft.fields;
   for (const [id, value] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), license: fields.rights.license, creator: fields.rights.creator, source: fields.rights.source })) $('draft-' + id).value = value ?? '';
   $('draft-file').value = ''; $('draft-preview').hidden = true; draftControls();
@@ -246,39 +255,54 @@ function draftInput() {
 }
 async function saveDraft() {
   let upload;
-  if (uploadFile) {
+  if (!pendingSave && uploadFile) {
     if (uploadFile.size > 10 * 1024 * 1024) throw new Error('MEDIA_LIMIT_EXCEEDED：单个素材最多 10 MiB');
     upload = await new Promise((resolve, reject) => {
       const reader = new FileReader(); reader.onerror = () => reject(new Error('无法读取上传文件'));
       reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.readAsDataURL(uploadFile);
     });
   }
-  draft = await api('draft/save', { draft_id: draft.draft_id, version: draft.version, fields: draftInput(), ...(upload === undefined ? {} : { upload }) });
-  uploadFile = undefined;
+  pendingSave ??= { draft_id: draft.draft_id, version: draft.version, fields: draftInput(), ...(upload === undefined ? {} : { upload }) };
+  try {
+    draft = await api('draft/save', pendingSave);
+    pendingSave = undefined; uploadFile = undefined;
+  } catch (error) {
+    if (error.code !== 'DRAFT_OUTCOME_UNKNOWN' && !error.message.includes('DRAFT_OUTCOME_UNKNOWN')) pendingSave = undefined;
+    throw error;
+  }
   await draftList();
 }
 $('new-draft').onclick = () => draftOperation(async () => { loadDraft(await api('draft/create', {})); await draftList(); $('draft-status').textContent = '已建立本机草稿，请上传素材并填写语义。'; });
 $('restore-draft').onclick = () => draftOperation(async () => { loadDraft(await api('draft/get', { draft_id: $('draft-list').value })); $('draft-status').textContent = '已恢复上次保存的草稿。'; });
 $('draft-list').onchange = draftControls;
-$('draft-file').onchange = () => { uploadFile = $('draft-file').files[0]; };
+$('draft-file').onchange = () => { uploadFile = $('draft-file').files[0]; invalidateDraftPreview(); draftControls(); };
+$('draft-form').oninput = () => { invalidateDraftPreview(); draftControls(); };
 $('draft-form').onsubmit = event => event.preventDefault();
 $('save-draft').onclick = () => draftOperation(async () => { await saveDraft(); $('draft-status').textContent = '草稿已保存，尚未加入可发送的共享库。'; });
 $('preview-draft').onclick = () => draftOperation(async () => {
   await saveDraft();
   const checked = await api('draft/preview', { draft_id: draft.draft_id, version: draft.version });
-  previewed = checked; draftPreviewPaused = true;
+  previewed = checked; previewInput = JSON.stringify(draftInput()); draftPreviewPaused = true;
   try { await renderDraftPreview(); } catch (error) { previewed = undefined; throw error; }
-  $('draft-status').textContent = '预览不会发送。请检查图文，确认后加入共享库，或返回修改。';
+  $('draft-status').textContent = canConfirmDraft() ? '预览已加载。请检查图文，确认后加入共享库，或返回修改。' : '预览图片正在加载，加载成功后才能确认；也可返回修改。';
 });
 async function renderDraftPreview() {
   const checked = previewed;
   if (!checked) return;
   const generation = ++draftPreviewGeneration;
+  draftPreviewLoaded = 0; draftControls();
+  $('draft-status').textContent = '预览图片正在加载，加载成功后才能确认；也可返回修改。';
   const current = () => !disposed && generation === draftPreviewGeneration && previewed === checked;
   const visual = await picture({ ...checked.fields, visual: checked.visual }, undefined, draftPreviewPaused, { current, report: effect => effect() });
   if (!current()) return;
   if (visual.getAttribute('role') === 'alert') throw new Error(visual.textContent);
-  visual.addEventListener('error', () => { if (current()) { previewed = undefined; $('draft-status').textContent = '浏览器无法显示预览，请检查素材后重试。'; draftControls(); } });
+  const loaded = () => {
+    if (!current() || draftPreviewLoaded === generation) return;
+    draftPreviewLoaded = generation; draftControls();
+    $('draft-status').textContent = '预览已加载。请检查图文，确认后加入共享库，或返回修改。';
+  };
+  visual.addEventListener('load', loaded);
+  visual.addEventListener('error', () => { if (current()) { invalidateDraftPreview(); $('draft-status').textContent = '浏览器无法显示预览，请检查素材后重试。'; draftControls(); } });
   $('draft-preview').replaceChildren(visual, text('h2', checked.fields.name), text('pre', JSON.stringify({ semantics: checked.fields.semantics, rights: checked.fields.rights }, null, 2)), text('p', '请确认此图像与固定语义相符。'));
   if (checked.visual.animated) {
     const motion = text('button', draftPreviewPaused ? '播放预览动图' : '暂停预览动图');
@@ -287,17 +311,28 @@ async function renderDraftPreview() {
     $('draft-preview').append(motion);
   }
   $('draft-preview').hidden = false;
+  if (visual.complete && visual.naturalWidth > 0) loaded();
 }
 function pauseDraftPreview() {
   if (previewed) { draftPreviewPaused = true; void renderDraftPreview().catch(error => { previewed = undefined; $('draft-status').textContent = error.message; draftControls(); }); }
 }
-$('back-draft').onclick = () => { previewed = undefined; $('draft-preview').hidden = true; draftControls(); };
-$('confirm-draft').onclick = () => draftOperation(async () => {
-  const expression = await api('draft/confirm', { draft_id: previewed.draft_id, version: previewed.version });
-  draft.confirmed = { asset_id: expression.asset_id, revision_id: expression.revision_id }; previewed = undefined;
-  $('search').value = ''; selected = expression; await refresh(); await draftList();
-  $('draft-status').textContent = state?.host === 'dsh' ? '已加入共享库。返回 dsh 表情选择器，点击“显示全部”刷新后发送。' : '已加入共享库并选中。点击发送按钮，发送到页面标明的会话。';
-});
+function invalidateDraftPreview() {
+  previewed = undefined; draftPreviewLoaded = 0; draftPreviewGeneration++; $('draft-preview').hidden = true;
+}
+function canConfirmDraft() {
+  return !!previewed && draftPreviewLoaded === draftPreviewGeneration && previewed.draft_id === draft?.draft_id && previewed.version === draft.version && previewInput === JSON.stringify(draftInput());
+}
+$('back-draft').onclick = () => { invalidateDraftPreview(); draftControls(); };
+$('confirm-draft').onclick = () => {
+  if (!canConfirmDraft() || draftBusy) return;
+  return draftOperation(async () => {
+    if (!canConfirmDraft()) return;
+    const expression = await api('draft/confirm', { draft_id: previewed.draft_id, version: previewed.version });
+    draft.confirmed = { asset_id: expression.asset_id, revision_id: expression.revision_id }; invalidateDraftPreview();
+    $('search').value = ''; selected = expression; await refresh(); await draftList();
+    $('draft-status').textContent = state?.host === 'dsh' ? '已加入共享库。返回 dsh 表情选择器，点击“显示全部”刷新后发送。' : '已加入共享库并选中。点击发送按钮，发送到页面标明的会话。';
+  });
+};
 await refresh();
 if (state?.creation_available) { $('creator').hidden = false; try { await draftList(); } catch (error) { $('draft-status').textContent = error.message; } }
 setInterval(() => { void refresh(); }, 1000);

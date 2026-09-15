@@ -142,9 +142,13 @@ export class LibraryStore {
     return draft;
   }
   async saveDraft(id: string, version: number, input: unknown, upload?: string): Promise<Draft> {
-    const previous = this.currentDraft(id, version);
-    if (previous.confirmed) fail('DRAFT_CONFIRMED', '已确认版本不可修改');
     const fields = draftFields(input);
+    const requestHash = createHash('sha256').update(canonical({ version, fields, upload: upload ?? null })).digest('hex');
+    const retry = (draft: Draft) => draft.last_save?.base_version === version && draft.last_save.request_hash === requestHash;
+    const previous = this.getDraft(id);
+    if (retry(previous)) return previous;
+    this.currentDraft(id, version);
+    if (previous.confirmed) fail('DRAFT_CONFIRMED', '已确认版本不可修改');
     let prepared: Awaited<ReturnType<typeof prepareUploadedMedia>> | undefined;
     if (upload !== undefined) {
       if (typeof upload !== 'string' || upload.length > Math.ceil(MEDIA_LIMITS.bytes / 3) * 4) fail('MEDIA_LIMIT_EXCEEDED', '单个素材大小超限（最大 10 MiB）');
@@ -163,9 +167,11 @@ export class LibraryStore {
       }
     }
     return this.transaction(() => {
-      const current = this.currentDraft(id, version);
+      const current = this.getDraft(id);
+      if (retry(current)) return current;
+      this.currentDraft(id, version);
       if (current.confirmed) fail('DRAFT_CONFIRMED', '已确认版本不可修改');
-      const draft: Draft = { ...current, fields, version: version + 1, updated_at: new Date().toISOString(), ...(prepared ? { visual: prepared.visual } : {}) };
+      const draft: Draft = { ...current, fields, last_save: { base_version: version, request_hash: requestHash }, version: version + 1, updated_at: new Date().toISOString(), ...(prepared ? { visual: prepared.visual } : {}) };
       this.db.prepare('UPDATE drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft), id); return draft;
     });
   }
@@ -284,3 +290,10 @@ export class LibraryStore {
 }
 async function exists(path: string): Promise<boolean> { try { await access(path); return true; } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; } }
 function verify(bytes: Buffer, blob: BlobRef): void { if (bytes.length !== blob.bytes || createHash('sha256').update(bytes).digest('hex') !== blob.sha256) fail('BLOB_INTEGRITY_FAILED', '素材摘要不匹配'); }
+
+/** Stable identity for one save intent, independent of JSON object key order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}

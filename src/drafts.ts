@@ -12,6 +12,7 @@ export interface Draft {
   fields: DraftFields;
   visual?: Expression['visual'];
   confirmed?: ExpressionRef;
+  last_save?: { base_version: number; request_hash: string };
 }
 const ajv = new Ajv2020({ strict: false, formats: fullFormats });
 const definition = ajv.compile({ $defs: schema.$defs, $ref: '#/$defs/revision' });

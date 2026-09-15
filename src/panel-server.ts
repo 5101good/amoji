@@ -151,7 +151,7 @@ export class PanelServer {
           default: { const args = object(body, ['draft_id', 'version']); result = await creation[url.pathname.endsWith('/confirm') ? 'confirmDraft' : 'previewDraft'](nonempty(args.draft_id), draftVersion(args.version)); }
         }
         this.json(res, 200, result);
-      } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '草稿操作失败' }); }
+      } catch (error) { this.json(res, 400, { code: error instanceof ServiceError ? error.code : 'PANEL_OPERATION_FAILED', error: error instanceof Error ? error.message : '草稿操作失败' }); }
       return;
     }
     if (url.pathname === '/api/ack') {

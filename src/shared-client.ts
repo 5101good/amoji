@@ -50,14 +50,20 @@ export class SharedClient {
     finally { clearTimeout(deadline); }
     return client;
   }
-  private async call<T>(method: string, params: unknown): Promise<T> {
+  private async call<T>(method: string, params: unknown, timeoutMs = 5000): Promise<T> {
     if (this.closed) fail('CONNECTION_CLOSED', '服务连接已关闭，请重新连接');
-    const response = await fetch(`${this.descriptor.origin}/rpc`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': 'application/json', 'x-amoji-connection': this.connectionId }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(5000) });
+    const response = await fetch(`${this.descriptor.origin}/rpc`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': 'application/json', 'x-amoji-connection': this.connectionId }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(timeoutMs) });
     return (await decoded(response)).result as T;
   }
-  private draftCall<T>(method: string, params: unknown): Promise<T> {
+  private async draftCall<T>(method: string, params: unknown): Promise<T> {
     if (!this.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持手工创建，请更新服务后重试');
-    return this.call(method, params);
+    const mediaOperation = ['saveDraft', 'previewDraft', 'confirmDraft'].includes(method);
+    try { return await this.call(method, params, mediaOperation ? 60000 : 5000); }
+    catch (error) {
+      if (['saveDraft', 'confirmDraft'].includes(method) && (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR'].includes(error.code))) fail('DRAFT_OUTCOME_UNKNOWN', '操作可能仍在处理，结果尚待核对；请保留原输入并重试同一次操作，不要新建草稿');
+      if (method === 'previewDraft' && !(error instanceof ServiceError)) fail('DRAFT_PREVIEW_UNAVAILABLE', '预览尚未返回或连接中断；已保存的草稿不会因此丢失，可重试预览');
+      throw error;
+    }
   }
   createDraft(): Promise<Draft> { return this.draftCall('createDraft', {}); }
   listDrafts(): Promise<Draft[]> { return this.draftCall('listDrafts', {}); }

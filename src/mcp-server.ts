@@ -4,7 +4,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { codexContext } from './codex-context.js';
 import { modelProjection } from './projection.js';
-import type { SampleRuntime } from './sample-runtime.js';
+import type { AdapterRuntime } from './adapter-runtime.js';
 import type { PanelServer } from './panel-server.js';
 
 const tools: Tool[] = [
@@ -19,7 +19,7 @@ const tools: Tool[] = [
     inputSchema: { type: 'object', properties: { selection_token: { type: 'string', minLength: 1 } }, required: ['selection_token'], additionalProperties: false } },
 ];
 
-export function createAmojiServer(runtime: SampleRuntime, panel?: PanelServer): Server {
+export function createAmojiServer(runtime: AdapterRuntime, panel?: PanelServer): Server {
   const server = new Server({ name: 'amoji', version: '0.1.0-dev.1' }, { capabilities: { tools: {} } });
   const available: Tool[] = panel ? [...tools, { name: 'amoji_pick', description: '仅当用户要求选表情、打开发送面板或调用 /amoji 时使用。打开当前会话的本地选择器，等待用户点选，返回其选择的固定文字语义。用户取消时正常继续交流。',
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false }, inputSchema: { type: 'object', properties: {}, additionalProperties: false } }] : tools;
@@ -39,11 +39,11 @@ export function createAmojiServer(runtime: SampleRuntime, panel?: PanelServer): 
           result = { message_id: message.message_id, direction: 'human_to_ai', expression: JSON.parse(modelProjection(message.revision)) };
           break;
         }
-        case 'amoji_search': result = runtime.search(context, args.query as string, args.limit as number | undefined); break;
-        case 'amoji_resolve': result = JSON.parse(modelProjection(runtime.catalog.resolve({ asset_id: args.asset_id as string, revision_id: args.revision_id as string }))); break;
+        case 'amoji_search': result = await runtime.search(context, args.query as string, args.limit as number | undefined); break;
+        case 'amoji_resolve': result = JSON.parse(modelProjection(await runtime.catalog.resolve({ asset_id: args.asset_id as string, revision_id: args.revision_id as string }))); break;
         case 'amoji_emit': {
-          const message = runtime.emit(context, args.selection_token as string);
-          const path = fileURLToPath(new URL(`blobs/${message.revision.visual.primary.sha256}`, runtime.catalog.root));
+          const message = await runtime.emit(context, args.selection_token as string);
+          const path = runtime.blobPath ? await runtime.blobPath(message.revision.visual.primary.sha256) : fileURLToPath(new URL(`blobs/${message.revision.visual.primary.sha256}`, runtime.catalog.root));
           result = { message_id: message.message_id, expression: JSON.parse(modelProjection(message.revision)), delivery: message.delivery, presentation: message.presentation,
             display_markdown: `![${message.revision.name.replace(/[\[\]\\]/g, '')}](<${path}>)`, ...(panel ? { panel_url: panel.url(context) } : {}) };
           break;

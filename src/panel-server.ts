@@ -2,7 +2,8 @@ import { createServer, type ServerResponse, type IncomingMessage, type Server as
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { HostContext } from './codex-context.js';
-import type { SampleRuntime, SampleMessage } from './sample-runtime.js';
+import type { SampleMessage } from './sample-runtime.js';
+import type { AdapterRuntime } from './adapter-runtime.js';
 
 interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
@@ -12,16 +13,19 @@ export class PanelServer {
   private readonly http: HttpServer;
   private origin = '';
   private closed = false;
-  private constructor(private readonly runtime: SampleRuntime, private readonly open: (url: string) => Promise<void>, private readonly webRoot: URL) {
+  private readonly connectionClosed = () => { void this.close(); };
+  private constructor(private readonly runtime: AdapterRuntime, private readonly open: (url: string) => Promise<void>, private readonly webRoot: URL) {
     this.http = createServer((req, res) => { void this.handle(req, res).catch(() => this.json(res, 500, { error: '面板操作失败' })); });
   }
 
-  static async start(runtime: SampleRuntime, open: (url: string) => Promise<void>, webRoot = new URL('../../web/', import.meta.url)): Promise<PanelServer> {
+  static async start(runtime: AdapterRuntime, open: (url: string) => Promise<void>, webRoot = new URL(import.meta.url.endsWith('.ts') ? '../web/' : '../../web/', import.meta.url)): Promise<PanelServer> {
     const panel = new PanelServer(runtime, open, webRoot);
     await new Promise<void>((resolve, reject) => { panel.http.once('error', reject); panel.http.listen(0, '127.0.0.1', resolve); });
     const address = panel.http.address();
     if (!address || typeof address === 'string') throw new Error('面板启动失败');
     panel.origin = `http://127.0.0.1:${address.port}`;
+    if (runtime.connectionSignal?.aborted) { await panel.close(); throw new Error('共享服务连接已关闭'); }
+    runtime.connectionSignal?.addEventListener('abort', panel.connectionClosed, { once: true });
     return panel;
   }
 
@@ -60,6 +64,7 @@ export class PanelServer {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.runtime.connectionSignal?.removeEventListener('abort', this.connectionClosed);
     for (const session of this.sessions.values()) {
       session.pending?.finish(new Error('连接已关闭'));
     }
@@ -89,14 +94,14 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前 Codex 会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, expressions: this.runtime.catalog.all(), messages: this.runtime.messages(session.context) }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
     }
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);
-      const visible = [...this.runtime.catalog.all(), ...this.runtime.messages(session.context).map(m => m.revision)];
+      const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).map(m => m.revision)];
       const blob = visible.flatMap(e => [e.visual.primary, e.visual.poster]).find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
-      const bytes = await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
+      const bytes = this.runtime.readBlob ? await this.runtime.readBlob(digest) : await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
       res.writeHead(200, { 'Content-Type': blob.mime, 'Cache-Control': 'private, max-age=3600' }); res.end(bytes); return;
     }
     if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
@@ -107,7 +112,7 @@ export class PanelServer {
     try { body = JSON.parse(raw); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(); } catch { this.json(res, 400, { error: '无效 JSON' }); return; }
     if (url.pathname === '/api/ack') {
       if (typeof body.message_id !== 'string' || !['rendered', 'fallback'].includes(String(body.presentation))) { this.json(res, 400, { error: '无效回执' }); return; }
-      try { this.runtime.acknowledge(session.context, body.message_id, body.presentation as 'rendered' | 'fallback'); this.json(res, 200, { ok: true }); }
+      try { await this.runtime.acknowledge(session.context, body.message_id, body.presentation as 'rendered' | 'fallback'); this.json(res, 200, { ok: true }); }
       catch { this.json(res, 404, { error: '当前会话不存在此消息' }); }
       return;
     }
@@ -126,7 +131,7 @@ export class PanelServer {
     }
     if (typeof body.asset_id !== 'string' || typeof body.revision_id !== 'string' || Object.keys(body).some(k => !['pick_id', 'asset_id', 'revision_id'].includes(k))) { this.json(res, 400, { error: '只能选择固定版本，不能覆盖语义' }); return; }
     try {
-      const message = this.runtime.receive(session.context, { asset_id: body.asset_id, revision_id: body.revision_id }, pending.id);
+      const message = await this.runtime.receive(session.context, { asset_id: body.asset_id, revision_id: body.revision_id }, pending.id);
       session.completed.set(pending.id, { message_id: message.message_id, asset_id: body.asset_id, revision_id: body.revision_id });
       pending.finish(message);
       this.json(res, 200, { message_id: message.message_id });

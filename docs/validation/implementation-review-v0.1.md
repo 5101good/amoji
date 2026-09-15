@@ -71,3 +71,11 @@ Standards另有1项P3保留到最终整支审查：`tests/shared-claude-ticket.t
 票据04以“实际实现及可执行检查完成、完整dsh宿主未验证”关闭。固定源码身份、真实defineTool/SlotCore与JSDOM不替代原生Session/Connection、浏览器解码或供应商请求证据。代码未启动真实dsh或模型请求。
 
 Standards新增1项P3留最终整支审查：scripts/build-dsh-plugin.mjs的BUILD元数据重复硬编码API、数据库、capability和dsh版本，需与真实常量保持一致。连同03的测试清理minor，均在ledger中保留。
+
+## 2026-09-16：票据05实现复核
+
+初版b3cd64a..6528461。两轴确认共享中文检索、完整候选预算、精确版本和凭据路径成立；Spec发现dsh用户入口未接搜索与完整预览，Standards及Spec均发现共用面板的异步图片装配可把旧结果写入新列表。
+
+限定修补6528461..2b62375接入真实dsh人类search RPC和原生Picker，复用共享算法；共用面板离屏装配并在提交DOM/状态/选择前复核generation。面板2项、dsh组件2项、Host12项及类型/构建通过，两轴限定复核均批准，未新增deferred项。
+
+本结论只关闭实现与公共合同审查，真实Codex自主语境、无匹配文字回应与成本仍待19集中验收。06的正式前置仍是02；按执行顺序进入06并未改写依赖关系。

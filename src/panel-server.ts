@@ -104,7 +104,7 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
     }
     if (req.method === 'GET' && url.pathname === '/api/drafts') {
       this.json(res, 200, { drafts: this.runtime.creation ? await this.runtime.creation.listDrafts() : [] }); return;
@@ -132,13 +132,21 @@ export class PanelServer {
       }
       return;
     }
-    if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel', '/api/draft/create', '/api/draft/get', '/api/draft/save', '/api/draft/preview', '/api/draft/confirm'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
+    if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel', '/api/suggest', '/api/draft/create', '/api/draft/get', '/api/draft/save', '/api/draft/preview', '/api/draft/confirm'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
     if (!req.headers['content-type']?.startsWith('application/json')) { this.json(res, 415, { error: '需要 JSON' }); return; }
     const chunks: Buffer[] = []; let size = 0;
     for await (const chunk of req) { size += chunk.length; if (size > (url.pathname === '/api/draft/save' ? 14 * 1024 * 1024 : 4096)) { this.json(res, 413, { error: '请求太大' }); return; } chunks.push(Buffer.from(chunk)); }
     const raw = Buffer.concat(chunks).toString('utf8');
     let body: Record<string, unknown>;
     try { body = JSON.parse(raw); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(); } catch { this.json(res, 400, { error: '无效 JSON' }); return; }
+    if (url.pathname === '/api/suggest') {
+      try {
+        if (!this.runtime.suggestions) throw new Error('CAPABILITY_UNAVAILABLE：当前服务不支持文字建议，请继续手工填写');
+        const args = object(body, ['intent', 'notes'], ['intent']);
+        this.json(res, 200, await this.runtime.suggestions.suggestText(args.intent as string, args.notes as string | undefined));
+      } catch (error) { this.json(res, 400, { code: error instanceof ServiceError ? error.code : 'SUGGESTION_UNAVAILABLE', error: error instanceof Error ? error.message : '文字建议不可用' }); }
+      return;
+    }
     if (url.pathname.startsWith('/api/draft/')) {
       try {
         const creation = this.runtime.creation;

@@ -4,8 +4,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
+import { suggestText } from './suggestions.js';
 
 import { draftVersion } from './drafts.js';
 
@@ -23,7 +24,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CREATE_DRAFT_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -111,6 +112,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'saveDraft': { const args = object(value, ['draft_id', 'version', 'fields', 'upload'], ['draft_id', 'version', 'fields']); result = await store.saveDraft(nonempty(args.draft_id), draftVersion(args.version), args.fields, args.upload as string | undefined); break; }
       case 'previewDraft':
       case 'confirmDraft': { const args = object(value, ['draft_id', 'version']); result = await store[method](nonempty(args.draft_id), draftVersion(args.version)); break; }
+      case 'suggestText': { const args = object(value, ['intent', 'notes'], ['intent']); result = suggestText(args.intent, args.notes); break; }
       case 'list': object(value, []); result = store.list(); break;
       case 'resolve': { const args = object(value, ['asset_id', 'revision_id']); result = store.resolve({ asset_id: nonempty(args.asset_id), revision_id: nonempty(args.revision_id) }); break; }
       case 'blobPath': { const args = object(value, ['digest']); result = await store.blobPath(nonempty(args.digest)); break; }

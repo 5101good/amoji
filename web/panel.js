@@ -13,9 +13,9 @@ const hostLabel = (snapshot = state) => snapshot?.host === 'claude-code' ? 'Clau
 const blobs = new Map();
 const blobLoads = new Map();
 const objectUrls = new Set();
-async function api(path, body) {
+async function api(path, body, options = {}) {
   try {
-    const response = await fetch(`/api/${path}`, { headers, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
+    const response = await fetch(`/api/${path}`, { headers, ...options, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
     const data = await response.json();
     if (!response.ok) throw Object.assign(new Error(data.error || '连接失败'), { code: data.code || 'REQUEST_FAILED' });
     return data;
@@ -214,6 +214,10 @@ let draftPreviewPaused = true;
 let draftPreviewLoaded = 0;
 let previewInput = '';
 let pendingSave;
+let suggestionRequestGeneration = 0;
+let suggestionController;
+let suggestionBusy = false;
+let pendingSuggestion;
 function draftControls() {
   $('draft-fields').disabled = !draft || draftBusy || !!previewed || !!draft.confirmed || !!pendingSave;
   $('new-draft').disabled = draftBusy || !!pendingSave;
@@ -223,6 +227,10 @@ function draftControls() {
   $('save-draft').textContent = pendingSave ? '核对保存结果' : '保存草稿';
   $('confirm-draft').disabled = !canConfirmDraft() || draftBusy;
   $('back-draft').disabled = !previewed || draftBusy;
+  $('request-suggestion').disabled = !draft || draftBusy || suggestionBusy || !!draft.confirmed;
+  $('cancel-suggestion').disabled = !suggestionBusy && !pendingSuggestion;
+  $('apply-suggestion').disabled = !pendingSuggestion || suggestionBusy;
+  $('reject-suggestion').disabled = !pendingSuggestion || suggestionBusy;
 }
 async function draftOperation(operation) {
   if (draftBusy) return;
@@ -238,9 +246,10 @@ async function draftList() {
   draftControls();
 }
 function loadDraft(value) {
+  invalidateSuggestion();
   draft = value; uploadFile = undefined; invalidateDraftPreview();
   const fields = draft.fields;
-  for (const [id, value] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), license: fields.rights.license, creator: fields.rights.creator, source: fields.rights.source })) $('draft-' + id).value = value ?? '';
+  for (const [id, value] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n'), license: fields.rights.license, creator: fields.rights.creator, source: fields.rights.source })) $('draft-' + id).value = value ?? '';
   $('draft-file').value = ''; $('draft-preview').hidden = true; draftControls();
 }
 function draftInput() {
@@ -251,7 +260,7 @@ function draftInput() {
   const rights = { license: $('draft-license').value };
   if ($('draft-creator').value !== '') rights.creator = $('draft-creator').value;
   if ($('draft-source').value !== '') rights.source = $('draft-source').value;
-  return { name: $('draft-name').value, semantics, rights, ...(draft.fields.tags === undefined ? {} : { tags: draft.fields.tags }) };
+  return { name: $('draft-name').value, semantics, rights, ...($('draft-tags').value === '' ? {} : { tags: $('draft-tags').value.split('\n') }) };
 }
 async function saveDraft() {
   let upload;
@@ -276,7 +285,13 @@ $('new-draft').onclick = () => draftOperation(async () => { loadDraft(await api(
 $('restore-draft').onclick = () => draftOperation(async () => { loadDraft(await api('draft/get', { draft_id: $('draft-list').value })); $('draft-status').textContent = '已恢复上次保存的草稿。'; });
 $('draft-list').onchange = draftControls;
 $('draft-file').onchange = () => { uploadFile = $('draft-file').files[0]; invalidateDraftPreview(); draftControls(); };
-$('draft-form').oninput = () => { invalidateDraftPreview(); draftControls(); };
+$('draft-form').oninput = event => {
+  if (!event.target.closest?.('#suggestion-result')) {
+    invalidateSuggestion('文字或草稿已变化，先前的待选建议已放弃。');
+    invalidateDraftPreview();
+  }
+  draftControls();
+};
 $('draft-form').onsubmit = event => event.preventDefault();
 $('save-draft').onclick = () => draftOperation(async () => { await saveDraft(); $('draft-status').textContent = '草稿已保存，尚未加入可发送的共享库。'; });
 $('preview-draft').onclick = () => draftOperation(async () => {
@@ -319,6 +334,64 @@ function pauseDraftPreview() {
 function invalidateDraftPreview() {
   previewed = undefined; draftPreviewLoaded = 0; draftPreviewGeneration++; $('draft-preview').hidden = true;
 }
+function invalidateSuggestion(message) {
+  const hadSuggestion = suggestionBusy || !!pendingSuggestion;
+  suggestionRequestGeneration++;
+  suggestionController?.abort(); suggestionController = undefined; suggestionBusy = false; pendingSuggestion = undefined;
+  $('suggestion-result').hidden = true;
+  if (message && hadSuggestion) $('suggestion-status').textContent = message;
+}
+function suggestionValue() {
+  return {
+    name: $('suggestion-result-name').value,
+    semantics: {
+      locale: pendingSuggestion.fields.semantics.locale,
+      meaning: $('suggestion-result-meaning').value,
+      fallback: $('suggestion-result-fallback').value,
+      ...($('suggestion-result-tone').value === '' ? {} : { tone: $('suggestion-result-tone').value }),
+      ...($('suggestion-result-use').value === '' ? {} : { use_when: $('suggestion-result-use').value.split('\n') }),
+      ...($('suggestion-result-avoid').value === '' ? {} : { avoid_when: $('suggestion-result-avoid').value.split('\n') }),
+    },
+    ...($('suggestion-result-tags').value === '' ? {} : { tags: $('suggestion-result-tags').value.split('\n') }),
+  };
+}
+function showSuggestion(value) {
+  pendingSuggestion = value;
+  const fields = value.fields;
+  for (const [id, item] of Object.entries({ name: fields.name, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n') })) $('suggestion-result-' + id).value = item ?? '';
+  $('suggestion-result').hidden = false;
+  $('suggestion-status').textContent = value.notice;
+}
+$('request-suggestion').onclick = async () => {
+  if (!draft || suggestionBusy || draft.confirmed) return;
+  invalidateSuggestion();
+  const generation = suggestionRequestGeneration;
+  const currentDraft = draft;
+  const currentInput = JSON.stringify(draftInput());
+  const intent = $('suggestion-intent').value;
+  const notes = $('suggestion-notes').value;
+  suggestionController = new AbortController(); suggestionBusy = true; draftControls();
+  $('suggestion-status').textContent = '正在按文字整理待选建议…';
+  try {
+    const value = await api('suggest', { intent, ...(notes === '' ? {} : { notes }) }, { signal: suggestionController.signal });
+    if (generation !== suggestionRequestGeneration || draft !== currentDraft || JSON.stringify(draftInput()) !== currentInput || $('suggestion-intent').value !== intent || $('suggestion-notes').value !== notes) return;
+    showSuggestion(value);
+  } catch (error) {
+    if (generation !== suggestionRequestGeneration) return;
+    $('suggestion-status').textContent = error.name === 'AbortError' ? '已放弃建议，原有内容保持不变。' : `建议不可用：${error.message}。你仍可手工填写并完成。`;
+  } finally {
+    if (generation === suggestionRequestGeneration) { suggestionBusy = false; suggestionController = undefined; draftControls(); }
+  }
+};
+$('cancel-suggestion').onclick = () => { invalidateSuggestion('已放弃建议，原有内容保持不变。'); draftControls(); };
+$('reject-suggestion').onclick = () => { invalidateSuggestion('已拒绝这条建议，原有内容保持不变。'); draftControls(); };
+$('apply-suggestion').onclick = () => {
+  if (!pendingSuggestion || suggestionBusy || !draft || draft.confirmed) return;
+  const fields = suggestionValue();
+  for (const [id, item] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n') })) $('draft-' + id).value = item ?? '';
+  invalidateSuggestion('已采用到草稿表单；保存、预览和确认仍需你明确操作。');
+  invalidateDraftPreview(); draftControls();
+};
 function canConfirmDraft() {
   return !!previewed && draftPreviewLoaded === draftPreviewGeneration && previewed.draft_id === draft?.draft_id && previewed.version === draft.version && previewInput === JSON.stringify(draftInput());
 }
@@ -334,13 +407,18 @@ $('confirm-draft').onclick = () => {
   });
 };
 await refresh();
-if (state?.creation_available) { $('creator').hidden = false; try { await draftList(); } catch (error) { $('draft-status').textContent = error.message; } }
+if (state?.creation_available) {
+  $('creator').hidden = false;
+  $('suggestion-workbench').hidden = !state.suggestion_available;
+  try { await draftList(); } catch (error) { $('draft-status').textContent = error.message; }
+}
 setInterval(() => { void refresh(); }, 1000);
 addEventListener('pagehide', event => {
   if (event.persisted) return;
   disposed = true;
   renderVersion += 1;
   searchVersion += 1;
+  invalidateSuggestion();
   for (const load of blobLoads.values()) load.controller.abort();
   blobLoads.clear();
   blobs.clear();

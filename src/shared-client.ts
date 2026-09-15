@@ -3,11 +3,12 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, CREATE_DRAFT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
 import type { Draft, DraftFields } from './drafts.js';
+import type { TextSuggestion } from './suggestions.js';
 
 interface ConnectOptions { directory?: string; apiRange?: ApiRange; requiredCapabilities?: string[] }
 
@@ -71,6 +72,14 @@ export class SharedClient {
   saveDraft(id: string, version: number, fields: DraftFields, upload?: string): Promise<Draft> { return this.draftCall('saveDraft', { draft_id: id, version, fields, ...(upload === undefined ? {} : { upload }) }); }
   previewDraft(id: string, version: number): Promise<Draft> { return this.draftCall('previewDraft', { draft_id: id, version }); }
   confirmDraft(id: string, version: number): Promise<Expression> { return this.draftCall('confirmDraft', { draft_id: id, version }); }
+  async suggestText(intent: string, notes?: string): Promise<TextSuggestion> {
+    if (!this.identity.capabilities?.includes(TEXT_SUGGESTION_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持文字建议，请更新服务后重试');
+    try { return await this.call('suggestText', { intent, ...(notes === undefined ? {} : { notes }) }); }
+    catch (error) {
+      if (!(error instanceof ServiceError)) fail('SUGGESTION_UNAVAILABLE', '文字建议暂时不可用；已填内容不受影响，可继续手工填写');
+      throw error;
+    }
+  }
   bind(context: BindingContext): Promise<string> { return this.call('bind', context); }
   private requireClaudeTickets(): void {
     if (!this.identity.capabilities?.includes(CLAUDE_TICKET_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${CLAUDE_TICKET_CAPABILITY}`);

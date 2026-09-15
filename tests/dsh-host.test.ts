@@ -148,12 +148,13 @@ test('打包dsh Host提供会话校验的创建面板入口，不增加模型工
     const info = JSON.parse(await readFile(new URL('../adapters/dsh/BUILD.json', import.meta.url), 'utf8'));
     assert.equal(info.serviceApi, f.client.identity.apiVersion); assert.equal(info.databaseVersion, f.client.identity.databaseVersion);
     assert.ok(info.providedManagementCapabilities.includes('create-drafts-v1'));
+    assert.ok(info.providedManagementCapabilities.includes('text-suggestions-v1'));
     const denied = await handler!('amoji/manage', { sessionId: 'unknown-session' }, signal()); assert.equal(denied.ok, false);
     const result = await handler!('amoji/manage', { sessionId: f.a.id }, signal()); assert.equal(result.ok, true);
     const url = new URL(result.value.url); origin = url.origin;
     const headers = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' };
     const state = await (await fetch(`${origin}/api/state`, { headers })).json();
-    assert.equal(state.host, 'dsh'); assert.equal(state.session_id, f.a.id); assert.equal(state.creation_available, true);
+    assert.equal(state.host, 'dsh'); assert.equal(state.session_id, f.a.id); assert.equal(state.creation_available, true); assert.equal(state.suggestion_available, true);
     assert.match(await (await fetch(origin)).text(), /draft-form/);
     const draft = await (await fetch(`${origin}/api/draft/create`, { method: 'POST', headers, body: '{}' })).json();
     assert.equal((await f.client.getDraft(draft.draft_id)).draft_id, draft.draft_id);

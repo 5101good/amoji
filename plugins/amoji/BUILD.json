@@ -4,5 +4,13 @@
   "platform": "darwin",
   "arch": "arm64",
   "entry": "runtime/src/main.js",
-  "source": "Local installation; regenerate with scripts/build-plugin.mjs at the destination on each machine. Keep this source directory after marketplace installation."
+  "serviceEntry": "runtime/src/service-main.js",
+  "clientEntry": "runtime/src/shared-client.js",
+  "serviceApi": 2,
+  "databaseVersion": 2,
+  "providedManagementCapabilities": [
+    "create-drafts-v1",
+    "text-suggestions-v1"
+  ],
+  "source": "Local installation; regenerate with scripts/build-plugin.mjs at the destination on each machine. Keep this installation directory after marketplace installation."
 }

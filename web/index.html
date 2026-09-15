@@ -23,6 +23,25 @@
           <fieldset id="draft-fields" disabled>
             <legend>素材与固定语义</legend>
             <label for="draft-file">静态图或动图 · PNG / JPEG / WebP / GIF，最多 10 MiB</label><input id="draft-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <section id="suggestion-workbench" class="suggestion-workbench" hidden>
+              <h2>从文字整理语义</h2>
+              <p id="suggestion-capability" class="hint">本机文字规则生成，未调用模型，也不读取图像。建议先作为待选结果显示，采用后仍可修改。</p>
+              <label for="suggestion-intent">想表达什么 · 最多 240 字</label><textarea id="suggestion-intent" rows="2"></textarea>
+              <label for="suggestion-notes">补充说明 · 可选，每行一个适用语境，最多 4 行</label><textarea id="suggestion-notes" rows="2"></textarea>
+              <div class="actions"><button id="request-suggestion" type="button">生成文字建议</button><button id="cancel-suggestion" class="quiet" type="button" disabled>放弃建议</button></div>
+              <p id="suggestion-status" role="status" aria-live="polite"></p>
+              <section id="suggestion-result" class="suggestion-result" hidden>
+                <p class="hint">待选建议尚未写入草稿。你可以先修改，再明确采用。</p>
+                <label for="suggestion-result-name">建议名称</label><input id="suggestion-result-name" type="text">
+                <label for="suggestion-result-meaning">建议含义</label><textarea id="suggestion-result-meaning" rows="3"></textarea>
+                <label for="suggestion-result-fallback">建议替代文本</label><input id="suggestion-result-fallback" type="text">
+                <label for="suggestion-result-tone">建议语气</label><input id="suggestion-result-tone" type="text">
+                <label for="suggestion-result-use">建议适用语境 · 每行一条</label><textarea id="suggestion-result-use" rows="2"></textarea>
+                <label for="suggestion-result-avoid">建议不适用语境 · 每行一条</label><textarea id="suggestion-result-avoid" rows="2"></textarea>
+                <label for="suggestion-result-tags">建议检索标签 · 每行一条</label><textarea id="suggestion-result-tags" rows="2"></textarea>
+                <div class="actions"><button id="apply-suggestion" type="button">采用到草稿</button><button id="reject-suggestion" class="quiet" type="button">拒绝此建议</button></div>
+              </section>
+            </section>
             <label for="draft-name">名称 · 最多 48 字</label><input id="draft-name" type="text">
             <label for="draft-locale">语义语言</label><input id="draft-locale" type="text" value="zh-CN">
             <label for="draft-meaning">含义 · 最多 240 字</label><textarea id="draft-meaning" rows="3"></textarea>
@@ -30,6 +49,7 @@
             <label for="draft-tone">语气 · 可选，最多 80 字</label><input id="draft-tone" type="text">
             <label for="draft-use">适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-use" rows="2"></textarea>
             <label for="draft-avoid">不适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-avoid" rows="2"></textarea>
+            <label for="draft-tags">检索标签 · 每行一条，最多 12 条，每条 24 字</label><textarea id="draft-tags" rows="2"></textarea>
             <label for="draft-license">许可说明 · 最多 120 字</label><input id="draft-license" type="text" value="仅供个人使用">
             <label for="draft-creator">作者说明 · 可选，最多 120 字</label><input id="draft-creator" type="text">
             <label for="draft-source">素材来源说明 · 可选，最多 500 字</label><input id="draft-source" type="text">

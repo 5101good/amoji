@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY } from '../src/shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY } from '../src/shared-contract.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -83,7 +83,11 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
   const buildInfo = JSON.parse(await readFile(join(destination, 'BUILD.json'), 'utf8'));
   assert.equal(buildInfo.serviceApi, API_VERSION); assert.equal(buildInfo.databaseVersion, DATABASE_VERSION);
   assert.ok(buildInfo.providedManagementCapabilities.includes(CREATE_DRAFT_CAPABILITY));
+  assert.ok(buildInfo.providedManagementCapabilities.includes(TEXT_SUGGESTION_CAPABILITY));
   assert.equal(state.creation_available, true);
+  assert.equal(state.suggestion_available, true);
+  const suggested = await (await fetch(`${panel.origin}/api/suggest`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ intent: '想真诚感谢' }) })).json();
+  assert.equal(suggested.method, 'local-deterministic-v1');
   const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
   assert.match(draft.draft_id, /^draft_/);
   const created = await createFromPanel(panel, draft, state.expressions[0]);
@@ -176,7 +180,9 @@ test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Cod
   const buildInfo = JSON.parse(await readFile(join(destination, 'BUILD.json'), 'utf8'));
   assert.equal(buildInfo.serviceApi, API_VERSION); assert.equal(buildInfo.databaseVersion, DATABASE_VERSION);
   assert.ok(buildInfo.providedManagementCapabilities.includes(CREATE_DRAFT_CAPABILITY));
+  assert.ok(buildInfo.providedManagementCapabilities.includes(TEXT_SUGGESTION_CAPABILITY));
   assert.equal(state.creation_available, true);
+  assert.equal(state.suggestion_available, true);
   const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
   assert.match(draft.draft_id, /^draft_/);
   const created = await createFromPanel(panel, draft, state.expressions[0]);

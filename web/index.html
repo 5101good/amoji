@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Amoji · 表情选择器</title><link rel="stylesheet" href="/panel.css"><script type="module" src="/panel.js"></script></head>
 <body>
-  <header><span class="wordmark">amoji<span>表情，也是语言。</span></span><span class="badge">接入验证 · 3 个样本</span></header>
+  <header><span class="wordmark">amoji<span>表情，也是语言。</span></span><span class="badge">本机共享表情库</span></header>
   <main>
     <section class="library" aria-labelledby="title">
       <div class="heading"><div><p class="eyebrow">给这一刻，一个表情</p><h1 id="title">不止文字。</h1></div><button id="motion" class="quiet" aria-pressed="false">暂停动图</button></div>
@@ -15,7 +15,33 @@
       <div id="catalog" class="catalog" aria-label="表情列表"></div>
       <section id="preview" class="preview" aria-live="polite"><p>选一个表情，看看它想表达什么。</p></section>
       <div class="actions"><button id="send" disabled>发送到当前会话</button><button id="cancel" class="quiet" disabled>取消选择</button><span id="status" role="status"></span></div>
-      <p class="footnote">你看见图像，AI 收到同一版本的固定文字语义。<br>这些是开发样本；此面板尚不提供个人表情库管理。</p>
+      <details id="creator" class="creator" hidden>
+        <summary>创建自己的表情</summary>
+        <p>无需模型。请亲自检查图像与文字是否表达同一个意思。草稿保存在本机，确认前不能发送。</p>
+        <div class="draft-tools"><button id="new-draft" type="button">新建草稿</button><label for="draft-list">继续草稿</label><select id="draft-list"></select><button id="restore-draft" class="quiet" type="button">恢复草稿</button></div>
+        <form id="draft-form">
+          <fieldset id="draft-fields" disabled>
+            <legend>素材与固定语义</legend>
+            <label for="draft-file">静态图或动图 · PNG / JPEG / WebP / GIF，最多 10 MiB</label><input id="draft-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <label for="draft-name">名称 · 最多 48 字</label><input id="draft-name" type="text">
+            <label for="draft-locale">语义语言</label><input id="draft-locale" type="text" value="zh-CN">
+            <label for="draft-meaning">含义 · 最多 240 字</label><textarea id="draft-meaning" rows="3"></textarea>
+            <label for="draft-fallback">替代文本 · 最多 80 字</label><input id="draft-fallback" type="text">
+            <label for="draft-tone">语气 · 可选，最多 80 字</label><input id="draft-tone" type="text">
+            <label for="draft-use">适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-use" rows="2"></textarea>
+            <label for="draft-avoid">不适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-avoid" rows="2"></textarea>
+            <label for="draft-license">许可说明 · 最多 120 字</label><input id="draft-license" type="text" value="仅供个人使用">
+            <label for="draft-creator">作者说明 · 可选，最多 120 字</label><input id="draft-creator" type="text">
+            <label for="draft-source">素材来源说明 · 可选，最多 500 字</label><input id="draft-source" type="text">
+          </fieldset>
+          <p class="hint">字数按 Unicode 字符计数；名称和语义合计最多 4 KiB，不会自动截断。许可与作者说明由你提供。</p>
+          <div class="actions"><button id="save-draft" type="button" disabled>保存草稿</button><button id="preview-draft" type="button" disabled>预览图文</button></div>
+        </form>
+        <section id="draft-preview" class="preview" aria-live="polite" hidden></section>
+        <div class="actions"><button id="back-draft" class="quiet" type="button" disabled>返回修改</button><button id="confirm-draft" type="button" disabled>确认图文并加入共享库</button></div>
+        <p id="draft-status" role="status" aria-live="polite"></p>
+      </details>
+      <p class="footnote">你看见图像，AI 收到同一版本的固定文字语义。<br>上传素材、填写固定语义，确认后即可从此共享库选择发送。</p>
     </section>
     <aside aria-labelledby="history-title"><div class="aside-heading"><h2 id="history-title">这次交流</h2><span id="session"></span></div><p id="history-hint" class="hint">此会话的表情记录保存在本机，重新打开后仍可查看。</p><div id="messages"><p class="empty">还没有表情。<br>一点心意，从这里开始。</p></div></aside>
   </main>

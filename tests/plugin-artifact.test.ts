@@ -6,8 +6,21 @@ import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY } from '../src/shared-contract.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+async function createFromPanel(panel: URL, draft: { draft_id: string; version: number }, sample: any) {
+  const headers = { Authorization: `Bearer ${panel.hash.slice(1)}`, 'Content-Type': 'application/json' };
+  const bytes = Buffer.from(await (await fetch(`${panel.origin}/blobs/${sample.visual.primary.sha256}`, { headers })).arrayBuffer());
+  const post = async (operation: string, body: unknown) => {
+    const response = await fetch(`${panel.origin}/api/draft/${operation}`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const value = await response.json(); assert.equal(response.status, 200, JSON.stringify(value)); return value;
+  };
+  const saved = await post('save', { draft_id: draft.draft_id, version: draft.version, fields: { name: '由面板创建', semantics: { locale: 'zh-CN', meaning: '表达新创作的喜悦', fallback: '创作喜悦' }, rights: { license: '仅供个人使用' } }, upload: bytes.toString('base64') });
+  await post('preview', { draft_id: saved.draft_id, version: saved.version });
+  return post('confirm', { draft_id: saved.draft_id, version: saved.version });
+}
 
 test('Codex 构建器拒绝覆盖 Claude 产物且保留配置、Hook 和 Skill', async t => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'amoji-host-guard-')));
@@ -67,6 +80,27 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
   assert.match(await (await fetch(panel.origin)).text(), /表情选择器/);
   const headers = { Authorization: `Bearer ${panel.hash.slice(1)}` };
   const state = await (await fetch(`${panel.origin}/api/state`, { headers })).json();
+  const buildInfo = JSON.parse(await readFile(join(destination, 'BUILD.json'), 'utf8'));
+  assert.equal(buildInfo.serviceApi, API_VERSION); assert.equal(buildInfo.databaseVersion, DATABASE_VERSION);
+  assert.ok(buildInfo.providedManagementCapabilities.includes(CREATE_DRAFT_CAPABILITY));
+  assert.equal(state.creation_available, true);
+  const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
+  assert.match(draft.draft_id, /^draft_/);
+  const created = await createFromPanel(panel, draft, state.expressions[0]);
+  const nextMeta = { 'x-codex-turn-metadata': { thread_id: 'artifact', turn_id: '2' } };
+  const createdSearch = await client.callTool({ name: 'amoji_search', arguments: { query: created.name }, _meta: nextMeta });
+  assert.equal(createdSearch.isError, undefined);
+  const createdChoice = JSON.parse((createdSearch.content as any)[0].text).candidates[0];
+  assert.equal(createdChoice.revision_id, created.revision_id);
+  const createdEmit = await client.callTool({ name: 'amoji_emit', arguments: { selection_token: createdChoice.selection_token }, _meta: nextMeta });
+  assert.equal(createdEmit.isError, undefined);
+  assert.deepEqual((createdEmit.content as any[]).map(item => item.type), ['text']);
+  const createdMessage = JSON.parse((createdEmit.content as any)[0].text);
+  assert.equal(createdMessage.expression.revision_id, created.revision_id);
+  assert.ok(createdMessage.display_markdown);
+  assert.deepEqual(Object.keys(createdMessage.expression).sort(), ['asset_id', 'name', 'revision_id', 'semantics']);
+
+
   const revision = state.messages[0].revision;
   for (const blob of [revision.visual.primary, revision.visual.poster]) {
     const response = await fetch(`${panel.origin}/blobs/${blob.sha256}`, { headers });
@@ -139,6 +173,26 @@ test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Cod
   assert.match(await (await fetch(panel.origin)).text(), /表情选择器/);
   const headers = { Authorization: `Bearer ${panel.hash.slice(1)}` };
   const state = await (await fetch(`${panel.origin}/api/state`, { headers })).json();
+  const buildInfo = JSON.parse(await readFile(join(destination, 'BUILD.json'), 'utf8'));
+  assert.equal(buildInfo.serviceApi, API_VERSION); assert.equal(buildInfo.databaseVersion, DATABASE_VERSION);
+  assert.ok(buildInfo.providedManagementCapabilities.includes(CREATE_DRAFT_CAPABILITY));
+  assert.equal(state.creation_available, true);
+  const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
+  assert.match(draft.draft_id, /^draft_/);
+  const created = await createFromPanel(panel, draft, state.expressions[0]);
+  const nextInput = { ...input, prompt_id: '550e8400-e29b-41d4-a716-446655440001' };
+  const createArgs = JSON.parse(await invokeHook({ ...nextInput, tool_use_id: 'toolu_created_search', tool_input: { query: created.name } })).hookSpecificOutput.updatedInput;
+  const createdSearch = await client.callTool({ name: 'amoji_search', arguments: createArgs });
+  assert.equal(createdSearch.isError, undefined);
+  const createdChoice = JSON.parse((createdSearch.content as any)[0].text).candidates[0];
+  assert.equal(createdChoice.revision_id, created.revision_id);
+  const createdArgs = JSON.parse(await invokeHook({ ...nextInput, tool_use_id: 'toolu_created_emit', tool_name: 'mcp__plugin_amoji_amoji__amoji_emit', tool_input: { selection_token: createdChoice.selection_token } })).hookSpecificOutput.updatedInput;
+  const createdEmit = await client.callTool({ name: 'amoji_emit', arguments: createdArgs });
+  assert.equal(createdEmit.isError, undefined);
+  assert.deepEqual((createdEmit.content as any[]).map(item => item.type), ['text']);
+  assert.equal(JSON.parse((createdEmit.content as any)[0].text).expression.revision_id, created.revision_id);
+
+
   assert.equal(state.host, 'claude-code'); assert.equal(state.messages[0].message_id, message.message_id);
   for (const blob of [state.messages[0].revision.visual.primary, state.messages[0].revision.visual.poster]) {
     const response = await fetch(`${panel.origin}/blobs/${blob.sha256}`, { headers });

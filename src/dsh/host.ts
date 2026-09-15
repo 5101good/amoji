@@ -1,3 +1,4 @@
+import { PanelServer } from '../panel-server.js';
 import { modelProjection } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { fail, nonempty, object, type BindingContext } from '../shared-contract.js';
@@ -19,13 +20,14 @@ function modelText(value: unknown): string {
 function record(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 
 export class DshAdapter {
+  private panel?: Promise<PanelServer>;
   private readonly pending = new Map<string, { ref: ExpressionRef; work: Promise<HistoryEntry> }>();
   private readonly lifecycle: AbortSignal;
   constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) {
     nonempty(hostInstanceId);
     const disposed = new AbortController();
     this.lifecycle = AbortSignal.any([disposed.signal, ...(runtime.connectionSignal ? [runtime.connectionSignal] : [])]);
-    ctx.effect(() => () => disposed.abort(new Error('DSH_ADAPTER_DISPOSED')), 'amoji: submission lifecycle');
+    ctx.effect(() => async () => { disposed.abort(new Error('DSH_ADAPTER_DISPOSED')); if (this.panel) await (await this.panel).close(); }, 'amoji: submission lifecycle');
   }
   private context(sessionId: string): BindingContext { return { host: 'dsh', hostInstanceId: this.hostInstanceId, sessionId }; }
   private capture(exec: DshExecution): { context: BindingContext; check(): void } {
@@ -86,11 +88,20 @@ export class DshAdapter {
   async rpc(endpoint: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
     signal = AbortSignal.any([signal, this.lifecycle]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
     const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
+    if (method === 'manage') {
+      if (!this.runtime.creation) fail('CAPABILITY_UNAVAILABLE', '当前共享服务不支持创建，请更新服务');
+      const session = await this.session(sessionId, signal);
+      this.panel ??= PanelServer.start(this.runtime, async () => {}).catch(error => { this.panel = undefined; throw error; });
+      const panel = await this.panel;
+      signal.throwIfAborted();
+      if (this.ctx.sessions.get(sessionId) !== session) fail('DSH_CONTEXT_CHANGED', '创建面板的会话已变化');
+      return { url: panel.url(context) };
+    }
     if (method === 'catalog') return this.runtime.catalog.all();
     if (method === 'search') return searchExpressions(await this.runtime.catalog.all(), args.query as string, args.limit === undefined ? 3 : Number(args.limit));
     if (method === 'history') return this.rows(sessionId, events);
@@ -161,7 +172,7 @@ export class DshAdapter {
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {
   const adapter = new DshAdapter(ctx, runtime, hostInstanceId);
   for (const name of ['amoji_search', 'amoji_resolve', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
-  ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|search|history|visual|submit|display)$/.test(endpoint), async (endpoint, payload, signal) => {
+  ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|search|history|visual|submit|display|manage)$/.test(endpoint), async (endpoint, payload, signal) => {
     try { return { ok: true, value: await adapter.rpc(endpoint, payload, signal) }; }
     catch (error) { return { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }
   }), 'amoji: bounded human RPC');

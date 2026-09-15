@@ -8,7 +8,9 @@ import { SampleCatalog, type BlobRef, type Expression, type ExpressionRef } from
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import { DATABASE_VERSION, fail, sessionKey, type BindingContext } from './shared-contract.js';
 import { buildSearchResult, searchExpressions } from './search.js';
-import { validateExpressionMedia } from './media.js';
+import { prepareUploadedMedia, MEDIA_LIMITS, validateExpressionMedia } from './media.js';
+
+import { draftFields, validateDraftFields, validateExpressionDefinition, type Draft } from './drafts.js';
 
 interface Session { bindingId: string; messages: SampleMessage[]; emittedTurns: string[]; received: Array<[string, string]> }
 interface Selection { context: BindingContext; ref: ExpressionRef; expires: number; messageId?: string }
@@ -30,7 +32,9 @@ export class LibraryStore {
         CREATE TABLE IF NOT EXISTS library_entries (asset_id TEXT PRIMARY KEY, revision_id TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions (session_key TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS selections (token TEXT PRIMARY KEY, data TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
+        CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS drafts (draft_id TEXT PRIMARY KEY, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS expression_origins (asset_id TEXT PRIMARY KEY, origin TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
       await store.initialize(seed);
       store.pruneSelections();
       return store;
@@ -121,6 +125,77 @@ export class LibraryStore {
   resolve(ref: ExpressionRef): Expression { return this.getRevision(ref) ?? fail('REVISION_NOT_FOUND', '精确版本不存在'); }
   list(): Expression[] { return (this.db.prepare('SELECT r.data FROM library_entries l JOIN revisions r ON r.asset_id=l.asset_id AND r.revision_id=l.revision_id ORDER BY l.rowid').all() as Array<{ data: string }>).map(row => JSON.parse(row.data)); }
 
+  createDraft(): Draft {
+    const draft: Draft = { draft_id: `draft_${randomUUID()}`, version: 1, updated_at: new Date().toISOString(), fields: { name: '', semantics: { locale: 'zh-CN', meaning: '', fallback: '' }, rights: { license: '仅供个人使用' } } };
+    this.db.prepare('INSERT INTO drafts VALUES (?,?)').run(draft.draft_id, JSON.stringify(draft)); return draft;
+  }
+  getDraft(id: string): Draft {
+    const row = this.db.prepare('SELECT data FROM drafts WHERE draft_id=?').get(id) as { data: string } | undefined;
+    return row ? JSON.parse(row.data) : fail('DRAFT_NOT_FOUND', '草稿不存在');
+  }
+  listDrafts(): Draft[] {
+    return (this.db.prepare("SELECT data FROM drafts WHERE json_extract(data,'$.confirmed') IS NULL ORDER BY rowid DESC").all() as Array<{ data: string }>).map(row => JSON.parse(row.data));
+  }
+  private currentDraft(id: string, version: number): Draft {
+    const draft = this.getDraft(id);
+    if (draft.version !== version) fail('DRAFT_CONFLICT', '草稿已变化，请重新读取并预览');
+    return draft;
+  }
+  async saveDraft(id: string, version: number, input: unknown, upload?: string): Promise<Draft> {
+    const previous = this.currentDraft(id, version);
+    if (previous.confirmed) fail('DRAFT_CONFIRMED', '已确认版本不可修改');
+    const fields = draftFields(input);
+    let prepared: Awaited<ReturnType<typeof prepareUploadedMedia>> | undefined;
+    if (upload !== undefined) {
+      if (typeof upload !== 'string' || upload.length > Math.ceil(MEDIA_LIMITS.bytes / 3) * 4) fail('MEDIA_LIMIT_EXCEEDED', '单个素材大小超限（最大 10 MiB）');
+      if (!upload || upload.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(upload)) fail('INVALID_ARGUMENT', '素材需要有效 base64 编码');
+      const bytes = Buffer.from(upload, 'base64');
+      if (bytes.toString('base64') !== upload) fail('INVALID_ARGUMENT', '素材编码不规范');
+      prepared = await prepareUploadedMedia(bytes);
+      for (const [digest, bytes] of prepared.blobs) {
+        const destination = join(this.directory, 'blobs', digest);
+        if (await exists(destination)) {
+          if (!(await readFile(destination)).equals(bytes)) fail('BLOB_INTEGRITY_FAILED', '已有素材损坏，不覆盖不可变素材');
+        } else {
+          const temporary = `${destination}.${randomUUID()}.tmp`;
+          await writeFile(temporary, bytes, { mode: 0o600 }); await rename(temporary, destination);
+        }
+      }
+    }
+    return this.transaction(() => {
+      const current = this.currentDraft(id, version);
+      if (current.confirmed) fail('DRAFT_CONFIRMED', '已确认版本不可修改');
+      const draft: Draft = { ...current, fields, version: version + 1, updated_at: new Date().toISOString(), ...(prepared ? { visual: prepared.visual } : {}) };
+      this.db.prepare('UPDATE drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft), id); return draft;
+    });
+  }
+  async previewDraft(id: string, version: number): Promise<Draft> {
+    const draft = this.currentDraft(id, version);
+    validateDraftFields(draft.fields);
+    if (!draft.visual) fail('MEDIA_REQUIRED', '请先上传视觉素材');
+    await validateExpressionMedia({ visual: draft.visual } as Expression, async blob => {
+      await this.verifyBlob(blob); return readFile(join(this.directory, 'blobs', blob.sha256));
+    });
+    this.currentDraft(id, version); return draft;
+  }
+  async confirmDraft(id: string, version: number): Promise<Expression> {
+    const current = this.currentDraft(id, version);
+    if (current.confirmed) return this.resolve(current.confirmed);
+    const draft = await this.previewDraft(id, version);
+    return this.transaction(() => {
+      const latest = this.currentDraft(id, version);
+      if (latest.confirmed) return this.resolve(latest.confirmed);
+      const expression: Expression = { ...draft.fields, kind: 'amoji.expression', schema_version: '0.1', asset_id: randomUUID(), revision_id: randomUUID(), created_at: new Date().toISOString(), visual: draft.visual! };
+      validateExpressionDefinition(expression);
+      this.db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(expression.asset_id, expression.revision_id, JSON.stringify(expression));
+      this.db.prepare('INSERT INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
+      this.db.prepare("INSERT INTO expression_origins VALUES (?,'local')").run(expression.asset_id);
+      draft.confirmed = { asset_id: expression.asset_id, revision_id: expression.revision_id };
+      this.db.prepare('UPDATE drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft), id);
+      return expression;
+    });
+  }
+
   /** Consumed tokens are message deduplication records and share their messages' retention. */
   pruneSelections(): void {
     this.db.prepare("DELETE FROM selections WHERE json_extract(data,'$.messageId') IS NULL AND json_extract(data,'$.expires')<=?").run(Date.now());
@@ -194,7 +269,9 @@ export class LibraryStore {
   async blobPath(digest: string): Promise<string> {
     if (!/^[a-f0-9]{64}$/.test(digest)) fail('INVALID_ARGUMENT', '无效素材摘要');
     const rows = this.db.prepare('SELECT data FROM revisions').all() as Array<{ data: string }>;
-    const blob = rows.flatMap(row => { const expression: Expression = JSON.parse(row.data); return [expression.visual.primary, expression.visual.poster]; }).find(b => b?.sha256 === digest);
+    const drafts = this.db.prepare('SELECT data FROM drafts').all() as Array<{ data: string }>;
+    const draftBlobs = drafts.flatMap(row => { const draft: Draft = JSON.parse(row.data); return [draft.visual?.primary, draft.visual?.poster]; });
+    const blob = [...draftBlobs, ...rows.flatMap(row => { const expression: Expression = JSON.parse(row.data); return [expression.visual.primary, expression.visual.poster]; })].find(b => b?.sha256 === digest);
     if (!blob) fail('BLOB_MISSING', '素材未被任何版本引用');
     await this.verifyBlob(blob); return join(this.directory, 'blobs', digest);
   }

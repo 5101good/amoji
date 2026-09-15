@@ -2,7 +2,8 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
 export const API_VERSION = 2;
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
+export const CREATE_DRAFT_CAPABILITY = 'create-drafts-v1';
 export const DSH_SUBMISSION_CAPABILITY = 'dsh-idle-submission-v1';
 export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';
 export interface ApiRange { min: number; max: number }

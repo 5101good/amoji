@@ -49,7 +49,7 @@ test('共享服务签发单次票据，固定真实身份、工具、参数与�
   await writeFile(clockFile, '180000');
   assert.equal((await rpc('redeemClaudeTicket', { ticket: expiring.ticket, toolName: invocation.toolName, argumentsDigest: invocation.argumentsDigest })).body.code, 'CLAUDE_TICKET_EXPIRED');
   assert.equal(client.identity.apiVersion, 2);
-  assert.equal(client.identity.databaseVersion, 1);
+  assert.equal(client.identity.databaseVersion, 2);
   assert.ok((client.identity as any).capabilities.includes('claude-hook-tickets-v1'));
   assert.equal((await client.list()).length, 3);
   await rpc('close', {});

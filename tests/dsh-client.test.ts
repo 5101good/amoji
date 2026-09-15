@@ -38,7 +38,7 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   const disposers: Array<() => void> = [];
   const ctx: ClientPort = { slots, effect(factory) { disposers.push(factory()); }, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
     const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
-    const result = endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
+    const result = endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
     return { ok: true, value: result };
   } } } };
   module.apply(ctx);
@@ -59,6 +59,11 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   const Picker = slots.entriesOfSlot('conversation.input.left')[0]!.component;
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
   await act(async () => { (dom.window.document.querySelector('button') as HTMLButtonElement).click(); await settle(); });
+  const manage = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '创建自己的表情'); assert.ok(manage);
+  await act(async () => { manage.click(); await settle(); });
+  const managementLink = dom.window.document.querySelector<HTMLAnchorElement>('a[aria-label="打开创建面板"]')!;
+  assert.equal(managementLink.href, 'http://127.0.0.1:43219/#trusted-a');
+  assert.equal(requests.find(r => r.endpoint === 'amoji/manage')!.payload.sessionId, 'session-a');
   const search = dom.window.document.querySelector<HTMLInputElement>('[aria-label="搜索表情"]')!; assert.ok(search);
   const setSearch = async (value: string) => act(async () => { Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(search, value); search.dispatchEvent(new dom.window.Event('input', { bubbles: true })); await settle(); });
   await setSearch('刚完成的进展');
@@ -74,6 +79,7 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   assert.match(dom.window.document.body.textContent!, /没有合适的表情/); assert.equal(dom.window.document.querySelector('[aria-label="固定语义与精确版本"]'), null);
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-b' })));
   assert.equal(dom.window.document.querySelector('[aria-label="Amoji 表情选择"]'), null);
+  assert.equal(dom.window.document.querySelector('a[aria-label="打开创建面板"]'), null);
   assert.equal(requests.some(r => r.endpoint === 'amoji/submit' && r.payload.sessionId === 'session-b'), false);
   disposers.pop()!();
   for (const key of ['conversation.input.left', 'conversation.composer.dock', 'tool.call.toolview']) assert.equal(slots.entriesOfSlot(key).length, 0);
@@ -108,6 +114,7 @@ test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时
   const visual = { expression, primary: await data(expression.visual.primary), poster: await data(expression.visual.poster!) };
   const meta: VisualMeta = { kind: 'amoji', messageId: 'reduced-message', ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, visualHash: expression.visual.primary.sha256, posterHash: expression.visual.poster!.sha256, alt: expression.semantics.fallback };
   const rpc: import('../src/dsh/contracts.js').DshRpc = {
+    manage: async () => ({ url: 'http://127.0.0.1:43219/#unused' }),
     catalog: async () => [], search: async () => [], submit: async () => { throw new Error('unused'); }, history: async () => [], display: async () => {}, visual: async () => visual,
   };
   const Tool = module.createComponents(rpc).ToolView;
@@ -145,6 +152,7 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   const reads: Array<{ sessionId: string; messageId?: string }> = [];
   let finishHistoryB!: (value: import('../src/dsh/contracts.js').HistoryEntry[]) => void;
   const rpc: import('../src/dsh/contracts.js').DshRpc = {
+    manage: async () => ({ url: 'http://127.0.0.1:43219/#unused' }),
     catalog: async () => [e],
     search: (sessionId, _query, _limit, signal) => new Promise(resolve => searches.set(sessionId, { signal, finish: resolve })),
     submit: (sessionId, _ref, _requestId, signal) => new Promise(resolve => submits.set(sessionId, { signal, finish: resolve })),

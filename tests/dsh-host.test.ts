@@ -134,6 +134,46 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
   }
 });
 
+test('打包dsh Host提供会话校验的创建面板入口，不增加模型工具且销毁时关闭面板', async t => {
+  const f = await setup(t);
+  const cleanups: Array<() => void | Promise<void>> = [];
+  let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<any>) | undefined;
+  f.ctx.effect = factory => { cleanups.push(factory()); };
+  f.ctx.connection.rpc.intercept = (_channel, match, callback) => { assert.equal(match('amoji/manage'), true); handler = callback; return async () => {}; };
+  const plugin = await import(new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href);
+  const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
+  let origin: string | undefined;
+  try {
+    await plugin.apply(f.ctx);
+    const info = JSON.parse(await readFile(new URL('../adapters/dsh/BUILD.json', import.meta.url), 'utf8'));
+    assert.equal(info.serviceApi, f.client.identity.apiVersion); assert.equal(info.databaseVersion, f.client.identity.databaseVersion);
+    assert.ok(info.providedManagementCapabilities.includes('create-drafts-v1'));
+    const denied = await handler!('amoji/manage', { sessionId: 'unknown-session' }, signal()); assert.equal(denied.ok, false);
+    const result = await handler!('amoji/manage', { sessionId: f.a.id }, signal()); assert.equal(result.ok, true);
+    const url = new URL(result.value.url); origin = url.origin;
+    const headers = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' };
+    const state = await (await fetch(`${origin}/api/state`, { headers })).json();
+    assert.equal(state.host, 'dsh'); assert.equal(state.session_id, f.a.id); assert.equal(state.creation_available, true);
+    assert.match(await (await fetch(origin)).text(), /draft-form/);
+    const draft = await (await fetch(`${origin}/api/draft/create`, { method: 'POST', headers, body: '{}' })).json();
+    assert.equal((await f.client.getDraft(draft.draft_id)).draft_id, draft.draft_id);
+    const sample = (await f.client.list())[0]!;
+    const saved = await f.client.saveDraft(draft.draft_id, draft.version, { name: 'dsh新创建', semantics: { locale: 'zh-CN', meaning: '新创建的肯定', fallback: '肯定' }, rights: { license: '仅供个人使用' } }, (await readFile(await f.client.blobPath(sample.visual.primary.sha256))).toString('base64'));
+    const created = await f.client.confirmDraft(saved.draft_id, saved.version);
+    const found = JSON.parse((await f.call('amoji_search', { query: created.name }, f.exec(f.a)) as { text: string }).text);
+    assert.equal(found.candidates[0].revision_id, created.revision_id);
+    const emitted = await f.call('amoji_emit', { selection_token: found.candidates[0].selection_token }, f.exec(f.a)) as { text: string };
+    assert.equal(JSON.parse(emitted.text).expression.revision_id, created.revision_id);
+    assert.doesNotMatch(emitted.text, /visual|base64|data:image/);
+    assert.deepEqual([...f.tools.keys()].sort(), ['amoji_emit', 'amoji_resolve', 'amoji_search']);
+    assert.equal(f.prompts.length, 0);
+  } finally {
+    for (const close of cleanups.reverse()) await close();
+    if (previous === undefined) delete process.env.AMOJI_DATA_DIR; else process.env.AMOJI_DATA_DIR = previous;
+  }
+  if (origin) await assert.rejects(fetch(origin));
+});
+
 test('没有持久化监听时拒绝用户投递，不把内存 append 当已保存', async t => {
   const f = await setup(t); f.ctx.sessions.flush = async () => false;
   const e = (await f.client.list())[0]!;

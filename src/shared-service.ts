@@ -4,8 +4,10 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, DSH_SUBMISSION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
+
+import { draftVersion } from './drafts.js';
 
 interface Connection { response: ServerResponse; bindings: Map<string, BindingContext> }
 
@@ -21,7 +23,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CREATE_DRAFT_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -103,6 +105,12 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
+      case 'createDraft': object(value, []); result = store.createDraft(); break;
+      case 'listDrafts': object(value, []); result = store.listDrafts(); break;
+      case 'getDraft': { const args = object(value, ['draft_id']); result = store.getDraft(nonempty(args.draft_id)); break; }
+      case 'saveDraft': { const args = object(value, ['draft_id', 'version', 'fields', 'upload'], ['draft_id', 'version', 'fields']); result = await store.saveDraft(nonempty(args.draft_id), draftVersion(args.version), args.fields, args.upload as string | undefined); break; }
+      case 'previewDraft':
+      case 'confirmDraft': { const args = object(value, ['draft_id', 'version']); result = await store[method](nonempty(args.draft_id), draftVersion(args.version)); break; }
       case 'list': object(value, []); result = store.list(); break;
       case 'resolve': { const args = object(value, ['asset_id', 'revision_id']); result = store.resolve({ asset_id: nonempty(args.asset_id), revision_id: nonempty(args.revision_id) }); break; }
       case 'blobPath': { const args = object(value, ['digest']); result = await store.blobPath(nonempty(args.digest)); break; }
@@ -139,7 +147,8 @@ function json(res: ServerResponse, status: number, value: unknown): void {
 }
 async function readJson(req: IncomingMessage): Promise<unknown> {
   if (!req.headers['content-type']?.startsWith('application/json')) fail('INVALID_ARGUMENT', '需要 JSON');
-  let raw = '';
-  for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 16384) fail('REQUEST_TOO_LARGE', '请求过大'); }
+  const chunks: Buffer[] = []; let size = 0;
+  for await (const chunk of req) { size += chunk.length; if (size > 14 * 1024 * 1024) fail('REQUEST_TOO_LARGE', '请求过大'); chunks.push(Buffer.from(chunk)); }
+  const raw = Buffer.concat(chunks).toString('utf8');
   try { return JSON.parse(raw); } catch { fail('INVALID_ARGUMENT', '无效 JSON'); }
 }

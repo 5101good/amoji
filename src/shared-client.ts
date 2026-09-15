@@ -3,9 +3,11 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, CREATE_DRAFT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
+
+import type { Draft, DraftFields } from './drafts.js';
 
 interface ConnectOptions { directory?: string; apiRange?: ApiRange; requiredCapabilities?: string[] }
 
@@ -53,6 +55,16 @@ export class SharedClient {
     const response = await fetch(`${this.descriptor.origin}/rpc`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': 'application/json', 'x-amoji-connection': this.connectionId }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(5000) });
     return (await decoded(response)).result as T;
   }
+  private draftCall<T>(method: string, params: unknown): Promise<T> {
+    if (!this.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持手工创建，请更新服务后重试');
+    return this.call(method, params);
+  }
+  createDraft(): Promise<Draft> { return this.draftCall('createDraft', {}); }
+  listDrafts(): Promise<Draft[]> { return this.draftCall('listDrafts', {}); }
+  getDraft(id: string): Promise<Draft> { return this.draftCall('getDraft', { draft_id: id }); }
+  saveDraft(id: string, version: number, fields: DraftFields, upload?: string): Promise<Draft> { return this.draftCall('saveDraft', { draft_id: id, version, fields, ...(upload === undefined ? {} : { upload }) }); }
+  previewDraft(id: string, version: number): Promise<Draft> { return this.draftCall('previewDraft', { draft_id: id, version }); }
+  confirmDraft(id: string, version: number): Promise<Expression> { return this.draftCall('confirmDraft', { draft_id: id, version }); }
   bind(context: BindingContext): Promise<string> { return this.call('bind', context); }
   private requireClaudeTickets(): void {
     if (!this.identity.capabilities?.includes(CLAUDE_TICKET_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${CLAUDE_TICKET_CAPABILITY}`);

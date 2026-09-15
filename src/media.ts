@@ -104,3 +104,26 @@ export async function validateExpressionMedia(expression: Expression, read: (blo
   const poster = await validateMediaBlob(await read(visual.poster!), visual.poster!, 'static');
   return { primary, poster };
 }
+
+/** Derive declarations from upload bytes, then pass the same full decoder used by stored assets. */
+export async function prepareUploadedMedia(bytes: Buffer): Promise<{ visual: Expression['visual']; blobs: Map<string, Buffer> }> {
+  limit(bytes.length > MEDIA_LIMITS.bytes, '单个素材大小超限（最大 10 MiB）');
+  let meta: Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
+  try { meta = await sharp(bytes, { animated: true, failOn: 'warning', limitInputPixels: MEDIA_LIMITS.decodedPixels, limitInputChannels: 4 }).metadata(); }
+  catch { fail('MEDIA_UNSUPPORTED', '素材损坏或无法读取媒体结构'); }
+  const mime = actualMime(meta.format);
+  if (!mime || !meta.width || !meta.height) fail('MEDIA_UNSUPPORTED', '只支持 PNG、JPEG、WebP 静态图与 GIF、WebP 动图');
+  const primary: BlobRef = { sha256: createHash('sha256').update(bytes).digest('hex'), mime, bytes: bytes.length, width: meta.width, height: meta.pageHeight ?? meta.height };
+  const animated = (meta.pages ?? 1) > 1;
+  const decoded = await validateMediaBlob(bytes, primary, animated ? 'animated' : 'static');
+  const blobs = new Map([[primary.sha256, bytes]]);
+  const visual: Expression['visual'] = { primary, animated };
+  if (animated) {
+    const posterBytes = await sharp(bytes, { page: 0, pages: 1, failOn: 'warning', limitInputPixels: MEDIA_LIMITS.decodedPixels, limitInputChannels: 4 }).png().toBuffer();
+    const poster: BlobRef = { sha256: createHash('sha256').update(posterBytes).digest('hex'), mime: 'image/png', bytes: posterBytes.length, width: primary.width, height: primary.height };
+    await validateMediaBlob(posterBytes, poster, 'static');
+    visual.poster = poster; visual.duration_ms = decoded.durationMs;
+    blobs.set(poster.sha256, posterBytes);
+  }
+  return { visual, blobs };
+}

@@ -1,10 +1,12 @@
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { ServiceError, sessionKey, type BindingContext as HostContext } from './shared-contract.js';
+import { ServiceError, object, nonempty, sessionKey, type BindingContext as HostContext } from './shared-contract.js';
 import type { SampleMessage } from './sample-runtime.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
 import { searchExpressions } from './search.js';
+
+import { draftVersion, type DraftFields } from './drafts.js';
 
 interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
@@ -102,7 +104,10 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/drafts') {
+      this.json(res, 200, { drafts: this.runtime.creation ? await this.runtime.creation.listDrafts() : [] }); return;
     }
     if (req.method === 'GET' && url.pathname === '/api/search') {
       try {
@@ -114,7 +119,8 @@ export class PanelServer {
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);
       const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).map(m => m.revision)];
-      const blob = visible.flatMap(e => [e.visual.primary, e.visual.poster]).find(b => b?.sha256 === digest);
+      const drafts = this.runtime.creation ? await this.runtime.creation.listDrafts() : [];
+      const blob = [...visible.flatMap(e => [e.visual.primary, e.visual.poster]), ...drafts.flatMap(d => [d.visual?.primary, d.visual?.poster])].find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
       try {
         const bytes = this.runtime.readBlob ? await this.runtime.readBlob(digest) : await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
@@ -126,12 +132,28 @@ export class PanelServer {
       }
       return;
     }
-    if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
+    if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel', '/api/draft/create', '/api/draft/get', '/api/draft/save', '/api/draft/preview', '/api/draft/confirm'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
     if (!req.headers['content-type']?.startsWith('application/json')) { this.json(res, 415, { error: '需要 JSON' }); return; }
-    let raw = '';
-    for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 4096) { this.json(res, 413, { error: '请求太大' }); return; } }
+    const chunks: Buffer[] = []; let size = 0;
+    for await (const chunk of req) { size += chunk.length; if (size > (url.pathname === '/api/draft/save' ? 14 * 1024 * 1024 : 4096)) { this.json(res, 413, { error: '请求太大' }); return; } chunks.push(Buffer.from(chunk)); }
+    const raw = Buffer.concat(chunks).toString('utf8');
     let body: Record<string, unknown>;
     try { body = JSON.parse(raw); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(); } catch { this.json(res, 400, { error: '无效 JSON' }); return; }
+    if (url.pathname.startsWith('/api/draft/')) {
+      try {
+        const creation = this.runtime.creation;
+        if (!creation) throw new Error('CAPABILITY_UNAVAILABLE：当前服务不支持手工创建，请更新服务');
+        let result: unknown;
+        switch (url.pathname) {
+          case '/api/draft/create': object(body, []); result = await creation.createDraft(); break;
+          case '/api/draft/get': { const args = object(body, ['draft_id']); result = await creation.getDraft(nonempty(args.draft_id)); break; }
+          case '/api/draft/save': { const args = object(body, ['draft_id', 'version', 'fields', 'upload'], ['draft_id', 'version', 'fields']); result = await creation.saveDraft(nonempty(args.draft_id), draftVersion(args.version), args.fields as DraftFields, args.upload as string | undefined); break; }
+          default: { const args = object(body, ['draft_id', 'version']); result = await creation[url.pathname.endsWith('/confirm') ? 'confirmDraft' : 'previewDraft'](nonempty(args.draft_id), draftVersion(args.version)); }
+        }
+        this.json(res, 200, result);
+      } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '草稿操作失败' }); }
+      return;
+    }
     if (url.pathname === '/api/ack') {
       if (typeof body.message_id !== 'string' || !['rendered', 'fallback'].includes(String(body.presentation))) { this.json(res, 400, { error: '无效回执' }); return; }
       try { await this.runtime.acknowledge(session.context, body.message_id, body.presentation as 'rendered' | 'fallback'); this.json(res, 200, { ok: true }); }

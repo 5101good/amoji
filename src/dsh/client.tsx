@@ -17,6 +17,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
     return result.value as T;
   };
   return {
+    manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
     search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
     submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref, requestId }, signal),
@@ -64,7 +65,7 @@ export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { 
 export function createComponents(rpc: DshRpc) {
   function Picker({ sessionId }: SessionProps) { return <PickerSession key={sessionId} sessionId={sessionId} />; }
   function PickerSession({ sessionId }: SessionProps) {
-    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
+    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(''); const [managementUrl, setManagementUrl] = useState('');
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
@@ -91,6 +92,15 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) setSearchStatus(errorText(e)); }
       finally { if (current()) setSearching(false); }
     };
+    const manage = async () => {
+      if (!target) return;
+      const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
+      setManagementUrl('');
+      try {
+        const result = await rpc.manage(frozen, signal);
+        if (!signal.aborted && owner.generation === generation && owner.sessionId === frozen) setManagementUrl(result.url);
+      } catch (error) { if (!signal.aborted && owner.generation === generation) setStatus(errorText(error)); }
+    };
     const send = async () => {
       if (!target || !selected || busy) return;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
@@ -104,6 +114,8 @@ export function createComponents(rpc: DshRpc) {
     };
     return <div><button type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择">
       <p>发送到当前会话 · {target}</p>
+      <button type="button" onClick={() => void manage()}>创建自己的表情</button>
+      {managementUrl && <p><a aria-label="打开创建面板" href={managementUrl} target="_blank" rel="noreferrer">打开创建面板</a> · 确认后返回这里，点击“显示全部”刷新共享库。</p>}
       <form aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); void load(query); }}>
         <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="按名称、标签或语境搜索" />
         <button type="submit">{searching ? '搜索中…' : '搜索'}</button>

@@ -18,3 +18,5 @@ adapters/dsh/runtime/
 adapters/dsh/assets/
 adapters/dsh/client.js
 adapters/dsh/BUILD.json
+
+adapters/dsh/web/

@@ -1,6 +1,6 @@
 # Amoji 共享本地服务 API 2
 
-票据 02 的实际适配合同，资产 JSON 仍遵守 [Amoji v0.1 协议](amoji-protocol-v0.1.md)。API 版本、数据库版本、插件版本和资产 revision 是不同标识。当前 API 为 2，数据库仍为 1；API 2 增加必需的绑定释放能力，新客户端与旧 API 1 服务明确拒绝握手并提示升级。三个受控样本作为首次内容写入真实持久版本库，未增加创建、导入、设置或其他宿主实现。
+票据 02 的实际适配合同，资产 JSON 仍遵守 [Amoji v0.1 协议](amoji-protocol-v0.1.md)。API 版本、数据库版本、插件版本和资产 revision 是不同标识。当前 API 为 2，数据库为 2（票据 07 增加持久草稿，详见文末）；API 2 增加必需的绑定释放能力，新客户端与旧 API 1 服务明确拒绝握手并提示升级。三个受控样本作为首次内容写入真实持久版本库，票据 02 当时未增加创建、导入、设置或其他宿主实现；后续扩展见文末。
 
 ## 公共客户端
 
@@ -122,3 +122,32 @@ API 2 / 数据库 1 不变。`src/media.ts` 提供后续创建、导入和固定
 静态容器仅接受 PNG、JPEG、WebP；动图仅接受 GIF、animated WebP。实际格式、尺寸及动画性必须与声明一致。静态定义不得包含 `duration_ms` 或 `poster`；动图必须包含与真实逐帧时长精确一致的 `duration_ms`，以及摘要不同且实际解码为静态图的独立封面。明确拒绝 APNG、SVG、HTML 和其他未约定容器。边长上限 2048，动图上限 10 秒、200 帧，累计解码像素上限一亿。
 
 共用面板和 dsh Client 默认按 `prefers-reduced-motion` 决定是否显示同一版本的静态封面；用户可以显式播放或暂停，系统偏好切换到减少动态效果时重新显示封面。播放状态只影响人类视觉，不修改版本、消息快照或模型文字投影。浏览器解码失败和服务端 `BLOB_MISSING` / `BLOB_INTEGRITY_FAILED` 都保留该消息快照的原始 fallback 与明确原因，不识图、不查同名新版。面板 blob HTTP 对缺失返回 404、完整性失败返回 422，不返回图片成功体。
+
+## 手工创建扩展（票据 07）
+
+资产协议仍为 `0.1`，API 仍为 `2`；数据库升级为 `2`，健康握手新增 `create-drafts-v1` 能力。API 2 的现有搜索、发送、绑定和 Claude/dsh 合同不变。旧客户端可连接新服务；新客户端的创建方法会先核对能力，旧服务返回 `CAPABILITY_UNAVAILABLE`，不会误认为写入成功。旧服务直接打开数据库 2 时应拒绝降级。三个构建器的 BUILD 记录实际 `serviceApi`、`databaseVersion`、`providedManagementCapabilities`，统一读取核心常量。
+
+以下是供可信适配层和人类管理面板调用的公共 `SharedClient` 方法，不注册为模型工具：
+
+| 方法 | 参数 | 行为 |
+|---|---|---|
+| `createDraft` | 无 | 创建空白持久草稿，返回 `draft_id`、`version=1`、`updated_at`、`fields` |
+| `listDrafts` | 无 | 返回本机所有未确认草稿，与宿主、会话及客户端连接无关 |
+| `getDraft` | `draft_id` | 恢复已保存内容、验证过的视觉描述及确认结果 |
+| `saveDraft` | `draft_id, version, fields, upload?` | 乐观并发保存，递增草稿版本；`upload` 为原始单素材的规范 base64 字节，省略时保留原图 |
+| `previewDraft` | `draft_id, version` | 严格校验语义和完整媒体，返回同一草稿的预览；不创建资产身份 |
+| `confirmDraft` | `draft_id, version` | 明确确认并原子生成完整 `Expression`；同一草稿同版本重复确认返回同一资产版本 |
+
+`fields` 只接受 `name`、`semantics`、`rights` 和可选 `tags`。嵌套对象也拒绝未知字段。保存允许未填写完的空白文字及超过最终字段长度的有界输入，以便保留草稿；每字段最多 16 KiB、列表最多 64 条、整份文字最多 64 KiB。预览/确认按协议严格检查非空白、Unicode code point 长度、列表限制与去重，以及 UTF-8 序列化 `{name, semantics}` 的 4 KiB 预算。不会截断字段。模型或上传调用不能提供 `asset_id`、`revision_id`、`created_at`、`schema_version`、`origin` 或视觉声明来伪造身份、日期、协议及归属。完整确认定义再次经启用 `date-time` 的 Schema 验证器校验。
+
+草稿身份为 `draft_<uuid>`，没有可发送 `asset_id/revision_id`。`drafts` 表独立于 `revisions/library_entries`，确认前 `list/search/resolve/emit/receive` 都不能将草稿作为版本使用。草稿视觉只通过带面板能力凭据的人类图片通道可见。确认事务同时写入不可变版本、当前库条目、`expression_origins.origin=local` 和草稿的确定确认结果。`rights.creator/source` 只是用户说明，不参与本机作者归属判断。已确认草稿拒绝保存；旧预览版本返回 `DRAFT_CONFLICT`，必须恢复并重新预览。
+
+`prepareUploadedMedia` 位于 `src/media.ts`，从实际上传字节推导格式、尺寸和动画信息，再复用票据 06 的完整解码与全部媒体预算。动图自动提取第一帧为独立 PNG 封面，并再次做静态媒体校验。内容寻址字节先写入不可变存储，草稿保存及确认都不会提交半可用资产。写入素材后事务失败可能留下无版本引用的字节，本票不做清理或删除。预览和确认会再次验证保留字节；损坏或丢失不会靠同名表情补图。
+
+共用面板增加 `/api/drafts`（GET），以及 `/api/draft/create|get|save|preview|confirm`（POST），沿用面板原有 Host、Origin、随机能力令牌边界。浏览器不获取共享服务秘密。上传请求最多 14 MiB（含 base64 开销和草稿文字）；其他面板写入仍限 4 KiB。HTTP 按原始字节计量并在完整拼接后解码 UTF-8，避免跨网络分块破坏补充平面字符。
+
+用户通过“新建草稿 → 上传并填写 → 保存/预览 → 确认或返回修改”操作；语义错误保留输入，素材错误不替换已存草稿。草稿恢复在新宿主面板、MCP 重连及共享服务重启后可用。确认前可以播放/暂停动图，减少动态效果时显示同一草稿的封面。确认成功后共用面板刷新、选中新版，仍须点击发送，目标沿用当前面板的真实宿主会话。
+
+Codex/Claude 使用现有共用面板入口。dsh 原生 Picker 的“创建自己的表情”通过人类 RPC `amoji/manage({sessionId})` 请求管理面板地址；Host 验证会话并生成能力，Client 显示供用户打开的链接。该 RPC 不创建回合、不发送 prompt，也不成为模型工具。创建完成后返回 dsh Picker，点击“显示全部”读取同一共享库并经原有 submit 发送；面板不会伪造 dsh 的 pending pick。Adapter 卸载或核心连接失效会关闭管理面板。
+
+数据库 1→2 仅增加 `drafts` 与 `expression_origins`，保留原版本、库条目、消息快照、选择凭据及素材；既有资产不因迁移被重新标为本机作者。本票不提供建议、版本编辑、包导入或永久删除。

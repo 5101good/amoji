@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import type { BindingContext as HostContext } from './shared-contract.js';
+import { CREATE_DRAFT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -9,6 +9,7 @@ type Awaitable<T> = T | Promise<T>;
 /** Host presentation boundary; supports the ticket-01 fixtures and the shared client. */
 export interface AdapterRuntime {
   connectionSignal?: AbortSignal;
+  creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
   catalog: { root: URL; all(): Awaitable<Expression[]>; resolve(ref: ExpressionRef): Awaitable<Expression> };
   search(context: HostContext, query: string, limit?: number): Awaitable<{ candidates: Candidate[]; policy: string }>;
   emit(context: HostContext, token: string): Awaitable<SampleMessage>;
@@ -23,8 +24,10 @@ export interface AdapterRuntime {
 export class ConnectedRuntime implements AdapterRuntime {
   readonly catalog;
   readonly connectionSignal;
+  readonly creation;
   constructor(private readonly client: SharedClient) {
     this.connectionSignal = client.signal;
+    this.creation = client.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY) ? client : undefined;
     this.catalog = { root: pathToFileURL(`${client.identity.dataRoot}/`), all: () => client.list(), resolve: (ref: ExpressionRef) => client.resolve(ref) };
   }
   private async withBinding<T>(context: HostContext, operation: (binding: string) => Promise<T>): Promise<T> {

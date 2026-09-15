@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { hasExactEmitFirstSequence, isSuccessfulAmojiCall } from './live-tools-policy.mjs';
 import { startRelay } from './wire-relay.mjs';
 const root = resolve(import.meta.dirname, '../..');
 const run = mkdtempSync(join(tmpdir(), 'amoji-live-'));
@@ -21,8 +22,7 @@ let panelProgressEmitted = false;
 function emitPanelProgress(event) {
   if (!emitFirst || panelProgressEmitted || event?.type !== 'item.completed') return;
   const item = event.item;
-  if (item?.type !== 'mcp_tool_call' || item.server !== 'amoji' || item.tool !== 'amoji_emit' || item.status !== 'completed'
-    || item.error || item.result?.isError || item.result?.is_error || !Array.isArray(item.result?.content)) return;
+  if (!isSuccessfulAmojiCall(item, 'amoji_emit') || !Array.isArray(item.result?.content)) return;
   for (const block of item.result.content) {
     if (block?.type !== 'text' || typeof block.text !== 'string') continue;
     try {
@@ -90,20 +90,10 @@ child.on('exit', async code => {
   writeFileSync(join(run, 'stderr.txt'), stderr, { mode: 0o600 });
   const events = output.trim().split('\n').flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
   const calls = events.filter(e => e.type === 'item.completed' && e.item?.type === 'mcp_tool_call').map(e => e.item);
-  const amojiCalls = calls.filter(call => call.server === 'amoji');
   const wire = readFileSync(evidenceFile, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
   const expected = process.env.AMOJI_RESUME_THREAD && !pickEnabled ? [] : ['amoji_search', 'amoji_emit', ...(pickEnabled ? ['amoji_pick'] : [])];
-  const successful = call => call.status === 'completed' && !call.error && !call.result?.isError && !call.result?.is_error;
-  const successfulTools = expected.every(name => amojiCalls.some(call => call.tool === name && successful(call)));
-  const orderedTools = amojiCalls.filter(successful).map(call => call.tool);
-  let previousIndex = -1;
-  const orderedEmitFirstCalls = !emitFirst || expected.every(name => {
-    previousIndex = orderedTools.indexOf(name, previousIndex + 1);
-    return previousIndex !== -1;
-  });
-  const strictEmitFirst = !emitFirst || (panelProgressEmitted && orderedEmitFirstCalls
-    && amojiCalls.filter(call => call.tool === 'amoji_emit').length === 1
-    && amojiCalls.filter(call => expected.includes(call.tool)).every(successful));
+  const successfulTools = expected.every(name => calls.some(call => isSuccessfulAmojiCall(call, name)));
+  const strictEmitFirst = !emitFirst || (panelProgressEmitted && hasExactEmitFirstSequence(calls));
   const textOnly = wire.length > 0 && wire.every(request => request.parsed && request.inputImageParts === 0 && request.imageDataUrls === 0);
   const passed = code === 0 && successfulTools && strictEmitFirst && textOnly;
   console.log(JSON.stringify({ run, executable, exitCode: code, passed, requests: wire.length, textOnly,

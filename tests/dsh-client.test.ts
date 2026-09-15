@@ -21,6 +21,7 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
   const previous = { window: globalThis.window, document: globalThis.document };
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  Object.assign(dom.window, { matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }) });
   let unmount = async () => {};
   t.after(async () => { await unmount(); Object.assign(globalThis, previous); dom.window.close(); });
   let module: { apply(ctx: ClientPort): void } | undefined;
@@ -46,13 +47,15 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   const root = createRoot(dom.window.document.getElementById('root')!); unmount = async () => { await act(() => root.unmount()); };
   const Tool = slots.entriesOfSlot('tool.call.toolview')[0]!.component;
   await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-a', block: { meta } })); await settle(); });
-  let img = dom.window.document.querySelector('img')!; assert.ok(img); assert.equal(img.src, visual.poster ?? visual.primary); assert.equal(img.alt, meta.alt);
+  let img = dom.window.document.querySelector('img')!; assert.ok(img); assert.equal(img.src, visual.primary); assert.equal(img.alt, meta.alt);
   await act(async () => { img.dispatchEvent(new dom.window.Event('load')); await settle(); });
-  const receipt = requests.find(r => r.endpoint === 'amoji/display')!; assert.equal(receipt.payload.sessionId, 'session-a'); assert.equal(receipt.payload.messageId, 'message-a'); assert.equal(receipt.payload.hash, meta.posterHash ?? meta.visualHash);
+  const receipt = requests.find(r => r.endpoint === 'amoji/display')!; assert.equal(receipt.payload.sessionId, 'session-a'); assert.equal(receipt.payload.messageId, 'message-a'); assert.equal(receipt.payload.hash, meta.visualHash);
+  const pause = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '暂停动图'); assert.ok(pause);
+  await act(() => pause.click()); img = dom.window.document.querySelector('img')!; assert.equal(img.src, visual.poster);
   const play = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '播放动图'); assert.ok(play);
   await act(() => play.click()); img = dom.window.document.querySelector('img')!; assert.equal(img.src, visual.primary);
   await act(async () => { img.dispatchEvent(new dom.window.Event('error')); await settle(); });
-  assert.match(dom.window.document.body.textContent!, /图片加载失败/); assert.ok(requests.some(r => r.payload.state === 'failed' && r.payload.hash === meta.visualHash));
+  assert.match(dom.window.document.body.textContent!, new RegExp(meta.alt.replace(/[\[\]]/g, '\\$&'))); assert.match(dom.window.document.body.textContent!, /浏览器无法解码图片/); assert.ok(requests.some(r => r.payload.state === 'failed' && r.payload.hash === meta.visualHash));
   const Picker = slots.entriesOfSlot('conversation.input.left')[0]!.component;
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
   await act(async () => { (dom.window.document.querySelector('button') as HTMLButtonElement).click(); await settle(); });
@@ -86,6 +89,43 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   assert.throws(() => module!.apply(failing), /third registration failed/);
   assert.deepEqual(order, ['conversation.composer.dock', 'conversation.input.left']);
   module.apply(ctx); assert.equal(slots.entriesOfSlot('tool.call.toolview').length, 1); disposers.pop()!();
+});
+
+test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时保留原 fallback 与原因', async t => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
+  const previous = { window: globalThis.window, document: globalThis.document };
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  let motionListener: ((event: { matches: boolean }) => void) | undefined;
+  const preference = { matches: true, addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => { motionListener = listener; }, removeEventListener: () => {} };
+  Object.assign(dom.window, { matchMedia: () => preference });
+  let module!: typeof import('../src/dsh/client.js');
+  Object.assign(dom.window, { __ModuleLoader__: { load(value: { factory(require: (id: string) => unknown): unknown }) { module = value.factory(id => require(id)) as typeof module; } } });
+  dom.window.eval(await readFile(new URL('../adapters/dsh/client.js', import.meta.url), 'utf8'));
+  const root = createRoot(dom.window.document.getElementById('root')!);
+  t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, previous); dom.window.close(); });
+  const expression = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all().find(value => value.visual.animated)!;
+  const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
+  const visual = { expression, primary: await data(expression.visual.primary), poster: await data(expression.visual.poster!) };
+  const meta: VisualMeta = { kind: 'amoji', messageId: 'reduced-message', ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, visualHash: expression.visual.primary.sha256, posterHash: expression.visual.poster!.sha256, alt: expression.semantics.fallback };
+  const rpc: import('../src/dsh/contracts.js').DshRpc = {
+    catalog: async () => [], search: async () => [], submit: async () => { throw new Error('unused'); }, history: async () => [], display: async () => {}, visual: async () => visual,
+  };
+  const Tool = module.createComponents(rpc).ToolView;
+  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-reduced', block: { meta } })); await settle(); });
+  assert.equal(dom.window.document.querySelector<HTMLImageElement>('img')!.src, visual.poster);
+  const play = [...dom.window.document.querySelectorAll('button')].find(button => button.textContent === '播放动图')!;
+  assert.equal(play.getAttribute('aria-pressed'), 'true');
+  await act(() => play.click());
+  assert.equal(dom.window.document.querySelector<HTMLImageElement>('img')!.src, visual.primary);
+  await act(() => motionListener?.({ matches: true }));
+  assert.equal(dom.window.document.querySelector<HTMLImageElement>('img')!.src, visual.poster);
+
+  const missingRpc = { ...rpc, visual: async () => { throw new Error('BLOB_MISSING：保留素材缺失'); } };
+  const MissingTool = module.createComponents(missingRpc).ToolView;
+  await act(async () => { root.render(React.createElement(MissingTool, { sessionId: 'session-missing', block: { meta: { ...meta, messageId: 'missing-message' } } })); await settle(); });
+  const alert = dom.window.document.querySelector('[role=alert]')!;
+  assert.match(alert.textContent!, new RegExp(meta.alt.replace(/[\[\]]/g, '\\$&')));
+  assert.match(alert.textContent!, /BLOB_MISSING：保留素材缺失/);
 });
 
 test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，History 不读取跨会话旧行', async t => {

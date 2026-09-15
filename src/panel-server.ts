@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { sessionKey, type BindingContext as HostContext } from './shared-contract.js';
+import { ServiceError, sessionKey, type BindingContext as HostContext } from './shared-contract.js';
 import type { SampleMessage } from './sample-runtime.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
 import { searchExpressions } from './search.js';
@@ -116,8 +116,15 @@ export class PanelServer {
       const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).map(m => m.revision)];
       const blob = visible.flatMap(e => [e.visual.primary, e.visual.poster]).find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
-      const bytes = this.runtime.readBlob ? await this.runtime.readBlob(digest) : await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
-      res.writeHead(200, { 'Content-Type': blob.mime, 'Cache-Control': 'private, max-age=3600' }); res.end(bytes); return;
+      try {
+        const bytes = this.runtime.readBlob ? await this.runtime.readBlob(digest) : await readFile(new URL(`blobs/${digest}`, this.runtime.catalog.root));
+        res.writeHead(200, { 'Content-Type': blob.mime, 'Cache-Control': 'private, max-age=3600' }); res.end(bytes);
+      } catch (error) {
+        const code = error instanceof ServiceError ? error.code : (error as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'BLOB_MISSING' : 'BLOB_UNAVAILABLE';
+        const status = code === 'BLOB_MISSING' ? 404 : code === 'BLOB_INTEGRITY_FAILED' ? 422 : 500;
+        this.json(res, status, { error: error instanceof Error ? error.message : `${code}：素材不可用` });
+      }
+      return;
     }
     if (req.method !== 'POST' || !['/api/select', '/api/ack', '/api/cancel'].includes(url.pathname)) { this.json(res, 404, { error: '接口不存在' }); return; }
     if (!req.headers['content-type']?.startsWith('application/json')) { this.json(res, 415, { error: '需要 JSON' }); return; }

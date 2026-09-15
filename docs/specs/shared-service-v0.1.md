@@ -114,3 +114,11 @@ API 2 / 数据库 1 不变，新增可选 capability `dsh-idle-submission-v1`。
 `BindingContext.turnId` 对 `host:'dsh'` 的用户 submission、history 和 presentation 可省略。该绑定表示用户选定的真实会话，不表示 AI 回合；不得用 requestId 或 tool callId 填充 turnId。Codex / Claude 绑定仍要求非空 turn。核心 `search` / `emit` 对所有宿主继续强制非空真实 turn，缺失时返回 `TURN_REQUIRED`，包括已经存在的选择凭据。
 
 dsh 的用户提交使用现有 `receive(binding, ref, requestId)`，不新增数据库。其核心 messageId 与宿主 `prompt.requestId` 的关系及 inbox / user-message 观察状态由 dsh 自身会话事件保存；`receive` 返回或 inbox accepted 都不等于模型完成或图片已渲染。每操作 bind/unbind 行为保持不变。
+
+## 媒体校验与动图呈现扩展（票据 06）
+
+API 2 / 数据库 1 不变。`src/media.ts` 提供后续创建、导入和固定样本载入共同使用的媒体校验接缝：`validateMediaBlob` 对一个声明与字节做校验，`validateExpressionMedia` 对主图、动画声明和独立封面做整体校验。校验先限制单素材 10 MiB、声明尺寸和允许容器，再用受像素及通道限制的解码器读取真实格式、尺寸、帧数和逐帧时长，最后强制完整像素解码。只读 metadata 不构成成功。
+
+静态容器仅接受 PNG、JPEG、WebP；动图仅接受 GIF、animated WebP。实际格式、尺寸及动画性必须与声明一致。静态定义不得包含 `duration_ms` 或 `poster`；动图必须包含与真实逐帧时长精确一致的 `duration_ms`，以及摘要不同且实际解码为静态图的独立封面。明确拒绝 APNG、SVG、HTML 和其他未约定容器。边长上限 2048，动图上限 10 秒、200 帧，累计解码像素上限一亿。
+
+共用面板和 dsh Client 默认按 `prefers-reduced-motion` 决定是否显示同一版本的静态封面；用户可以显式播放或暂停，系统偏好切换到减少动态效果时重新显示封面。播放状态只影响人类视觉，不修改版本、消息快照或模型文字投影。浏览器解码失败和服务端 `BLOB_MISSING` / `BLOB_INTEGRITY_FAILED` 都保留该消息快照的原始 fallback 与明确原因，不识图、不查同名新版。面板 blob HTTP 对缺失返回 404、完整性失败返回 422，不返回图片成功体。

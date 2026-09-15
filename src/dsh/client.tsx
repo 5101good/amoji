@@ -8,7 +8,8 @@ export interface ClientPort {
   slots: { register(options: { name: string; key?: string; id?: string }, component: React.ComponentType<SessionProps & { block?: { meta?: unknown } }>): () => void };
 }
 interface SessionProps { sessionId: string }
-function errorText(error: unknown): string { return error instanceof Error ? error.message : '操作失败'; }
+function errorText(error: unknown): string { return error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : '操作失败'; }
+function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
 export function createRpc(ctx: ClientPort): DshRpc {
   const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
     const result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal);
@@ -33,15 +34,21 @@ export function parseMeta(raw: unknown): VisualMeta | undefined {
 function sameRef(a: ExpressionRef, b: ExpressionRef): boolean { return a.asset_id === b.asset_id && a.revision_id === b.revision_id; }
 
 export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { rpc: DshRpc; refValue: ExpressionRef; meta?: VisualMeta }) {
-  const [data, setData] = useState<VisualData>(); const [paused, setPaused] = useState(true); const [error, setError] = useState(''); const [receiptError, setReceiptError] = useState('');
+  const [data, setData] = useState<VisualData>(); const [paused, setPaused] = useState(reducedMotion); const [error, setError] = useState(''); const [receiptError, setReceiptError] = useState('');
   useEffect(() => {
-    const abort = new AbortController(); setData(undefined); setError(''); setReceiptError(''); setPaused(true);
+    const abort = new AbortController(); setData(undefined); setError(''); setReceiptError(''); setPaused(reducedMotion());
     void rpc.visual(sessionId, refValue, meta?.messageId, abort.signal).then(value => {
       if (!sameRef(value.expression, refValue) || (meta && (value.expression.visual.primary.sha256 !== meta.visualHash || (value.expression.visual.poster?.sha256 ?? null) !== meta.posterHash || value.expression.semantics.fallback !== meta.alt))) throw new Error('图片版本或摘要不匹配');
       if (!abort.signal.aborted) setData(value);
     }).catch(e => { if (!abort.signal.aborted) setError(errorText(e)); });
     return () => abort.abort();
   }, [rpc, sessionId, refValue.asset_id, refValue.revision_id, meta?.messageId, meta?.visualHash, meta?.posterHash]);
+  useEffect(() => {
+    const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const changed = (event: MediaQueryListEvent) => { if (event.matches) setPaused(true); };
+    preference?.addEventListener?.('change', changed);
+    return () => preference?.removeEventListener?.('change', changed);
+  }, []);
   const acknowledge = (state: 'rendered' | 'failed') => {
     if (!meta || !data) return;
     const hash = paused && data.poster ? data.expression.visual.poster!.sha256 : data.expression.visual.primary.sha256;
@@ -49,8 +56,8 @@ export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { 
   };
   const alt = meta?.alt ?? data?.expression.semantics.fallback ?? '表情加载中';
   return <figure style={{ margin: 8 }}>
-    {error ? <span role="alert">{alt} · {error}</span> : data ? <img style={{ width: 96, height: 96, objectFit: 'contain' }} src={paused && data.poster ? data.poster : data.primary} alt={alt} onLoad={() => acknowledge('rendered')} onError={() => { setError('图片加载失败，显示固定文字'); acknowledge('failed'); }} /> : <span>加载中…</span>}
-    {data?.expression.visual.animated && data.poster && !error && <button type="button" onClick={() => setPaused(v => !v)}>{paused ? '播放动图' : '暂停动图'}</button>}
+    {error ? <span role="alert">{alt} · {error}</span> : data ? <img style={{ width: 96, height: 96, objectFit: 'contain' }} src={paused && data.poster ? data.poster : data.primary} alt={alt} onLoad={() => acknowledge('rendered')} onError={() => { setError('浏览器无法解码图片，显示固定文字'); acknowledge('failed'); }} /> : <span>加载中…</span>}
+    {data?.expression.visual.animated && data.poster && !error && <button type="button" aria-pressed={paused} onClick={() => setPaused(v => !v)}>{paused ? '播放动图' : '暂停动图'}</button>}
     {receiptError && <small role="alert">{receiptError}</small>}
   </figure>;
 }

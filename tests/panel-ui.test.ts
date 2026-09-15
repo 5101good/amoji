@@ -11,6 +11,73 @@ async function eventually(condition: () => boolean): Promise<void> {
   assert.fail('等待 DOM 异步提交超时');
 }
 
+test('面板真实 DOM 以同一版本封面响应减少动态效果、显式播放暂停，并准确呈现图片解码失败', async t => {
+  const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
+  const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8'));
+  const expression = manifest.expressions.find((value: { visual: { animated: boolean } }) => value.visual.animated)!;
+  const message = { message_id: 'message-motion', direction: 'ai_to_human', revision: expression, presentation: 'pending' };
+  const state = { host: 'codex', session_id: 'thread-motion', turn_id: 'turn-1', pending_pick: null, expressions: [expression], messages: [message] };
+  const requested: string[] = [];
+  const acknowledgements: unknown[] = [];
+  let motionListener: ((event: { matches: boolean }) => void) | undefined;
+  const fakeFetch = async (input: string | URL | Request, init?: RequestInit) => {
+    const value = String(input); requested.push(value);
+    if (value.startsWith('/api/state')) return Response.json(state);
+    if (value.startsWith('/api/ack')) { acknowledgements.push(JSON.parse(String(init?.body))); return Response.json({ ok: true }); }
+    if (value.startsWith('/blobs/')) return new Response(new Blob(['real-image-bytes']), { status: 200 });
+    return Response.json({ ok: true });
+  };
+  const dom = new JSDOM(html, { url: 'http://127.0.0.1:43123/#motion-capability', runScripts: 'outside-only' });
+  const globals = globalThis as Record<string, unknown>;
+  const names = ['document', 'location', 'matchMedia', 'fetch', 'addEventListener', 'setInterval'];
+  const original = new Map(names.map(name => [name, globals[name]]));
+  t.after(() => { dom.window.close(); for (const name of names) original.get(name) === undefined ? delete globals[name] : globals[name] = original.get(name); });
+  Object.assign(globals, {
+    document: dom.window.document, location: dom.window.location, fetch: fakeFetch, addEventListener: () => {}, setInterval: () => 0,
+    matchMedia: () => ({ matches: true, addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => { motionListener = listener; } }),
+  });
+  await import(`${new URL('../web/panel.js', import.meta.url).href}?motion=${Date.now()}`);
+  await eventually(() => dom.window.document.querySelectorAll('img').length === 2);
+  assert.equal(dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent, '播放动图');
+  assert.ok(requested.some(value => value === `/blobs/${expression.visual.poster.sha256}`));
+  assert.equal(requested.some(value => value === `/blobs/${expression.visual.primary.sha256}`), false);
+
+  dom.window.document.querySelector<HTMLButtonElement>('#motion')!.click();
+  await eventually(() => requested.some(value => value === `/blobs/${expression.visual.primary.sha256}`));
+  assert.equal(dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent, '暂停动图');
+  motionListener?.({ matches: true });
+  await eventually(() => dom.window.document.querySelector<HTMLButtonElement>('#motion')!.textContent === '播放动图');
+
+  const historyImage = dom.window.document.querySelector<HTMLImageElement>('#messages img')!;
+  historyImage.dispatchEvent(new dom.window.Event('error'));
+  await eventually(() => !!dom.window.document.querySelector('#messages [role=alert]'));
+  assert.match(dom.window.document.querySelector('#messages [role=alert]')!.textContent!, new RegExp(expression.semantics.fallback.replace(/[\[\]]/g, '\\$&')));
+  assert.match(dom.window.document.querySelector('#messages [role=alert]')!.textContent!, /浏览器无法解码图片/);
+  assert.deepEqual(acknowledgements.at(-1), { message_id: 'message-motion', presentation: 'fallback' });
+  await new Promise(resolve => setTimeout(resolve, 20));
+});
+
+test('面板真实 DOM 在服务端素材缺失时保留原 fallback 与明确失败原因', async t => {
+  const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
+  const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8'));
+  const expression = manifest.expressions[0];
+  const state = { host: 'codex', session_id: 'thread-missing', turn_id: 'turn-1', pending_pick: null, expressions: [], messages: [{ message_id: 'message-missing', direction: 'human_to_ai', revision: expression, presentation: 'pending' }] };
+  const dom = new JSDOM(html, { url: 'http://127.0.0.1:43123/#missing-capability', runScripts: 'outside-only' });
+  const globals = globalThis as Record<string, unknown>;
+  const names = ['document', 'location', 'matchMedia', 'fetch', 'addEventListener', 'setInterval'];
+  const original = new Map(names.map(name => [name, globals[name]]));
+  t.after(() => { dom.window.close(); for (const name of names) original.get(name) === undefined ? delete globals[name] : globals[name] = original.get(name); });
+  Object.assign(globals, {
+    document: dom.window.document, location: dom.window.location, matchMedia: () => ({ matches: false, addEventListener: () => {} }), addEventListener: () => {}, setInterval: () => 0,
+    fetch: async (input: string | URL | Request) => String(input).startsWith('/api/state') ? Response.json(state) : String(input).startsWith('/blobs/') ? Response.json({ error: 'BLOB_MISSING：保留素材缺失' }, { status: 404 }) : Response.json({ ok: true }),
+  });
+  await import(`${new URL('../web/panel.js', import.meta.url).href}?missing=${Date.now()}`);
+  await eventually(() => !!dom.window.document.querySelector('#messages [role=alert]'));
+  const fallback = dom.window.document.querySelector('#messages [role=alert]')!.textContent!;
+  assert.match(fallback, new RegExp(expression.semantics.fallback.replace(/[\[\]]/g, '\\$&')));
+  assert.match(fallback, /BLOB_MISSING：保留素材缺失/);
+});
+
 test('真实面板 DOM 可搜索、预览完整语义、显示空状态并保持固定会话目标', async t => {
   const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
   const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8'));

@@ -1,11 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { fullFormats } from 'ajv-formats/dist/formats.js';
-import sharp from 'sharp';
 import schema from '../docs/specs/amoji-v0.1.schema.json' with { type: 'json' };
 import type { ExpressionText } from './projection.js';
 import { searchExpressions } from './search.js';
+import { validateExpressionMedia } from './media.js';
 
 export interface ExpressionRef { asset_id: string; revision_id: string }
 export interface BlobRef { sha256: string; mime: string; bytes: number; width: number; height: number }
@@ -31,13 +30,7 @@ export class SampleCatalog {
     if (pack.kind !== 'amoji.pack') throw new Error('样本必须是 Amoji 包');
     for (const expression of pack.expressions) {
       if (Buffer.byteLength(JSON.stringify({ name: expression.name, semantics: expression.semantics })) > 4096) throw new Error('语义超出 4 KiB');
-      for (const blob of [expression.visual.primary, expression.visual.poster].filter((v): v is BlobRef => !!v)) {
-        const bytes = await readFile(new URL(`blobs/${blob.sha256}`, root));
-        if (bytes.length !== blob.bytes || createHash('sha256').update(bytes).digest('hex') !== blob.sha256) throw new Error('样本素材摘要不匹配');
-        const meta = await sharp(bytes, { animated: true, limitInputPixels: 100_000_000 }).metadata();
-        if (meta.width !== blob.width || (meta.pageHeight ?? meta.height) !== blob.height || `image/${meta.format}` !== blob.mime) throw new Error('样本素材格式不匹配');
-        if ((meta.pages ?? 1) > 200) throw new Error('样本素材帧数超限');
-      }
+      await validateExpressionMedia(expression, blob => readFile(new URL(`blobs/${blob.sha256}`, root)));
     }
     return new SampleCatalog(pack.expressions, root);
   }

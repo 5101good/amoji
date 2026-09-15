@@ -8,7 +8,7 @@ const out = resolve(root, 'adapters/dsh');
 await rm(`${out}/runtime`, { recursive: true, force: true });
 await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
-for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'sample-catalog', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
+for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'sample-catalog', 'media', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
 await cp(`${root}/dist/src/dsh/host.js`, `${out}/runtime/src/dsh/host.js`);
 await mkdir(`${out}/runtime/docs/specs`, { recursive: true });
 await cp(`${root}/dist/docs/specs/amoji-v0.1.schema.json`, `${out}/runtime/docs/specs/amoji-v0.1.schema.json`);

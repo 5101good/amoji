@@ -3,7 +3,8 @@ const capability = location.hash.slice(1);
 const headers = { Authorization: `Bearer ${capability}`, 'Content-Type': 'application/json' };
 let state;
 let selected;
-let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+let paused = motionPreference.matches;
 let previous = '';
 let searchVersion = 0;
 const hostLabel = () => state?.host === 'claude-code' ? 'Claude Code' : 'Codex';
@@ -18,21 +19,25 @@ async function picture(expression, messageId) {
   const image = document.createElement('img');
   image.alt = expression.semantics.fallback;
   const blob = paused && expression.visual.poster ? expression.visual.poster : expression.visual.primary;
-  const fallback = () => {
-    const text = document.createElement('div'); text.className = 'placeholder'; text.textContent = expression.semantics.fallback;
+  const fallback = reason => {
+    const text = document.createElement('div'); text.className = 'placeholder'; text.setAttribute('role', 'alert'); text.textContent = `${expression.semantics.fallback} · ${reason}`;
     image.replaceWith(text);
     if (messageId) void api('ack', { message_id: messageId, presentation: 'fallback' }).catch(() => {});
   };
-  image.onerror = fallback;
+  image.onerror = () => fallback('浏览器无法解码图片');
   image.onload = () => { if (messageId) void api('ack', { message_id: messageId, presentation: 'rendered' }).catch(() => {}); };
   try {
     if (!blobs.has(blob.sha256)) {
       const response = await fetch(`/blobs/${blob.sha256}`, { headers });
-      if (!response.ok) throw new Error('素材不可用');
+      if (!response.ok) {
+        let reason = '素材不可用';
+        try { reason = (await response.json()).error || reason; } catch {}
+        throw new Error(reason);
+      }
       blobs.set(blob.sha256, URL.createObjectURL(await response.blob()));
     }
     image.src = blobs.get(blob.sha256);
-  } catch { setTimeout(fallback, 0); }
+  } catch (error) { setTimeout(() => fallback(error instanceof Error ? error.message : '素材不可用'), 0); }
   return image;
 }
 function text(tag, value, className) { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; }
@@ -114,7 +119,15 @@ async function refresh() {
     if (comparable !== previous) { previous = comparable; await render(); }
   } catch (error) { $('connection').textContent = `连接已断开：${error.message}`; $('connection').classList.add('disconnected'); $('send').disabled = true; $('cancel').disabled = true; }
 }
-$('motion').onclick = () => { paused = !paused; $('motion').textContent = paused ? '播放动图' : '暂停动图'; $('motion').setAttribute('aria-pressed', String(paused)); if (state) void render(); };
+function setPaused(next) {
+  if (paused === next) return;
+  paused = next;
+  $('motion').textContent = paused ? '播放动图' : '暂停动图';
+  $('motion').setAttribute('aria-pressed', String(paused));
+  if (state) void render();
+}
+$('motion').onclick = () => setPaused(!paused);
+motionPreference.addEventListener?.('change', event => { if (event.matches) setPaused(true); });
 $('motion').textContent = paused ? '播放动图' : '暂停动图';
 $('motion').setAttribute('aria-pressed', String(paused));
 $('search-form').onsubmit = event => { void applySearch(event); };

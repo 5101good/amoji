@@ -1,12 +1,35 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { SharedClient, stopSharedService } from '../src/shared-client.js';
 import { ConnectedRuntime } from '../src/adapter-runtime.js';
 import { PanelServer } from '../src/panel-server.js';
+
+test('共享面板素材边界分别报告保留素材损坏与缺失，不返回无效成功体', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-shared-media-'));
+  const client = await SharedClient.connect({ directory });
+  const panel = await PanelServer.start(new ConnectedRuntime(client), async () => {});
+  t.after(async () => { await panel.close(); await client.close(); await rm(directory, { recursive: true, force: true }); });
+  const url = new URL(panel.url({ host: 'codex', sessionId: 'media-errors', turnId: '1' }));
+  const headers = { Authorization: `Bearer ${url.hash.slice(1)}` };
+  const state = await (await fetch(`${url.origin}/api/state`, { headers })).json();
+  const blob = state.expressions[0].visual.primary;
+  const path = join(directory, 'blobs', blob.sha256);
+  const original = await readFile(path);
+
+  await writeFile(path, Buffer.alloc(original.length));
+  const corrupt = await fetch(`${url.origin}/blobs/${blob.sha256}`, { headers });
+  assert.equal(corrupt.status, 422);
+  assert.match((await corrupt.json()).error, /BLOB_INTEGRITY_FAILED/);
+
+  await rm(path);
+  const missing = await fetch(`${url.origin}/blobs/${blob.sha256}`, { headers });
+  assert.equal(missing.status, 404);
+  assert.match((await missing.json()).error, /BLOB_MISSING/);
+});
 
 test('适配器连接关闭会收口自己的待选请求，另一连接的面板仍可点选并保存固定消息', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-shared-pick-'));

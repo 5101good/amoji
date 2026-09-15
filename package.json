@@ -9,12 +9,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "node scripts/test.mjs",
     "test:file": "tsx --test",
     "probe:codex": "node scripts/probes/codex.mjs",
     "build:dsh": "npm run build && node scripts/build-dsh-plugin.mjs",
     "test:dsh": "npm run build:dsh && node scripts/dsh/prepare-baseline.mjs && tsx --test tests/dsh-*.test.ts",
-    "pretest": "npm run build:dsh && node scripts/dsh/prepare-baseline.mjs"
+    "prepare:dsh": "node scripts/dsh/prepare-baseline.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

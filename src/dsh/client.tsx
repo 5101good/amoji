@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Expression, ExpressionRef } from '../sample-catalog.js';
 import type { DshRpc, HistoryEntry, RpcResult, VisualData, VisualMeta } from './contracts.js';
 
 export interface ClientPort {
   connection: { rpc: { call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<RpcResult<unknown>> } };
-  slots: { register(options: { name: string; key?: string; id?: string }, component: React.ComponentType<SessionProps & { block?: { meta?: unknown } }>): unknown };
+  effect(factory: () => (() => void), label?: string): unknown;
+  slots: { register(options: { name: string; key?: string; id?: string }, component: React.ComponentType<SessionProps & { block?: { meta?: unknown } }>): () => void };
 }
 interface SessionProps { sessionId: string }
 function errorText(error: unknown): string { return error instanceof Error ? error.message : '操作失败'; }
@@ -53,14 +54,31 @@ export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { 
   </figure>;
 }
 export function createComponents(rpc: DshRpc) {
-  function Picker({ sessionId }: SessionProps) {
+  function Picker({ sessionId }: SessionProps) { return <PickerSession key={sessionId} sessionId={sessionId} />; }
+  function PickerSession({ sessionId }: SessionProps) {
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
-    useEffect(() => { setTarget(undefined); setSelected(undefined); setStatus(''); }, [sessionId]);
-    useEffect(() => { if (!target) return; const abort = new AbortController(); void rpc.catalog(target, abort.signal).then(setCatalog).catch(e => { if (!abort.signal.aborted) setStatus(errorText(e)); }); return () => abort.abort(); }, [target]);
+    const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
+    useEffect(() => {
+      const owner = lifetime.current; owner.generation++; owner.abort = new AbortController();
+      return () => { owner.generation++; owner.abort.abort(); };
+    }, [sessionId]);
+    useEffect(() => {
+      if (!target) return;
+      const owner = lifetime.current; const generation = owner.generation; const abort = new AbortController();
+      const current = () => !abort.signal.aborted && !owner.abort.signal.aborted && owner.generation === generation && owner.sessionId === target;
+      void rpc.catalog(target, abort.signal).then(value => { if (current()) setCatalog(value); }).catch(e => { if (current()) setStatus(errorText(e)); });
+      return () => abort.abort();
+    }, [target]);
     const send = async () => {
-      if (!target || !selected || busy) return; const frozen = target; setBusy(true); setStatus('');
-      try { const result = await rpc.submit(frozen, { asset_id: selected.asset_id, revision_id: selected.revision_id }, requestId); setStatus(result.host?.status === 'observed' ? '已观察到会话用户消息' : '宿主已接收入队，尚未确认用户消息落盘'); }
-      catch (e) { setStatus(errorText(e)); } finally { setBusy(false); }
+      if (!target || !selected || busy) return;
+      const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
+      const current = () => !signal.aborted && owner.generation === generation && owner.sessionId === frozen;
+      setBusy(true); setStatus('');
+      try {
+        const result = await rpc.submit(frozen, { asset_id: selected.asset_id, revision_id: selected.revision_id }, requestId, signal);
+        if (current()) setStatus(result.host?.status === 'observed' ? '已观察到会话用户消息' : '宿主已接收入队，尚未确认用户消息落盘');
+      } catch (e) { if (current()) setStatus(errorText(e)); }
+      finally { if (current()) setBusy(false); }
     };
     return <div><button type="button" onClick={() => { setTarget(sessionId); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择">
       <p>发送到当前会话 · {target}</p>
@@ -69,8 +87,15 @@ export function createComponents(rpc: DshRpc) {
     </section>}</div>;
   }
   function History({ sessionId }: SessionProps) {
-    const [rows, setRows] = useState<HistoryEntry[]>([]); const [error, setError] = useState('');
-    useEffect(() => { const abort = new AbortController(); setRows([]); const refresh = () => void rpc.history(sessionId, abort.signal).then(value => { if (!abort.signal.aborted) { setRows(value); setError(''); } }).catch(e => { if (!abort.signal.aborted) setError(errorText(e)); }); refresh(); const timer = setInterval(refresh, 2000); return () => { abort.abort(); clearInterval(timer); }; }, [sessionId]);
+    const [snapshot, setSnapshot] = useState<{ sessionId: string; rows: HistoryEntry[]; error: string }>({ sessionId, rows: [], error: '' });
+    const rows = snapshot.sessionId === sessionId ? snapshot.rows : [];
+    const error = snapshot.sessionId === sessionId ? snapshot.error : '';
+    useEffect(() => {
+      const abort = new AbortController();
+      const refresh = () => void rpc.history(sessionId, abort.signal).then(value => { if (!abort.signal.aborted) setSnapshot({ sessionId, rows: value, error: '' }); }).catch(e => { if (!abort.signal.aborted) setSnapshot(previous => ({ sessionId, rows: previous.sessionId === sessionId ? previous.rows : [], error: errorText(e) })); });
+      refresh(); const timer = setInterval(refresh, 2000);
+      return () => { abort.abort(); clearInterval(timer); };
+    }, [sessionId]);
     return <details><summary>Amoji 历史 · {rows.length}</summary>{error && <p role="alert">{error}</p>}{rows.map(row => <div key={row.meta.messageId}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} /><span>{row.message.direction === 'human_to_ai' ? '用户' : 'AI'} · {row.host?.status ?? '工具消息'} · {row.message.presentation}</span></div>)}</details>;
   }
   function ToolView({ sessionId, block }: SessionProps & { block?: { meta?: unknown } }) { const meta = parseMeta(block?.meta); return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <span>表情等待结果或元数据不合法</span>; }
@@ -79,7 +104,14 @@ export function createComponents(rpc: DshRpc) {
 export const inject = ['slots', 'connection'];
 export function apply(ctx: ClientPort): void {
   const views = createComponents(createRpc(ctx));
-  ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker' }, views.Picker);
-  ctx.slots.register({ name: 'conversation.composer.dock', id: 'amoji-history' }, views.History);
-  ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView);
+  ctx.effect(() => {
+    const disposers: Array<() => void> = [];
+    const dispose = () => { for (const release of disposers.splice(0).reverse()) release(); };
+    try {
+      disposers.push(ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker' }, views.Picker));
+      disposers.push(ctx.slots.register({ name: 'conversation.composer.dock', id: 'amoji-history' }, views.History));
+      disposers.push(ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView));
+    } catch (error) { dispose(); throw error; }
+    return dispose;
+  }, 'amoji: client slots');
 }

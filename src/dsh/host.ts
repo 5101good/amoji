@@ -18,7 +18,7 @@ function modelText(value: unknown): string {
 function record(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 
 export class DshAdapter {
-  private readonly pending = new Map<string, Promise<HistoryEntry>>();
+  private readonly pending = new Map<string, { ref: ExpressionRef; work: Promise<HistoryEntry> }>();
   constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) { nonempty(hostInstanceId); }
   private context(sessionId: string): BindingContext { return { host: 'dsh', hostInstanceId: this.hostInstanceId, sessionId }; }
   private capture(exec: DshExecution): { context: BindingContext; check(): void } {
@@ -31,13 +31,18 @@ export class DshAdapter {
     const check = () => { exec.signal.throwIfAborted(); if (exec.agent !== agent || agent.id !== sessionId || agent.session !== session || this.ctx.sessions.get(sessionId) !== session || this.ctx.sessionProjections.stateOf(session, 'turnBoundary')?.openTurnStartSeq !== seq) fail('DSH_CONTEXT_CHANGED', '调用会话或回合已变化'); };
     check(); return { context: { ...this.context(sessionId), turnId: `turn:${seq}` }, check };
   }
-  tool(name: 'amoji_search' | 'amoji_emit'): ToolOptions {
-    return { name, description: name === 'amoji_search' ? '按固定文字语义检索 Amoji。每回合最多发送一个。' : '将已选精确版本展示给当前会话的人类；模型只接收固定文字语义。',
-      parameters: name === 'amoji_search' ? { query: { type: 'string', required: true }, limit: { type: 'integer' } } : { selection_token: { type: 'string', required: true } },
+  tool(name: 'amoji_search' | 'amoji_resolve' | 'amoji_emit'): ToolOptions {
+    return { name, description: name === 'amoji_search' ? '按固定文字语义检索 Amoji。每回合最多发送一个。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。' : '将已选精确版本展示给当前会话的人类；模型只接收固定文字语义。',
+      parameters: name === 'amoji_search' ? { query: { type: 'string', required: true }, limit: { type: 'integer' } } : name === 'amoji_resolve' ? { asset_id: { type: 'string', required: true }, revision_id: { type: 'string', required: true } } : { selection_token: { type: 'string', required: true } },
       output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_emit' ? { presentationMeta: (_args: unknown, value: unknown) => record(value).meta } : {}) },
       execute: async (raw, exec) => {
         const frozen = this.capture(exec);
-        const args = object(raw, name === 'amoji_search' ? ['query', 'limit'] : ['selection_token'], name === 'amoji_search' ? ['query'] : ['selection_token']);
+        const keys = name === 'amoji_search' ? ['query', 'limit'] : name === 'amoji_resolve' ? ['asset_id', 'revision_id'] : ['selection_token'];
+        const args = object(raw, keys, name === 'amoji_search' ? ['query'] : keys);
+        if (name === 'amoji_resolve') {
+          const expression = await this.runtime.catalog.resolve(refOf(args)); frozen.check();
+          return { text: modelProjection(expression) };
+        }
         if (name === 'amoji_search') {
           const result = await this.runtime.search(frozen.context, nonempty(args.query), args.limit === undefined ? undefined : Number(args.limit)); frozen.check();
           return { text: JSON.stringify(result) };
@@ -99,10 +104,27 @@ export class DshAdapter {
       await this.flush(session); return null;
     }
     const requestId = nonempty(args.requestId); const ref = refOf(args.ref); const key = JSON.stringify([sessionId, requestId]);
-    const pending = this.pending.get(key);
-    if (pending) { const result = await pending; if (result.message.revision.asset_id !== ref.asset_id || result.message.revision.revision_id !== ref.revision_id) fail('REQUEST_CONFLICT', '请求已绑定其他版本'); return result; }
-    const work = this.submit(sessionId, ref, requestId, signal); this.pending.set(key, work);
-    try { return await work; } finally { this.pending.delete(key); }
+    signal.throwIfAborted();
+    let job = this.pending.get(key);
+    if (job && (job.ref.asset_id !== ref.asset_id || job.ref.revision_id !== ref.revision_id)) fail('REQUEST_CONFLICT', '请求已绑定其他版本');
+    if (!job) {
+      // Once admitted, the idempotent job continues even with no UI waiters. A
+      // browser disconnect cannot cancel another retry or erase its saved outcome.
+      // The Host receives a separate cooperative 30-second admission deadline.
+      job = { ref, work: this.submit(sessionId, ref, requestId, AbortSignal.timeout(30000)) };
+      this.pending.set(key, job);
+      const completed = () => { if (this.pending.get(key) === job) this.pending.delete(key); };
+      void job.work.then(completed, completed);
+    }
+    return this.waitForSubmission(job.work, signal);
+  }
+  private waitForSubmission(work: Promise<HistoryEntry>, signal: AbortSignal): Promise<HistoryEntry> {
+    signal.throwIfAborted();
+    return new Promise((resolve, reject) => {
+      const cancelled = () => { signal.removeEventListener('abort', cancelled); reject(signal.reason); };
+      signal.addEventListener('abort', cancelled, { once: true });
+      void work.then(value => { signal.removeEventListener('abort', cancelled); if (!signal.aborted) resolve(value); }, error => { signal.removeEventListener('abort', cancelled); if (!signal.aborted) reject(error); });
+    });
   }
   private async submit(sessionId: string, ref: ExpressionRef, requestId: string, signal: AbortSignal): Promise<HistoryEntry> {
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
@@ -122,7 +144,7 @@ export class DshAdapter {
 }
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {
   const adapter = new DshAdapter(ctx, runtime, hostInstanceId);
-  for (const name of ['amoji_search', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
+  for (const name of ['amoji_search', 'amoji_resolve', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
   ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|history|visual|submit|display)$/.test(endpoint), async (endpoint, payload, signal) => {
     try { return { ok: true, value: await adapter.rpc(endpoint, payload, signal) }; }
     catch (error) { return { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }

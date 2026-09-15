@@ -141,3 +141,44 @@ test('三样本在不同真实回合使用同一核心精确版本，模型始�
   }
   assert.equal((await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as unknown[]).length, 3);
 });
+
+test('真实 defineTool 注册 resolve：精确版本纯文字、严格参数与可信上下文、无发送副作用', async t => {
+  const f = await setup(t); assert.deepEqual([...f.tools.keys()].sort(), ['amoji_emit', 'amoji_resolve', 'amoji_search']);
+  const e = (await f.client.list())[0]!; const ref = { asset_id: e.asset_id, revision_id: e.revision_id };
+  const result = await f.call('amoji_resolve', ref, f.exec(f.a));
+  const tool = f.tools.get('amoji_resolve')!; const content = tool.output.render(ref, result);
+  assert.ok(content.every(block => block.type === 'text'));
+  assert.deepEqual(JSON.parse(content[0]!.text).semantics, e.semantics); assert.equal(JSON.parse(content[0]!.text).revision_id, e.revision_id);
+  assert.doesNotMatch(JSON.stringify(result), /visual|data:image|base64|sha256|message_id/); assert.equal(tool.output.presentationMeta, undefined);
+  await assert.rejects(f.call('amoji_resolve', { ...ref, revision_id: 'unknown-version' }, f.exec(f.a)), /REVISION_NOT_FOUND/);
+  await assert.rejects(f.call('amoji_resolve', { ...ref, asset_id: 'unknown-asset' }, f.exec(f.a)), /REVISION_NOT_FOUND/);
+  await assert.rejects(f.call('amoji_resolve', { ...ref, sessionId: f.b.id }, f.exec(f.a)), /INVALID_ARGUMENT/);
+  await assert.rejects(f.call('amoji_resolve', { asset_id: e.asset_id }, f.exec(f.a)), /invalid arguments/i);
+  await assert.rejects(f.call('amoji_resolve', ref, { callId: 'x', signal: signal() }), /DSH_CONTEXT_UNAVAILABLE/);
+  f.turns.clear(); await assert.rejects(f.call('amoji_resolve', ref, f.exec(f.a)), /DSH_TURN_UNAVAILABLE/);
+  assert.deepEqual(await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()), []); assert.equal(f.a.events.length, 0); assert.equal(f.prompts.length, 0);
+});
+
+test('幂等 submit job 与各 RPC waiter 的取消独立；无人等待仍完成同一工作', async t => {
+  const f = await setup(t); const e = (await f.client.list())[0]!; const ref = { asset_id: e.asset_id, revision_id: e.revision_id };
+  for (const mode of ['second', 'first', 'all'] as const) {
+    let release!: () => void; let entered!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; }); const started = new Promise<void>(resolve => { entered = resolve; });
+    let calls = 0; let jobSignal: AbortSignal | undefined;
+    f.ctx.sessionController.prompt = async (_request, internal) => { calls++; jobSignal = internal; entered(); await gate; internal.throwIfAborted(); return { accepted: true }; };
+    const a = new AbortController(); const b = new AbortController();
+    const request = { sessionId: f.a.id, ref, requestId: `waiters-${mode}` };
+    const first = f.adapter.rpc('amoji/submit', request, a.signal); await started;
+    const second = f.adapter.rpc('amoji/submit', request, b.signal);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const firstCancelled = mode !== 'second' ? assert.rejects(first, /first cancelled/) : undefined;
+    const secondCancelled = mode !== 'first' ? assert.rejects(second, /second cancelled/) : undefined;
+    if (mode !== 'second') a.abort(new Error('first cancelled'));
+    if (mode !== 'first') b.abort(new Error('second cancelled'));
+    // Cancellation must settle before the paused shared prompt is released.
+    await Promise.race([Promise.all([firstCancelled, secondCancelled]), new Promise((_, reject) => setTimeout(() => reject(new Error('waiter did not cancel promptly')), 250))]);
+    assert.equal(jobSignal!.aborted, false);
+    const survivor = mode === 'all' ? f.adapter.rpc('amoji/submit', request, signal()) : mode === 'first' ? second : first;
+    release(); const result = await survivor as HistoryEntry; assert.equal(result.host!.status, 'accepted'); assert.equal(calls, 1);
+  }
+});

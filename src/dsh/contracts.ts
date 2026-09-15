@@ -36,6 +36,7 @@ export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: 
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc {
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
+  search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;
   submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal): Promise<HistoryEntry>;
   history(sessionId: string, signal?: AbortSignal): Promise<HistoryEntry[]>;
   visual(sessionId: string, ref: ExpressionRef, messageId?: string, signal?: AbortSignal): Promise<VisualData>;

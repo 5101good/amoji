@@ -1,4 +1,5 @@
 import { modelProjection } from '../projection.js';
+import { searchExpressions } from '../search.js';
 import { fail, nonempty, object, type BindingContext } from '../shared-contract.js';
 import type { AdapterRuntime } from '../adapter-runtime.js';
 import type { ExpressionRef } from '../sample-catalog.js';
@@ -85,11 +86,13 @@ export class DshAdapter {
   async rpc(endpoint: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
     signal = AbortSignal.any([signal, this.lifecycle]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { catalog: ['sessionId'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
-    const args = object(raw, keys, method === 'visual' ? ['sessionId', 'ref'] : keys); const sessionId = nonempty(args.sessionId);
+    const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
+    const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
     const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
     if (method === 'catalog') return this.runtime.catalog.all();
+    if (method === 'search') return searchExpressions(await this.runtime.catalog.all(), args.query as string, args.limit === undefined ? 3 : Number(args.limit));
     if (method === 'history') return this.rows(sessionId, events);
     if (method === 'visual') {
       const ref = refOf(args.ref); const expression = await this.runtime.catalog.resolve(ref);
@@ -158,7 +161,7 @@ export class DshAdapter {
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {
   const adapter = new DshAdapter(ctx, runtime, hostInstanceId);
   for (const name of ['amoji_search', 'amoji_resolve', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
-  ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|history|visual|submit|display)$/.test(endpoint), async (endpoint, payload, signal) => {
+  ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|search|history|visual|submit|display)$/.test(endpoint), async (endpoint, payload, signal) => {
     try { return { ok: true, value: await adapter.rpc(endpoint, payload, signal) }; }
     catch (error) { return { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }
   }), 'amoji: bounded human RPC');

@@ -76,14 +76,15 @@ async function render() {
   }
   preview();
 }
-async function renderCatalog(expressions) {
-  $('catalog').replaceChildren();
+async function buildCatalog(expressions) {
+  const fragment = document.createDocumentFragment();
   for (const expression of expressions) {
     const button = document.createElement('button'); button.className = 'sticker'; button.dataset.revision = expression.revision_id; button.setAttribute('aria-pressed', 'false');
     button.append(await picture(expression), text('span', expression.name, 'name'));
     button.onclick = () => { selected = expression; preview(); };
-    $('catalog').append(button);
+    fragment.append(button);
   }
+  return fragment;
 }
 async function applySearch(event) {
   event?.preventDefault();
@@ -92,8 +93,11 @@ async function applySearch(event) {
   try {
     const expressions = query.trim() ? (await api(`search?query=${encodeURIComponent(query)}&limit=5`)).expressions : state.expressions;
     if (version !== searchVersion) return;
-    if (selected && !expressions.some(expression => expression.asset_id === selected.asset_id && expression.revision_id === selected.revision_id)) selected = undefined;
-    await renderCatalog(expressions);
+    const fragment = await buildCatalog(expressions);
+    if (version !== searchVersion) return;
+    const nextSelected = selected && expressions.some(expression => expression.asset_id === selected.asset_id && expression.revision_id === selected.revision_id) ? selected : undefined;
+    selected = nextSelected;
+    $('catalog').replaceChildren(fragment);
     $('search-status').textContent = query.trim() ? (expressions.length ? `找到 ${expressions.length} 个候选。` : '没有合适的表情，可以继续用文字表达。') : `当前可选 ${expressions.length} 个表情。`;
     preview();
   } catch (error) {

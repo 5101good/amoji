@@ -88,6 +88,21 @@ test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持�
   await assert.rejects(f.client.bind({ host: 'codex', sessionId: 'x' }), /真实回合/);
 });
 
+test('人类搜索 RPC 复用同一检索核心：真实会话、完整精确版本、严格边界且不创建回合', async t => {
+  const f = await setup(t); f.turns.clear();
+  const name = await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '一起庆祝' }, signal()) as import('../src/sample-catalog.js').Expression[];
+  const tag = await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '自嘲', limit: 5 }, signal()) as import('../src/sample-catalog.js').Expression[];
+  const semantics = await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '支持你的努力', limit: 5 }, signal()) as import('../src/sample-catalog.js').Expression[];
+  assert.equal(name[0]!.name, '一起庆祝'); assert.equal(tag[0]!.name, '挠头苦笑'); assert.equal(semantics[0]!.name, '一步一步来');
+  assert.equal(name[0]!.revision_id, '30000000-0000-4000-8000-000000000001'); assert.ok(name[0]!.semantics.avoid_when?.includes('对方正在表达痛苦时'));
+  assert.deepEqual(await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '完全不存在', limit: 5 }, signal()), []);
+  await assert.rejects(f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '   ' }, signal()), /1–240/);
+  await assert.rejects(f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '😀'.repeat(241) }, signal()), /1–240/);
+  await assert.rejects(f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: '庆祝', limit: 6 }, signal()), /1–5/);
+  await assert.rejects(f.adapter.rpc('amoji/search', { sessionId: 'unknown-session', query: '庆祝' }, signal()), /session not found/);
+  assert.equal(f.a.events.length, 0); assert.equal(f.prompts.length, 0);
+});
+
 test('异步操作后取消或切换不改投其他会话；同回合多个工具共享 turn', async t => {
   const f = await setup(t); const original = f.runtime.search.bind(f.runtime);
   const controller = new AbortController(); const exec = f.exec(f.a); exec.signal = controller.signal;
@@ -104,13 +119,14 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
   const cleanups: Array<() => void | Promise<void>> = [];
   let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>) | undefined;
   f.ctx.effect = factory => { cleanups.push(factory()); };
-  f.ctx.connection.rpc.intercept = (channel, match, callback) => { assert.equal(channel, '/api'); assert.equal(match('amoji/submit'), true); assert.equal(match('arbitrary/write'), false); handler = callback; return async () => { handler = undefined; }; };
+  f.ctx.connection.rpc.intercept = (channel, match, callback) => { assert.equal(channel, '/api'); assert.equal(match('amoji/submit'), true); assert.equal(match('amoji/search'), true); assert.equal(match('arbitrary/write'), false); handler = callback; return async () => { handler = undefined; }; };
   const entry = new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href;
   const plugin = await import(entry) as { apply(ctx: HostPort): Promise<void>; inject: string[] };
   const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
   try {
     await plugin.apply(f.ctx); assert.ok(plugin.inject.includes('connection')); assert.ok(f.tools.has('amoji_emit'));
     const result = await handler!('amoji/catalog', { sessionId: f.a.id }, signal()) as { ok: boolean; value: unknown[] }; assert.equal(result.ok, true); assert.equal(result.value.length, 3);
+    const searched = await handler!('amoji/search', { sessionId: f.a.id, query: '自嘲', limit: 5 }, signal()) as { ok: boolean; value: Array<{ name: string }> }; assert.equal(searched.ok, true); assert.equal(searched.value[0]!.name, '挠头苦笑');
     const denied = await handler!('amoji/catalog', { sessionId: 'unknown-session' }, signal()) as { ok: boolean }; assert.equal(denied.ok, false);
   } finally {
     for (const close of cleanups.reverse()) await close();

@@ -17,6 +17,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
   };
   return {
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
+    search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
     submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref, requestId }, signal),
     history: (sessionId, signal) => call('history', { sessionId }, signal),
     visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref, ...(messageId ? { messageId } : {}) }, signal),
@@ -56,19 +57,33 @@ export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { 
 export function createComponents(rpc: DshRpc) {
   function Picker({ sessionId }: SessionProps) { return <PickerSession key={sessionId} sessionId={sessionId} />; }
   function PickerSession({ sessionId }: SessionProps) {
-    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
+    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
+    const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
       const owner = lifetime.current; owner.generation++; owner.abort = new AbortController();
       return () => { owner.generation++; owner.abort.abort(); };
     }, [sessionId]);
     useEffect(() => {
       if (!target) return;
-      const owner = lifetime.current; const generation = owner.generation; const abort = new AbortController();
-      const current = () => !abort.signal.aborted && !owner.abort.signal.aborted && owner.generation === generation && owner.sessionId === target;
-      void rpc.catalog(target, abort.signal).then(value => { if (current()) setCatalog(value); }).catch(e => { if (current()) setStatus(errorText(e)); });
-      return () => abort.abort();
+      void load('');
+      return () => { searchTask.current.generation++; searchTask.current.abort.abort(); };
     }, [target]);
+    const load = async (nextQuery: string) => {
+      if (!target) return;
+      const owner = lifetime.current; const ownerGeneration = owner.generation; const frozen = target; const task = searchTask.current;
+      task.generation++; task.abort.abort(); task.abort = new AbortController();
+      const taskGeneration = task.generation; const signal = AbortSignal.any([owner.abort.signal, task.abort.signal]);
+      const current = () => !signal.aborted && owner.generation === ownerGeneration && owner.sessionId === frozen && task.generation === taskGeneration;
+      setSearching(true); setSearchStatus('');
+      try {
+        const value = nextQuery.trim() ? await rpc.search(frozen, nextQuery, 5, signal) : await rpc.catalog(frozen, signal);
+        if (!current()) return;
+        setCatalog(value); setSelected(previous => previous && value.some(expression => sameRef(expression, previous)) ? previous : undefined);
+        setSearchStatus(nextQuery.trim() ? (value.length ? `找到 ${value.length} 个候选。` : '没有合适的表情，可以继续用文字表达。') : `当前可选 ${value.length} 个表情。`);
+      } catch (e) { if (current()) setSearchStatus(errorText(e)); }
+      finally { if (current()) setSearching(false); }
+    };
     const send = async () => {
       if (!target || !selected || busy) return;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
@@ -80,10 +95,16 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) setStatus(errorText(e)); }
       finally { if (current()) setBusy(false); }
     };
-    return <div><button type="button" onClick={() => { setTarget(sessionId); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择">
+    return <div><button type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择">
       <p>发送到当前会话 · {target}</p>
+      <form aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); void load(query); }}>
+        <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="按名称、标签或语境搜索" />
+        <button type="submit">{searching ? '搜索中…' : '搜索'}</button>
+        <button type="button" onClick={() => { setQuery(''); void load(''); }}>显示全部</button>
+      </form>
+      <p aria-live="polite">{searchStatus}</p>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>{catalog.map(e => <div key={`${e.asset_id}:${e.revision_id}`}><AmojiImage rpc={rpc} sessionId={target} refValue={e} /><button type="button" disabled={busy} aria-pressed={sameRef(e, selected ?? { asset_id: '', revision_id: '' })} onClick={() => { setSelected(e); setRequestId(crypto.randomUUID()); setStatus(''); }}>{e.name}</button></div>)}</div>
-      {selected && <p>{selected.semantics.fallback}</p>}<button type="button" disabled={!selected || busy} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button><button type="button" onClick={() => setTarget(undefined)}>关闭</button><p role="status">{status}</p>
+      {selected && <section aria-label="固定语义与精确版本"><h3>{selected.name}</h3><p>{selected.semantics.meaning}</p>{selected.semantics.tone && <p>{selected.semantics.tone}</p>}{selected.semantics.use_when?.length ? <p>适用于：{selected.semantics.use_when.join('；')}</p> : null}{selected.semantics.avoid_when?.length ? <p>不适用于：{selected.semantics.avoid_when.join('；')}</p> : null}<details><summary>查看完整固定语义与版本</summary><pre>{JSON.stringify({ asset_id: selected.asset_id, revision_id: selected.revision_id, name: selected.name, semantics: selected.semantics }, null, 2)}</pre></details></section>}<button type="button" disabled={!selected || busy} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button><button type="button" onClick={() => { searchTask.current.generation++; searchTask.current.abort.abort(); setTarget(undefined); }}>关闭</button><p role="status">{status}</p>
     </section>}</div>;
   }
   function History({ sessionId }: SessionProps) {

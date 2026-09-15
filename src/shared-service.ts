@@ -22,6 +22,8 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   catch (error) { lock.close(); throw error; }
   const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
+  const selectionCleanup = setInterval(() => store.pruneSelections(), 60000);
+  selectionCleanup.unref();
   let timer: NodeJS.Timeout | undefined;
   let closing: Promise<void> | undefined;
   let shuttingDown = false;
@@ -42,6 +44,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     shuttingDown = true;
     closing = (async () => {
       clearTimeout(timer);
+      clearInterval(selectionCleanup);
       for (const id of connections.keys()) disconnect(id);
       http.closeAllConnections();
       await new Promise<void>(resolve => http.close(() => resolve()));
@@ -92,6 +95,9 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'close': object(value, []); json(res, 200, { result: null }); disconnect(connectionId); return;
       case 'bind': {
         const c = bindingContext(value); const id = randomUUID(); connection.bindings.set(id, c); result = id; break;
+      }
+      case 'unbind': {
+        const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
       case 'list': object(value, []); result = store.list(); break;
       case 'resolve': { const args = object(value, ['asset_id', 'revision_id']); result = store.resolve({ asset_id: nonempty(args.asset_id), revision_id: nonempty(args.revision_id) }); break; }

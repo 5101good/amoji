@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
-export const API_VERSION = 1;
+export const API_VERSION = 2;
 export const DATABASE_VERSION = 1;
 export interface ApiRange { min: number; max: number }
 export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number }

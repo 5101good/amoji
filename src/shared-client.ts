@@ -51,6 +51,7 @@ export class SharedClient {
     return (await decoded(response)).result as T;
   }
   bind(context: BindingContext): Promise<string> { return this.call('bind', context); }
+  unbind(binding: string): Promise<void> { return this.call('unbind', { binding }); }
   list(): Promise<Expression[]> { return this.call('list', {}); }
   resolve(ref: ExpressionRef): Promise<Expression> { return this.call('resolve', ref); }
   blobPath(digest: string): Promise<string> { return this.call('blobPath', { digest }); }
@@ -65,16 +66,25 @@ export class SharedClient {
   }
 }
 
-/** Administrative stop: refuses a different identity or any active adapter. Never signals a PID. */
+/** Administrative stop: refuses other identities/active adapters; never terminates a PID. */
 export async function stopSharedService(directory: string, serviceId: string): Promise<void> {
   directory = await realpath(directory);
   const descriptor = await readDescriptor(directory);
   if (!descriptor) return;
   if (descriptor.serviceId !== serviceId) fail('SERVICE_IDENTITY_MISMATCH', '拒绝停止其他实例');
-  await health(descriptor, { min: API_VERSION, max: API_VERSION });
+  await health(descriptor, { min: 1, max: API_VERSION });
   await decoded(await fetch(`${descriptor.origin}/stop`, { method: 'POST', headers: { ...headers(descriptor), 'Content-Type': 'application/json' }, body: JSON.stringify({ serviceId }), signal: AbortSignal.timeout(3000) }));
-  for (let i = 0; i < 100; i++) { const current = await readDescriptor(directory); if (!current || current.serviceId !== serviceId) return; await delay(20); }
+  for (let i = 0; i < 100; i++) {
+    const current = await readDescriptor(directory);
+    // Discovery disappears before SQLite closes; process exit proves its kernel lock is released.
+    if ((!current || current.serviceId !== serviceId) && !processAlive(descriptor.pid)) return;
+    await delay(20);
+  }
   fail('SERVICE_STOP_TIMEOUT', '服务没有按时退出');
+}
+function processAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error; }
 }
 function headers(descriptor: ServiceDescriptor): Record<string, string> { return { Authorization: `Bearer ${descriptor.secret}`, 'x-amoji-service': descriptor.serviceId }; }
 async function decoded(response: Response): Promise<any> {
@@ -117,21 +127,30 @@ async function discover(directory: string, range: ApiRange): Promise<ServiceDesc
   }
   const source = import.meta.url.endsWith('.ts');
   const entry = fileURLToPath(new URL(source ? './service-main.ts' : './service-main.js', import.meta.url));
-  const child = spawn(process.execPath, [...(source ? ['--import', 'tsx'] : []), entry], { env: { ...process.env, AMOJI_DATA_DIR: directory }, detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
-  let failure = ''; let exited: number | null = null;
-  child.stderr.on('data', chunk => { failure = (failure + chunk.toString()).slice(-4096); });
-  child.once('error', error => { failure = error.message; exited = 1; });
-  child.once('exit', code => { exited = code; });
-  child.unref();
+  const launch = () => {
+    const child = spawn(process.execPath, [...(source ? ['--import', 'tsx'] : []), entry], { env: { ...process.env, AMOJI_DATA_DIR: directory }, detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    const attempt: { child: typeof child; failure: string; exited: number | null } = { child, failure: '', exited: null };
+    child.stderr.on('data', chunk => { attempt.failure = (attempt.failure + chunk.toString()).slice(-4096); });
+    child.once('error', error => { attempt.failure = error.message; attempt.exited = 1; });
+    child.once('exit', code => { attempt.exited = code; });
+    child.unref(); return attempt;
+  };
+  let attempt = launch();
+  const deadline = performance.now() + 8000;
   try {
-    for (let i = 0; i < 160; i++) {
+    while (performance.now() < deadline) {
       const candidate = await readDescriptor(directory);
       if (candidate && candidate.serviceId !== current?.serviceId) {
         await health(candidate, range); return candidate;
       }
-      if (exited !== null && exited !== 75 && exited !== 0) fail('SERVICE_START_FAILED', failure.trim() || '服务无法启动');
+      if (attempt.exited === 75) {
+        // A competing candidate may also have lost or exited before publishing discovery.
+        attempt.child.stderr.destroy();
+        await delay(25 + Math.floor(Math.random() * 75));
+        attempt = launch();
+      } else if (attempt.exited !== null && attempt.exited !== 0) fail('SERVICE_START_FAILED', attempt.failure.trim() || '服务无法启动');
       await delay(50);
     }
     fail('SERVICE_START_TIMEOUT', '写入服务没有完成健康握手');
-  } finally { child.stderr.destroy(); }
+  } finally { attempt.child.stderr.destroy(); }
 }

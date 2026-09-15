@@ -31,6 +31,7 @@ export class LibraryStore {
         CREATE TABLE IF NOT EXISTS selections (token TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
       await store.initialize(seed);
+      store.pruneSelections();
       return store;
     } catch (error) { db.close(); throw error; }
   }
@@ -109,9 +110,15 @@ export class LibraryStore {
   resolve(ref: ExpressionRef): Expression { return this.getRevision(ref) ?? fail('REVISION_NOT_FOUND', '精确版本不存在'); }
   list(): Expression[] { return (this.db.prepare('SELECT r.data FROM library_entries l JOIN revisions r ON r.asset_id=l.asset_id AND r.revision_id=l.revision_id ORDER BY l.rowid').all() as Array<{ data: string }>).map(row => JSON.parse(row.data)); }
 
+  /** Consumed tokens are message deduplication records and share their messages' retention. */
+  pruneSelections(): void {
+    this.db.prepare("DELETE FROM selections WHERE json_extract(data,'$.messageId') IS NULL AND json_extract(data,'$.expires')<=?").run(Date.now());
+  }
+
   search(context: BindingContext, query: string, limit = 3): { candidates: Candidate[]; policy: string } {
     const normalized = query.trim().toLocaleLowerCase();
     if (!normalized || [...normalized].length > 240 || !Number.isInteger(limit) || limit < 1 || limit > 5) fail('INVALID_ARGUMENT', '查询须为 1–240 字；候选数为 1–5');
+    this.pruneSelections();
     const candidates = this.list().filter(e => JSON.stringify([e.name, e.tags, e.semantics]).toLocaleLowerCase().includes(normalized)).slice(0, limit).map(expression => {
       const token = randomBytes(24).toString('base64url');
       const selection: Selection = { context, ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, expires: Date.now() + 300000 };

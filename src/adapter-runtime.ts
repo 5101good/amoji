@@ -21,28 +21,22 @@ export interface AdapterRuntime {
 
 /** Codex translates trusted metadata once; all library writes remain in the service. */
 export class ConnectedRuntime implements AdapterRuntime {
-  private readonly bindings = new Map<string, Promise<string>>();
   readonly catalog;
   readonly connectionSignal;
   constructor(private readonly client: SharedClient) {
     this.connectionSignal = client.signal;
     this.catalog = { root: pathToFileURL(`${client.identity.dataRoot}/`), all: () => client.list(), resolve: (ref: ExpressionRef) => client.resolve(ref) };
   }
-  private binding(context: HostContext): Promise<string> {
-    const key = JSON.stringify(context);
-    let binding = this.bindings.get(key);
-    if (!binding) {
-      binding = this.client.bind({ ...context, hostInstanceId: 'local' });
-      this.bindings.set(key, binding);
-      void binding.catch(() => this.bindings.delete(key));
-    }
-    return binding;
+  private async withBinding<T>(context: HostContext, operation: (binding: string) => Promise<T>): Promise<T> {
+    const binding = await this.client.bind({ ...context, hostInstanceId: 'local' });
+    try { return await operation(binding); }
+    finally { if (!this.client.signal.aborted) await this.client.unbind(binding); }
   }
-  async search(context: HostContext, query: string, limit?: number) { return this.client.search(await this.binding(context), query, limit); }
-  async emit(context: HostContext, token: string) { return this.client.emit(await this.binding(context), token); }
-  async messages(context: HostContext) { return this.client.history(await this.binding(context)); }
-  async receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.client.receive(await this.binding(context), ref, requestId); }
-  async acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.client.presentation(await this.binding(context), messageId, state); }
+  search(context: HostContext, query: string, limit?: number) { return this.withBinding(context, binding => this.client.search(binding, query, limit)); }
+  emit(context: HostContext, token: string) { return this.withBinding(context, binding => this.client.emit(binding, token)); }
+  messages(context: HostContext) { return this.withBinding(context, binding => this.client.history(binding)); }
+  receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId)); }
+  acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.withBinding(context, binding => this.client.presentation(binding, messageId, state)); }
   blobPath(digest: string) { return this.client.blobPath(digest); }
   async readBlob(digest: string) { return readFile(await this.client.blobPath(digest)); }
 }

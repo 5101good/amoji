@@ -1,0 +1,65 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { JSDOM } from 'jsdom';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { SampleCatalog } from '../src/sample-catalog.js';
+import type { ClientPort } from '../src/dsh/client.js';
+import type { VisualMeta, RpcResult } from '../src/dsh/contracts.js';
+const require = createRequire(import.meta.url);
+interface SlotCorePort {
+  register(options: object, component: unknown): () => void;
+  entriesOfSlot(key: string): Array<{ component: React.ComponentType<{ sessionId: string; block?: { meta: VisualMeta } }>; options: { key?: string } }>;
+}
+const source = new URL('../.cache/dsh-source/slots.mjs', import.meta.url).href;
+const { SlotCore } = await import(source) as { SlotCore: new () => SlotCorePort };
+const settle = () => new Promise(resolve => setTimeout(resolve, 20));
+
+test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动画封面、选择与会话切换', async t => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
+  const previous = { window: globalThis.window, document: globalThis.document };
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  let unmount = async () => {};
+  t.after(async () => { await unmount(); Object.assign(globalThis, previous); dom.window.close(); });
+  let module: { apply(ctx: ClientPort): void } | undefined;
+  const requests: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
+  const shared: string[] = [];
+  Object.assign(dom.window, { __ModuleLoader__: { load(value: { id: string; factory(require: (id: string) => unknown): unknown }) { assert.equal(value.id, '@amoji/dsh'); module = value.factory(id => { shared.push(id); assert.equal(id, 'react'); return require(id); }) as typeof module; } } });
+  dom.window.eval(await readFile(new URL('../adapters/dsh/client.js', import.meta.url), 'utf8'));
+  assert.ok(module); assert.deepEqual([...new Set(shared)], ['react']);
+  const catalog = await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)); const expressions = catalog.all(); const e = expressions.find(e => e.visual.animated)!;
+  const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
+  const visual = { expression: e, primary: await data(e.visual.primary), poster: e.visual.poster ? await data(e.visual.poster) : null };
+  const meta: VisualMeta = { kind: 'amoji', messageId: 'message-a', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: e.semantics.fallback };
+  const slots = new SlotCore(); slots.register({ name: 'root', children: { 'conversation.input.left': { kind: 'list', scope: 'session' }, 'conversation.composer.dock': { kind: 'list', scope: 'session' }, 'tool.call.toolview': { kind: 'keyed', scope: 'session' } } }, () => null);
+  const ctx: ClientPort = { slots, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
+    const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
+    const result = endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
+    return { ok: true, value: result };
+  } } } };
+  module.apply(ctx);
+  assert.equal(slots.entriesOfSlot('tool.call.toolview')[0]!.options.key, 'amoji_emit');
+  assert.equal(slots.entriesOfSlot('conversation.composer.dock').length, 1);
+  const root = createRoot(dom.window.document.getElementById('root')!); unmount = async () => { await act(() => root.unmount()); };
+  const Tool = slots.entriesOfSlot('tool.call.toolview')[0]!.component;
+  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-a', block: { meta } })); await settle(); });
+  let img = dom.window.document.querySelector('img')!; assert.ok(img); assert.equal(img.src, visual.poster ?? visual.primary); assert.equal(img.alt, meta.alt);
+  await act(async () => { img.dispatchEvent(new dom.window.Event('load')); await settle(); });
+  const receipt = requests.find(r => r.endpoint === 'amoji/display')!; assert.equal(receipt.payload.sessionId, 'session-a'); assert.equal(receipt.payload.messageId, 'message-a'); assert.equal(receipt.payload.hash, meta.posterHash ?? meta.visualHash);
+  const play = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '播放动图'); assert.ok(play);
+  await act(() => play.click()); img = dom.window.document.querySelector('img')!; assert.equal(img.src, visual.primary);
+  await act(async () => { img.dispatchEvent(new dom.window.Event('error')); await settle(); });
+  assert.match(dom.window.document.body.textContent!, /图片加载失败/); assert.ok(requests.some(r => r.payload.state === 'failed' && r.payload.hash === meta.visualHash));
+  const Picker = slots.entriesOfSlot('conversation.input.left')[0]!.component;
+  await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
+  await act(async () => { (dom.window.document.querySelector('button') as HTMLButtonElement).click(); await settle(); });
+  const choose = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent?.includes(e.name)); assert.ok(choose);
+  await act(() => choose.click());
+  const send = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '发送所选表情')!;
+  await act(async () => { send.click(); await settle(); }); assert.equal(requests.find(r => r.endpoint === 'amoji/submit')!.payload.sessionId, 'session-a');
+  await act(() => root.render(React.createElement(Picker, { sessionId: 'session-b' })));
+  assert.equal(dom.window.document.querySelector('[aria-label="Amoji 表情选择"]'), null);
+  assert.equal(requests.some(r => r.endpoint === 'amoji/submit' && r.payload.sessionId === 'session-b'), false);
+});

@@ -116,6 +116,7 @@ export class LibraryStore {
   }
 
   search(context: BindingContext, query: string, limit = 3): { candidates: Candidate[]; policy: string } {
+    if (!context.turnId?.trim()) fail('TURN_REQUIRED', 'AI 检索必须绑定真实回合');
     const normalized = query.trim().toLocaleLowerCase();
     if (!normalized || [...normalized].length > 240 || !Number.isInteger(limit) || limit < 1 || limit > 5) fail('INVALID_ARGUMENT', '查询须为 1–240 字；候选数为 1–5');
     this.pruneSelections();
@@ -138,6 +139,8 @@ export class LibraryStore {
     session.messages.push(message); return message;
   }
   emit(context: BindingContext, token: string): SampleMessage {
+    const turnId = context.turnId;
+    if (!turnId?.trim()) fail('TURN_REQUIRED', 'AI 发送必须绑定真实回合');
     return this.transaction(() => {
       const row = this.db.prepare('SELECT data FROM selections WHERE token=?').get(token) as { data: string } | undefined;
       if (!row) fail('SELECTION_UNAVAILABLE', '选择凭据不存在，请重新检索');
@@ -147,10 +150,10 @@ export class LibraryStore {
       const session = this.session(context);
       if (selection.messageId) return session.messages.find(m => m.message_id === selection.messageId) ?? fail('MESSAGE_NOT_FOUND', '去重记录对应的消息不存在');
       if (selection.expires <= Date.now()) fail('SELECTION_EXPIRED', '选择凭据已过期，请重新检索');
-      if (session.emittedTurns.includes(context.turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
+      if (session.emittedTurns.includes(turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
       if (!this.list().some(e => e.asset_id === selection.ref.asset_id && e.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
       const message = this.message(session, selection.ref, 'ai_to_human');
-      session.emittedTurns.push(context.turnId);
+      session.emittedTurns.push(turnId);
       this.save(context, session);
       selection.messageId = message.message_id;
       this.db.prepare('UPDATE selections SET data=? WHERE token=?').run(JSON.stringify(selection), token);

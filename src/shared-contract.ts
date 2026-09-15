@@ -3,11 +3,12 @@ import { resolve } from 'node:path';
 
 export const API_VERSION = 2;
 export const DATABASE_VERSION = 1;
+export const DSH_SUBMISSION_CAPABILITY = 'dsh-idle-submission-v1';
 export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';
 export interface ApiRange { min: number; max: number }
 export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number; capabilities?: string[] }
 export interface ServiceDescriptor extends ServiceIdentity { origin: string; secret: string }
-export interface BindingContext { host: 'codex' | 'claude-code' | 'dsh'; hostInstanceId?: string; sessionId: string; turnId: string }
+export interface BindingContext { host: 'codex' | 'claude-code' | 'dsh'; hostInstanceId?: string; sessionId: string; turnId?: string }
 export interface ClaudeHookInvocation { sessionId: string; promptId: string; invocationId: string; toolName: string; argumentsDigest: string }
 export interface ClaudeTicketRequest { ticket: string; toolName: string; argumentsDigest: string; invocationId?: string }
 export interface ClaudeTicketContext { context: BindingContext; invocationId: string }
@@ -38,7 +39,8 @@ export function nonempty(value: unknown): string {
   return value;
 }
 export function bindingContext(value: unknown): BindingContext {
-  const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId'], ['host', 'sessionId', 'turnId']);
+  const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId'], ['host', 'sessionId']);
   if (!['codex', 'claude-code', 'dsh'].includes(String(c.host))) fail('INVALID_ARGUMENT', '未知宿主');
-  return { host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), turnId: nonempty(c.turnId) };
+  if (c.turnId === undefined && c.host !== 'dsh') fail('INVALID_ARGUMENT', '此宿主必须提供真实回合');
+  return { host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), ...(c.turnId === undefined ? {} : { turnId: nonempty(c.turnId) }) };
 }

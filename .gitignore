@@ -12,3 +12,9 @@ plugins/amoji-claude/assets/
 plugins/amoji-claude/web/
 plugins/amoji-claude/BUILD.json
 .worktrees/
+
+.cache/
+adapters/dsh/runtime/
+adapters/dsh/assets/
+adapters/dsh/client.js
+adapters/dsh/BUILD.json

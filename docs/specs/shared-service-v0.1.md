@@ -106,3 +106,11 @@ Hook 缺失 `session_id`、`prompt_id` 或 `tool_use_id` 即拒绝，不从 PID�
 Claude 普通插件的视觉在同一配套面板呈现，`amoji_emit` 不返回 Codex 专用的本地图像 Markdown；仅返回固定文字投影、消息状态和面板链接。`panel_opened` 只表示 OS 浏览器启动命令成功。面板重连以同一真实 session 读取历史，面板令牌和 URL 可换新，消息 ID 与 revision 不变。`amoji_pick` 必须由明确请求触发并在同次调用内返回文字语义；闲置面板无法主动插入 Claude 会话。未实现 Channels、宿主完成观察或投递确认状态机。
 
 身份合同依据：[官方 Hook 输入与 prompt_id 最低版本](https://code.claude.com/docs/en/hooks#common-input-fields)、[插件 MCP 工具命名](https://code.claude.com/docs/en/hooks#match-mcp-tools)、[PreToolUse 参数修改](https://code.claude.com/docs/en/hooks#pretooluse-decision-control)、[普通插件结构与路径](https://code.claude.com/docs/en/plugins-reference)。完整回合合同要求 Claude Code 2.1.196+；这些官方接口与实际宿主验证分别记录，不能互相替代。
+
+## dsh 空闲用户输入扩展（票据 04）
+
+API 2 / 数据库 1 不变，新增可选 capability `dsh-idle-submission-v1`。dsh Host 连接时显式要求此能力；旧服务缺少能力时拒绝连接，不自动替换已有服务。
+
+`BindingContext.turnId` 对 `host:'dsh'` 的用户 submission、history 和 presentation 可省略。该绑定表示用户选定的真实会话，不表示 AI 回合；不得用 requestId 或 tool callId 填充 turnId。Codex / Claude 绑定仍要求非空 turn。核心 `search` / `emit` 对所有宿主继续强制非空真实 turn，缺失时返回 `TURN_REQUIRED`，包括已经存在的选择凭据。
+
+dsh 的用户提交使用现有 `receive(binding, ref, requestId)`，不新增数据库。其核心 messageId 与宿主 `prompt.requestId` 的关系及 inbox / user-message 观察状态由 dsh 自身会话事件保存；`receive` 返回或 inbox accepted 都不等于模型完成或图片已渲染。每操作 bind/unbind 行为保持不变。

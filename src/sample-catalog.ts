@@ -12,6 +12,7 @@ export interface Expression extends ExpressionText {
   kind: 'amoji.expression';
   schema_version: '0.1';
   created_at: string;
+  derived_from?: ExpressionRef;
   tags?: string[];
   visual: { primary: BlobRef; animated: boolean; duration_ms?: number; poster?: BlobRef };
   rights: { license: string; creator?: string; source?: string };

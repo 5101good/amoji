@@ -1,0 +1,166 @@
+import { test, type TestContext } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { SharedClient, stopSharedService } from '../src/shared-client.js';
+import { ConnectedRuntime } from '../src/adapter-runtime.js';
+
+async function sandbox(t: TestContext) {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-management-'));
+  const clients: SharedClient[] = [];
+  const connect = async () => { const client = await SharedClient.connect({ directory }); clients.push(client); return client; };
+  t.after(async () => { for (const c of clients) await c.close(); if (clients.length) await stopSharedService(directory, clients.at(-1)!.identity.serviceId); await rm(directory, { recursive: true, force: true }); });
+  return { directory, connect };
+}
+const ref = (e: {asset_id: string; revision_id: string}) => ({ asset_id: e.asset_id, revision_id: e.revision_id });
+
+test('管理 capability、不可变编辑、个人副本和跨客户端 CAS 保留草稿与旧历史', async t => {
+  const { directory, connect } = await sandbox(t);
+  let a = await connect(); const b = await connect();
+  assert.ok(a.identity.capabilities?.includes('library-management-v1'));
+  assert.ok(new ConnectedRuntime(a).management);
+  const builtin = (await a.listEntries())[0]!;
+  assert.equal(builtin.origin, 'builtin');
+  const draft = await a.startRevisionDraft(ref(builtin.expression), builtin.version);
+  assert.equal(draft.mode, 'copy');
+  const saved = await a.saveDraft(draft.draft_id, draft.version, { ...draft.fields, name: '个人温柔鼓励', rights: { license: '个人', creator: 'builtin' } });
+  const personal = await a.confirmDraft(saved.draft_id, saved.version);
+  assert.notEqual(personal.asset_id, builtin.expression.asset_id);
+  assert.deepEqual(personal.derived_from, ref(builtin.expression));
+  const context = { host: 'dsh' as const, sessionId: 'immutable', turnId: 'one' };
+  const binding = await a.bind(context);
+  const old = await a.receive(binding, ref(personal), 'old');
+  const entry = await a.getEntry(personal.asset_id);
+  const one = await a.startRevisionDraft(ref(personal), entry.version);
+  const two = await b.startRevisionDraft(ref(personal), entry.version);
+  assert.equal(one.mode, 'edit');
+  const selection = (await a.search(binding, personal.name)).candidates[0]!;
+  const replacement = (await a.list()).find(e => e.visual.primary.sha256 !== personal.visual.primary.sha256)!;
+  const edited = await a.saveDraft(one.draft_id, one.version, { ...one.fields, semantics: { ...one.fields.semantics, meaning: '全新的含义' } }, (await readFile(await a.blobPath(replacement.visual.primary.sha256))).toString('base64'));
+  const newer = await a.confirmDraft(edited.draft_id, edited.version);
+  assert.equal(newer.asset_id, personal.asset_id); assert.notEqual(newer.revision_id, personal.revision_id);
+  assert.deepEqual(newer.derived_from, ref(personal)); assert.notEqual(newer.visual.primary.sha256, personal.visual.primary.sha256);
+  assert.deepEqual(await a.resolve(ref(personal)), personal);
+  await assert.rejects(a.emit(binding, selection.selection_token), /SELECTION_UNAVAILABLE/);
+  const unsaved = await b.saveDraft(two.draft_id, two.version, { ...two.fields, name: '保留另一端内容' });
+  await assert.rejects(b.confirmDraft(unsaved.draft_id, unsaved.version), (error: any) => error.code === 'ENTRY_CONFLICT' && error.current.expression.revision_id === newer.revision_id);
+  assert.equal((await b.getDraft(two.draft_id)).fields.name, '保留另一端内容');
+  await assert.rejects(a.saveDraft(edited.draft_id, 1, edited.fields), (error: any) => error.code === 'DRAFT_CONFLICT' && error.current.version === edited.version);
+  await a.close(); await b.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
+  assert.deepEqual(await a.history(await a.bind(context)), [old]);
+  assert.deepEqual(await a.confirmDraft(edited.draft_id, edited.version), newer);
+  const current = await a.getEntry(newer.asset_id);
+  const retry = await a.startRevisionDraft(ref(newer), current.version);
+  const reapplied = await a.saveDraft(retry.draft_id, retry.version, unsaved.fields);
+  const resolved = await a.confirmDraft(reapplied.draft_id, reapplied.version);
+  const after = await a.receive(await a.bind({ ...context, turnId: 'two' }), ref(resolved), 'resolved-conflict');
+  assert.equal(after.revision.name, '保留另一端内容');
+  assert.deepEqual((await a.history(await a.bind(context)))[0], old);
+});
+
+test('归档阻止新收发和未消费 token；已消费重试、精确历史和素材保留', async t => {
+  const { directory, connect } = await sandbox(t); let a = await connect();
+  const entry = (await a.listEntries())[0]!; const e = entry.expression;
+  const first = await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' });
+  const second = await a.bind({ host: 'dsh', sessionId: 'archive-other', turnId: '1' });
+  const token = (await a.search(first, e.name)).candidates[0]!.selection_token;
+  const unconsumed = (await a.search(second, e.name)).candidates[0]!.selection_token;
+  const emitted = await a.emit(first, token); const received = await a.receive(first, ref(e), 'received');
+  const archived = await a.setArchived(e.asset_id, entry.version, true);
+  assert.equal(archived.archived, true); assert.equal(archived.version, entry.version + 1);
+  await assert.rejects(a.setArchived(e.asset_id, entry.version, false), (error: any) => error.code === 'ENTRY_CONFLICT' && error.current.archived);
+  assert.equal((await a.list()).some(x => x.asset_id === e.asset_id), false);
+  assert.equal((await a.search(second, e.name)).candidates.some(x => x.asset_id === e.asset_id), false);
+  await assert.rejects(a.emit(second, unconsumed), /SELECTION_UNAVAILABLE/);
+  await assert.rejects(a.receive(first, ref(e), 'new'), /SELECTION_UNAVAILABLE/);
+  assert.deepEqual(await a.emit(first, token), emitted); assert.deepEqual(await a.receive(first, ref(e), 'received'), received);
+  assert.deepEqual(await a.resolve(ref(e)), e); assert.ok(await readFile(await a.blobPath(e.visual.primary.sha256)));
+  await a.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
+  const restored = await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' });
+  assert.deepEqual(await a.history(restored), [emitted, received]);
+  assert.equal((await a.getEntry(e.asset_id)).archived, true);
+  assert.deepEqual(await a.emit(restored, token), emitted);
+  const path = await a.blobPath(e.visual.primary.sha256); await rm(path);
+  await assert.rejects(a.blobPath(e.visual.primary.sha256), /BLOB_MISSING/);
+  assert.equal((await a.history(restored))[0]!.revision.semantics.fallback, e.semantics.fallback);
+  assert.deepEqual(await a.resolve(ref(e)), e);
+  await a.setArchived(e.asset_id, archived.version, false);
+  assert.equal((await a.list()).some(x => x.asset_id === e.asset_id), true);
+});
+
+test('共享偏好 CAS、暂停即时复核、克制冷却、重复限制与手动发送独立', async t => {
+  const { directory, connect } = await sandbox(t); let a = await connect(); const b = await connect();
+  const settings = await a.getSettings(); assert.equal(settings.frequency, 'restrained'); assert.equal(settings.paused, false);
+  const expressions = await a.list();
+  const binding = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '1' });
+  const token = (await a.search(binding, expressions[0]!.name)).candidates[0]!.selection_token;
+  const paused = await b.updateSettings(settings.version, { style: 'warm', frequency: 'moderate', paused: true });
+  await assert.rejects(a.updateSettings(settings.version, { style: 'neutral', frequency: 'active', paused: false }), (error: any) => error.code === 'SETTINGS_CONFLICT' && error.current.version === paused.version);
+  await assert.rejects(a.emit(binding, token), /AI_PAUSED/);
+  assert.deepEqual((await a.search(binding, expressions[0]!.name)).candidates, []);
+  await a.receive(binding, ref(expressions[0]!), 'manual');
+  await a.updateSettings(paused.version, { style: 'warm', frequency: 'restrained', paused: false });
+  const message = await a.emit(binding, token);
+  const turn2 = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '2' });
+  const next = (await a.search(turn2, expressions[1]!.name)).candidates[0]!;
+  await assert.rejects(a.emit(turn2, next.selection_token), /FREQUENCY_LIMIT/);
+  const turn3 = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '3' });
+  const repeat = (await a.search(turn3, expressions[0]!.name)).candidates[0]!;
+  await assert.rejects(a.emit(turn3, repeat.selection_token), /REPEAT_LIMIT/);
+  const next3 = (await a.search(turn3, expressions[1]!.name)).candidates[0]!;
+  await a.emit(turn3, next3.selection_token);
+  const latest = await a.getSettings(); await a.updateSettings(latest.version, { style: 'neutral', frequency: 'active', paused: true });
+  assert.deepEqual(await a.emit(binding, token), message);
+  await a.close(); await b.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
+  assert.equal((await a.getSettings()).paused, true);
+});
+
+test('风格对整库语境匹配候选排序，不改固定语义；严格拒绝管理字段伪造', async t => {
+  const { connect } = await sandbox(t); const a = await connect();
+  const source = (await a.listEntries())[0]!;
+  let warm;
+  for (let i = 0; i < 6; i++) {
+    const draft = await a.startRevisionDraft(ref(source.expression), source.version);
+    const saved = await a.saveDraft(draft.draft_id, draft.version, { ...draft.fields, name: `测试鼓励${i}`, semantics: { locale: 'zh-CN', meaning: '测试鼓励持续工作', fallback: '测试鼓励', tone: i === 5 ? '温暖' : '平静' }, tags: [] });
+    warm = await a.confirmDraft(saved.draft_id, saved.version);
+  }
+  const settings = await a.getSettings();
+  await assert.rejects(a.updateSettings(settings.version, { style: 'unknown', frequency: 'active', paused: false } as any), /INVALID_ARGUMENT/);
+  await assert.rejects(a.updateSettings(settings.version, { style: 'warm', frequency: 'active', paused: false, turnId: 'fake' } as any), /INVALID_ARGUMENT/);
+  await a.updateSettings(settings.version, { style: 'warm', frequency: 'active', paused: false });
+  const binding = await a.bind({ host: 'dsh', sessionId: 'style', turnId: 'one' });
+  const result = await a.search(binding, '测试鼓励', 1);
+  assert.equal(result.candidates[0]!.asset_id, warm!.asset_id);
+  assert.deepEqual((await a.emit(binding, result.candidates[0]!.selection_token)).revision, warm);
+  assert.match(result.policy, /温暖/); assert.equal(JSON.stringify(result).includes('visual'), false);
+});
+
+test('数据库2导入来源迁移按个人副本处理，上游新默认不覆盖副本及其后续修订', async t => {
+  const { directory, connect } = await sandbox(t); let a = await connect();
+  const sample = (await a.list())[0]!;
+  await a.close(); await stopSharedService(directory, a.identity.serviceId);
+  const { DatabaseSync } = await import('node:sqlite');
+  let db = new DatabaseSync(join(directory, 'library.sqlite'));
+  const imported = { ...sample, asset_id: '90000000-0000-4000-8000-000000000009', revision_id: '91000000-0000-4000-8000-000000000009', name: '导入来源', rights: { license: '个人', creator: 'local' } };
+  db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(imported.asset_id, imported.revision_id, JSON.stringify(imported));
+  db.prepare('INSERT INTO library_entries VALUES (?,?)').run(imported.asset_id, imported.revision_id);
+  db.exec('DROP TABLE entry_state; PRAGMA user_version=2;'); db.close();
+  a = await connect(); const source = await a.getEntry(imported.asset_id);
+  assert.equal(source.origin, 'imported');
+  const draft = await a.startRevisionDraft(ref(imported), source.version); assert.equal(draft.mode, 'copy');
+  const copy = await a.confirmDraft(draft.draft_id, draft.version); assert.notEqual(copy.asset_id, imported.asset_id);
+  assert.deepEqual(copy.derived_from, ref(imported));
+  const ownEntry = await a.getEntry(copy.asset_id); const edit = await a.startRevisionDraft(ref(copy), ownEntry.version);
+  assert.equal(edit.mode, 'edit');
+  const edited = await a.saveDraft(edit.draft_id, edit.version, { ...edit.fields, name: '我的新版' });
+  const ownNew = await a.confirmDraft(edited.draft_id, edited.version);
+  await a.close(); await stopSharedService(directory, a.identity.serviceId);
+  db = new DatabaseSync(join(directory, 'library.sqlite'));
+  const upstream = { ...imported, revision_id: '92000000-0000-4000-8000-000000000009', name: '上游新版' };
+  db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(upstream.asset_id, upstream.revision_id, JSON.stringify(upstream));
+  db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(upstream.revision_id, upstream.asset_id);
+  db.prepare('UPDATE entry_state SET version=version+1 WHERE asset_id=?').run(upstream.asset_id); db.close();
+  a = await connect(); assert.deepEqual((await a.getEntry(copy.asset_id)).expression, ownNew);
+  assert.deepEqual(await a.resolve(ref(imported)), imported); assert.deepEqual(await a.resolve(ref(copy)), copy);
+});

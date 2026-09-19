@@ -41,7 +41,14 @@ async function setup(t: TestContext) {
   };
   installDsh(ctx, runtime, 'fixture-host', defineTool);
   const adapter = new DshAdapter(ctx, runtime, 'fixture-host');
-  const exec = (session: Session, callId = 'call-1'): DshExecution => ({ agent: { id: session.id, session }, callId, rootCallId: 'root-call', signal: signal() });
+  const exec = (session: Session, callId = 'call-1'): DshExecution => {
+    const seq = turns.get(session.id);
+    if (seq !== undefined && !session.events.some(e => e.type === 'turn/start' && e.seq === seq)) {
+      while (session.events.length < seq) session.append('fixture/padding', {});
+      session.append('turn/start', {});
+    }
+    return { agent: { id: session.id, session }, callId, rootCallId: 'root-call', signal: signal() };
+  };
   const call = (name: string, args: unknown, context: DshExecution) => tools.get(name)!.execute(args, context);
   return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call, disposers };
 }
@@ -156,6 +163,10 @@ test('打包dsh Host提供会话校验的创建面板入口，不增加模型工
     assert.equal(info.serviceApi, f.client.identity.apiVersion); assert.equal(info.databaseVersion, f.client.identity.databaseVersion);
     assert.ok(info.providedManagementCapabilities.includes('create-drafts-v1'));
     assert.ok(info.providedManagementCapabilities.includes('text-suggestions-v1'));
+    assert.ok(info.requiredCapabilities.includes('library-management-v1'));
+    assert.ok(info.providedManagementCapabilities.includes('library-management-v1'));
+    const packaged = await import(new URL('../adapters/dsh/runtime/src/library-store.js', import.meta.url).href);
+    assert.equal(typeof packaged.LibraryStore.open, 'function');
     const denied = await handler!('amoji/manage', { sessionId: 'unknown-session' }, signal()); assert.equal(denied.ok, false);
     const result = await handler!('amoji/manage', { sessionId: f.a.id }, signal()); assert.equal(result.ok, true);
     const url = new URL(result.value.url); origin = url.origin;
@@ -191,7 +202,8 @@ test('没有持久化监听时拒绝用户投递，不把内存 append 当已保
 });
 
 test('三样本在不同真实回合使用同一核心精确版本，模型始终只有文字投影', async t => {
-  const f = await setup(t); const catalog = await f.client.list();
+  const f = await setup(t);
+  await f.client.updateSettings((await f.client.getSettings()).version, { style: 'neutral', frequency: 'moderate', paused: false }); const catalog = await f.client.list();
   const multi = await f.call('amoji_search', { query: '时', limit: 3 }, f.exec(f.a, 'multi-search'));
   assert.equal(JSON.parse(f.tools.get('amoji_search')!.output.render({}, multi)[0]!.text).candidates.length, 3);
   for (const [index, expression] of catalog.entries()) {
@@ -220,7 +232,7 @@ test('真实 defineTool 注册 resolve：精确版本纯文字、严格参数与
   await assert.rejects(f.call('amoji_resolve', { asset_id: e.asset_id }, f.exec(f.a)), /invalid arguments/i);
   await assert.rejects(f.call('amoji_resolve', ref, { callId: 'x', signal: signal() }), /DSH_CONTEXT_UNAVAILABLE/);
   f.turns.clear(); await assert.rejects(f.call('amoji_resolve', ref, f.exec(f.a)), /DSH_TURN_UNAVAILABLE/);
-  assert.deepEqual(await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()), []); assert.equal(f.a.events.length, 0); assert.equal(f.prompts.length, 0);
+  assert.deepEqual(await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()), []); assert.equal(f.a.events.some(e => e.type.startsWith('amoji/')), false); assert.equal(f.prompts.length, 0);
 });
 
 test('幂等 submit job 与各 RPC waiter 的取消独立；无人等待仍完成同一工作', async t => {
@@ -375,4 +387,51 @@ test('用户表情 prompt 以人类名称开头、明确数据而非任务，并
   assert.match(f.tools.get('amoji_search')!.description, /selection_token/);
   assert.match(f.tools.get('amoji_emit')!.description, /不得自造/);
   assert.match(f.tools.get('amoji_resolve')!.description, /已有固定语义.*无需/);
+});
+
+test('dsh 克制冷却包含中间零 Amoji 工具的真实回合，重开 Host 仍读取原生回合记录', async t => {
+  const f = await setup(t);
+  const expressions = await f.client.list();
+  f.turns.set(f.a.id, f.a.append('turn/start', {}).seq);
+  const first = JSON.parse((await f.call('amoji_search', { query: expressions[0]!.name }, f.exec(f.a)) as {text: string}).text).candidates[0];
+  await f.call('amoji_emit', { selection_token: first.selection_token }, f.exec(f.a));
+  f.a.append('turn/end', {});
+  f.turns.set(f.a.id, f.a.append('turn/start', {}).seq);
+  const next = JSON.parse((await f.call('amoji_search', { query: expressions[1]!.name }, f.exec(f.a)) as {text: string}).text).candidates[0];
+  await assert.rejects(f.call('amoji_emit', { selection_token: next.selection_token }, f.exec(f.a)), /FREQUENCY_LIMIT/);
+  f.a.append('turn/end', {});
+  // A separate session tests the zero-tool middle turn; no bind/search observes it.
+  f.turns.set(f.b.id, f.b.append('turn/start', {}).seq);
+  const bFirst = JSON.parse((await f.call('amoji_search', { query: expressions[0]!.name }, f.exec(f.b)) as {text: string}).text).candidates[0];
+  await f.call('amoji_emit', { selection_token: bFirst.selection_token }, f.exec(f.b));
+  f.b.append('turn/end', {}); f.b.append('turn/start', {}); f.b.append('assistant/message', { content: '纯文字回应' }); f.b.append('turn/end', {});
+  f.turns.set(f.b.id, f.b.append('turn/start', {}).seq);
+  const reopened = new DshAdapter(f.ctx, new ConnectedRuntime(f.client), 'fixture-host');
+  const bNext = JSON.parse((await reopened.tool('amoji_search').execute({ query: expressions[1]!.name }, f.exec(f.b)) as {text: string}).text).candidates[0];
+  await reopened.tool('amoji_emit').execute({ selection_token: bNext.selection_token }, f.exec(f.b));
+  await assert.rejects(reopened.tool('amoji_search').execute({ query: '庆祝', turnOrdinal: 99 }, f.exec(f.b)), /INVALID_ARGUMENT/);
+});
+
+test('真实 Session 冷恢复后保留纯文字回合冷却序号', async t => {
+  const { Session: NativeSession } = await import('@deepseek-ai/dsh-session');
+  const { SessionId, SessionLogOffset } = await import('@deepseek-ai/dsh-session/types');
+  const { validateStoredEvents } = await import('@deepseek-ai/dsh-session-persistence');
+  const f = await setup(t); const id = SessionId('native-turn-policy'); let session = NativeSession.create(id);
+  f.ctx.sessions.get = key => key === id ? session : undefined;
+  f.ctx.sessionProjections.stateOf = () => ({ openTurnStartSeq: [...session.snapshotEvents()].reverse().find(e => e.type === 'turn/start')?.seq ?? null });
+  const execution = (): DshExecution => ({ agent: { id, session }, callId: 'native-policy', signal: signal() });
+  const expressions = await f.client.list();
+  session.append('turn/start', { turn: 1 });
+  const selected = JSON.parse((await f.call('amoji_search', { query: expressions[0]!.name }, execution()) as {text: string}).text).candidates[0];
+  await f.call('amoji_emit', { selection_token: selected.selection_token }, execution());
+  session.append('turn/end', { turn: 1, reason: { kind: 'completed' } });
+  session.append('turn/start', { turn: 2 });
+  session.append('user/message', { role: 'user', id: 'plain-middle' as never, content: [{ type: 'text', text: '纯文字中间回合' }], source: { kind: 'user', rpcId: 'plain-rpc' as never } }, { surfaceOp: 'append' });
+  session.append('turn/end', { turn: 2, reason: { kind: 'completed' } });
+  const events = validateStoredEvents(session.header, JSON.parse(JSON.stringify(session.snapshotEvents())));
+  session = NativeSession.fromRestore(id, events, session.header, SessionLogOffset(0), 'shared-frozen');
+  session.append('turn/start', { turn: 3 });
+  const fresh = new DshAdapter(f.ctx, f.runtime, 'fixture-host');
+  const next = JSON.parse((await fresh.tool('amoji_search').execute({ query: expressions[1]!.name }, execution()) as {text: string}).text).candidates[0];
+  await fresh.tool('amoji_emit').execute({ selection_token: next.selection_token }, execution());
 });

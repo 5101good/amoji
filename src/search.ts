@@ -32,17 +32,17 @@ export function validateSearch(query: string, limit = 3): { normalized: string; 
   return { normalized, terms, limit };
 }
 
-export function searchExpressions(expressions: readonly Expression[], query: string, limit = 3): Expression[] {
+export function searchExpressions(expressions: readonly Expression[], query: string, limit = 3, order?: (matches: Expression[]) => Expression[]): Expression[] {
   const request = validateSearch(query, limit);
-  return expressions.map((expression, index) => ({ expression, index, score: score(expression, request.normalized, request.terms) }))
+  const matches = expressions.map((expression, index) => ({ expression, index, score: score(expression, request.normalized, request.terms) }))
     .filter(item => item.score > 0)
     .sort((a, b) => b.score - a.score || a.index - b.index)
-    .slice(0, request.limit)
-    .map(item => structuredClone(item.expression));
+    .map(item => item.expression);
+  return (order ? order(matches) : matches).slice(0, request.limit).map(e => structuredClone(e));
 }
 
-export function buildSearchResult(expressions: readonly Expression[], token: () => string): SearchResult {
-  const result: SearchResult = { candidates: [], policy: SEARCH_POLICY };
+export function buildSearchResult(expressions: readonly Expression[], token: () => string, policy = SEARCH_POLICY): SearchResult {
+  const result: SearchResult = { candidates: [], policy };
   for (const expression of expressions) {
     const candidate = { ...JSON.parse(modelProjection(expression)) as ExpressionText, selection_token: token() };
     const next = { ...result, candidates: [...result.candidates, candidate] };

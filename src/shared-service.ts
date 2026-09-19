@@ -4,10 +4,11 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
+import { expressionRef } from './library-management.js';
 import { draftVersion } from './drafts.js';
 
 interface Connection { response: ServerResponse; bindings: Map<string, BindingContext> }
@@ -24,7 +25,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -33,7 +34,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let closing: Promise<void> | undefined;
   let shuttingDown = false;
   const http = createServer((req, res) => { void handle(req, res).catch(error => {
-    json(res, error instanceof ServiceError ? 400 : 500, { code: error instanceof ServiceError ? error.code : 'SERVICE_ERROR', error: error instanceof Error ? error.message : '服务操作失败' });
+    json(res, error instanceof ServiceError ? 400 : 500, { code: error instanceof ServiceError ? error.code : 'SERVICE_ERROR', error: error instanceof Error ? error.message : '服务操作失败', ...(error instanceof ServiceError && error.current !== undefined ? { current: error.current } : {}) });
   }); });
   const armIdle = () => {
     clearTimeout(timer);
@@ -106,6 +107,12 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
+      case 'listEntries': object(value, []); result = store.listEntries(); break;
+      case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }
+      case 'startRevisionDraft': { const args = object(value, ['ref', 'version']); result = store.startRevisionDraft(expressionRef(args.ref), draftVersion(args.version)); break; }
+      case 'setArchived': { const args = object(value, ['asset_id', 'version', 'archived']); result = store.setArchived(nonempty(args.asset_id), draftVersion(args.version), args.archived as boolean); break; }
+      case 'getSettings': object(value, []); result = store.getSettings(); break;
+      case 'updateSettings': { const args = object(value, ['version', 'preferences']); result = store.updateSettings(draftVersion(args.version), args.preferences); break; }
       case 'createDraft': object(value, []); result = store.createDraft(); break;
       case 'listDrafts': object(value, []); result = store.listDrafts(); break;
       case 'getDraft': { const args = object(value, ['draft_id']); result = store.getDraft(nonempty(args.draft_id)); break; }

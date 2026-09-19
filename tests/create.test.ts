@@ -136,7 +136,7 @@ test('API2数据库1升级保留既有用户版本、消息与素材；新创建
   db.prepare('INSERT INTO library_entries VALUES (?,?)').run(existing.asset_id, existing.revision_id);
   db.exec('DROP TABLE drafts; DROP TABLE expression_origins; PRAGMA user_version=1;'); db.close();
   client = await connect();
-  assert.equal(client.identity.apiVersion, 2); assert.equal(client.identity.databaseVersion, 2);
+  assert.equal(client.identity.apiVersion, 2); assert.equal(client.identity.databaseVersion, 3);
   assert.ok(client.identity.capabilities?.includes('create-drafts-v1'));
   assert.deepEqual(await client.resolve({ asset_id: existing.asset_id, revision_id: existing.revision_id }), existing);
   const bound = await client.bind(context);

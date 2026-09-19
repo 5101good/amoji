@@ -2,14 +2,14 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_NATIVE_CAPABILITY } from '../dist/src/shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_NATIVE_CAPABILITY } from '../dist/src/shared-contract.js';
 const root = resolve(import.meta.dirname, '..');
 const out = resolve(root, 'adapters/dsh');
 // These are exclusively generated directories owned by this build.
 await rm(`${out}/runtime`, { recursive: true, force: true });
 await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
-for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
+for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'library-management', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
 await cp(`${root}/web`, `${out}/web`, { recursive: true });
 for (const name of ['host', 'expression-message']) await cp(`${root}/dist/src/dsh/${name}.js`, `${out}/runtime/src/dsh/${name}.js`);
 await mkdir(`${out}/runtime/docs/specs`, { recursive: true });
@@ -19,5 +19,5 @@ await cp(`${root}/assets/samples/blobs`, `${out}/assets/samples/blobs`, { recurs
 await cp(`${root}/assets/samples/manifest.json`, `${out}/assets/samples/manifest.json`);
 await build({ entryPoints: [`${root}/src/dsh/client.tsx`], outfile: `${out}/client.js`, bundle: true, format: 'cjs', platform: 'browser', target: 'es2022', jsx: 'transform', tsconfigRaw: { compilerOptions: { jsx: 'react' } }, external: ['react', 'react/*'], banner: { js: 'window.__ModuleLoader__.load({id:"@amoji/dsh",factory:(require)=>{var module={exports:{}};var exports=module.exports;' }, footer: { js: 'return module.exports;}});' } });
 const hash = createHash('sha256').update(await readFile(`${out}/client.js`)).digest('hex');
-await writeFile(`${out}/BUILD.json`, JSON.stringify({ dshVersion: '0.1.5-rc.2', serviceApi: API_VERSION, databaseVersion: DATABASE_VERSION, providedManagementCapabilities: [CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], requiredCapabilities: [DSH_NATIVE_CAPABILITY], clientSha256: hash, node: process.version, validation: 'published npm contracts and local lifecycle tests; live QA tracked separately' }, null, 2) + '\n');
+await writeFile(`${out}/BUILD.json`, JSON.stringify({ dshVersion: '0.1.5-rc.2', serviceApi: API_VERSION, databaseVersion: DATABASE_VERSION, providedManagementCapabilities: [LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], requiredCapabilities: [DSH_NATIVE_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY], clientSha256: hash, node: process.version, validation: 'published npm contracts and local lifecycle tests; live QA tracked separately' }, null, 2) + '\n');
 console.log(`Built ${out}`);

@@ -2,7 +2,8 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
 export const API_VERSION = 2;
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
+export const LIBRARY_MANAGEMENT_CAPABILITY = 'library-management-v1';
 export const CREATE_DRAFT_CAPABILITY = 'create-drafts-v1';
 export const TEXT_SUGGESTION_CAPABILITY = 'text-suggestions-v1';
 export const DSH_NATIVE_CAPABILITY = 'dsh-native-delivery-v1';
@@ -11,15 +12,15 @@ export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';
 export interface ApiRange { min: number; max: number }
 export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number; capabilities?: string[] }
 export interface ServiceDescriptor extends ServiceIdentity { origin: string; secret: string }
-export interface BindingContext { host: 'codex' | 'claude-code' | 'dsh'; hostInstanceId?: string; sessionId: string; turnId?: string }
+export interface BindingContext { host: 'codex' | 'claude-code' | 'dsh'; hostInstanceId?: string; sessionId: string; turnId?: string; turnOrdinal?: number }
 export interface ClaudeHookInvocation { sessionId: string; promptId: string; invocationId: string; toolName: string; argumentsDigest: string }
 export interface ClaudeTicketRequest { ticket: string; toolName: string; argumentsDigest: string; invocationId?: string }
 export interface ClaudeTicketContext { context: BindingContext; invocationId: string }
 
 export class ServiceError extends Error {
-  constructor(readonly code: string, message: string) { super(`${code}：${message}`); }
+  constructor(readonly code: string, message: string, readonly current?: unknown) { super(`${code}：${message}`); }
 }
-export function fail(code: string, message: string): never { throw new ServiceError(code, message); }
+export function fail(code: string, message: string, current?: unknown): never { throw new ServiceError(code, message, current); }
 
 /** The historical macOS directory remains the default so old local image URLs survive. */
 export function dataDirectory(platform = process.platform, home = homedir(), env = process.env): string {
@@ -42,8 +43,9 @@ export function nonempty(value: unknown): string {
   return value;
 }
 export function bindingContext(value: unknown): BindingContext {
-  const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId'], ['host', 'sessionId']);
+  const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId', 'turnOrdinal'], ['host', 'sessionId']);
   if (!['codex', 'claude-code', 'dsh'].includes(String(c.host))) fail('INVALID_ARGUMENT', '未知宿主');
   if (c.turnId === undefined && c.host !== 'dsh') fail('INVALID_ARGUMENT', '此宿主必须提供真实回合');
-  return { host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), ...(c.turnId === undefined ? {} : { turnId: nonempty(c.turnId) }) };
+  if (c.turnOrdinal !== undefined && (c.turnId === undefined || !Number.isSafeInteger(c.turnOrdinal) || (c.turnOrdinal as number) < 1)) fail('INVALID_ARGUMENT', '需要可信正整数回合序号');
+  return { ...(c.turnOrdinal === undefined ? {} : { turnOrdinal: c.turnOrdinal as number }), host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), ...(c.turnId === undefined ? {} : { turnId: nonempty(c.turnId) }) };
 }

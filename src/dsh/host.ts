@@ -40,8 +40,11 @@ export class DshAdapter {
     const session = agent.session; const sessionId = agent.id;
     const seq = this.ctx.sessionProjections.stateOf(session, 'turnBoundary')?.openTurnStartSeq;
     if (!Number.isSafeInteger(seq) || seq === null || seq === undefined || seq < 0) fail('DSH_TURN_UNAVAILABLE', '工具必须运行在真实开启的回合');
+    const starts = session.snapshotEvents().filter(event => event.type === 'turn/start' && event.seq <= seq);
+    if (!starts.some(event => event.seq === seq)) fail('DSH_TURN_UNAVAILABLE', '当前回合缺少原生事件，无法执行频率策略');
+    const turnOrdinal = starts.length;
     const check = () => { exec.signal.throwIfAborted(); if (exec.agent !== agent || agent.id !== sessionId || agent.session !== session || this.ctx.sessions.get(sessionId) !== session || this.ctx.sessionProjections.stateOf(session, 'turnBoundary')?.openTurnStartSeq !== seq) fail('DSH_CONTEXT_CHANGED', '调用会话或回合已变化'); };
-    check(); return { context: { ...this.context(sessionId), turnId: `turn:${seq}` }, check };
+    check(); return { context: { ...this.context(sessionId), turnId: `turn:${seq}`, turnOrdinal }, check };
   }
   tool(name: 'amoji_search' | 'amoji_resolve' | 'amoji_emit'): ToolOptions {
     return { name, description: name === 'amoji_search' ? '仅在你想主动用表情回应时检索；返回候选固定语义及供 amoji_emit 使用的 selection_token。无合适候选就用文字，每回合最多发一个。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。用户表达中已有固定语义时无需调用 resolve。' : '仅使用本回合 amoji_search 返回的 selection_token 发送合适表情，不得自造或猜测 token。收到用户表情无需重复发送；不合适或失败就用文字回应。模型只接收固定文字语义。',

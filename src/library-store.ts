@@ -7,12 +7,13 @@ import { pathToFileURL } from 'node:url';
 import { SampleCatalog, type BlobRef, type Expression, type ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import { DATABASE_VERSION, fail, sessionKey, type BindingContext } from './shared-contract.js';
+import { DEFAULT_SETTINGS, preferences, styleOrder, preferencePolicy, type LibraryEntry, type PersonalSettings } from './library-management.js';
 import { buildSearchResult, searchExpressions } from './search.js';
 import { prepareUploadedMedia, MEDIA_LIMITS, validateExpressionMedia } from './media.js';
 
 import { draftFields, validateDraftFields, validateExpressionDefinition, type Draft } from './drafts.js';
 
-interface Session { bindingId: string; messages: SampleMessage[]; emittedTurns: string[]; received: Array<[string, string]> }
+interface Session { bindingId: string; messages: SampleMessage[]; emittedTurns: string[]; received: Array<[string, string]>; observedTurns?: string[]; lastEmission?: { ordinal: number; assetId: string } }
 interface Selection { context: BindingContext; ref: ExpressionRef; expires: number; messageId?: string }
 
 /** Only the lock-owning service opens this writer. Adapters use SharedClient. */
@@ -34,6 +35,7 @@ export class LibraryStore {
         CREATE TABLE IF NOT EXISTS selections (token TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS drafts (draft_id TEXT PRIMARY KEY, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS entry_state (asset_id TEXT PRIMARY KEY, version INTEGER NOT NULL, archived INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS expression_origins (asset_id TEXT PRIMARY KEY, origin TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
       await store.initialize(seed);
       store.pruneSelections();
@@ -109,6 +111,8 @@ export class LibraryStore {
     this.transaction(() => {
       for (const expression of checked.values()) this.db.prepare('INSERT OR IGNORE INTO revisions VALUES (?,?,?)').run(expression.asset_id, expression.revision_id, JSON.stringify(expression));
       for (const expression of [...legacyDefaults, ...catalog.all()]) this.db.prepare('INSERT OR IGNORE INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
+      for (const expression of catalog.all()) this.db.prepare("INSERT OR IGNORE INTO expression_origins VALUES (?,'builtin')").run(expression.asset_id);
+      this.db.exec("INSERT OR IGNORE INTO expression_origins SELECT asset_id,'imported' FROM library_entries; INSERT OR IGNORE INTO entry_state SELECT asset_id,1,0 FROM library_entries;");
       for (const row of legacySessions) {
         if (!row.session_key.startsWith('codex:')) fail('LEGACY_STATE_INVALID', '无法识别旧会话身份');
         const key = sessionKey({ host: 'codex', sessionId: row.session_key.slice(6), turnId: 'migration' });
@@ -123,10 +127,52 @@ export class LibraryStore {
     return row ? JSON.parse(row.data) : undefined;
   }
   resolve(ref: ExpressionRef): Expression { return this.getRevision(ref) ?? fail('REVISION_NOT_FOUND', '精确版本不存在'); }
-  list(): Expression[] { return (this.db.prepare('SELECT r.data FROM library_entries l JOIN revisions r ON r.asset_id=l.asset_id AND r.revision_id=l.revision_id ORDER BY l.rowid').all() as Array<{ data: string }>).map(row => JSON.parse(row.data)); }
+  list(): Expression[] { return (this.db.prepare('SELECT r.data FROM library_entries l JOIN revisions r ON r.asset_id=l.asset_id AND r.revision_id=l.revision_id LEFT JOIN entry_state s ON s.asset_id=l.asset_id WHERE coalesce(s.archived,0)=0 ORDER BY l.rowid').all() as Array<{ data: string }>).map(row => JSON.parse(row.data)); }
 
+  getEntry(assetId: string): LibraryEntry {
+    const row = this.db.prepare('SELECT l.revision_id, o.origin, s.version, s.archived FROM library_entries l JOIN expression_origins o USING(asset_id) JOIN entry_state s USING(asset_id) WHERE l.asset_id=?').get(assetId) as { revision_id: string; origin: LibraryEntry['origin']; version: number; archived: number } | undefined;
+    if (!row) fail('ENTRY_NOT_FOUND', '库条目不存在');
+    return { expression: this.resolve({ asset_id: assetId, revision_id: row.revision_id }), origin: row.origin, version: row.version, archived: !!row.archived };
+  }
+  listEntries(): LibraryEntry[] { return (this.db.prepare('SELECT asset_id FROM library_entries ORDER BY rowid').all() as Array<{asset_id: string}>).map(row => this.getEntry(row.asset_id)); }
+  private currentEntry(assetId: string, version: number): LibraryEntry {
+    const current = this.getEntry(assetId);
+    if (current.version !== version) fail('ENTRY_CONFLICT', '条目已变化；请保留草稿并读取当前版本', current);
+    return current;
+  }
+  startRevisionDraft(ref: ExpressionRef, version: number): Draft {
+    return this.transaction(() => {
+      const entry = this.currentEntry(ref.asset_id, version);
+      if (entry.expression.revision_id !== ref.revision_id) fail('ENTRY_CONFLICT', '选中版本已经变化', entry);
+      if (entry.archived) fail('SELECTION_UNAVAILABLE', '请先恢复归档条目');
+      const e = entry.expression;
+      const draft: Draft = { draft_id: `draft_${randomUUID()}`, version: 1, updated_at: new Date().toISOString(), mode: entry.origin === 'local' ? 'edit' : 'copy', source: ref, entry_version: version, fields: { name: e.name, semantics: e.semantics, rights: e.rights, ...(e.tags ? { tags: e.tags } : {}) }, visual: e.visual };
+      this.db.prepare('INSERT INTO drafts VALUES (?,?)').run(draft.draft_id, JSON.stringify(draft)); return draft;
+    });
+  }
+  setArchived(assetId: string, version: number, archived: boolean): LibraryEntry {
+    if (typeof archived !== 'boolean') fail('INVALID_ARGUMENT', '归档状态必须是布尔值');
+    return this.transaction(() => {
+      const entry = this.currentEntry(assetId, version);
+      if (entry.archived !== archived) this.db.prepare('UPDATE entry_state SET archived=?, version=version+1 WHERE asset_id=?').run(Number(archived), assetId);
+      return this.getEntry(assetId);
+    });
+  }
+  getSettings(): PersonalSettings {
+    const row = this.db.prepare("SELECT value FROM metadata WHERE key='personal_settings'").get() as {value: string} | undefined;
+    return row ? JSON.parse(row.value) : { ...DEFAULT_SETTINGS };
+  }
+  updateSettings(version: number, input: unknown): PersonalSettings {
+    const fields = preferences(input);
+    return this.transaction(() => {
+      const current = this.getSettings();
+      if (current.version !== version) fail('SETTINGS_CONFLICT', '偏好已变化；请保留输入并读取当前值', current);
+      const settings = { ...fields, version: version + 1 };
+      this.db.prepare("INSERT INTO metadata VALUES ('personal_settings',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(settings)); return settings;
+    });
+  }
   createDraft(): Draft {
-    const draft: Draft = { draft_id: `draft_${randomUUID()}`, version: 1, updated_at: new Date().toISOString(), fields: { name: '', semantics: { locale: 'zh-CN', meaning: '', fallback: '' }, rights: { license: '仅供个人使用' } } };
+    const draft: Draft = { draft_id: `draft_${randomUUID()}`, mode: 'create', version: 1, updated_at: new Date().toISOString(), fields: { name: '', semantics: { locale: 'zh-CN', meaning: '', fallback: '' }, rights: { license: '仅供个人使用' } } };
     this.db.prepare('INSERT INTO drafts VALUES (?,?)').run(draft.draft_id, JSON.stringify(draft)); return draft;
   }
   getDraft(id: string): Draft {
@@ -138,7 +184,7 @@ export class LibraryStore {
   }
   private currentDraft(id: string, version: number): Draft {
     const draft = this.getDraft(id);
-    if (draft.version !== version) fail('DRAFT_CONFLICT', '草稿已变化，请重新读取并预览');
+    if (draft.version !== version) fail('DRAFT_CONFLICT', '草稿已变化，请保留输入并重新读取', draft);
     return draft;
   }
   async saveDraft(id: string, version: number, input: unknown, upload?: string): Promise<Draft> {
@@ -191,11 +237,22 @@ export class LibraryStore {
     return this.transaction(() => {
       const latest = this.currentDraft(id, version);
       if (latest.confirmed) return this.resolve(latest.confirmed);
-      const expression: Expression = { ...draft.fields, kind: 'amoji.expression', schema_version: '0.1', asset_id: randomUUID(), revision_id: randomUUID(), created_at: new Date().toISOString(), visual: draft.visual! };
+      const editing = draft.mode === 'edit';
+      if (editing) {
+        const entry = this.currentEntry(draft.source!.asset_id, draft.entry_version!);
+        if (entry.origin !== 'local' || entry.archived || entry.expression.revision_id !== draft.source!.revision_id) fail('ENTRY_CONFLICT', '原条目已变化', entry);
+      }
+      const expression: Expression = { ...draft.fields, ...(draft.source ? { derived_from: draft.source } : {}), kind: 'amoji.expression', schema_version: '0.1', asset_id: editing ? draft.source!.asset_id : randomUUID(), revision_id: randomUUID(), created_at: new Date().toISOString(), visual: draft.visual! };
       validateExpressionDefinition(expression);
       this.db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(expression.asset_id, expression.revision_id, JSON.stringify(expression));
-      this.db.prepare('INSERT INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
-      this.db.prepare("INSERT INTO expression_origins VALUES (?,'local')").run(expression.asset_id);
+      if (editing) {
+        this.db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(expression.revision_id, expression.asset_id);
+        this.db.prepare('UPDATE entry_state SET version=version+1 WHERE asset_id=?').run(expression.asset_id);
+      } else {
+        this.db.prepare('INSERT INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
+        this.db.prepare("INSERT INTO expression_origins VALUES (?,'local')").run(expression.asset_id);
+        this.db.prepare('INSERT INTO entry_state VALUES (?,1,0)').run(expression.asset_id);
+      }
       draft.confirmed = { asset_id: expression.asset_id, revision_id: expression.revision_id };
       this.db.prepare('UPDATE drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft), id);
       return expression;
@@ -210,14 +267,22 @@ export class LibraryStore {
   search(context: BindingContext, query: string, limit = 3): { candidates: Candidate[]; policy: string } {
     if (!context.turnId?.trim()) fail('TURN_REQUIRED', 'AI 检索必须绑定真实回合');
     this.pruneSelections();
-    const matches = searchExpressions(this.list(), query, limit);
-    const result = buildSearchResult(matches, () => randomBytes(24).toString('base64url'));
+    const settings = this.getSettings();
+    const session = this.session(context); this.observeTurn(context, session); this.save(context, session);
+    const matching = searchExpressions(this.list(), query, limit, candidates => styleOrder(candidates, settings.style));
+    const matches = settings.paused ? [] : matching;
+    const result = buildSearchResult(matches, () => randomBytes(24).toString('base64url'), preferencePolicy(settings));
     result.candidates.forEach((candidate, index) => {
       const expression = matches[index]!;
       const selection: Selection = { context, ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, expires: Date.now() + 300000 };
       this.db.prepare('INSERT INTO selections VALUES (?,?)').run(candidate.selection_token, JSON.stringify(selection));
     });
     return result;
+  }
+  private observeTurn(context: BindingContext, session: Session): number {
+    session.observedTurns ??= [...session.emittedTurns];
+    if (!session.observedTurns.includes(context.turnId!)) session.observedTurns.push(context.turnId!);
+    return context.turnOrdinal ?? session.observedTurns.indexOf(context.turnId!) + 1;
   }
   private session(context: BindingContext): Session {
     const row = this.db.prepare('SELECT data FROM sessions WHERE session_key=?').get(sessionKey(context)) as { data: string } | undefined;
@@ -241,9 +306,15 @@ export class LibraryStore {
       const session = this.session(context);
       if (selection.messageId) return session.messages.find(m => m.message_id === selection.messageId) ?? fail('MESSAGE_NOT_FOUND', '去重记录对应的消息不存在');
       if (selection.expires <= Date.now()) fail('SELECTION_EXPIRED', '选择凭据已过期，请重新检索');
+      const settings = this.getSettings();
+      if (settings.paused) fail('AI_PAUSED', 'AI 主动表情已暂停，仍可手动发送');
+      const ordinal = this.observeTurn(context, session);
       if (session.emittedTurns.includes(turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
       if (!this.list().some(e => e.asset_id === selection.ref.asset_id && e.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
+      if (session.lastEmission?.assetId === selection.ref.asset_id) fail('REPEAT_LIMIT', '不能连续重复同一表情');
+      if (settings.frequency === 'restrained' && session.lastEmission && ordinal - session.lastEmission.ordinal < 2) fail('FREQUENCY_LIMIT', '克制模式需冷却一个完整回合');
       const message = this.message(session, selection.ref, 'ai_to_human');
+      session.lastEmission = { ordinal, assetId: selection.ref.asset_id };
       session.emittedTurns.push(turnId);
       this.save(context, session);
       selection.messageId = message.message_id;
@@ -260,6 +331,8 @@ export class LibraryStore {
         if (message.revision.asset_id !== ref.asset_id || message.revision.revision_id !== ref.revision_id) fail('REQUEST_CONFLICT', '该请求已用于其他表情');
         return message;
       }
+      this.resolve(ref);
+      if (!this.list().some(e => e.asset_id === ref.asset_id && e.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
       const message = this.message(session, ref, 'human_to_ai');
       session.received.push([requestId, message.message_id]); this.save(context, session); return message;
     });

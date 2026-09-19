@@ -1,6 +1,6 @@
 # Amoji 共享本地服务 API 2
 
-票据 02 的实际适配合同，资产 JSON 仍遵守 [Amoji v0.1 协议](amoji-protocol-v0.1.md)。API 版本、数据库版本、插件版本和资产 revision 是不同标识。当前 API 为 2，数据库为 2（票据 07 增加持久草稿，详见文末）；API 2 增加必需的绑定释放能力，新客户端与旧 API 1 服务明确拒绝握手并提示升级。三个受控样本作为首次内容写入真实持久版本库，票据 02 当时未增加创建、导入、设置或其他宿主实现；后续扩展见文末。
+票据 02 的实际适配合同，资产 JSON 仍遵守 [Amoji v0.1 协议](amoji-protocol-v0.1.md)。API 版本、数据库版本、插件版本和资产 revision 是不同标识。当前 API 为 2，数据库为 3（D2 增加条目修改序号与归档状态，详见文末）；API 2 增加必需的绑定释放能力，新客户端与旧 API 1 服务明确拒绝握手并提示升级。三个受控样本作为首次内容写入真实持久版本库，票据 02 当时未增加创建、导入、设置或其他宿主实现；后续扩展见文末。
 
 ## 公共客户端
 
@@ -167,3 +167,32 @@ API、数据库和资产协议仍分别为 `2`、`2` 和 `0.1`；健康握手新
 建议调用不写数据库。面板把返回值放在独立待选区，用户可以修改、拒绝或放弃；只有明确点击“采用到草稿”才把当时可见的候选复制到未保存表单。采用仍不等于保存、预览或确认。服务不可用、请求超时或用户取消时，原文字输入、手工字段和已保存草稿保持不变，完整手工流程继续可用。
 
 每次请求绑定面板当时的草稿对象、版本、手工字段快照、文字意图和补充说明。上述任一内容变化、切换或新建草稿、取消、页面关闭及后发请求都会使旧结果失效；迟到响应无权显示或覆盖。建议能力不注册为模型工具，不改变 Codex `display_markdown`，也不能修改已确认草稿或不可变 revision。三个构建产物的 `providedManagementCapabilities` 同时声明 `create-drafts-v1` 与 `text-suggestions-v1`。
+
+## D2 库生命周期与个人偏好（数据库 3）
+
+能力 `library-management-v1` 在健康握手中声明。`SharedClient` 的管理调用先检查能力，`ConnectedRuntime.management` 仅在服务支持时可用。dsh 包要求同时具备此能力和 `dsh-native-delivery-v1`，旧服务需明确升级，不在运行中静默降级。API 保持 2；数据库升级到 3，旧写入器会拒绝打开更高版本库。`LibraryStore` 仍是唯一写入者。
+
+| 人类管理方法 | 参数 | 返回 |
+|---|---|---|
+| `listEntries` | 无 | 含归档条目的 `LibraryEntry[]` |
+| `getEntry` | `assetId` | `{expression, origin, version, archived}` |
+| `startRevisionDraft` | 精确 `ref, version` | 服务确定模式及来源的持久草稿 |
+| `setArchived` | `assetId, version, archived` | 更新后条目；相同状态不增加版本 |
+| `getSettings` | 无 | `{version, style, frequency, paused}` |
+| `updateSettings` | 读取时的 `version, preferences` | 更新后的个人设置 |
+
+这些方法没有模型工具入口。`version` 是条目或设置的修改序号，与资产 `revision_id`、草稿 `version` 分开。数据库新增 `entry_state(asset_id,version,archived)`，设置存在 metadata 的 `personal_settings`。已有 revisions、library_entries、素材 hash 和会话快照保持原值。已有 `expression_origins=local` 保留；启动样本登记 builtin，其余缺少可信归属的旧条目按 imported 处理，不能通过 `rights.creator` 获得本地所有权。
+
+草稿 `mode=create|edit|copy`、`source` 和 `entry_version` 仅由服务写入；旧草稿没有 mode 时按 create 处理。`startRevisionDraft` 接收当前条目精确引用和修改序号，local 产生 edit，builtin/imported 产生 copy。edit 确认前再次校验条目 CAS，保留 asset_id、生成新 revision_id，并设置 `derived_from` 指向旧版本；copy 确认生成新 asset_id、本地归属及指向来源的 `derived_from`。之后编辑个人副本只推进副本自身版本。确认重试优先返回已确认的精确版本。编辑修改语义或替换视觉都不更改旧版、已有消息快照和素材。
+
+`ENTRY_CONFLICT`、`SETTINGS_CONFLICT`、`DRAFT_CONFLICT` 通过 HTTP 和 `ServiceError.current` 返回当前完整可见值。失败不写入新修订、不覆盖草稿。UI 应同时保留自己的输入与 current，让用户显式刷新/重新编辑；当前后端没有自动合并或覆盖冲突的入口。若独立编辑草稿在确认时冲突，可重新从 current 新建草稿，再由用户显式重用自己的字段/素材并确认。D4 负责此交互。
+
+归档仅隐藏 `list` 和 AI search 的新发候选。新的 `receive` 与未消费 token 的 `emit` 都复核当前默认版本及归档状态，选择后版本变化会返回 `SELECTION_UNAVAILABLE`，不会替换成最新版。已消费 token/手动 requestId 的重试先返回原消息，再考虑归档、暂停、过期或频率；已有请求 ref 错配仍拒绝。历史 `resolve` 使用精确 asset/revision，与归档无关；所有版本引用素材保留，缺失返回 `BLOB_MISSING`，原语义/fallback 留在消息快照中，不按同名或最新版本补图。
+
+设置默认 `{style:'neutral',frequency:'restrained',paused:false}`。style 支持 neutral / warm / playful：在已有语境匹配候选中，warm 优先固定 tone/tags 含温暖友好鼓励语义的条目，playful 优先幽默活泼语义；对整组匹配候选排序后再截取 limit，不把不匹配的条目加入结果、不改写固定语义。搜索 policy 说明当前设置，仍受 8 KiB 总输出限制。风格是确定性的本地文本排序，不声称语义模型理解。
+
+frequency 支持 restrained / moderate / active：所有模式每真实回合至多一个 AI 表情，禁止连续两次 AI 表情使用同一 asset_id；restrained 额外冷却一个完整回合，moderate / active 不加额外硬冷却，分别给出适中/主动使用建议。手动发送不计入 AI 次数，也不解除 AI 连续重复限制。暂停后 search 不签发候选，emit 即时拒绝新的 AI 消息，但人类手动发送、精确解析及既有消息重试不受影响。
+
+`BindingContext.turnOrdinal?` 是可信适配层的正整数回合顺序，不是模型参数或 UI 字段。dsh 每次工具调用核对真实 Session、公开 turnBoundary projection 的 openTurnStartSeq，并从该 Session 原生 `turn/start` 事件计数至当前回合；缺少对应事件则返回 `DSH_TURN_UNAVAILABLE`。因此未调用 Amoji 的中间回合也参与冷却，重建 Host/冷恢复沿原事件计数。其他暂缓适配器未提供 ordinal 时只数核心实际看到的不同可信 turnId，属于保守冷却，可能比完整宿主回合更晚放行，不宣称那些端已完成同等真机验收。模型 search/resolve/emit 参数保持原合同，不能自报 ordinal、目标会话或语义覆盖。
+
+D3 导入实现须沿同一 Store 事务写入来源与 entry_state，新增 imported 条目版本为 1；推进已有上游默认时增加修改序号并保留归档状态，不覆盖 local 条目、个人副本或旧 revision。D2 的 imported 测试通过隔离数据库模拟导入前后状态；完整包导入仍由 D3 实现。完整原生管理 UI 属 D4，真实多会话使用与发行验收属 D5。

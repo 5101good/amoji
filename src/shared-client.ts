@@ -3,10 +3,11 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
+import type { LibraryEntry, PersonalPreferences, PersonalSettings } from './library-management.js';
 import type { Draft, DraftFields } from './drafts.js';
 import type { TextSuggestion } from './suggestions.js';
 
@@ -66,6 +67,16 @@ export class SharedClient {
       throw error;
     }
   }
+  private managementCall<T>(method: string, params: unknown): Promise<T> {
+    if (!this.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持库管理，请更新服务后重试');
+    return this.call(method, params);
+  }
+  listEntries(): Promise<LibraryEntry[]> { return this.managementCall('listEntries', {}); }
+  getEntry(assetId: string): Promise<LibraryEntry> { return this.managementCall('getEntry', { asset_id: assetId }); }
+  startRevisionDraft(ref: ExpressionRef, version: number): Promise<Draft> { return this.managementCall('startRevisionDraft', { ref, version }); }
+  setArchived(assetId: string, version: number, archived: boolean): Promise<LibraryEntry> { return this.managementCall('setArchived', { asset_id: assetId, version, archived }); }
+  getSettings(): Promise<PersonalSettings> { return this.managementCall('getSettings', {}); }
+  updateSettings(version: number, preferences: PersonalPreferences): Promise<PersonalSettings> { return this.managementCall('updateSettings', { version, preferences }); }
   createDraft(): Promise<Draft> { return this.draftCall('createDraft', {}); }
   listDrafts(): Promise<Draft[]> { return this.draftCall('listDrafts', {}); }
   getDraft(id: string): Promise<Draft> { return this.draftCall('getDraft', { draft_id: id }); }
@@ -126,7 +137,7 @@ function headers(descriptor: ServiceDescriptor): Record<string, string> { return
 async function decoded(response: Response): Promise<any> {
   let value: any;
   try { value = await response.json(); } catch { fail('HANDSHAKE_INVALID', '服务未返回有效 JSON'); }
-  if (!response.ok) throw new ServiceError(typeof value.code === 'string' ? value.code : 'SERVICE_ERROR', typeof value.error === 'string' ? value.error : '服务请求失败');
+  if (!response.ok) throw new ServiceError(typeof value.code === 'string' ? value.code : 'SERVICE_ERROR', typeof value.error === 'string' ? value.error : '服务请求失败', value.current);
   return value;
 }
 async function health(descriptor: ServiceDescriptor, range: ApiRange): Promise<ServiceIdentity> {

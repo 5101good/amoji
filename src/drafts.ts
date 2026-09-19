@@ -7,6 +7,10 @@ import { fail, object } from './shared-contract.js';
 export type DraftFields = Pick<Expression, 'name' | 'semantics' | 'rights' | 'tags'>;
 export interface Draft {
   draft_id: string;
+  /** Missing mode on legacy drafts means create. Only the service sets these fields. */
+  mode?: 'create' | 'edit' | 'copy';
+  source?: ExpressionRef;
+  entry_version?: number;
   version: number;
   updated_at: string;
   fields: DraftFields;

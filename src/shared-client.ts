@@ -16,12 +16,14 @@ interface ConnectOptions { directory?: string; apiRange?: ApiRange; requiredCapa
 
 /** Public adapter boundary. Only trusted adapter code may supply bind context. */
 export class SharedClient {
-  private readonly lease = new AbortController();
-  private readonly disconnected = new AbortController();
+  private lease = new AbortController();
+  private disconnected = new AbortController();
   get signal(): AbortSignal { return this.disconnected.signal; }
   private connectionId = '';
   private closed = false;
-  private constructor(private readonly descriptor: ServiceDescriptor, readonly identity: ServiceIdentity) {}
+  private disposed = false;
+  private reconnecting?: Promise<void>;
+  private constructor(private descriptor: ServiceDescriptor, public identity: ServiceIdentity, private readonly options: ConnectOptions) {}
 
   static async connect(options: ConnectOptions = {}): Promise<SharedClient> {
     let directory = resolve(options.directory ?? dataDirectory());
@@ -33,7 +35,13 @@ export class SharedClient {
     for (const capability of options.requiredCapabilities ?? []) {
       if (!identity.capabilities?.includes(capability)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${capability}；请更新服务后重新连接`);
     }
-    const client = new SharedClient(descriptor, identity);
+    const client = new SharedClient(descriptor, identity, { ...options, directory });
+    await client.openLease();
+    return client;
+  }
+  private async openLease(): Promise<void> {
+    const client = this; const descriptor = this.descriptor;
+    const lease = this.lease; const disconnected = this.disconnected;
     const response = await fetch(`${descriptor.origin}/connect`, { headers: headers(descriptor), signal: client.lease.signal });
     if (!response.ok || !response.body) { await decoded(response); fail('CONNECTION_FAILED', '无法建立服务连接'); }
     const reader = response.body.getReader();
@@ -48,23 +56,61 @@ export class SharedClient {
       const hello = JSON.parse(raw.split('\n')[0]!);
       if (typeof hello.connectionId !== 'string' || !hello.connectionId) fail('HANDSHAKE_INVALID', '服务未返回连接身份');
       client.connectionId = hello.connectionId;
-      void (async () => { try { while (!(await reader.read()).done) {} } catch {} finally { client.closed = true; client.disconnected.abort(); } })();
+      void (async () => {
+        let reason: unknown = new ServiceError('CONNECTION_CLOSED', '共享服务连接已断开，请重新连接并核对原会话');
+        try { while (!(await reader.read()).done) {} } catch (error) { reason = error; }
+        finally {
+          if (client.lease === lease) client.closed = true;
+          disconnected.abort(new ServiceError('CONNECTION_CLOSED', `共享服务连接已断开，请重新连接并核对原会话（${reason instanceof Error ? reason.name : '连接结束'}）`));
+        }
+      })();
     } catch (error) { client.lease.abort(); throw error; }
     finally { clearTimeout(deadline); }
-    return client;
+  }
+  /** Explicit recovery only: callers reconcile their original request; no operation is replayed. */
+  async reconnect(): Promise<void> {
+    if (this.disposed) fail('CONNECTION_CLOSED', '插件已卸载，不能恢复旧连接');
+    if (this.reconnecting) return this.reconnecting;
+    this.reconnecting = (async () => {
+      const range = this.options.apiRange ?? { min: API_VERSION, max: API_VERSION };
+      // A healthy lease is shared by concurrent operations and must not be replaced.
+      if (!this.closed) {
+        try { await this.call('list', {}); return; }
+        catch (error) { if (error instanceof ServiceError && !['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN'].includes(error.code)) throw error; }
+      }
+      this.closed = true; this.lease.abort(); this.disconnected.abort(new ServiceError('CONNECTION_CLOSED', '旧连接已失效，请核对原请求'));
+      const descriptor = await discover(this.options.directory!, range);
+      const identity = await health(descriptor, range);
+      for (const capability of this.options.requiredCapabilities ?? []) {
+        if (!identity.capabilities?.includes(capability)) fail('CAPABILITY_UNAVAILABLE', `共享服务缺少 ${capability}；请关闭所有使用旧核心的客户端，再升级并重新连接`);
+      }
+      if (this.disposed) fail('CONNECTION_CLOSED', '插件已卸载');
+      this.descriptor = descriptor; this.identity = identity;
+      this.lease = new AbortController(); this.disconnected = new AbortController();
+      await this.openLease(); this.closed = false;
+      if (this.disposed) { await this.close(); fail('CONNECTION_CLOSED', '插件已卸载'); }
+    })();
+    try { await this.reconnecting; } finally { this.reconnecting = undefined; }
   }
   private async call<T>(method: string, params: unknown, timeoutMs = 5000): Promise<T> {
     if (this.closed) fail('CONNECTION_CLOSED', '服务连接已关闭，请重新连接');
+    try {
     const response = await fetch(`${this.descriptor.origin}/rpc`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': 'application/json', 'x-amoji-connection': this.connectionId }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(timeoutMs) });
     return (await decoded(response)).result as T;
+    } catch (error) {
+      if (error instanceof ServiceError) throw error;
+      this.closed = true; this.lease.abort();
+      this.disconnected.abort(new ServiceError('CONNECTION_CLOSED', '共享服务连接中断，请重新连接并核对原请求'));
+      fail('SERVICE_OUTCOME_UNKNOWN', '共享服务连接中断，操作结果尚待核对；请重新连接并核对原请求。');
+    }
   }
   private async draftCall<T>(method: string, params: unknown): Promise<T> {
     if (!this.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持手工创建，请更新服务后重试');
     const mediaOperation = ['saveDraft', 'previewDraft', 'confirmDraft'].includes(method);
     try { return await this.call(method, params, mediaOperation ? 60000 : 5000); }
     catch (error) {
-      if (['saveDraft', 'confirmDraft'].includes(method) && (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR'].includes(error.code))) fail('DRAFT_OUTCOME_UNKNOWN', '操作可能仍在处理，结果尚待核对；请保留原输入并重试同一次操作，不要新建草稿');
-      if (method === 'previewDraft' && !(error instanceof ServiceError)) fail('DRAFT_PREVIEW_UNAVAILABLE', '预览尚未返回或连接中断；已保存的草稿不会因此丢失，可重试预览');
+      if (['saveDraft', 'confirmDraft'].includes(method) && (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR', 'SERVICE_OUTCOME_UNKNOWN'].includes(error.code))) fail('DRAFT_OUTCOME_UNKNOWN', '操作可能仍在处理，结果尚待核对；请保留原输入并重试同一次操作，不要新建草稿');
+      if (method === 'previewDraft' && (!(error instanceof ServiceError) || error.code === 'SERVICE_OUTCOME_UNKNOWN')) fail('DRAFT_PREVIEW_UNAVAILABLE', '预览尚未返回或连接中断；已保存的草稿不会因此丢失，可重试预览');
       throw error;
     }
   }
@@ -83,7 +129,7 @@ export class SharedClient {
     if (!(bytes instanceof Uint8Array) || bytes.byteLength > PACK_LIMITS.archive) fail('PACK_LIMIT_EXCEEDED', '需要最多 260 MiB 的 ZIP 文件');
     try { return (await decoded(await this.packRequest('import', bytes, 'application/zip'))).result; }
     catch (error) {
-      if (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR'].includes(error.code)) fail('PACK_OUTCOME_UNKNOWN', '导入结果尚待核对；保留原文件并重试同一包，已确认版本不会重复创建');
+      if (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR', 'SERVICE_OUTCOME_UNKNOWN'].includes(error.code)) fail('PACK_OUTCOME_UNKNOWN', '导入结果尚待核对；保留原文件并重试同一包，已确认版本不会重复创建');
       throw error;
     }
   }
@@ -129,9 +175,11 @@ export class SharedClient {
   emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
   receive(binding: string, ref: ExpressionRef, requestId: string): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId }); }
   history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }
+  dshAttempted(binding: string, messageId: string): Promise<boolean> { return this.call('dshAttempted', { binding, message_id: messageId }); }
   dshAccepted(binding: string, messageId: string): Promise<void> { return this.call('dshAccepted', { binding, message_id: messageId }); }
   presentation(binding: string, messageId: string, presentation: 'rendered' | 'fallback'): Promise<void> { return this.call('presentation', { binding, message_id: messageId, presentation }); }
   async close(): Promise<void> {
+    this.disposed = true;
     if (this.closed) { this.lease.abort(); this.disconnected.abort(); return; }
     try { await this.call('close', {}); } finally { this.closed = true; this.lease.abort(); this.disconnected.abort(); }
   }

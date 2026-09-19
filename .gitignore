@@ -20,3 +20,8 @@ adapters/dsh/client.js
 adapters/dsh/BUILD.json
 
 adapters/dsh/web/
+
+adapters/dsh/LICENSE
+adapters/dsh/NOTICE
+adapters/dsh/THIRD_PARTY.json
+adapters/dsh/THIRD_PARTY_LICENSES/

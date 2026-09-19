@@ -1,0 +1,22 @@
+Amoji 0.1.0-dev.1
+
+原创核心、适配器代码及技术文档：MIT，见 LICENSE。
+assets/base-library 的24项原创基础视觉、固定语义及生成提示：CC0-1.0，见该目录 LICENSE、provenance.json。
+基础素材由项目使用 Codex imagegen 制作，来源记录不构成输出独有性或第三方权利保证。
+历史开发样本中的旧 rights 字段保持不变，不包含在 dsh 分发包中。
+用户个人库、消息、导入内容不属于本项目分发许可范围，默认私有。
+
+npm dsh tarball 不内嵌 node_modules、Sharp .node 或 libvips 动态库。
+安装时包管理器取得的依赖保留各自许可证；Amoji MIT 不替代这些许可。
+构建会根据实际 Client bundle metafile 与本机解析的生产依赖生成
+THIRD_PARTY.json 和 THIRD_PARTY_LICENSES，其中包括实际版本、完整性、原生依赖
+版本表及上游随包许可说明。macOS arm64 Sharp/libvips 为独立动态依赖，可替换重建；
+其他平台需重新检查其实际依赖，当前不宣称已完成真机验证。
+
+Sharp: https://github.com/lovell/sharp/tree/v0.35.4 (Apache-2.0)
+预编译 libvips: https://github.com/lovell/sharp-libvips/tree/v1.3.3
+安装说明: https://sharp.pixelplumbing.com/install/
+libvips npm 包声明 LGPL-3.0-or-later，所含组件还有 MIT、BSD、MPL 等许可；
+打包脚本的 Apache-2.0 不等于动态库的许可。实际版本与上游 Licensing 表一并保存。
+本候选不再分发第三方原生二进制；若后续制作离线含二进制安装器，须另行提供
+相应组件完整许可与对应源代码/重建材料，不能直接把本清单视作该安装器的审计。

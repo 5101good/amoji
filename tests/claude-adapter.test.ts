@@ -19,13 +19,13 @@ const payload = (name: string, args: Record<string, unknown>, session = 'session
   tool_name: `mcp__plugin_amoji_amoji__${name}`, tool_input: args,
   cwd: '/unrelated/work', transcript_path: '/must-not-read/transcript.jsonl', permission_mode: 'default',
 });
-async function sandbox(t: TestContext) {
+async function sandbox(t: TestContext, sampleRoot?: string) {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-claude-'));
   const bin = join(directory, 'bin'); await mkdir(bin);
   const opened = join(directory, 'opened.jsonl');
   // Replace only the OS browser launcher. Real Hook, MCP, HTTP, store and web files still execute.
   for (const name of ['open', 'xdg-open']) await writeFile(join(bin, name), `#!${process.execPath}\nrequire('node:fs').appendFileSync(${JSON.stringify(opened)}, JSON.stringify(process.argv.at(-1))+'\\n');\n`, { mode: 0o755 });
-  const env = { PATH: `${bin}:${process.env.PATH ?? ''}`, AMOJI_DATA_DIR: join(directory, 'data') };
+  const env = { PATH: `${bin}:${process.env.PATH ?? ''}`, AMOJI_DATA_DIR: join(directory, 'data'), ...(sampleRoot ? { AMOJI_SAMPLE_ROOT: sampleRoot } : {}) };
   const clients: Client[] = [];
   t.after(async () => {
     for (const client of clients) await client.close();
@@ -115,7 +115,9 @@ test('真实 Hook 覆盖模型伪票据并保留审批；缺身份、子代理�
 });
 
 test('真实 MCP 三样本文字与面板精确视觉对应，双会话/回合隔离且一回合限量', async t => {
-  const s = await sandbox(t); const a = await s.connect(); const b = await s.connect();
+  const s = await sandbox(t, join(root, 'assets/samples')); const a = await s.connect(); const b = await s.connect();
+  const settingsClient = await SharedClient.connect({ directory: s.env.AMOJI_DATA_DIR });
+  try { const settings = await settingsClient.getSettings(); await settingsClient.updateSettings(settings.version, { style: settings.style, paused: settings.paused, frequency: 'moderate' }); } finally { await settingsClient.close(); }
   const fixtures = JSON.parse(await readFile(join(root, 'assets/samples/manifest.json'), 'utf8')).expressions;
   const samples = [
     { query: '庆祝', id: '10000000-0000-4000-8000-000000000001', meaning: '为刚完成的进展真诚高兴并庆祝。' },

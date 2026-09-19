@@ -86,7 +86,7 @@ test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持�
   const recovered = new DshAdapter(f.ctx, new ConnectedRuntime(f.client), 'fixture-host');
   assert.equal(((await recovered.rpc('amoji/history', { sessionId: f.a.id }, signal())) as HistoryEntry[])[0]!.host!.status, 'accepted');
   const again = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry; assert.equal(first.meta.messageId, again.meta.messageId);
-  assert.equal(f.prompts[0]!.requestId, `amoji:${first.meta.messageId}`); assert.equal(f.prompts[0]!.requestId, f.prompts[1]!.requestId);
+  assert.equal(f.prompts[0]!.requestId, `amoji:${first.meta.messageId}`); assert.equal(f.prompts.length, 1, '已接受的原消息不再次调用宿主');
   assert.ok(f.prompts.every(p => p.sessionId === f.a.id && p.content.every(c => c.type === 'text'))); assert.doesNotMatch(JSON.stringify(f.prompts), /data:image|base64|visual/);
   await assert.rejects(f.adapter.rpc('amoji/submit', { ...request, ref: { asset_id: other.asset_id, revision_id: other.revision_id } }, signal()), /REQUEST_CONFLICT/);
   const turn = f.a.append('turn/start', {}); f.a.append('user/message', { id: 'host-message-1', source: { kind: 'user', rpcId: first.host!.requestId } });
@@ -280,7 +280,7 @@ test('共享 submit 生命周期：连接断开或 adapter 卸载中止工作，
       const binding = await observer.bind({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.a.id });
       const messages = await observer.history(binding);
       assert.equal(messages.length, 1);
-      assert.equal(messages[0]!.dsh_submission, undefined, '迟到成功不能越过生命周期终止写共享 accepted');
+      assert.equal(messages[0]!.dsh_submission, 'attempted', '迟到成功不能越过生命周期终止写共享 accepted');
       await observer.unbind(binding);
     } finally { await observer.close(); }
     assert.equal(f.a.events.some(event => event.type.startsWith('amoji/')), false, 'Session 不得出现自定义事件');
@@ -320,10 +320,10 @@ test('真实 Session 零文字首发表情，经 flush 文件重建后 native rp
 test('accepted 必须在 prompt 后 flush 成功，且共享回执拒绝跨会话/跨宿主/AI方向', async t => {
   const f = await setup(t); const e = (await f.client.list())[0]!;
   let flushes = 0; f.ctx.sessions.flush = async () => ++flushes === 1;
-  await assert.rejects(f.adapter.rpc('amoji/submit', { sessionId: f.a.id, requestId: 'flush-failed', ref: { asset_id: e.asset_id, revision_id: e.revision_id } }, signal()), /DSH_PERSISTENCE_UNAVAILABLE/);
+  await assert.rejects(f.adapter.rpc('amoji/submit', { sessionId: f.a.id, requestId: 'flush-failed', ref: { asset_id: e.asset_id, revision_id: e.revision_id } }, signal()), /DSH_OUTCOME_UNKNOWN/);
   assert.equal(f.prompts.length, 1);
   const [row] = await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[];
-  assert.equal(row!.host!.status, 'prepared'); assert.equal(row!.message.dsh_submission, undefined);
+  assert.equal(row!.host!.status, 'unknown'); assert.equal(row!.message.dsh_submission, 'attempted');
   const other = await f.client.bind({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.b.id });
   await assert.rejects(f.client.dshAccepted(other, row!.message.message_id), /BINDING_MISMATCH/);
   const foreign = await f.client.bind({ host: 'codex', hostInstanceId: 'fixture-host', sessionId: f.a.id, turnId: 'turn' });
@@ -459,4 +459,50 @@ test('认证二进制完整包路由实际导出再导入，无路径与凭据�
   const imported=await routes.get('/api/amoji/pack-import')!.fetch(new Request('http://local/api/amoji/pack-import?sessionId=session-a',{method:'POST',body:bytes}));assert.equal(imported.status,200);const result=await imported.json();assert.equal(result.result.existing,1);assert.doesNotMatch(JSON.stringify(result),/secret|dataRoot|session-a/);
   const rejected=await routes.get('/api/amoji/pack-export')!.fetch(new Request('http://local/api/amoji/pack-export?sessionId=unknown',{method:'POST',body:'{}'}));assert.equal(rejected.status,400);
   await assert.rejects(readBounded(new Request('http://local',{method:'POST',body:'12345'}),4),/PACK_LIMIT_EXCEEDED/);
+});
+
+test('提交超时或断线重连后先核对原生消息，未知结果不盲目重发且不串会话', async t => {
+  const f = await setup(t); const e = (await f.client.list())[0]!;
+  const request = { sessionId: f.a.id, ref: { asset_id: e.asset_id, revision_id: e.revision_id }, requestId: 'uncertain' };
+  let calls = 0;
+  f.ctx.sessionController.prompt = async () => { calls++; throw new Error('transport ended after admission'); };
+  await assert.rejects(f.adapter.rpc('amoji/submit', request, signal()), /DSH_OUTCOME_UNKNOWN/);
+  const uncertain = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry;
+  assert.equal(uncertain.host!.status, 'unknown'); assert.equal(calls, 1);
+  assert.equal((await f.adapter.rpc('amoji/history', { sessionId: f.b.id }, signal()) as HistoryEntry[]).length, 0);
+  f.a.append('user/message', { id: 'persisted-after-timeout', source: { kind: 'user', rpcId: uncertain.host!.requestId } });
+  const reconciled = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry;
+  assert.equal(reconciled.host!.status, 'observed'); assert.equal(reconciled.meta.messageId, uncertain.meta.messageId); assert.equal(calls, 1);
+});
+
+test('两个适配器争用同一请求只有一个原生 prompt，重连 RPC 可恢复同核心失效租约', async t => {
+  const f = await setup(t); const e = (await f.client.list())[0]!;
+  const request = { sessionId: f.a.id, ref: { asset_id: e.asset_id, revision_id: e.revision_id }, requestId: 'race' };
+  const second = new DshAdapter(f.ctx, f.runtime, 'fixture-host');
+  const rows = await Promise.all([f.adapter.rpc('amoji/submit', request, signal()), second.rpc('amoji/submit', request, signal())]) as HistoryEntry[];
+  assert.equal(f.prompts.length, 1); assert.equal(rows[0]!.meta.messageId, rows[1]!.meta.messageId);
+  let entered!: () => void; let release!: () => void;
+  const ready = new Promise<void>(r => { entered = r; }); const gate = new Promise<void>(r => { release = r; });
+  f.ctx.sessionController.prompt = async () => { entered(); await gate; return { accepted: true }; };
+  const hangingRequest = { ...request, requestId: 'hanging' };
+  const hanging = f.adapter.rpc('amoji/submit', hangingRequest, signal());
+  const cancelled = assert.rejects(hanging, /CONNECTION_CLOSED/); await ready;
+  t.after(release);
+  // End only this connection via the authenticated public RPC (not the whole shared service).
+  const d = JSON.parse(await readFile(join(f.directory, 'service.json'), 'utf8'));
+  const originalFetch = globalThis.fetch; let lease: string | undefined;
+  globalThis.fetch = async (input, init) => { if (String(input).endsWith('/rpc')) lease = (init!.headers as Record<string,string>)['x-amoji-connection']; return originalFetch(input, init); };
+  try { await f.client.list(); } finally { globalThis.fetch = originalFetch; }
+  await fetch(`${d.origin}/rpc`, { method: 'POST', headers: { Authorization: `Bearer ${d.secret}`, 'x-amoji-service': d.serviceId, 'x-amoji-connection': lease!, 'Content-Type':'application/json' }, body: JSON.stringify({ method:'close', params:{} }) });
+  for (let i = 0; i < 30 && !f.client.signal.aborted; i++) await new Promise(r => setTimeout(r, 10));
+  await assert.rejects(f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()), /CONNECTION_CLOSED/);
+  await f.adapter.rpc('amoji/reconnect', { sessionId: f.a.id }, signal());
+  assert.equal((await f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()) as unknown[]).length, 3);
+  const original = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry;
+  assert.equal(original.meta.messageId, rows[0]!.meta.messageId); assert.equal(f.prompts.length, 1);
+  await cancelled;
+  const recovered = await Promise.race([f.adapter.rpc('amoji/submit', hangingRequest, signal()), new Promise(r => setTimeout(() => r('still waiting for old host'), 250))]);
+  release();
+  assert.notEqual(recovered, 'still waiting for old host', '重连核对不能继续等待已中止的旧宿主工作');
+  assert.equal((recovered as HistoryEntry).host!.status, 'unknown');
 });

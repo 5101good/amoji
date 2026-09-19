@@ -161,3 +161,19 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
   assert.equal(created!.asset_id, personal.asset_id);
   assert.notEqual(created!.revision_id, personal.revision_id);
 });
+
+test('已确认草稿可直接切换新编辑，不误报未保存内容', async t => {
+  const f = await fixture(t); let created = 0; const confirmed = { ...base, draft_id: 'done', confirmed: a };
+  const rpc: any = { management: async (_s:string, method:string,args:any) => {
+    if(method==='listEntries') return [];
+    if(method==='listDrafts') return [confirmed];
+    if(method==='getDraft') return confirmed;
+    if(method==='getSettings') return {version:1,preferences:{style:'neutral',frequency:'restrained',paused:false}};
+    if(method==='createDraft') {created++;return {...base,draft_id:'new-edit'};}
+  } };
+  let confirmations=0; f.dom.window.confirm=()=>{confirmations++;return false;};
+  await React.act(async()=>f.root.render(React.createElement(Manager,{rpc,sessionId:'s',currentSessionId:'s',open:true,onClose(){},onChanged(){}})));
+  await React.act(()=>f.button('创作与草稿').click()); await React.act(async()=>f.button(a.name).click());
+  await React.act(async()=>f.button('新建表情').click());
+  assert.equal(created,1);assert.equal(confirmations,0);assert.doesNotMatch(f.dom.window.document.body.textContent!,/当前草稿仍保留/);
+});

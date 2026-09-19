@@ -9,7 +9,13 @@ function reducedMotion(): boolean { return typeof window !== 'undefined' && wind
 function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.asset_id, revision_id: ref.revision_id }; }
 export function createRpc(ctx: ClientPort): DshRpc {
   const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
-    const result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal);
+    signal?.throwIfAborted();
+    let result;
+    try { result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal); }
+    catch {
+      signal?.throwIfAborted();
+      throw rpcError({ code: method === 'submit' ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: method === 'submit' ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
+    }
     if (!result.ok) throw rpcError(result.error);
     return result.value as T;
   };
@@ -23,6 +29,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
     } return response;
   };
   return {
+    reconnect: (sessionId, signal) => call('reconnect', { sessionId }, signal),
     management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal),
     importPack: async (sessionId, file) => {
       try {

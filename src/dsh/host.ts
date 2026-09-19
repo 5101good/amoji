@@ -30,7 +30,7 @@ export class DshAdapter {
   constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) {
     nonempty(hostInstanceId);
     const disposed = new AbortController();
-    this.lifecycle = AbortSignal.any([disposed.signal, ...(runtime.connectionSignal ? [runtime.connectionSignal] : [])]);
+    this.lifecycle = disposed.signal;
     ctx.effect(() => async () => { disposed.abort(new Error('DSH_ADAPTER_DISPOSED')); if (this.panel) await (await this.panel).close(); }, 'amoji: submission lifecycle');
   }
   private context(sessionId: string): BindingContext { return { host: 'dsh', hostInstanceId: this.hostInstanceId, sessionId }; }
@@ -85,17 +85,22 @@ export class DshAdapter {
       const user = events.find(e => e.type === 'user/message' && record(record(e.data).source).kind === 'user' && record(record(e.data).source).rpcId === requestId);
       const accepted = message.dsh_submission === 'accepted';
       const turn = user ? [...events].reverse().find(e => e.type === 'turn/start' && e.seq <= user.seq) : undefined;
-      return { message, meta: visualMeta(message), host: { status: user ? 'observed' : accepted ? 'accepted' : 'prepared', requestId, ...(user ? { hostMessageId: nonempty(record(user.data).id), seq: user.seq } : {}), ...(turn ? { turnStartSeq: turn.seq } : {}) } };
+      return { message, meta: visualMeta(message), host: { status: user ? 'observed' : accepted ? 'accepted' : message.dsh_submission === 'attempted' ? 'unknown' : 'prepared', requestId, ...(user ? { hostMessageId: nonempty(record(user.data).id), seq: user.seq } : {}), ...(turn ? { turnStartSeq: turn.seq } : {}) } };
     });
   }
   async rpc(endpoint: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
-    signal = AbortSignal.any([signal, this.lifecycle]);
+    const reconnect = endpoint === 'amoji/reconnect';
+    signal = AbortSignal.any([signal, this.lifecycle, ...(!reconnect && this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
     const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
+    if (method === 'reconnect') {
+      if (!this.runtime.reconnect) fail('CAPABILITY_UNAVAILABLE', '当前连接不支持恢复，请升级插件');
+      await this.runtime.reconnect(); signal.throwIfAborted(); return null;
+    }
     if (method === 'management') return management(this.runtime, nonempty(args.method), args.args);
     if (method === 'manage') {
       if (!this.runtime.creation) fail('CAPABILITY_UNAVAILABLE', '当前共享服务不支持创建，请更新服务');
@@ -136,8 +141,12 @@ export class DshAdapter {
       // Once admitted, the idempotent job continues even with no UI waiters. A
       // browser disconnect cannot cancel another retry or erase its saved outcome.
       // Shared connection loss or adapter teardown still owns and cancels the job.
-      const jobSignal = AbortSignal.any([AbortSignal.timeout(30000), this.lifecycle]);
-      job = { ref, work: this.submit(sessionId, ref, requestId, jobSignal) };
+      const jobSignal = AbortSignal.any([AbortSignal.timeout(30000), this.lifecycle, ...(this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
+      const bounded = this.waitForSubmission(this.submit(sessionId, ref, requestId, jobSignal), jobSignal).catch(error => {
+        if (error instanceof Error && error.name === 'TimeoutError') fail('DSH_OUTCOME_UNKNOWN', '宿主响应超时，投递结果尚待核对；请保留原选择核对原会话。');
+        throw error;
+      });
+      job = { ref, work: bounded };
       this.pending.set(key, job);
       const completed = () => { if (this.pending.get(key) === job) this.pending.delete(key); };
       void job.work.then(completed, completed);
@@ -155,19 +164,26 @@ export class DshAdapter {
   private async submit(sessionId: string, ref: ExpressionRef, requestId: string, signal: AbortSignal): Promise<HistoryEntry> {
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
     const message = await this.runtime.receive(context, ref, requestId); signal.throwIfAborted();
-    const hostRequestId = `amoji:${message.message_id}`;
-    await this.flush(session);
-    signal.throwIfAborted();
-    const result = await this.ctx.sessionController.prompt({ sessionId, requestId: hostRequestId, mode: 'queue', content: [{ type: 'text', text: expressionMessageText(message.revision) }] }, signal);
-    signal.throwIfAborted();
-    if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
-    await this.flush(session);
-    signal.throwIfAborted();
-    if (!this.runtime.dshAccepted) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持 dsh 投递回执');
-    await this.runtime.dshAccepted(context, message.message_id); signal.throwIfAborted();
-    const entry = (await this.rows(sessionId, session.snapshotEvents())).find(r => r.message.message_id === message.message_id)!;
-    signal.throwIfAborted();
-    return entry;
+    const existing = (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
+    if (existing.host!.status !== 'prepared') return existing;
+    await this.flush(session); signal.throwIfAborted();
+    if (!this.runtime.dshAttempted || !this.runtime.dshAccepted) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持可靠投递，请升级服务后重新连接');
+    // The single writer claims dispatch before crossing the host boundary. Any
+    // later uncertainty is reconciled by native rpcId, never by another prompt.
+    if (!await this.runtime.dshAttempted(context, message.message_id)) {
+      return (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
+    }
+    try {
+      signal.throwIfAborted();
+      const result = await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji:${message.message_id}`, mode: 'queue', content: [{ type: 'text', text: expressionMessageText(message.revision) }] }, signal);
+      signal.throwIfAborted();
+      if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
+      await this.flush(session); signal.throwIfAborted();
+      await this.runtime.dshAccepted(context, message.message_id); signal.throwIfAborted();
+      return (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
+    } catch {
+      fail('DSH_OUTCOME_UNKNOWN', '投递结果尚待核对。请重新连接并核对原会话；不要重新选择或另发一次。');
+    }
   }
 }
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {
@@ -178,7 +194,7 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
       releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
-      for (const method of ['catalog', 'search', 'history', 'visual', 'submit', 'display', 'manage', 'management']) {
+      for (const method of ['reconnect', 'catalog', 'search', 'history', 'visual', 'submit', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });

@@ -210,3 +210,9 @@ D3 导入实现须沿同一 Store 事务写入来源与 entry_state，新增 imp
 导入/导出使用受相同 service/connection 认证保护的 POST `/packs/import`（`application/zip`）和 `/packs/export`（JSON `{refs,name}`），不借用14MiB普通RPC body上限。上传流先落0600隔离临时文件，压缩字节限260MiB；真实展开限250MiB、条目1000、manifest2MiB、表情200、单blob10MiB。请求、ZIP、媒体或事务失败不发布半包，临时目录在结束时删除。数据库提交之前写入的摘要素材可能成为不可发送的孤立文件；本阶段不清理历史或孤立素材。
 
 首次生产启动读取 `assets/base-library/base.amoji`，通过同一完整包校验并登记 builtin；外部文件导入只能登记 imported，rights.creator/包内容不能取得local权限。`AMOJI_SAMPLE_ROOT` 仅保留明确的开发fixture覆盖。包不会改变个人副本、已有默认、设置或会话，也不会触发外部公开发布。
+
+## dsh 可靠投递补充（D5）
+
+API2/DB4新增capability `dsh-reliable-delivery-v1`。`GET /connect`首行身份握手后每15秒NDJSON保活，客户端忽略后续帧；关闭租约清理绑定与心跳，单端离开不停止其他连接。重连重新协商身份/能力，旧binding不可复用，不自动重放RPC。
+
+`dshAttempted {binding,message_id}`由唯一writer校验dsh/原会话/人类方向，并原子返回是否首次取得投递权；首次写`dsh_submission: attempted`，已记录则false。随后`dshAccepted`写accepted。未知结果保留attempted，必须按原native rpcId核对，不再次prompt。该字段和原有消息snapshot同事务持久，未增加SQLite writer或另建消息表。accepted不等于observed，不等于模型已收到。公共dsh `amoji/reconnect {sessionId}`只恢复连接，`history`核对对应原生消息；模型工具白名单不增加管理/恢复入口。

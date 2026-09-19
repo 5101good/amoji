@@ -41,7 +41,7 @@ codex plugin add amoji@personal
 
 工具 `pending` 不代表宿主已经确认记录。面板仅在图片加载后记录同一消息 ID 的展示回执；HTTP 成功与显示成功都不会把宿主状态改成 `acknowledged`。适配器退出时关闭自己的面板和待选请求；其他连接继续使用服务，最后一个连接离开后服务默认空闲 60 秒退出。
 
-macOS 默认数据目录继续使用 `~/Library/Application Support/Amoji/prototype`，保留原命名以兼容已发本地图片引用。新服务写入 `library.sqlite` 与 `blobs/`；首次启动只读复制旧 `messages.sqlite` 和 `samples/` 中的数据，原文件保留且不改写。以后以共享库为准，不反复从旧原型合并。测试可用 `AMOJI_DATA_DIR` 隔离。重新关联同一真实会话后可读取完整消息与固定视觉；旧面板能力凭据失效。编辑、完整故障恢复和升级/卸载界面仍属于后续票据。
+macOS 默认数据目录继续使用 `~/Library/Application Support/Amoji/prototype`，保留原命名以兼容已发本地图片引用。新服务写入 `library.sqlite` 与 `blobs/`；首次启动只读复制旧 `messages.sqlite` 和 `samples/` 中的数据，原文件保留且不改写。以后以共享库为准，不反复从旧原型合并。测试可用 `AMOJI_DATA_DIR` 隔离。重新关联同一真实会话后可读取完整消息与固定视觉；旧面板能力凭据失效。dsh已接入编辑、显式故障恢复和原请求核对，安装/升级边界见[安装说明](docs/dsh-installation.md)。
 
 ## Claude Code 适配
 
@@ -76,9 +76,11 @@ AMOJI_RESUME_THREAD=<测试会话ID> node scripts/probes/live-tools.mjs
 
 探针要求预期工具成功且实际请求中图像输入为零，单有 Codex 进程退出码 0 不会通过。原始调用事件只保留在临时测试目录；仓库中的 [验收证据](docs/validation/codex-ticket-01.md) 是去除本地能力凭据后的摘要。
 
-完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现完整创作/导入导出及用户设置；24个基础表情的视觉/语义草稿已制作，仍待正式包集成、许可与完整验收。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
+完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。dsh已实现完整创作、导入导出、偏好及24项CC0基础库；最终安装版可靠性、生命周期和模型矩阵仍需补验，见[分发候选验收](docs/validation/dsh-release-acceptance.md)。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
 
 
 ### dsh 同页管理
 
 输入区“表情 → 管理表情”现已接入共享库、创作草稿、AI 偏好与完整包导入导出。图片预览成功后明确确认才成为可发表情；编辑保留旧版本，内置/导入项创建个人副本。AI 表情在完成回合的正常对话流中展示，默认折叠工具组仍可见。操作和实际验证边界见 [dsh 原生管理验证](docs/validation/dsh-native-management.md)。
+
+当前主验证宿主为dsh；[安装、升级和恢复](docs/dsh-installation.md)，[MIT代码许可](LICENSE)，[分发声明](NOTICE)。其他端新增实现与真机矩阵暂停。

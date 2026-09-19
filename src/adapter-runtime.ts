@@ -9,6 +9,7 @@ type Awaitable<T> = T | Promise<T>;
 /** Host presentation boundary; supports the ticket-01 fixtures and the shared client. */
 export interface AdapterRuntime {
   connectionSignal?: AbortSignal;
+  reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
   packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
   management?: Pick<SharedClient, 'listRevisions' | 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
@@ -18,6 +19,7 @@ export interface AdapterRuntime {
   emit(context: HostContext, token: string): Awaitable<SampleMessage>;
   messages(context: HostContext): Awaitable<SampleMessage[]>;
   receive(context: HostContext, ref: ExpressionRef, requestId: string): Awaitable<SampleMessage>;
+  dshAttempted?(context: HostContext, messageId: string): Awaitable<boolean>;
   dshAccepted?(context: HostContext, messageId: string): Awaitable<void>;
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback'): Awaitable<void>;
   blobPath?(digest: string): Promise<string>;
@@ -27,13 +29,13 @@ export interface AdapterRuntime {
 /** Host adapters translate trusted context; all library writes remain in the service. */
 export class ConnectedRuntime implements AdapterRuntime {
   readonly catalog;
-  readonly connectionSignal;
+  get connectionSignal() { return this.client.signal; }
+  reconnect() { return this.client.reconnect(); }
   readonly creation;
   readonly suggestions;
   readonly management;
   readonly packs;
   constructor(private readonly client: SharedClient) {
-    this.connectionSignal = client.signal;
     this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;
     this.management = client.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY) ? client : undefined;
     this.creation = client.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY) ? client : undefined;
@@ -50,6 +52,7 @@ export class ConnectedRuntime implements AdapterRuntime {
   messages(context: HostContext) { return this.withBinding(context, binding => this.client.history(binding)); }
   receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId)); }
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.withBinding(context, binding => this.client.presentation(binding, messageId, state)); }
+  dshAttempted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAttempted(binding, messageId)); }
   dshAccepted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAccepted(binding, messageId)); }
   blobPath(digest: string) { return this.client.blobPath(digest); }
   async readBlob(digest: string) { return readFile(await this.client.blobPath(digest)); }

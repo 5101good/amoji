@@ -8,18 +8,29 @@ import { SharedClient, stopSharedService } from '../src/shared-client.js';
 // Use the real authenticated HTTP boundary: an unimplemented ticket method must fail here.
 test('共享服务签发单次票据，固定真实身份、工具、参数与有效期，保留 API 2 普通客户端', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-claude-ticket-'));
+  let client: SharedClient | undefined;
+  const abort = new AbortController();
+  t.after(async () => {
+    abort.abort();
+    try { await client?.close(); } finally {
+      try {
+        const descriptor = JSON.parse(await readFile(join(directory, 'service.json'), 'utf8'));
+        await stopSharedService(directory, descriptor.serviceId);
+      } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      finally { await rm(directory, { recursive: true, force: true }); }
+    }
+  });
   const clockFile = join(directory, 'clock.txt');
   await writeFile(clockFile, '0');
   const original = process.env.NODE_OPTIONS;
   const originalClock = process.env.AMOJI_TEST_CLOCK_FILE;
   process.env.NODE_OPTIONS = [original, `--import=${new URL('fixtures/clock-offset.mjs', import.meta.url).href}`].filter(Boolean).join(' ');
   process.env.AMOJI_TEST_CLOCK_FILE = clockFile;
-  const client = await SharedClient.connect({ directory });
+  try { client = await SharedClient.connect({ directory }); } finally {
   if (original === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = original;
   if (originalClock === undefined) delete process.env.AMOJI_TEST_CLOCK_FILE; else process.env.AMOJI_TEST_CLOCK_FILE = originalClock;
+  }
   const descriptor = JSON.parse(await readFile(join(directory, 'service.json'), 'utf8'));
-  const abort = new AbortController();
-  t.after(async () => { abort.abort(); await client.close(); await stopSharedService(directory, descriptor.serviceId); await rm(directory, { recursive: true, force: true }); });
   const headers = { Authorization: `Bearer ${descriptor.secret}`, 'x-amoji-service': descriptor.serviceId };
   const connection = await fetch(`${descriptor.origin}/connect`, { headers, signal: abort.signal });
   const reader = connection.body!.getReader();

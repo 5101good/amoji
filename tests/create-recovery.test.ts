@@ -51,6 +51,7 @@ test('已提交保存或确认的响应丢失时报告待核对，同一公共�
     return response;
   };
   await assert.rejects(client.saveDraft(initial.draft_id, initial.version, fields, upload), /DRAFT_OUTCOME_UNKNOWN/);
+  assert.equal(client.signal.aborted, true); await client.reconnect();
   const afterSave = await client.getDraft(initial.draft_id);
   assert.equal(afterSave.version, initial.version + 1);
   await client.close(); await service.close();
@@ -58,12 +59,14 @@ test('已提交保存或确认的响应丢失时报告待核对，同一公共�
   assert.deepEqual(await client.saveDraft(initial.draft_id, initial.version, fields, upload), afterSave);
   lost = 'previewDraft';
   await assert.rejects(client.previewDraft(afterSave.draft_id, afterSave.version), /DRAFT_PREVIEW_UNAVAILABLE/);
+  assert.equal(client.signal.aborted, true); await client.reconnect();
   assert.deepEqual(await client.getDraft(afterSave.draft_id), afterSave);
   const other = await client.saveDraft(afterSave.draft_id, afterSave.version, { ...fields, name: '另一窗口的新版本' });
   await assert.rejects(client.saveDraft(initial.draft_id, initial.version, fields, upload), /DRAFT_CONFLICT/);
   assert.deepEqual(await client.getDraft(other.draft_id), other);
   lost = 'confirmDraft';
   await assert.rejects(client.confirmDraft(other.draft_id, other.version), /DRAFT_OUTCOME_UNKNOWN/);
+  assert.equal(client.signal.aborted, true); await client.reconnect();
   const confirmed = await client.confirmDraft(other.draft_id, other.version);
   assert.deepEqual((await client.list()).find(e => e.asset_id === confirmed.asset_id), confirmed);
   assert.equal((await client.list()).length, 4);

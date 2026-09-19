@@ -9,7 +9,11 @@
     "assets",
     "patch.yml",
     "BUILD.json",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY.json",
+    "THIRD_PARTY_LICENSES"
   ],
   "exports": {
     ".": "./index.mjs",
@@ -56,5 +60,6 @@
     "@deepseek-ai/dsh-client-connection": {
       "optional": true
     }
-  }
+  },
+  "license": "MIT"
 }

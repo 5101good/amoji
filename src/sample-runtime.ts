@@ -13,7 +13,7 @@ export interface SampleMessage {
   revision: Expression;
   delivery: 'pending';
   /** dsh native prompt accepted and flushed; not proof of a rendered user message. */
-  dsh_submission?: 'accepted';
+  dsh_submission?: 'attempted' | 'accepted';
   presentation: 'pending' | 'rendered' | 'fallback';
 }
 interface Session { version: number; bindingId: string; messages: SampleMessage[]; emittedTurns: Set<string>; received: Map<string, string> }

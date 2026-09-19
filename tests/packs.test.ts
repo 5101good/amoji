@@ -112,7 +112,10 @@ test('正式基础包通过公共校验，空环境仅24项且外部导入不能
   for (const e of entries) { assert.deepEqual(await external.client.resolve(ref(e.expression)), e.expression); assert.equal((await external.client.getEntry(e.expression.asset_id)).origin, 'imported'); }
 });
 
-test('ZIP条目、实际解压流与实际输入流均有固定上限并清理隔离临时文件', async () => {
+test('ZIP条目、实际解压流与实际输入流均有固定上限并清理隔离临时文件', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-own-pack-tmp-')); const original = process.env.TMPDIR;
+  process.env.TMPDIR = directory;
+  t.after(async () => { if (original === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = original; await rm(directory, {recursive:true,force:true}); });
   const { withValidatedPack } = await import('../src/packs.js');
   const before = (await readdir(tmpdir())).filter(n => n.startsWith('amoji-pack-')).sort();
   await assert.rejects(withValidatedPack(await zip(Array.from({ length: 1001 }, (_, i) => [`blobs/${i.toString(16).padStart(64, '0')}`, Buffer.from('x')])), async () => {}), /PACK_LIMIT_EXCEEDED/);

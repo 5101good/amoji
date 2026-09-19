@@ -7,6 +7,7 @@ export const PACKS_CAPABILITY = 'packs-v1';
 export const LIBRARY_MANAGEMENT_CAPABILITY = 'library-management-v1';
 export const CREATE_DRAFT_CAPABILITY = 'create-drafts-v1';
 export const TEXT_SUGGESTION_CAPABILITY = 'text-suggestions-v1';
+export const DSH_RELIABILITY_CAPABILITY = 'dsh-reliable-delivery-v1';
 export const DSH_NATIVE_CAPABILITY = 'dsh-native-delivery-v1';
 export const DSH_SUBMISSION_CAPABILITY = 'dsh-idle-submission-v1';
 export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';

@@ -34,9 +34,10 @@ export interface HostPort {
 export type VisualMeta = {
   kind: 'amoji'; messageId: string; ref: { asset_id: string; revision_id: string }; visualHash: string; posterHash: string | null; alt: string;
 }
-export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
+export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc extends ManagementRpc {
+  reconnect?(sessionId: string, signal?: AbortSignal): Promise<void>;
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
   search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;

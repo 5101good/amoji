@@ -10,6 +10,13 @@ import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+async function moderateFrequency(destination: string, directory: string) {
+  const { SharedClient } = await import(pathToFileURL(join(destination, 'runtime/src/shared-client.js')).href);
+  const settingsClient = await SharedClient.connect({ directory });
+  try { const settings = await settingsClient.getSettings(); await settingsClient.updateSettings(settings.version, { style: settings.style, paused: settings.paused, frequency: 'moderate' }); }
+  finally { await settingsClient.close(); }
+}
+
 async function createFromPanel(panel: URL, draft: { draft_id: string; version: number }, sample: any) {
   const headers = { Authorization: `Bearer ${panel.hash.slice(1)}`, 'Content-Type': 'application/json' };
   const bytes = Buffer.from(await (await fetch(`${panel.origin}/blobs/${sample.visual.primary.sha256}`, { headers })).arrayBuffer());
@@ -91,6 +98,7 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
   const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
   assert.match(draft.draft_id, /^draft_/);
   const created = await createFromPanel(panel, draft, state.expressions[0]);
+  await moderateFrequency(destination, data);
   const nextMeta = { 'x-codex-turn-metadata': { thread_id: 'artifact', turn_id: '2' } };
   const createdSearch = await client.callTool({ name: 'amoji_search', arguments: { query: created.name }, _meta: nextMeta });
   assert.equal(createdSearch.isError, undefined);
@@ -186,6 +194,7 @@ test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Cod
   const draft = await (await fetch(`${panel.origin}/api/draft/create`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })).json();
   assert.match(draft.draft_id, /^draft_/);
   const created = await createFromPanel(panel, draft, state.expressions[0]);
+  await moderateFrequency(destination, data);
   const nextInput = { ...input, prompt_id: '550e8400-e29b-41d4-a716-446655440001' };
   const createArgs = JSON.parse(await invokeHook({ ...nextInput, tool_use_id: 'toolu_created_search', tool_input: { query: created.name } })).hookSpecificOutput.updatedInput;
   const createdSearch = await client.callTool({ name: 'amoji_search', arguments: createArgs });

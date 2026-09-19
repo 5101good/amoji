@@ -22,5 +22,7 @@ test('默认回归入口无需 curl 或外网，dsh 源码准备仅显式执行'
   const files = JSON.parse(output) as string[];
   assert.ok(files.includes('tests/projection.test.ts')); assert.ok(files.every(file => !file.startsWith('tests/dsh-')));
   const result = execFileSync(process.execPath, ['--require', block, 'scripts/test.mjs', '--test-name-pattern=^模型获得完整固定语义和精确版本，不获得图片或本地路径$'], { cwd: new URL('..', import.meta.url), env, encoding: 'utf8' });
-  assert.match(result, /pass 1/);
+  // Node24 also counts files with no selected tests as passed; assert the selected behavior and no failures.
+  assert.match(result, /✔ 模型获得完整固定语义和精确版本，不获得图片或本地路径/);
+  assert.match(result, /fail 0/);
 });

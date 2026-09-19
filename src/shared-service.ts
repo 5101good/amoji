@@ -4,17 +4,18 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
 import { expressionRef } from './library-management.js';
 import { draftVersion } from './drafts.js';
 
-interface Connection { response: ServerResponse; bindings: Map<string, BindingContext> }
+interface Connection { response: ServerResponse; bindings: Map<string, BindingContext>; heartbeat: NodeJS.Timeout }
 
 /** A kernel-held SQLite EXCLUSIVE lock elects the sole writer, including during startup. */
-export async function startSharedService(directory: string, seed: URL, idleMs = 60000): Promise<{ close(): Promise<void> }> {
+export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void> }> {
+  if (!Number.isFinite(heartbeatMs) || heartbeatMs < 10 || heartbeatMs > 60000) fail('INVALID_ARGUMENT', '保活间隔必须在10–60000毫秒内');
   process.umask(0o077);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   directory = await realpath(directory);
@@ -25,7 +26,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -43,7 +44,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   const disconnect = (id: string) => {
     const connection = connections.get(id);
     if (!connection) return;
-    connections.delete(id); connection.bindings.clear(); connection.response.end(); armIdle();
+    connections.delete(id); clearInterval(connection.heartbeat); connection.bindings.clear(); connection.response.end(); armIdle();
   };
   async function close(): Promise<void> {
     if (closing) return closing;
@@ -76,7 +77,12 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     if (req.method === 'GET' && url.pathname === '/connect') {
       const id = randomBytes(24).toString('base64url');
       clearTimeout(timer);
-      connections.set(id, { response: res, bindings: new Map() });
+      const heartbeat = setInterval(() => {
+        // Respect backpressure: an unread lease must never accumulate unbounded frames.
+        if (!res.destroyed && !res.writableEnded && !res.writableNeedDrain) res.write('{"heartbeat":true}\n');
+      }, heartbeatMs);
+      heartbeat.unref();
+      connections.set(id, { response: res, bindings: new Map(), heartbeat });
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store' });
       res.write(`${JSON.stringify({ connectionId: id })}\n`);
       res.once('close', () => disconnect(id)); return;
@@ -144,6 +150,10 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'receive': {
         const args = object(value, ['binding', 'ref', 'send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
         result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id)); break;
+      }
+      case 'dshAttempted': {
+        const args = object(value, ['binding', 'message_id']);
+        result = store.dshAttempted(context(args), nonempty(args.message_id)); break;
       }
       case 'dshAccepted': {
         const args = object(value, ['binding', 'message_id']);

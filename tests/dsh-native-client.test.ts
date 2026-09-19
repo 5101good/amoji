@@ -89,3 +89,37 @@ test('真实 SlotRegistry 等待声明、随 owner collapse 清理并重新注�
   cleanups.forEach(fn => fn()); assert.equal(slots.entries('conversation.input.left').length, 0);
   second(); const third = mount(); assert.equal(slots.entries('tool.call.toolview').length, 0); third();
 });
+
+test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口并清理定位监听', async t => {
+  const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
+  const { createComponents } = await import('../src/dsh/client.js');
+  const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document };
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(dom.window, 'innerWidth', { value: 1280, writable: true }); Object.defineProperty(dom.window, 'innerHeight', { value: 720, writable: true });
+  const root = createRoot(dom.window.document.getElementById('root')!); t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
+  const rpc = { catalog: async () => [] } as unknown as import('../src/dsh/contracts.js').DshRpc;
+  const Picker = createComponents(rpc).Picker;
+  await act(() => root.render(React.createElement(Picker, { sessionId: 'zero-text' })));
+  const anchor = dom.window.document.querySelector('button')!;
+  let box = { left: 645, top: 411.5, bottom: 440, right: 690, width: 45, height: 28.5 };
+  anchor.getBoundingClientRect = () => ({ ...box, x: box.left, y: box.top, toJSON() {} });
+  await act(async () => anchor.click());
+  const panel = dom.window.document.querySelector<HTMLElement>('[aria-label="Amoji 表情选择"]')!;
+  const bounded = () => {
+    assert.equal(panel.style.position, 'fixed'); assert.equal(panel.style.boxSizing, 'border-box');
+    const maxHeight = parseFloat(panel.style.maxHeight); const left = parseFloat(panel.style.left); const width = parseFloat(panel.style.width);
+    const bottom = panel.style.bottom === 'auto' ? undefined : parseFloat(panel.style.bottom);
+    const top = bottom === undefined ? parseFloat(panel.style.top) : dom.window.innerHeight - bottom - maxHeight;
+    assert.ok(top >= 12, `top ${top}`); assert.ok(top + maxHeight <= dom.window.innerHeight - 12);
+    assert.ok(left >= 12); assert.ok(left + width <= dom.window.innerWidth - 12);
+    assert.equal(panel.style.overflow, 'auto');
+    for (const text of ['创建自己的表情', '搜索', '发送所选表情', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => button.textContent === text));
+  };
+  bounded();
+  box = { ...box, top: 675, bottom: 703 }; await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded();
+  Object.assign(dom.window, { innerWidth: 360, innerHeight: 640 }); box = { ...box, left: 300, right: 345, top: 40, bottom: 68 };
+  await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded(); assert.equal(panel.style.bottom, 'auto');
+  await act(() => [...panel.querySelectorAll('button')].find(b => b.textContent === '关闭')!.click());
+  const previousLeft = panel.style.left; box = { ...box, left: 40 };
+  await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); assert.equal(panel.style.left, previousLeft);
+});

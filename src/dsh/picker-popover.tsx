@@ -1,0 +1,42 @@
+import React, { useLayoutEffect, useRef } from 'react';
+
+/** Native top-layer popover keeps the composer's theme without ancestor clipping. */
+export function PickerPopover({ anchor, children }: { anchor: React.RefObject<HTMLButtonElement | null>; children: React.ReactNode }) {
+  const panel = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const element = panel.current; const button = anchor.current;
+    if (!element || !button) return;
+    const view = element.ownerDocument.defaultView!;
+    const viewport = view.visualViewport;
+    const position = () => {
+      const rect = button.getBoundingClientRect();
+      const leftEdge = viewport?.offsetLeft ?? 0; const topEdge = viewport?.offsetTop ?? 0;
+      const width = viewport?.width ?? view.innerWidth; const height = viewport?.height ?? view.innerHeight;
+      const margin = 12; const gap = 8;
+      const top = topEdge + margin; const bottom = topEdge + height - margin;
+      const anchorTop = Math.max(top, Math.min(bottom, rect.top));
+      const anchorBottom = Math.max(top, Math.min(bottom, rect.bottom));
+      const above = Math.max(0, anchorTop - top - gap); const below = Math.max(0, bottom - anchorBottom - gap);
+      const upwards = above >= below;
+      const panelWidth = Math.max(0, Math.min(420, width - 2 * margin));
+      element.style.width = `${panelWidth}px`;
+      element.style.left = `${Math.max(leftEdge + margin, Math.min(rect.left, leftEdge + width - margin - panelWidth))}px`;
+      element.style.maxHeight = `${Math.min(520, upwards ? above : below)}px`;
+      element.style.top = upwards ? 'auto' : `${anchorBottom + gap}px`;
+      element.style.bottom = upwards ? `${view.innerHeight - anchorTop + gap}px` : 'auto';
+    };
+    position();
+    // The current dsh Web browser exposes this standard API. Fixed positioning
+    // remains usable in DOM fixtures/older browsers without the top-layer API.
+    element.showPopover?.();
+    view.addEventListener('resize', position); view.addEventListener('scroll', position, true);
+    viewport?.addEventListener('resize', position); viewport?.addEventListener('scroll', position);
+    const observer = view.ResizeObserver ? new view.ResizeObserver(position) : undefined; observer?.observe(button);
+    return () => {
+      observer?.disconnect(); view.removeEventListener('resize', position); view.removeEventListener('scroll', position, true);
+      viewport?.removeEventListener('resize', position); viewport?.removeEventListener('scroll', position);
+      element.hidePopover?.();
+    };
+  }, [anchor]);
+  return <section ref={panel} popover="manual" aria-label="Amoji 表情选择" style={{ position: 'fixed', inset: 'auto', margin: 0, zIndex: 30, boxSizing: 'border-box', overflow: 'auto', padding: 16, borderRadius: 12, border: '1px solid var(--dsw-alias-border-l, #8886)', background: 'var(--dsw-alias-bg-module-platform, Canvas)', color: 'inherit', boxShadow: '0 8px 32px #0002' }}>{children}</section>;
+}

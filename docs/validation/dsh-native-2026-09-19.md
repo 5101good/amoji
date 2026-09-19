@@ -30,3 +30,9 @@ TDD 已观察的失败包括：旧 Host 向 Session 写入 amoji 事件；旧 Cl
 ## 真实安装回报修正：Connection 共存
 
 root 在独立 QA 首次启动确认 /api 只能有一个 interceptor，原实现与内置 Gateway 冲突。已用真实 HostConnectionService 先复现相同报错，再改为公开 connection.fetch.register 的七个精确 POST /api/amoji/* buffered 端点。沿用公开 clientRequestSchema 校验与 server-response 信封，不改变 Client 调用；端点继承 Connection 的认证、Origin/Host 信任和请求大小限制。共存测试同时断言 Gateway 原端点仍可调用、Amoji 实际派发、method 不一致拒绝、卸载后 Gateway 仍在且 Amoji 返回404。Client 平台 React 不再声明npm peer；Host提供的Cordis/tools/connection 标为 optional peer，避免建议用户为平台模块重复装依赖。
+
+## 2026-09-20 聚焦修复
+
+真实 QA 暴露了完整 Expression 被作为窄 ref 发送，以及空白会话选择器向上超出视口。现已在 Client RPC 边界显式构造两字段 ref；选择器采用原生 popover 顶层与锚点/视口空间定位，支持向上或向下展开并限制宽高。accepted 生命周期检查也改为从新 SharedClient 连接读取真正的 dsh_submission 字段。
+
+对应红绿测试复现了 INVALID_ARGUMENT 和旧 absolute 定位；修复后 typecheck、build:dsh 与三个相关 dsh 测试文件的 25 项检查通过。真实图片解码、浮层位置与交互仍由 root 浏览器 QA 记录。

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Expression, ExpressionRef } from '../sample-catalog.js';
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
+import { PickerPopover } from './picker-popover.js';
 import { mountUserMessages } from './messages.js';
 import type { DshRpc, HistoryEntry, RpcResult } from './contracts.js';
 
@@ -20,6 +21,7 @@ export { AmojiImage, createRpc, parseMeta } from './media.js';
 export function createComponents(rpc: DshRpc) {
   function Picker({ sessionId }: SessionProps) { return <PickerSession key={sessionId} sessionId={sessionId} />; }
   function PickerSession({ sessionId }: SessionProps) {
+    const anchor = useRef<HTMLButtonElement>(null);
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(''); const [managementUrl, setManagementUrl] = useState('');
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
@@ -67,7 +69,7 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) setStatus(errorText(e)); }
       finally { if (current()) setBusy(false); }
     };
-    return <div style={{ position: 'relative' }}><button type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择" style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 30, width: 'min(420px, 80vw)', maxHeight: '65vh', overflow: 'auto', padding: 16, borderRadius: 12, border: '1px solid var(--dsw-alias-border-l, #8886)', background: 'var(--dsw-alias-bg-module-platform, Canvas)', color: 'inherit', boxShadow: '0 8px 32px #0002' }}>
+    return <div style={{ position: 'relative' }}><button ref={anchor} type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <PickerPopover anchor={anchor}>
       <p>发送到当前会话</p>
       <button type="button" onClick={() => void manage()}>创建自己的表情</button>
       {managementUrl && <p><a aria-label="打开创建面板" href={managementUrl} target="_blank" rel="noreferrer">打开创建面板</a> · 确认后返回这里，点击“显示全部”刷新共享库。</p>}
@@ -79,7 +81,7 @@ export function createComponents(rpc: DshRpc) {
       <p aria-live="polite">{searchStatus}</p>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>{catalog.map(e => <div key={`${e.asset_id}:${e.revision_id}`}><AmojiImage rpc={rpc} sessionId={target} refValue={e} /><button type="button" disabled={busy} aria-pressed={sameRef(e, selected ?? { asset_id: '', revision_id: '' })} onClick={() => { setSelected(e); setRequestId(crypto.randomUUID()); setStatus(''); }}>{e.name}</button></div>)}</div>
       {selected && <section aria-label="固定语义与精确版本"><h3>{selected.name}</h3><p>{selected.semantics.meaning}</p>{selected.semantics.tone && <p>{selected.semantics.tone}</p>}{selected.semantics.use_when?.length ? <p>适用于：{selected.semantics.use_when.join('；')}</p> : null}{selected.semantics.avoid_when?.length ? <p>不适用于：{selected.semantics.avoid_when.join('；')}</p> : null}<details><summary>查看完整固定语义与版本</summary><pre>{JSON.stringify({ asset_id: selected.asset_id, revision_id: selected.revision_id, name: selected.name, semantics: selected.semantics }, null, 2)}</pre></details></section>}<button type="button" disabled={!selected || busy} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button><button type="button" onClick={() => { searchTask.current.generation++; searchTask.current.abort.abort(); setTarget(undefined); }}>关闭</button><p role="status">{status}</p>
-    </section>}</div>;
+    </PickerPopover>}</div>;
   }
   function History({ sessionId }: SessionProps) {
     const [snapshot, setSnapshot] = useState<{ sessionId: string; rows: HistoryEntry[]; error: string }>({ sessionId, rows: [], error: '' });

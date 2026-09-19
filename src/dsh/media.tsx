@@ -5,6 +5,7 @@ import type { DshRpc, VisualData, VisualMeta } from './contracts.js';
 interface SessionProps { sessionId: string }
 export function errorText(error: unknown): string { return error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : '操作失败'; }
 function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
+function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.asset_id, revision_id: ref.revision_id }; }
 export function createRpc(ctx: ClientPort): DshRpc {
   const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
     const result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal);
@@ -15,9 +16,9 @@ export function createRpc(ctx: ClientPort): DshRpc {
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
     search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
-    submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref, requestId }, signal),
+    submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref: narrowRef(ref), requestId }, signal),
     history: (sessionId, signal) => call('history', { sessionId }, signal),
-    visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref, ...(messageId ? { messageId } : {}) }, signal),
+    visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref: narrowRef(ref), ...(messageId ? { messageId } : {}) }, signal),
     display: (sessionId, messageId, hash, state, signal) => call('display', { sessionId, messageId, hash, state }, signal),
   };
 }

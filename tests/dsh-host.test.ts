@@ -263,7 +263,15 @@ test('共享 submit 生命周期：连接断开或 adapter 卸载中止工作，
       else for (const dispose of f.disposers.reverse()) await dispose();
       assert.equal(internal!.aborted, true, '连接或 adapter 生命周期必须传播给独立 job');
     } finally { release(); await new Promise(resolve => setTimeout(resolve, 20)); }
-    assert.equal(f.a.events.some(event => event.type === 'amoji/accepted'), false, '迟到成功不能越过生命周期终止写 accepted');
+    const observer = await SharedClient.connect({ directory: f.directory });
+    try {
+      const binding = await observer.bind({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.a.id });
+      const messages = await observer.history(binding);
+      assert.equal(messages.length, 1);
+      assert.equal(messages[0]!.dsh_submission, undefined, '迟到成功不能越过生命周期终止写共享 accepted');
+      await observer.unbind(binding);
+    } finally { await observer.close(); }
+    assert.equal(f.a.events.some(event => event.type.startsWith('amoji/')), false, 'Session 不得出现自定义事件');
     await assert.rejects(f.adapter.rpc('amoji/submit', { ...request, requestId: 'after-lifecycle' }, signal()));
   });
 });
@@ -333,4 +341,23 @@ test('真实 Connection 允许网关 /api interceptor 与 Amoji exact routes 共
   for (const dispose of cleanup.reverse()) await dispose();
   assert.equal((await call('amoji/catalog', { sessionId: f.a.id })).status, 404);
   assert.equal((await (await call('session/native', {})).json()).result.value, 'native gateway');
+});
+
+test('真实 Client createRpc 将完整 catalog Expression 窄化后穿过严格 Host visual/submit', async t => {
+  const { createRpc } = await import('../src/dsh/client.js');
+  const f = await setup(t); const payloads: Array<{ endpoint: string; payload: any }> = [];
+  const client = createRpc({ connection: { rpc: { async call(channel, endpoint, payload, requestSignal) {
+    assert.equal(channel, '/api'); payloads.push({ endpoint, payload });
+    return { ok: true, value: await f.adapter.rpc(endpoint, JSON.parse(JSON.stringify(payload)), requestSignal ?? signal()) };
+  } } } } as import('../src/dsh/client.js').ClientPort);
+  const expressions = await client.catalog(f.a.id);
+  for (const expression of expressions) {
+    const result = await client.visual(f.a.id, expression);
+    assert.equal(result.expression.revision_id, expression.revision_id);
+    assert.match(result.primary, /^data:image\//);
+  }
+  const expression = expressions[0]!;
+  const sent = await client.submit(f.a.id, expression, 'whole-expression-ref');
+  assert.equal(sent.meta.ref.revision_id, expression.revision_id);
+  for (const { payload } of payloads.filter(p => p.endpoint === 'amoji/visual' || p.endpoint === 'amoji/submit')) assert.deepEqual(Object.keys(payload.ref).sort(), ['asset_id', 'revision_id']);
 });

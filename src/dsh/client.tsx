@@ -95,7 +95,13 @@ export function createComponents(rpc: DshRpc) {
     }, [sessionId]);
     return <details><summary>Amoji 历史 · {rows.length}</summary>{error && <p role="alert">{error}</p>}{rows.map(row => <div key={row.meta.messageId}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} /><span>{row.message.direction === 'human_to_ai' ? '用户' : 'AI'} · {row.host?.status ?? '工具消息'} · {row.message.presentation}</span></div>)}</details>;
   }
-  function ToolView({ sessionId, block }: SessionProps & { block?: { kind?: string; meta?: unknown } }) { const meta = block?.kind === 'tool-result' ? parseMeta(block.meta) : undefined; return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <span>表情等待结果或元数据不合法</span>; }
+  function ToolView({ sessionId, block }: SessionProps & { block?: { kind?: string; meta?: unknown; isError?: boolean; error?: { name?: string; code?: string }; content?: readonly { type: string; text?: string }[] } }) {
+    if (block?.kind !== 'tool-result') return <span>表情正在发送…</span>;
+    const text = block.content?.filter(part => part.type === 'text' && typeof part.text === 'string').map(part => part.text).join('\n');
+    if (block.isError) return <div role="alert"><p>表情发送失败，可以继续用文字回应。</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text || block.error?.code || block.error?.name || '宿主未提供具体失败原因'}</pre></div>;
+    const meta = parseMeta(block.meta);
+    return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <div><p>表情结果已返回，但显示信息不可用。可以继续用文字回应。</p>{text && <details><summary>查看工具文字结果</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text}</pre></details>}</div>;
+  }
   return { Picker, History, ToolView };
 }
 export const inject = ['slots', 'connection'];

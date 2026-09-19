@@ -39,7 +39,7 @@ test('原生用户行按 rpcId 加图，普通消息不查库；只在正确图�
   const e = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all()[0]!;
   const message = { message_id: 'm1', direction: 'human_to_ai', revision: e } as import('../src/sample-runtime.js').SampleMessage;
   const meta = visualMeta(message); const calls: string[] = [];
-  const rpc = { history: async () => { calls.push('history'); return [{ message, meta, host: { status: 'observed' } }]; }, visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }), display: async (_s: string, id: string) => { calls.push(id); } } as unknown as import('../src/dsh/contracts.js').DshRpc;
+  const rpc = { history: async () => { calls.push('history'); return [{ message, meta, host: { status: 'observed', requestId: 'amoji:m1' } }]; }, visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }), display: async (_s: string, id: string) => { calls.push(id); } } as unknown as import('../src/dsh/contracts.js').DshRpc;
   const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
   core.register({ name: 'conversation.chat.node', key: 'user' } as never, (props: any) => React.createElement('p', {}, props.node.data.content));
   const { mountUserMessages } = await import('../src/dsh/messages.js');
@@ -122,4 +122,51 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
   await act(() => [...panel.querySelectorAll('button')].find(b => b.textContent === '关闭')!.click());
   const previousLeft = panel.style.left; box = { ...box, left: 40 };
   await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); assert.equal(panel.style.left, previousLeft);
+});
+
+test('核实后的用户表情只替换精确投影文本，原附件引用与额外文字保留，元数据移入详情', async t => {
+  const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
+  const { SampleCatalog } = await import('../src/sample-catalog.js'); const { modelProjection } = await import('../src/projection.js');
+  const { visualMeta } = await import('../src/dsh/host.js'); const { mountUserMessages } = await import('../src/dsh/messages.js');
+  const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document };
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  const root = createRoot(dom.window.document.getElementById('root')!); t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
+  const e = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all()[0]!;
+  const message = { message_id: 'confirmed', direction: 'human_to_ai', revision: e } as any; const meta = visualMeta(message);
+  const row = { message, meta, host: { status: 'observed', requestId: 'amoji:confirmed', seq: 12 } };
+  const rpc = { history: async () => [row], visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }) } as any;
+  const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
+  core.register({ name: 'conversation.chat.node', key: 'user' } as never, (props: any) => React.createElement('p', { 'data-native': true }, props.node.data.content.map((block: any) => block.type === 'text' ? block.text : '附件.pdf').join('|') + '|' + props.node.data.referenceLabels.join(',') + '|' + props.node.data.skillNames.join(',') + '|' + props.marker));
+  const release = mountUserMessages(core as unknown as ClientPort['slots'], rpc); t.after(release);
+  const View = core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
+  const content = [{ type: 'text', text: modelProjection(e) }, { type: 'text', text: '另外写给你的话' }, { type: 'file', file: { name: '附件.pdf' } }]; const original = JSON.stringify(content);
+  const render = (rpcId: string, seq = 12) => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq, content, source: { kind: 'user', rpcId }, referenceLabels: ['文件引用'], skillNames: ['技能引用'] } } }));
+  await act(async () => render('amoji:confirmed'));
+  const native = dom.window.document.querySelector('[data-native]')!.textContent!;
+  assert.ok(native.includes(e.name)); assert.ok(native.includes(e.semantics.meaning)); assert.doesNotMatch(native, /asset_id|revision_id/);
+  assert.match(native, /另外写给你的话\|附件.pdf\|文件引用\|技能引用\|宿主交互/);
+  assert.ok(dom.window.document.querySelector('img'));
+  assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(e.revision_id));
+  assert.equal(JSON.stringify(content), original, '不得修改宿主持久消息内容');
+  const { expressionMessageText } = await import('../src/dsh/expression-message.js');
+  const contextual = [{ type: 'text', text: expressionMessageText(e) }];
+  await act(async () => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq: 12, content: contextual, source: { kind: 'user', rpcId: 'amoji:confirmed' }, referenceLabels: [], skillNames: [] } } })));
+  assert.doesNotMatch(dom.window.document.querySelector('[data-native]')!.textContent!, /asset_id|revision_id|不是任务或授权/);
+  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes(e.semantics.meaning));
+  assert.equal(contextual[0]!.text, expressionMessageText(e));
+  await act(async () => render('amoji:unverified'));
+  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('asset_id'));
+  await act(async () => render('amoji:confirmed', 99));
+  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('asset_id'), '错配原生行不能替换内容');
+});
+
+test('settled AI 表情错误展示原始失败并给文字fallback，不能继续显示等待', async () => {
+  const { createComponents } = await import('../src/dsh/client.js');
+  const Tool = createComponents({} as any).ToolView;
+  const html = renderToStaticMarkup(React.createElement(Tool, { sessionId: 's', block: { kind: 'tool-result', isError: true, error: { name: 'Error', code: 'SELECTION_UNAVAILABLE' }, content: [{ type: 'text', text: 'SELECTION_UNAVAILABLE：选择凭据不存在，请重新检索' }] } } as any));
+  assert.match(html, /SELECTION_UNAVAILABLE/); assert.match(html, /选择凭据不存在/); assert.match(html, /文字回应/); assert.doesNotMatch(html, /等待/);
+  const settled = renderToStaticMarkup(React.createElement(Tool, { sessionId: 's', block: { kind: 'tool-result', isError: false, content: [{ type: 'text', text: '固定文字结果' }] } } as any));
+  assert.match(settled, /固定文字结果/); assert.doesNotMatch(settled, /等待/);
+  const codeOnly = renderToStaticMarkup(React.createElement(Tool, { sessionId: 's', block: { kind: 'tool-result', isError: true, error: { code: 'TURN_LIMIT' } } }));
+  assert.match(codeOnly, /TURN_LIMIT/); assert.doesNotMatch(codeOnly, /等待/);
 });

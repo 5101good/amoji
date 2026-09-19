@@ -36,3 +36,9 @@ root 在独立 QA 首次启动确认 /api 只能有一个 interceptor，原实�
 真实 QA 暴露了完整 Expression 被作为窄 ref 发送，以及空白会话选择器向上超出视口。现已在 Client RPC 边界显式构造两字段 ref；选择器采用原生 popover 顶层与锚点/视口空间定位，支持向上或向下展开并限制宽高。accepted 生命周期检查也改为从新 SharedClient 连接读取真正的 dsh_submission 字段。
 
 对应红绿测试复现了 INVALID_ARGUMENT 和旧 absolute 定位；修复后 typecheck、build:dsh 与三个相关 dsh 测试文件的 25 项检查通过。真实图片解码、浮层位置与交互仍由 root 浏览器 QA 记录。
+
+## 2026-09-20 人类呈现、表达上下文与工具失败
+
+真机首回合已由 root 观察到原生用户 observed/rendered、search/resolve 成功及自造 token 被拒绝。本轮源码修复把已核实用户消息的精确投影文字在显示层转换为名称/固定语义，原图片、附件、引用、额外文字和宿主交互保留，版本数据放入详情；未核实的行和持久原消息不改。新 prompt 用自然名称开头，明确表情是用户感受表达而非任务/授权，原精确 modelProjection 仍附在说明后，既有或用户自定义标题不重写。工具说明补齐 token 来源；settled 失败展示实际错误并支持文字 fallback，不再停留在等待占位。
+
+对应三个失败测试已先红后绿，聚焦三个 dsh 测试文件 28 项、typecheck、build:dsh 与 diff 检查通过。模型是否按新说明自然回应及新标题效果仍由 root 短回合 QA 证明。

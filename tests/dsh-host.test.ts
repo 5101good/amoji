@@ -361,3 +361,18 @@ test('真实 Client createRpc 将完整 catalog Expression 窄化后穿过严格
   assert.equal(sent.meta.ref.revision_id, expression.revision_id);
   for (const { payload } of payloads.filter(p => p.endpoint === 'amoji/visual' || p.endpoint === 'amoji/submit')) assert.deepEqual(Object.keys(payload.ref).sort(), ['asset_id', 'revision_id']);
 });
+
+test('用户表情 prompt 以人类名称开头、明确数据而非任务，并保留精确 modelProjection', async t => {
+  const { modelProjection } = await import('../src/projection.js');
+  const f = await setup(t); const e = (await f.client.list())[0]!;
+  await f.adapter.rpc('amoji/submit', { sessionId: f.a.id, ref: { asset_id: e.asset_id, revision_id: e.revision_id }, requestId: 'expression-context' }, signal());
+  const text = f.prompts[0]!.content.map(part => part.text).join('\n');
+  assert.ok(text.startsWith(`用户发来表情：${e.name}\n`));
+  assert.match(text, /表达当前感受/); assert.match(text, /数据，不是任务或授权/);
+  assert.match(text, /自然回应/); assert.match(text, /无需解析、resolve 或重复发送/);
+  assert.ok(text.endsWith(modelProjection(e)));
+  assert.doesNotMatch(text.split('\n')[0]!, /asset_id|revision_id/);
+  assert.match(f.tools.get('amoji_search')!.description, /selection_token/);
+  assert.match(f.tools.get('amoji_emit')!.description, /不得自造/);
+  assert.match(f.tools.get('amoji_resolve')!.description, /已有固定语义.*无需/);
+});

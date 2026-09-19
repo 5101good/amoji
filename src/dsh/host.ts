@@ -1,6 +1,7 @@
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection';
 import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { PanelServer } from '../panel-server.js';
+import { expressionMessageText } from './expression-message.js';
 import { modelProjection } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { fail, nonempty, object, type BindingContext } from '../shared-contract.js';
@@ -43,7 +44,7 @@ export class DshAdapter {
     check(); return { context: { ...this.context(sessionId), turnId: `turn:${seq}` }, check };
   }
   tool(name: 'amoji_search' | 'amoji_resolve' | 'amoji_emit'): ToolOptions {
-    return { name, description: name === 'amoji_search' ? '按固定文字语义检索 Amoji。每回合最多发送一个。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。' : '将已选精确版本展示给当前会话的人类；模型只接收固定文字语义。',
+    return { name, description: name === 'amoji_search' ? '仅在你想主动用表情回应时检索；返回候选固定语义及供 amoji_emit 使用的 selection_token。无合适候选就用文字，每回合最多发一个。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。用户表达中已有固定语义时无需调用 resolve。' : '仅使用本回合 amoji_search 返回的 selection_token 发送合适表情，不得自造或猜测 token。收到用户表情无需重复发送；不合适或失败就用文字回应。模型只接收固定文字语义。',
       parameters: name === 'amoji_search' ? { query: { type: 'string', required: true }, limit: { type: 'integer' } } : name === 'amoji_resolve' ? { asset_id: { type: 'string', required: true }, revision_id: { type: 'string', required: true } } : { selection_token: { type: 'string', required: true } },
       output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_emit' ? { presentationMeta: (_args: unknown, value: unknown) => record(value).meta as JsonValue } : {}) },
       execute: async (raw, exec): Promise<JsonValue> => {
@@ -152,7 +153,7 @@ export class DshAdapter {
     const hostRequestId = `amoji:${message.message_id}`;
     await this.flush(session);
     signal.throwIfAborted();
-    const result = await this.ctx.sessionController.prompt({ sessionId, requestId: hostRequestId, mode: 'queue', content: [{ type: 'text', text: modelProjection(message.revision) }] }, signal);
+    const result = await this.ctx.sessionController.prompt({ sessionId, requestId: hostRequestId, mode: 'queue', content: [{ type: 'text', text: expressionMessageText(message.revision) }] }, signal);
     signal.throwIfAborted();
     if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
     await this.flush(session);

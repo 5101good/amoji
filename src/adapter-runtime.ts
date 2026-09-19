@@ -11,7 +11,7 @@ export interface AdapterRuntime {
   connectionSignal?: AbortSignal;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
   packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
-  management?: Pick<SharedClient, 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
+  management?: Pick<SharedClient, 'listRevisions' | 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
   suggestions?: Pick<SharedClient, 'suggestText'>;
   catalog: { root: URL; all(): Awaitable<Expression[]>; resolve(ref: ExpressionRef): Awaitable<Expression> };
   search(context: HostContext, query: string, limit?: number): Awaitable<{ candidates: Candidate[]; policy: string }>;

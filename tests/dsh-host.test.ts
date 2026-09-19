@@ -435,3 +435,28 @@ test('真实 Session 冷恢复后保留纯文字回合冷却序号', async t => 
   const next = JSON.parse((await fresh.tool('amoji_search').execute({ query: expressions[1]!.name }, execution()) as {text: string}).text).candidates[0];
   await fresh.tool('amoji_emit').execute({ selection_token: next.selection_token }, execution());
 });
+
+test('原生管理白名单经共享服务读版本、草稿与偏好，拒绝路径和未知会话', async t => {
+  const f = await setup(t);
+  const entries = await f.adapter.rpc('amoji/management', { sessionId: f.a.id, method: 'listEntries', args: {} }, signal()) as any[];
+  assert.ok(entries.length);
+  const versions = await f.adapter.rpc('amoji/management', { sessionId: f.a.id, method: 'listRevisions', args: { asset_id: entries[0].expression.asset_id } }, signal()) as any[];
+  assert.equal(versions[0].revision_id, entries[0].expression.revision_id);
+  const draft = await f.adapter.rpc('amoji/management', { sessionId: f.a.id, method: 'createDraft', args: {} }, signal()) as any;
+  assert.equal(draft.version, 1);
+  await assert.rejects(f.adapter.rpc('amoji/management', { sessionId: 'unknown', method: 'createDraft', args: {} }, signal()), /session not found/);
+  await assert.rejects(f.adapter.rpc('amoji/management', { sessionId: f.a.id, method: 'blobPath', args: { path: '/tmp' } }, signal()), /INVALID_ARGUMENT/);
+});
+
+test('认证二进制完整包路由实际导出再导入，无路径与凭据泄漏并有界读取', async t => {
+  const f=await setup(t); const {installPackRoutes,readBounded}=await import('../src/dsh/host-management.js');
+  const routes=new Map<string,import('@deepseek-ai/dsh-client-connection').ConnectionFetchRoute>();
+  const ctx={...f.ctx,connection:{fetch:{register(route:import('@deepseek-ai/dsh-client-connection').ConnectionFetchRoute){routes.set(route.path,route);return async()=>{};}}}};
+  installPackRoutes(ctx,f.runtime,async(id,s)=>f.adapter.rpc('amoji/history',{sessionId:id},s));
+  const entries=await f.client.listEntries();const entry=entries[0]!.expression;const ref={asset_id:entry.asset_id,revision_id:entry.revision_id};
+  const exported=await routes.get('/api/amoji/pack-export')!.fetch(new Request('http://local/api/amoji/pack-export?sessionId=session-a',{method:'POST',body:JSON.stringify({refs:[ref],name:'测试包'})}));
+  assert.equal(exported.status,200);assert.equal(exported.headers.get('content-type'),'application/zip');const bytes=await exported.arrayBuffer();assert.ok(bytes.byteLength>0);
+  const imported=await routes.get('/api/amoji/pack-import')!.fetch(new Request('http://local/api/amoji/pack-import?sessionId=session-a',{method:'POST',body:bytes}));assert.equal(imported.status,200);const result=await imported.json();assert.equal(result.result.existing,1);assert.doesNotMatch(JSON.stringify(result),/secret|dataRoot|session-a/);
+  const rejected=await routes.get('/api/amoji/pack-export')!.fetch(new Request('http://local/api/amoji/pack-export?sessionId=unknown',{method:'POST',body:'{}'}));assert.equal(rejected.status,400);
+  await assert.rejects(readBounded(new Request('http://local',{method:'POST',body:'12345'}),4),/PACK_LIMIT_EXCEEDED/);
+});

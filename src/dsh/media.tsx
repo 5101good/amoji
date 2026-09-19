@@ -1,3 +1,4 @@
+import { rpcError } from './management-rpc.js';
 import React, { useEffect, useState } from 'react';
 import type { ExpressionRef } from '../sample-catalog.js';
 import type { ClientPort } from './client.js';
@@ -9,10 +10,17 @@ function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.a
 export function createRpc(ctx: ClientPort): DshRpc {
   const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
     const result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal);
-    if (!result.ok) throw new Error(result.error.message);
+    if (!result.ok) throw rpcError(result.error);
     return result.value as T;
   };
+  const binary = async (sessionId: string, action: string, body: BodyInit) => {
+    const response = await fetch(`/api/amoji/pack-${action}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'POST', body, credentials: 'same-origin', signal: AbortSignal.timeout(125000) });
+    if (!response.ok) { const data = await response.json(); throw rpcError(data.error); } return response;
+  };
   return {
+    management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal),
+    importPack: async (sessionId, file) => { try { return (await (await binary(sessionId, 'import', file)).json()).result; } catch (error) { if (!(error as {code?: string}).code) throw rpcError({code: 'PACK_OUTCOME_UNKNOWN', message: '导入结果尚待核对。请保留原文件，核对库或重试同一包。'}); throw error; } },
+    exportPack: async (sessionId, refs, name) => (await binary(sessionId, 'export', JSON.stringify({ refs: refs.map(narrowRef), name }))).blob(),
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
     search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),

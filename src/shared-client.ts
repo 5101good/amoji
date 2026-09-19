@@ -94,6 +94,7 @@ export class SharedClient {
     if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持包版本选择');
     return this.managementCall('selectRevision', { ref, version });
   }
+  listRevisions(assetId: string): Promise<Expression[]> { return this.managementCall('listRevisions', { asset_id: assetId }); }
   listEntries(): Promise<LibraryEntry[]> { return this.managementCall('listEntries', {}); }
   getEntry(assetId: string): Promise<LibraryEntry> { return this.managementCall('getEntry', { asset_id: assetId }); }
   startRevisionDraft(ref: ExpressionRef, version: number): Promise<Draft> { return this.managementCall('startRevisionDraft', { ref, version }); }

@@ -202,6 +202,7 @@ export class LibraryStore {
     if (!row) fail('ENTRY_NOT_FOUND', '库条目不存在');
     return { expression: this.resolve({ asset_id: assetId, revision_id: row.revision_id }), origin: row.origin, version: row.version, archived: !!row.archived };
   }
+  listRevisions(assetId: string): Expression[] { this.getEntry(assetId); return (this.db.prepare('SELECT data FROM revisions WHERE asset_id=? ORDER BY rowid DESC').all(assetId) as Array<{data: string}>).map(row => JSON.parse(row.data)); }
   listEntries(): LibraryEntry[] { return (this.db.prepare('SELECT asset_id FROM library_entries ORDER BY rowid').all() as Array<{asset_id: string}>).map(row => this.getEntry(row.asset_id)); }
   private currentEntry(assetId: string, version: number): LibraryEntry {
     const current = this.getEntry(assetId);

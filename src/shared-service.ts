@@ -120,6 +120,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
+      case 'listRevisions': { const args = object(value, ['asset_id']); result = store.listRevisions(nonempty(args.asset_id)); break; }
       case 'listEntries': object(value, []); result = store.listEntries(); break;
       case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }
       case 'startRevisionDraft': { const args = object(value, ['ref', 'version']); result = store.startRevisionDraft(expressionRef(args.ref), draftVersion(args.version)); break; }

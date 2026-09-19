@@ -1,3 +1,4 @@
+import type { ManagementRpc } from './management-rpc.js';
 import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection';
 import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import type { Expression, ExpressionRef } from '../sample-catalog.js';
@@ -35,7 +36,7 @@ export type VisualMeta = {
 }
 export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
-export interface DshRpc {
+export interface DshRpc extends ManagementRpc {
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
   search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;

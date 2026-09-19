@@ -77,3 +77,8 @@ AMOJI_RESUME_THREAD=<测试会话ID> node scripts/probes/live-tools.mjs
 探针要求预期工具成功且实际请求中图像输入为零，单有 Codex 进程退出码 0 不会通过。原始调用事件只保留在临时测试目录；仓库中的 [验收证据](docs/validation/codex-ticket-01.md) 是去除本地能力凭据后的摘要。
 
 完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。当前尚未实现完整创作/导入导出及用户设置；24个基础表情的视觉/语义草稿已制作，仍待正式包集成、许可与完整验收。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
+
+
+### dsh 同页管理
+
+输入区“表情 → 管理表情”现已接入共享库、创作草稿、AI 偏好与完整包导入导出。图片预览成功后明确确认才成为可发表情；编辑保留旧版本，内置/导入项创建个人副本。AI 表情在完成回合的正常对话流中展示，默认折叠工具组仍可见。操作和实际验证边界见 [dsh 原生管理验证](docs/validation/dsh-native-management.md)。

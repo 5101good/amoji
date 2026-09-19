@@ -41,7 +41,7 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   const disposers: Array<() => void> = [];
   const ctx: ClientPort = { slots, effect(factory) { disposers.push(factory()); }, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
     const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
-    const result = endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
+    const result = endpoint.endsWith('/management') ? (payload.method === 'getSettings' ? {version:1,style:'neutral',frequency:'restrained',paused:false} : []) : endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
     return { ok: true, value: result };
   } } } };
   module.apply(ctx);
@@ -62,11 +62,11 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   const Picker = slots.entriesOfSlot('conversation.input.left')[0]!.component;
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
   await act(async () => { (dom.window.document.querySelector('button') as HTMLButtonElement).click(); await settle(); });
-  const manage = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '创建自己的表情'); assert.ok(manage);
+  const manage = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '管理表情'); assert.ok(manage);
   await act(async () => { manage.click(); await settle(); });
-  const managementLink = dom.window.document.querySelector<HTMLAnchorElement>('a[aria-label="打开创建面板"]')!;
-  assert.equal(managementLink.href, 'http://127.0.0.1:43219/#trusted-a');
-  assert.equal(requests.find(r => r.endpoint === 'amoji/manage')!.payload.sessionId, 'session-a');
+  assert.ok(dom.window.document.querySelector('dialog[aria-label="管理表情"]'));
+  assert.equal(requests.find(r => r.endpoint === 'amoji/management')!.payload.sessionId, 'session-a');
+  await act(() => [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '返回选择器')!.click());
   const search = dom.window.document.querySelector<HTMLInputElement>('[aria-label="搜索表情"]')!; assert.ok(search);
   const setSearch = async (value: string) => act(async () => { Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(search, value); search.dispatchEvent(new dom.window.Event('input', { bubbles: true })); await settle(); });
   await setSearch('刚完成的进展');
@@ -96,7 +96,7 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
     return () => { order.push(options.name); dispose(); };
   } } };
   assert.throws(() => module!.apply(failing), /third registration failed/);
-  assert.deepEqual(order, ['conversation.input.left']);
+  assert.deepEqual(order, ['conversation.input.left', 'conversation.chat.node']);
   module.apply(ctx); assert.equal(slots.entriesOfSlot('tool.call.toolview').length, 1); disposers.pop()!();
 });
 
@@ -116,7 +116,7 @@ test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时
   const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
   const visual = { expression, primary: await data(expression.visual.primary), poster: await data(expression.visual.poster!) };
   const meta: VisualMeta = { kind: 'amoji', messageId: 'reduced-message', ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, visualHash: expression.visual.primary.sha256, posterHash: expression.visual.poster!.sha256, alt: expression.semantics.fallback };
-  const rpc: import('../src/dsh/contracts.js').DshRpc = {
+  const rpc: import('../src/dsh/contracts.js').DshRpc = { management: async () => { throw new Error('unused'); }, importPack: async () => { throw new Error('unused'); }, exportPack: async () => { throw new Error('unused'); },
     manage: async () => ({ url: 'http://127.0.0.1:43219/#unused' }),
     catalog: async () => [], search: async () => [], submit: async () => { throw new Error('unused'); }, history: async () => [], display: async () => {}, visual: async () => visual,
   };
@@ -154,7 +154,7 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   const searches = new Map<string, { signal?: AbortSignal; finish(value: import('../src/sample-catalog.js').Expression[]): void }>();
   const reads: Array<{ sessionId: string; messageId?: string }> = [];
   let finishHistoryB!: (value: import('../src/dsh/contracts.js').HistoryEntry[]) => void;
-  const rpc: import('../src/dsh/contracts.js').DshRpc = {
+  const rpc: import('../src/dsh/contracts.js').DshRpc = { management: async () => { throw new Error('unused'); }, importPack: async () => { throw new Error('unused'); }, exportPack: async () => { throw new Error('unused'); },
     manage: async () => ({ url: 'http://127.0.0.1:43219/#unused' }),
     catalog: async () => [e],
     search: (sessionId, _query, _limit, signal) => new Promise(resolve => searches.set(sessionId, { signal, finish: resolve })),

@@ -1,5 +1,6 @@
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection';
 import type { JsonValue } from '@deepseek-ai/dsh-util-values';
+import { management, failure, installPackRoutes } from './host-management.js';
 import { PanelServer } from '../panel-server.js';
 import { expressionMessageText } from './expression-message.js';
 import { modelProjection } from '../projection.js';
@@ -90,11 +91,12 @@ export class DshAdapter {
   async rpc(endpoint: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
     signal = AbortSignal.any([signal, this.lifecycle]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], submit: ['sessionId', 'ref', 'requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
     const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
+    if (method === 'management') return management(this.runtime, nonempty(args.method), args.args);
     if (method === 'manage') {
       if (!this.runtime.creation) fail('CAPABILITY_UNAVAILABLE', '当前共享服务不支持创建，请更新服务');
       const session = await this.session(sessionId, signal);
@@ -175,7 +177,8 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
     const releases: Array<() => Promise<void>> = [];
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
-      for (const method of ['catalog', 'search', 'history', 'visual', 'submit', 'display', 'manage']) {
+      releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
+      for (const method of ['catalog', 'search', 'history', 'visual', 'submit', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });
@@ -185,7 +188,7 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
           const message = parsed.data;
           let result: import('./contracts.js').RpcResult<unknown>;
           try { result = { ok: true, value: await adapter.rpc(endpoint, message.payload, request.signal) }; }
-          catch (error) { result = { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }
+          catch (error) { result = { ok: false, error: failure(error) }; }
           return Response.json({ type: 'server-response', rpcId: message.rpcId, result });
         } }));
       }

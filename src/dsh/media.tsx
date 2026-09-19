@@ -13,13 +13,30 @@ export function createRpc(ctx: ClientPort): DshRpc {
     if (!result.ok) throw rpcError(result.error);
     return result.value as T;
   };
+  const reportedErrors = new WeakSet<Error>();
   const binary = async (sessionId: string, action: string, body: BodyInit) => {
     const response = await fetch(`/api/amoji/pack-${action}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'POST', body, credentials: 'same-origin', signal: AbortSignal.timeout(125000) });
-    if (!response.ok) { const data = await response.json(); throw rpcError(data.error); } return response;
+    if (!response.ok) {
+      const data = await response.json(); const raw = data?.error;
+      if (!raw || typeof raw.code !== 'string' || !/^[A-Z][A-Z0-9_]+$/.test(raw.code) || typeof raw.message !== 'string' || !raw.details || typeof raw.details !== 'object' || Array.isArray(raw.details)) throw new Error('包服务返回了无法识别的错误');
+      const error = rpcError(raw); reportedErrors.add(error); throw error;
+    } return response;
   };
   return {
     management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal),
-    importPack: async (sessionId, file) => { try { return (await (await binary(sessionId, 'import', file)).json()).result; } catch (error) { if (!(error as {code?: string}).code) throw rpcError({code: 'PACK_OUTCOME_UNKNOWN', message: '导入结果尚待核对。请保留原文件，核对库或重试同一包。'}); throw error; } },
+    importPack: async (sessionId, file) => {
+      try {
+        const { result } = await (await binary(sessionId, 'import', file)).json();
+        if (!result || typeof result.pack_id !== 'string' || !result.pack_id || !Number.isSafeInteger(result.added) || result.added < 0 || !Number.isSafeInteger(result.existing) || result.existing < 0 || !Array.isArray(result.defaults) || !result.defaults.every((ref: unknown) => {
+          const r = ref as Partial<ExpressionRef> | null;
+          return r !== null && typeof r === 'object' && typeof r.asset_id === 'string' && !!r.asset_id && typeof r.revision_id === 'string' && !!r.revision_id;
+        })) throw new Error('导入结果正文无效');
+        return result;
+      } catch (error) {
+        if (error instanceof Error && reportedErrors.has(error)) throw error;
+        throw rpcError({ code: 'PACK_OUTCOME_UNKNOWN', message: '导入结果尚待核对。请保留原文件，核对库或重试同一包。' });
+      }
+    },
     exportPack: async (sessionId, refs, name) => (await binary(sessionId, 'export', JSON.stringify({ refs: refs.map(narrowRef), name }))).blob(),
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),

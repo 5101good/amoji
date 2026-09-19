@@ -58,3 +58,28 @@ test('RPC 响应丢失保留未知结果并终止失效连接，显式重连核�
  await assert.rejects(runtime.receive(context,ref,'original'), /结果尚待核对/);assert.equal(client.signal.aborted,true);
  globalThis.fetch=originalFetch;await client.reconnect();const row=await runtime.receive(context,ref,'original');assert.equal((await runtime.messages(context)).length,1);assert.equal((await runtime.messages(context))[0]!.message_id,row.message_id);
 });
+
+test('旧 RPC 迟到失败只取消旧lease，显式恢复后的租约继续服务', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-lease-generation-'));
+  const service = await startSharedService(directory, seed); const client = await SharedClient.connect({ directory });
+  const originalFetch = globalThis.fetch; let release!: () => void; let entered!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; }); const ready = new Promise<void>(resolve => { entered = resolve; });
+  t.after(async () => { release(); globalThis.fetch = originalFetch; await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
+  let failure = 0;
+  globalThis.fetch = async (input, options) => {
+    const response = await originalFetch(input, options);
+    if (String(input).endsWith('/rpc') && JSON.parse(String(options?.body)).method === 'list' && failure < 2) {
+      const index = failure++; await response.arrayBuffer();
+      if (index === 0) { entered(); await gate; }
+      throw new TypeError(`old RPC ${index} lost response`);
+    }
+    return response;
+  };
+  const oldSignal = client.signal; const late = assert.rejects(client.list(), /SERVICE_OUTCOME_UNKNOWN/); await ready;
+  await assert.rejects(client.list(), /SERVICE_OUTCOME_UNKNOWN/); assert.equal(oldSignal.aborted, true);
+  await client.reconnect(); const recoveredSignal = client.signal;
+  assert.notEqual(recoveredSignal, oldSignal); assert.equal((await client.list()).length, 3);
+  release(); await late;
+  assert.equal(recoveredSignal.aborted, false, '旧请求异常不得中止新租约');
+  assert.equal(client.signal, recoveredSignal); assert.equal((await client.list()).length, 3);
+});

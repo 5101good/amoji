@@ -37,7 +37,7 @@ export function createComponents(rpc: DshRpc) {
     const anchor = useRef<HTMLButtonElement>(null);
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
     const selectionEpoch = useRef(0);
-    const [unavailable, setUnavailable] = useState(false); const [sent, setSent] = useState<HistoryEntry>();
+    const [unavailable, setUnavailable] = useState(false); const [uncertain, setUncertain] = useState(false); const [sent, setSent] = useState<HistoryEntry>();
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
@@ -49,8 +49,8 @@ export function createComponents(rpc: DshRpc) {
       void load('');
       return () => { searchTask.current.generation++; searchTask.current.abort.abort(); };
     }, [target, refresh]);
-    const load = async (nextQuery: string) => {
-      if (!target) return;
+    const load = async (nextQuery: string, afterReconnect = false) => {
+      if (!target || (uncertain && unavailable && !afterReconnect)) return;
       const owner = lifetime.current; const ownerGeneration = owner.generation; const frozen = target; const task = searchTask.current;
       task.generation++; task.abort.abort(); task.abort = new AbortController();
       const taskGeneration = task.generation; const signal = AbortSignal.any([owner.abort.signal, task.abort.signal]);
@@ -59,7 +59,7 @@ export function createComponents(rpc: DshRpc) {
       try {
         const value = nextQuery.trim() ? await rpc.search(frozen, nextQuery, 5, signal) : await rpc.catalog(frozen, signal);
         if (!current()) return;
-        setUnavailable(false); setCatalog(value); setSelected(previous => previous && value.some(expression => sameRef(expression, previous)) ? previous : undefined);
+        setUnavailable(false); setCatalog(value); setSelected(previous => uncertain ? previous : previous && value.some(expression => sameRef(expression, previous)) ? previous : undefined);
         setSearchStatus(nextQuery.trim() ? (value.length ? `找到 ${value.length} 个候选。` : '没有合适的表情，可以继续用文字表达。') : `当前可选 ${value.length} 个表情。`);
       } catch (e) { if (current()) { setCatalog([]); setUnavailable(true); setSearchStatus(errorText(e)); } }
       finally { if (current()) setSearching(false); }
@@ -71,8 +71,8 @@ export function createComponents(rpc: DshRpc) {
       setBusy(true); setStatus('');
       try {
         const result = await rpc.submit(frozen, { asset_id: selected.asset_id, revision_id: selected.revision_id }, requestId, signal);
-        if (current()) { setSent(result); setStatus(deliveryText(result)); }
-      } catch (e) { if (current()) { setStatus(errorText(e)); if (['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '')) { setUnavailable(true); setCatalog([]); } } }
+        if (current()) { setSent(result); setUncertain(result.host?.status === 'unknown'); setStatus(deliveryText(result)); }
+      } catch (e) { if (current()) { setStatus(errorText(e)); if (['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '')) { setUncertain(true); setUnavailable(true); setCatalog([]); searchTask.current.generation++; searchTask.current.abort.abort(); setSearching(false); } } }
       finally { if (current()) setBusy(false); }
     };
     const check = async () => {
@@ -82,7 +82,7 @@ export function createComponents(rpc: DshRpc) {
         const rows = await rpc.history(frozen, owner.abort.signal);
         if (owner.abort.signal.aborted || owner.generation !== generation || selection !== selectionEpoch.current) return;
         const row = rows.find(row => row.meta.messageId === sent.meta.messageId && row.host?.requestId === sent.host?.requestId);
-        if (row) { setSent(row); setStatus(deliveryText(row)); }
+        if (row) { setSent(row); setUncertain(row.host?.status === 'unknown'); setStatus(deliveryText(row)); }
         else setStatus('原消息暂时无法核对，请保留原选择，不要另发一次。');
       } catch (e) { if (!owner.abort.signal.aborted && owner.generation === generation && selection === selectionEpoch.current) setStatus(errorText(e)); }
     };
@@ -99,20 +99,20 @@ export function createComponents(rpc: DshRpc) {
       try {
         await rpc.reconnect(target, owner.abort.signal);
         if (owner.abort.signal.aborted || owner.generation !== generation) return;
-        await load(query); await check();
+        await load(query, true); await check();
       } catch (e) { if (!owner.abort.signal.aborted && owner.generation === generation) setStatus(errorText(e)); }
       finally { if (!owner.abort.signal.aborted && owner.generation === generation) setBusy(false); }
     };
-    return <div className="amoji" style={{ position: 'relative' }}><Styles/><button ref={anchor} type="button" onClick={() => { selectionEpoch.current++; setTarget(sessionId); setQuery(''); setSelected(undefined); setSent(undefined); setStatus(''); }}>表情</button>{target === sessionId && <PickerPopover anchor={anchor}>
+    return <div className="amoji" style={{ position: 'relative' }}><Styles/><button ref={anchor} type="button" disabled={busy} onClick={() => { selectionEpoch.current++; setTarget(sessionId); if (uncertain) return; setQuery(''); setSelected(undefined); setSent(undefined); setStatus(''); }}>表情</button>{target === sessionId && <PickerPopover anchor={anchor}>
       <p>发送到当前会话</p>
       <button type="button" onClick={onManage}>管理表情</button>
       <form className="row" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); void load(query); }}>
         <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="按名称、标签或语境搜索" />
-        <button type="submit">{searching ? '搜索中…' : '搜索'}</button>
-        <button type="button" onClick={() => { setQuery(''); void load(''); }}>显示全部</button>
+        <button type="submit" disabled={busy || uncertain}>{searching ? '搜索中…' : '搜索'}</button>
+        <button type="button" disabled={busy || uncertain} onClick={() => { setQuery(''); void load(''); }}>显示全部</button>
       </form>
       <p aria-live="polite">{searchStatus}</p>
-      <div className="grid">{catalog.map(e => <div className="tile" key={`${e.asset_id}:${e.revision_id}`}><AmojiImage rpc={rpc} sessionId={target} refValue={e} /><button type="button" disabled={busy} aria-pressed={sameRef(e, selected ?? { asset_id: '', revision_id: '' })} onClick={() => { selectionEpoch.current++; setSelected(e); setRequestId(crypto.randomUUID()); setSent(undefined); setStatus(''); }}>{e.name}</button></div>)}</div>
+      <div className="grid">{catalog.map(e => <div className="tile" key={`${e.asset_id}:${e.revision_id}`}><AmojiImage rpc={rpc} sessionId={target} refValue={e} /><button type="button" disabled={busy || unavailable || uncertain} aria-pressed={sameRef(e, selected ?? { asset_id: '', revision_id: '' })} onClick={() => { selectionEpoch.current++; setSelected(e); setRequestId(crypto.randomUUID()); setSent(undefined); setStatus(''); }}>{e.name}</button></div>)}</div>
       {selected && <section aria-label="固定语义与精确版本"><h3>{selected.name}</h3><p>{selected.semantics.meaning}</p>{selected.semantics.tone && <p>{selected.semantics.tone}</p>}{selected.semantics.use_when?.length ? <p>适用于：{selected.semantics.use_when.join('；')}</p> : null}{selected.semantics.avoid_when?.length ? <p>不适用于：{selected.semantics.avoid_when.join('；')}</p> : null}<details><summary>查看完整固定语义与版本</summary><pre>{JSON.stringify({ asset_id: selected.asset_id, revision_id: selected.revision_id, name: selected.name, semantics: selected.semantics }, null, 2)}</pre></details></section>}<button type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button><button type="button" onClick={() => { searchTask.current.generation++; searchTask.current.abort.abort(); selectionEpoch.current++; setTarget(undefined); }}>关闭</button><p role="status">{status}</p>{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={() => void check()}>核对投递状态</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={() => void recover()}>重新连接并核对</button>}
     </PickerPopover>}</div>;
   }

@@ -39,3 +39,32 @@ test('真实 Client RPC 将传输失败与主动取消分开，提交丢失响�
  const cancelled=new AbortController();cancelled.abort(new Error('user cancelled'));
  await assert.rejects(rpc.catalog('a',cancelled.signal), /user cancelled/);
 });
+
+test('实际 createRpc 提交丢响应后冻结改选，恢复仍核对原 ref/requestId', async t => {
+ const dom = new JSDOM('<div id="root"></div>'); const before = { window:globalThis.window, document:globalThis.document };
+ Object.assign(globalThis,{window:dom.window,document:dom.window.document,IS_REACT_ACT_ENVIRONMENT:true});
+ const root = createRoot(dom.window.document.getElementById('root')!);t.after(async()=>{await act(()=>root.unmount());Object.assign(globalThis,before);dom.window.close();});
+ const [e,other]=(await SampleCatalog.load(new URL('../assets/samples/',import.meta.url))).all();assert.ok(e&&other);
+ const submits:any[]=[];let recovered=false;let observed=false;
+ const message={message_id:'original',direction:'human_to_ai',revision:e,presentation:'pending'} as HistoryEntry['message'];
+ const row:HistoryEntry={message,meta:visualMeta(message),host:{status:'observed',requestId:'amoji:original'}};
+ const rpc=createRpc({connection:{rpc:{call:async(_channel:string,endpoint:string,payload:any)=>{
+  if(endpoint==='amoji/submit'){submits.push(structuredClone(payload));if(!recovered)throw new TypeError('response lost');return {ok:true,value:{...row,host:{...row.host,status:'unknown'}}};}
+  if(endpoint==='amoji/reconnect'){recovered=true;return {ok:true,value:null};}
+  if(endpoint==='amoji/catalog')return {ok:true,value:recovered?[other]:[e,other]};
+  if(endpoint==='amoji/history')return {ok:true,value:[{...row,host:{...row.host,status:observed?'observed':'unknown'}}]};
+  if(endpoint==='amoji/visual')return {ok:true,value:{expression:payload.ref.asset_id===e.asset_id?e:other,primary:'data:image/png;base64,AA',poster:null}};
+  return {ok:true,value:[]};
+ }}}} as any);
+ const Picker=createComponents(rpc).Picker;const button=(label:string)=>[...dom.window.document.querySelectorAll('button')].find(el=>el.textContent===label)!;
+ const click=async(label:string)=>{assert.ok(button(label),label);await act(async()=>button(label).click());};
+ await act(()=>root.render(React.createElement(Picker,{sessionId:'original-session'})));await click('表情');await click(e.name);await click('发送所选表情');
+ assert.match(dom.window.document.body.textContent!,/结果尚待核对/);assert.equal(button('发送所选表情').disabled,true);
+ assert.ok(!button(other.name)||button(other.name).disabled,'未知投递不能改选并生成新requestId');
+ await click('关闭');await click('表情');assert.match(dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')!.textContent!,new RegExp(e.revision_id));
+ assert.equal(button('发送所选表情').disabled,true,'重新打开不能绕过恢复门禁');
+ await click('重新连接并核对');assert.equal(submits.length,1,'重连不重放原提交');assert.equal(button(other.name).disabled,true,'已恢复但未核对原消息时仍不可改选');
+ await click('发送所选表情');assert.equal(submits.length,2);assert.deepEqual(submits[1],submits[0]);assert.equal(button(other.name).disabled,true,'宿主仍未知时不可解除冻结');
+ observed=true;await click('核对投递状态');assert.equal(button(other.name).disabled,false,'原消息已核对才解除未知冻结');
+ assert.match(dom.window.document.body.textContent!,/已观察到会话用户消息/);
+});

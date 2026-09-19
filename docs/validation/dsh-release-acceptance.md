@@ -58,3 +58,5 @@ Picker 会对当前原消息最多自动核对60秒，也提供“核对投递�
 D5核心回归 `npm test`：100 tests / 100 pass / 0 fail / 0 skipped，23.69秒。首轮94/100中的六项未隐藏：草稿丢响应后须显式重连；旧Claude三样本测试未显式选样本库；两个独立插件产物测试连续发送触发新的克制默认策略；ZIP清理测试误比较整机tmp；Node24按name过滤仍计文件导致pass1假设失效。修复仅更新相应fixture、临时目录隔离和错误分类，未删除/跳过行为检查。
 
 `npm run test:dsh`：52 tests通过，包含真实npm合同、build、Native Session及UI检查。最终自审补了迟到核对不得覆盖新选择的反例，随后重跑dsh集合；没有因纯文档或包哈希变化重复模型请求。`npm run typecheck`及`git diff --check`通过。实际tgz检查确认52文件，包含MIT/CC0/来源、16个实际安装依赖的许可证据、Sharp/libvips版本；无node_modules、原生二进制、历史开发样本、个人库或服务凭据。最终安装以提交后重新build/pack的唯一产物及其SHA256为准，不把提交前候选哈希冒充最终包。
+
+D5 fix1：SharedClient 的每次RPC捕获所属lease，迟到异常只终止旧代，不再取消已恢复的新连接。实际createRpc提交传输异常产生DSH_OUTCOME_UNKNOWN时，Picker分别保留投递未知与连接不可用状态：失效候选清空、改选冻结，原ref/requestId跨关闭重开仍保留；重连不重放提交，原请求核对到accepted/observed后才解除未知冻结。即使原版本已不在新候选列表，仍保留原请求核对身份。两项真实反例先红后绿；聚焦可靠性7/7、重建实际Client产物回归3/3，typecheck/build通过。本轮没有重复此前100/52全量，也没有新增真实模型或安装验收结论。

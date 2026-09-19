@@ -94,13 +94,15 @@ export class SharedClient {
   }
   private async call<T>(method: string, params: unknown, timeoutMs = 5000): Promise<T> {
     if (this.closed) fail('CONNECTION_CLOSED', '服务连接已关闭，请重新连接');
+    const lease = this.lease; const disconnected = this.disconnected;
     try {
     const response = await fetch(`${this.descriptor.origin}/rpc`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': 'application/json', 'x-amoji-connection': this.connectionId }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(timeoutMs) });
     return (await decoded(response)).result as T;
     } catch (error) {
       if (error instanceof ServiceError) throw error;
-      this.closed = true; this.lease.abort();
-      this.disconnected.abort(new ServiceError('CONNECTION_CLOSED', '共享服务连接中断，请重新连接并核对原请求'));
+      if (this.lease === lease) this.closed = true;
+      lease.abort();
+      disconnected.abort(new ServiceError('CONNECTION_CLOSED', '共享服务连接中断，请重新连接并核对原请求'));
       fail('SERVICE_OUTCOME_UNKNOWN', '共享服务连接中断，操作结果尚待核对；请重新连接并核对原请求。');
     }
   }

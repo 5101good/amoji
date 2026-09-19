@@ -1,0 +1,388 @@
+{
+  "license": "CC0-1.0",
+  "scope": "Only the project base-library assets and definitions. Private or imported user content is excluded.",
+  "generator": "Codex built-in imagegen",
+  "reference": "Project-generated celebrate character, recorded under legacy_prompt; no external IM sticker or real-person reference recorded.",
+  "authoring_dates": [
+    "2026-09-05",
+    "2026-09-16"
+  ],
+  "assembled_at": "2026-09-19T00:00:00Z",
+  "entries": [
+    {
+      "slug": "smile",
+      "group": "喜悦与庆祝",
+      "asset_id": "6284460e-6971-4b04-b71f-f23849f6d800",
+      "revision_id": "5dafedaa-1cca-4cdb-806d-5d3bed4dc0c7",
+      "source": "base.amoji!/blobs/4d45260d4be6eea5c557a592791f2ba95afa8845fcaac9c52503c19a768a6896",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 为 Amoji 原创 AI 表情体系制作一张独立的「好开心」表情。参考图仅用来保持同一个原创角色和画风，不照搬参考的姿势或彩纸。奶白色圆团小生物，头顶两个小圆凸起，短手短脚，粗深棕色圆润手绘轮廓，蜜桃橙色腮红，奶油色轻微明暗。角色正面站立，双手捧着两侧脸颊，双眼笑成柔和弯月，开口笑，姿势轻快但不要欢呼、跳跃或彩纸。固定语义：此刻感到轻松愉快，想和你分享这份开心。正方形构图，完整角色居中，四边留约10%余白，轮廓清晰，缩到96像素仍易读。背景为均匀纯白色#FFFFFF，禁止灰白棋盘格、纹理、透明示意图、落地阴影、边框、文字、字母、标签、水印和品牌。不要增加第二个人物或姿势说明之外的物件。输出单张PNG。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "celebrate",
+      "group": "喜悦与庆祝",
+      "asset_id": "0c143783-e167-4b51-ac2f-12a08f664c52",
+      "revision_id": "b791e3d7-9cd8-4aa4-b6f7-87f84b071812",
+      "source": "base.amoji!/blobs/5684c88497966b68b1081c18d0bd60667e020a9771558fdebf9defcf67fbb154",
+      "generator": "Codex built-in imagegen",
+      "prompts": [],
+      "legacy_prompt": "Amoji 独立表情体系的单张静态表情，正方形1024x1024，真正透明背景。一只原创奶白色圆团小生物，短手短脚，粗深棕手绘轮廓，柔和橙色腮红，抬起双手欢呼，眼睛开心弯起，周围三片彩纸。语义：为刚完成的进展真诚高兴并庆祝。清晰大轮廓，缩到96像素仍可读，平面插画，温暖，克制，无文字，无水印，无品牌，无阴影底板。只画一个角色。",
+      "animation": null
+    },
+    {
+      "slug": "high-five",
+      "group": "喜悦与庆祝",
+      "asset_id": "872d19b9-dc9f-4d5c-bb92-fb51484141dd",
+      "revision_id": "5e3a0f25-2156-4313-a297-bb031b7d974e",
+      "source": "base.amoji!/blobs/5862a643e7a667e13793d7a6009dfe8c0795df7bbf61ca40cd04281cd9fb890d",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 为 Amoji 原创 AI 表情体系制作一张独立的「击个掌」表情。参考图仅用来保持同一个原创角色和画风，不照搬参考的姿势或彩纸。奶白色圆团小生物，头顶两个小圆凸起，短手短脚，粗深棕色圆润手绘轮廓，蜜桃橙色腮红，奶油色轻微明暗。角色开心微笑，向画面前方举起一只大而清晰的短手，手掌张开朝向观众，做等待击掌的动作；另一只手自然放下。固定语义：我们配合得真好，为这次共同的进展击个掌。正方形构图，完整角色居中，四边留约10%余白，轮廓清晰，缩到96像素仍易读。背景为均匀纯白色#FFFFFF，禁止灰白棋盘格、纹理、透明示意图、落地阴影、边框、文字、字母、标签、水印和品牌。不要增加第二个人物或姿势说明之外的物件。输出单张PNG。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "looking-forward",
+      "group": "喜悦与庆祝",
+      "asset_id": "0289ce60-140b-4c37-8498-c182cb0a42a8",
+      "revision_id": "4775353b-1344-43f9-9ce2-be00960e8dfe",
+      "source": "base.amoji!/blobs/d1a7b204d00e698e3979e5d81113de3fe460307df2406d97619d12b3b498504c",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 为 Amoji 原创 AI 表情体系制作一张独立的「好期待」表情。参考图仅用来保持同一个原创角色和画风，不照搬参考的姿势或彩纸。奶白色圆团小生物，头顶两个小圆凸起，短手短脚，粗深棕色圆润手绘轮廓，蜜桃橙色腮红，奶油色轻微明暗。角色身体稍向前探，双手小小握拳放在下巴旁边，大眼睛闪着柔和星形高光，微笑充满期待。固定语义：对即将发生的事情充满开心的期待。正方形构图，完整角色居中，四边留约10%余白，轮廓清晰，缩到96像素仍易读。背景为均匀纯白色#FFFFFF，禁止灰白棋盘格、纹理、透明示意图、落地阴影、边框、文字、字母、标签、水印和品牌。不要增加第二个人物或姿势说明之外的物件。输出单张PNG。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "thanks",
+      "group": "感谢与认可",
+      "asset_id": "36569d98-c460-483d-9a7c-7a972ded803c",
+      "revision_id": "8eeffba6-e3c7-4171-860e-bc4b731a833b",
+      "source": "base.amoji!/blobs/173385587a317ff55d2e5b84ea7215010e301b0de7a58a69fa042e74394a7645",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 为 Amoji 原创 AI 表情体系制作一张单独的「谢谢啦」表情，正方形，真正透明背景。参考图仅用于保持同一个原创角色与画风，不要复制欢呼姿势或彩纸。角色是奶白色圆团小生物，头顶两小圆凸起，短手短脚，粗深棕色圆润手绘轮廓，柔和蜜桃橙色腮红，奶油色轻微明暗。现在角色双手轻轻合在胸前，身体稍向前鞠躬，闭眼温柔微笑，表达收到帮助后的真诚感谢。固定语义：谢谢你给我的帮助，我真心领情。画面只包含完整的一个角色，四边留约10%透明余白，轮廓清晰，缩到96像素仍容易辨认。禁止文字、字母、标签、边框、底板、落地阴影、水印和品牌，不添加其他人物或物件。输出可作为单张表情的PNG。",
+          "status": "discarded",
+          "reason": "生成了可见棋盘格且PNG没有alpha，未采用。"
+        },
+        {
+          "prompt": "Use case: background-extraction. Input Image 1 is the edit target. 只修改背景：彻底移除所有灰白棋盘格、格纹、起伏纹理和投影，替换为均匀、平整、纯白色 #FFFFFF 的背景。画面中背景每一点都必须为相同的纯白色，不能画透明棋盘格。角色的轮廓、颜色、表情、手势、位置、尺寸保持完全不变，保留感谢鞠躬的动作和蜜桃橙腮红。不要新增文字、边框、物件或阴影。这是 Amoji 的「谢谢啦」表情正式素材。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "admire",
+      "group": "感谢与认可",
+      "asset_id": "87c78369-26de-455b-bc46-c6056638deca",
+      "revision_id": "c3211d35-a71d-4e9d-b7c4-0d9251e21916",
+      "source": "base.amoji!/blobs/f2a008da31c9824178b83dd0cb8b59743c468639f7ce3aaa69c922c7a608e373",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「真厉害」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色睁大闪亮的眼睛，两只短手在胸前轻轻鼓掌，嘴巴带着惊喜的笑容，神情真诚佩服。固定含义：真心佩服你展现出来的能力或认真付出的努力。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "thumbs-up",
+      "group": "感谢与认可",
+      "asset_id": "6c526364-2d8f-48b3-a2ec-36951efe08f5",
+      "revision_id": "0cdec4b3-22b2-4c21-bdb2-9627f5601ab0",
+      "source": "base.amoji!/blobs/427477356d4e3873e399bde4ee0df28a071e6277ef879ae2b39fcc4ba3058afa",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「给你点赞」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色眼睛温柔弯起，嘴角上扬，一只短手向前伸出做清晰的大拇指点赞手势，另一只手放在身体侧边。固定含义：认可你这次的做法或努力，给你一个赞。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "heart-received",
+      "group": "感谢与认可",
+      "asset_id": "f685f5af-1981-40bd-b638-160dbcfefe99",
+      "revision_id": "835ffee3-9d4d-4dab-b9c9-60b5f42f7242",
+      "source": "base.amoji!/blobs/eb6963d197270490ed87c138a92c658c90e1605a977e1fda725b653a617e874d",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「心意收到」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色双手把一颗小小的蜜桃粉色爱心抱在胸前，温柔微笑，眼睛轻轻弯起，神情安心而感激。固定含义：我感受到了你的关心，这份心意我收到了。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "encourage",
+      "group": "鼓励与陪伴",
+      "asset_id": "090f4253-7068-480f-a303-fa41c606e802",
+      "revision_id": "4ea5be0b-699e-4800-9401-9a5db62aae6c",
+      "source": "base.amoji!/blobs/477edc002d150c0db9f40cf06d8e346d642a4dcc9a394c7565983b35df99f997",
+      "poster": "base.amoji!/blobs/5dd2653e91467ba9a797f7070e12e9c3dc6f72b3d80e1777a6881ea39e4a6434",
+      "generator": "Codex built-in imagegen",
+      "prompts": [],
+      "legacy_prompt": "Amoji 独立表情体系的鼓励表情动画素材，正方形1024x1024，真正透明背景。做一个等宽两格的水平精灵图，左右各512x1024，无分隔线。两格都是同一个原创奶白色圆团小生物，短手短脚，粗深棕手绘轮廓，柔和橙色腮红，温和坚定地微笑，握拳给对方加油。左格拳头在胸前，右格同一个拳头稍微向上举。两个角色视觉尺寸一致，位置中心分别在(256,512)与(768,512)，四周留足空白不跨格。语义：支持你的努力，我们一步一步来。平面插画，无文字，无水印，无品牌。此为同一动作的两个连续帧素材。",
+      "animation": "Existing two-frame animated WebP packaged from the generated sprite; no regenerated frames."
+    },
+    {
+      "slug": "hug",
+      "group": "鼓励与陪伴",
+      "asset_id": "534f0a35-aadc-40d0-88cd-28468521421b",
+      "revision_id": "bba01c5f-7f02-4d9b-bc7c-72075545d980",
+      "source": "base.amoji!/blobs/469698ae2525ef761ebbbc56152e2c0220e6f9f3e5d53e6c1b0f8e3f21e7e88b",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「给你抱抱」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色张开两只短手面向观众，做邀请拥抱的姿势，眼神柔和、嘴角轻轻上扬；不要其他人物或额外爱心。固定含义：想给你一个温暖的拥抱，陪你待一会儿。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "take-your-time",
+      "group": "鼓励与陪伴",
+      "asset_id": "d75eb5a1-8896-47c0-9c7d-3c17120fbcfc",
+      "revision_id": "2db7db82-ab4a-408c-a28f-f2f0f4295d06",
+      "source": "base.amoji!/blobs/82e98a0ba4b2a902f396b67a6e08d5f7428c1fb3dca9db6682e2f0aa3fdabb80",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「慢慢来」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色安稳坐着，眼睛温和，一只手掌向下轻轻做放慢节奏的安抚动作，另一只手放在膝边，神情耐心从容。固定含义：不用着急，我们可以按舒服的节奏慢慢来。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "hard-work",
+      "group": "鼓励与陪伴",
+      "asset_id": "9523dda3-c6d5-4874-83c7-b50f2754a14f",
+      "revision_id": "2adb2ac6-95a9-4b2a-a9c2-f4f52826a820",
+      "source": "base.amoji!/blobs/b132b74f6f2cdb290681459a719a998e747827c71e057e4beb7411453df431d3",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「辛苦啦」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色温柔地双手捧着一杯冒着一缕小蒸汽的暖茶向观众递出，微笑体贴，杯子不遮住面部。固定含义：我看见了你付出的辛苦，愿你能歇一歇。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "confused",
+      "group": "疑惑与思考",
+      "asset_id": "3364c4c6-8243-4f17-8fac-ddc82431ca06",
+      "revision_id": "00162107-23ae-4fdb-aa08-c7c309fe70b4",
+      "source": "base.amoji!/blobs/94189311eda01264f5b52fb8d89dee312a01dd69592a669d80c5e325d8dd7c3a",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「有点疑惑」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色脑袋明显向一侧倾斜，一边眉毛轻抬，两只圆眼睛带着困惑，一只短手挠挠下巴，嘴巴微微张开；不画问号或文字。固定含义：我有一点没弄明白，想再确认一下。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "thinking",
+      "group": "疑惑与思考",
+      "asset_id": "1104a305-94c7-4c08-a6ad-a124344c1cc5",
+      "revision_id": "34cd0a47-e31d-4bdf-83da-17be3372426b",
+      "source": "base.amoji!/blobs/c87632bd9f94cb1212aab928a1d52a7e557321dc57143475a5a6a9dfd2e624cf",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「想一想」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色一只短手托着下巴，另一只手轻托手肘，目光稍向上看，眉毛轻拢，嘴巴闭合，安静认真地思考。固定含义：我正在认真想一想，暂时还没有结论。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "aha",
+      "group": "疑惑与思考",
+      "asset_id": "17e6ef81-32e1-489f-8852-d3c51b7ff41f",
+      "revision_id": "256272e1-835f-4f7c-b064-79c4e162a3aa",
+      "source": "base.amoji!/blobs/5bfb14f058a0b055a4752fed71da966200c517eefe53304a40acc7869c5a0ea6",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「原来如此」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色双眼一下睁亮，嘴巴惊喜微张，一只短手抬起小食指，头旁只有一颗小小的暖黄色灯泡，表现恍然大悟。固定含义：刚才的解释让我理解了，原来是这样。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "tell-me-more",
+      "group": "疑惑与思考",
+      "asset_id": "a5de26a5-a184-47c5-80ea-21acf21efa4f",
+      "revision_id": "aefc6238-9301-4442-a146-ee7ea56f073d",
+      "source": "base.amoji!/blobs/fa3b349c329167737c4a9ea279e6af1d293c75d679c8ff91f1121fd21f998e94",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「愿闻其详」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色身体稍向前倾，一只短手轻放在侧脸旁做认真倾听的姿态，双眼专注看向观众，嘴角带着小小的友好笑容。固定含义：我对你说的内容有兴趣，愿意继续听你展开。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "wry",
+      "group": "无奈与调侃",
+      "asset_id": "09ca8efb-d9ac-4064-ae69-649e602853a6",
+      "revision_id": "acd1b5c6-4a8e-4126-93fe-da72582cc95f",
+      "source": "base.amoji!/blobs/7d755db2140bc72de9072a5867b08bea06ba79aa82426118fc9e3ecc4679e8ba",
+      "generator": "Codex built-in imagegen",
+      "prompts": [],
+      "legacy_prompt": "Amoji 独立表情体系的单张静态表情，正方形1024x1024，真正透明背景。一只原创奶白色圆团小生物，短手短脚，粗深棕手绘轮廓，柔和橙色腮红，挠头，略歪的苦笑，一小滴汗。语义：面对自己无伤大雅的小失误，带善意的自嘲和无奈。没有讽刺他人的意思。清晰大轮廓，缩到96像素仍可读，平面插画，无文字，无水印，无品牌，无阴影底板。只画一个角色。",
+      "animation": null
+    },
+    {
+      "slug": "awkward",
+      "group": "无奈与调侃",
+      "asset_id": "2f961f0f-182a-4206-8f3d-f4b8095e1cd7",
+      "revision_id": "3c2cc443-aee0-405e-bfd8-4ac4e6bff8f1",
+      "source": "base.amoji!/blobs/4b4906f4f2e967adaf715d8039528c57cf8cfcd26fabd2d38c8c173bff22b687",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「有点尴尬」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色肩膀略缩，两只短手在身前轻轻碰着指尖，嘴巴是一条略歪的小笑线，脸颊微红，额侧一小滴汗，神情善意尴尬。固定含义：刚刚有一点小尴尬，我带着善意轻轻笑一下。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "playful-surrender",
+      "group": "无奈与调侃",
+      "asset_id": "f4b318fa-7a6b-4056-ab05-d42d4819b5d7",
+      "revision_id": "5423db7f-dc5f-4019-93ba-b292b6e801fc",
+      "source": "base.amoji!/blobs/97e64f44c035290c0226812d17108edc92d69988276c670ae6dd2f6fc947cdc4",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「这局认输」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色笑眯眯地将两只短手轻轻举在肩旁，手心朝前，眉毛舒展，身体放松，做笑着认输的俏皮姿势；不画旗帜。固定含义：这次我就轻松认输啦，是带着笑意的玩笑。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "mischievous",
+      "group": "无奈与调侃",
+      "asset_id": "01ddf2b1-51d8-4f9c-a798-d1cc8fe08813",
+      "revision_id": "d3a551ee-6ca9-4794-936e-fc8955de9041",
+      "source": "base.amoji!/blobs/33d6aeab8ff5ca655438354605169a513889dd9baaa880515eb0702242953b74",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「调皮一下」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色一只眼睛俏皮地眨起，另一只眼睛明亮，轻轻吐出一点小舌尖，双手背在身后，身体稍侧倾，神情友善没有恶意。固定含义：轻轻调皮一下，想让这段对话更轻松。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "hello",
+      "group": "日常关系表达",
+      "asset_id": "ce211f65-0f2f-4356-b288-952b3cd48f72",
+      "revision_id": "8693f4ed-fe3d-4cd5-ad0e-e002c4594356",
+      "source": "base.amoji!/blobs/47b5b89dee1eadda7568f3f4b0ea8c424e9ed01e855d42d5c769694bc5ba576f",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「嗨你好」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色正面站立，开朗微笑，一只短手在头旁张开挥手，只有两条小幅度动作弧线，另一只手自然垂下。固定含义：友好地和你打个招呼，很高兴在这里见到你。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "goodbye",
+      "group": "日常关系表达",
+      "asset_id": "d0766dc5-f619-4916-a5af-d2dbc7eddc04",
+      "revision_id": "9f05f36b-f43d-4044-ae5e-557f0a64153b",
+      "source": "base.amoji!/blobs/0af947cc66cffcbf482c66c528e27df5291ade7b9f7d0006bd9df0b243006055",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「回头见」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色身体三分之二转向离开方向，回头温暖微笑，举起一只短手向观众轻轻挥别，另一只脚已迈出一小步。固定含义：这次先聊到这里，期待下次再见。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "sorry",
+      "group": "日常关系表达",
+      "asset_id": "fcaffd71-8a92-4852-81e0-dbc9dc170f39",
+      "revision_id": "1c2e0e45-475a-4c50-a3ee-6bb2c09187be",
+      "source": "base.amoji!/blobs/077edd50ffb67ab418f88643380c1498efd36b3ccc530ddc16100fd9b715669a",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「抱歉啦」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色略低头，两只短手整齐放在身前，眉毛内侧微抬、双眼温柔向下，嘴巴小而闭合，做诚恳但不夸张的轻轻鞠躬。固定含义：为自己刚才的小失误认真说一声抱歉。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    },
+    {
+      "slug": "relax",
+      "group": "日常关系表达",
+      "asset_id": "d66d31cc-e678-4961-924d-faada2efe3ad",
+      "revision_id": "66af4805-a447-408b-a0dc-b9329ad8f8d1",
+      "source": "base.amoji!/blobs/04d47b3f7c9b87cfb3c9e5ada73d5d3e4e416acfe2dd26f313c4fcff18489e48",
+      "generator": "Codex built-in imagegen",
+      "prompts": [
+        {
+          "prompt": "Use case: illustration-story. 制作Amoji原创表情「放松一下」的单张正方形PNG。参考图只用于同一角色/画风，不复制它的欢呼姿势或彩纸：奶白圆团生物，头顶两个小圆凸起，短手短脚，粗深棕圆润手绘轮廓，蜜桃橙腮红，奶油色轻微明暗。角色舒服地靠坐着，两只短腿向前伸，双眼轻闭，带着松弛的微笑，双手放松搭在圆肚子上，不添加沙发、枕头或其他物件。固定含义：忙了一阵，愿我们可以暂时放松一下。完整单个角色居中、四周留约10%白色空白，96像素下清楚易认。背景均匀纯白#FFFFFF，无棋盘格、纹理、投影、文字、标签、边框、水印或品牌。不要新增姿势说明之外的物件或第二个人物。",
+          "status": "selected"
+        }
+      ],
+      "legacy_prompt": null,
+      "animation": null
+    }
+  ]
+}

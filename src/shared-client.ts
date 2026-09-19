@@ -3,10 +3,11 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
+import { PACK_LIMITS, type ImportResult } from './packs.js';
 import type { LibraryEntry, PersonalPreferences, PersonalSettings } from './library-management.js';
 import type { Draft, DraftFields } from './drafts.js';
 import type { TextSuggestion } from './suggestions.js';
@@ -70,6 +71,28 @@ export class SharedClient {
   private managementCall<T>(method: string, params: unknown): Promise<T> {
     if (!this.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持库管理，请更新服务后重试');
     return this.call(method, params);
+  }
+  private async packRequest(path: string, body: Uint8Array | string, contentType: string): Promise<Response> {
+    if (this.closed) fail('CONNECTION_CLOSED', '服务连接已关闭');
+    if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持完整包');
+    const response = await fetch(`${this.descriptor.origin}/packs/${path}`, { method: 'POST', headers: { ...headers(this.descriptor), 'Content-Type': contentType, 'x-amoji-connection': this.connectionId }, body: typeof body === 'string' ? body : new Uint8Array(body), signal: AbortSignal.timeout(120000) });
+    if (!response.ok) await decoded(response);
+    return response;
+  }
+  async importPack(bytes: Uint8Array): Promise<ImportResult> {
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength > PACK_LIMITS.archive) fail('PACK_LIMIT_EXCEEDED', '需要最多 260 MiB 的 ZIP 文件');
+    try { return (await decoded(await this.packRequest('import', bytes, 'application/zip'))).result; }
+    catch (error) {
+      if (!(error instanceof ServiceError) || ['HANDSHAKE_INVALID', 'SERVICE_ERROR'].includes(error.code)) fail('PACK_OUTCOME_UNKNOWN', '导入结果尚待核对；保留原文件并重试同一包，已确认版本不会重复创建');
+      throw error;
+    }
+  }
+  async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
+    return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
+  }
+  selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry> {
+    if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持包版本选择');
+    return this.managementCall('selectRevision', { ref, version });
   }
   listEntries(): Promise<LibraryEntry[]> { return this.managementCall('listEntries', {}); }
   getEntry(assetId: string): Promise<LibraryEntry> { return this.managementCall('getEntry', { asset_id: assetId }); }

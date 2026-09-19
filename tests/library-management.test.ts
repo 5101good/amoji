@@ -106,7 +106,8 @@ test('共享偏好 CAS、暂停即时复核、克制冷却、重复限制与手�
   const next = (await a.search(turn2, expressions[1]!.name)).candidates[0]!;
   await assert.rejects(a.emit(turn2, next.selection_token), /FREQUENCY_LIMIT/);
   const turn3 = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '3' });
-  const repeat = (await a.search(turn3, expressions[0]!.name)).candidates[0]!;
+  const repeat = (await a.search(turn3, message.revision.name, 5)).candidates.find(c => c.asset_id === message.revision.asset_id)!;
+  assert.ok(repeat, '重复限制必须选择同一个asset，不能假设偏好切换后排序不变');
   await assert.rejects(a.emit(turn3, repeat.selection_token), /REPEAT_LIMIT/);
   const next3 = (await a.search(turn3, expressions[1]!.name)).candidates[0]!;
   await a.emit(turn3, next3.selection_token);

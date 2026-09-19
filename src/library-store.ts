@@ -1,6 +1,8 @@
+import { createReadStream } from 'node:fs';
+import { withValidatedPack, exportPack, type PackInput, type ValidatedPack, type ImportResult } from './packs.js';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { chmod, mkdir, readFile, writeFile, rename, access } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile, rename, access, rm } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -36,6 +38,7 @@ export class LibraryStore {
         CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS drafts (draft_id TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS entry_state (asset_id TEXT PRIMARY KEY, version INTEGER NOT NULL, archived INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS imported_packs (digest TEXT PRIMARY KEY, pack_id TEXT NOT NULL, manifest TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS expression_origins (asset_id TEXT PRIMARY KEY, origin TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
       await store.initialize(seed);
       store.pruneSelections();
@@ -52,7 +55,8 @@ export class LibraryStore {
   private async initialize(seed: URL): Promise<void> {
     const alreadyInitialized = this.db.prepare("SELECT value FROM metadata WHERE key='initialized'").get();
     // Startup seeds are ordinary validated definitions; they never replace current versions.
-    const catalog = await SampleCatalog.load(seed);
+    const builtinPack = seed.pathname.endsWith('.amoji');
+    const catalog = builtinPack ? { all: (): Expression[] => [] } : await SampleCatalog.load(seed);
     const definitions = catalog.all();
     const sources = new Map(definitions.map(e => [`${e.asset_id}:${e.revision_id}`, seed]));
     const legacySessions: Array<{ session_key: string; data: string }> = [];
@@ -120,6 +124,70 @@ export class LibraryStore {
       }
       this.db.prepare("INSERT OR IGNORE INTO metadata VALUES ('initialized','1')").run();
     });
+    if (builtinPack && !this.db.prepare("SELECT value FROM metadata WHERE key='base-library-v1'").get()) {
+      await withValidatedPack(createReadStream(seed), pack => this.importValidatedPack(pack, 'builtin'));
+      this.db.prepare("INSERT OR IGNORE INTO metadata VALUES ('base-library-v1','1')").run();
+    }
+  }
+
+  async importPack(input: PackInput): Promise<ImportResult> {
+    return withValidatedPack(input, pack => this.importValidatedPack(pack, 'imported'));
+  }
+  private async importValidatedPack(pack: ValidatedPack, origin: 'imported' | 'builtin'): Promise<ImportResult> {
+    // Stage only fully validated content. No metadata becomes visible until every blob is written.
+    for (const e of pack.manifest.expressions) {
+      const prior = this.getRevision(e);
+      if (prior && !isDeepStrictEqual(prior, e)) fail('REVISION_CONFLICT', '同一版本不能改变已确认定义');
+    }
+    const staged = new Set<string>();
+    for (const e of pack.manifest.expressions) for (const blob of [e.visual.primary, e.visual.poster]) {
+      if (!blob || staged.has(blob.sha256)) continue;
+      staged.add(blob.sha256);
+      const destination = join(this.directory, 'blobs', blob.sha256);
+      if (await exists(destination)) { await this.verifyBlob(blob); continue; }
+      const temporary = `${destination}.${randomUUID()}.tmp`;
+      try { await writeFile(temporary, await pack.readBlob(blob), { flag: 'wx', mode: 0o600 }); await rename(temporary, destination); }
+      finally { await rm(temporary, { force: true }); }
+    }
+    return this.transaction(() => {
+      let added = 0;
+      for (const e of pack.manifest.expressions) {
+        const prior = this.getRevision(e);
+        if (prior && !isDeepStrictEqual(prior, e)) fail('REVISION_CONFLICT', '同一版本不能改变已确认定义');
+        if (!prior) { this.db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(e.asset_id, e.revision_id, JSON.stringify(e)); added++; }
+      }
+      for (const ref of pack.manifest.defaults) {
+        const present = this.db.prepare('SELECT asset_id FROM library_entries WHERE asset_id=?').get(ref.asset_id);
+        if (present) continue; // Import is never an implicit current-version switch.
+        this.db.prepare('INSERT INTO library_entries VALUES (?,?)').run(ref.asset_id, ref.revision_id);
+        this.db.prepare('INSERT INTO expression_origins VALUES (?,?)').run(ref.asset_id, origin);
+        this.db.prepare('INSERT INTO entry_state VALUES (?,1,0)').run(ref.asset_id);
+      }
+      const manifest = JSON.stringify(pack.manifest);
+      this.db.prepare('INSERT OR IGNORE INTO imported_packs VALUES (?,?,?)').run(createHash('sha256').update(manifest).digest('hex'), pack.manifest.pack_id, manifest);
+      return { pack_id: pack.manifest.pack_id, added, existing: pack.manifest.expressions.length - added, defaults: pack.manifest.defaults };
+    });
+  }
+  selectRevision(ref: ExpressionRef, version: number): LibraryEntry {
+    return this.transaction(() => {
+      const current = this.currentEntry(ref.asset_id, version);
+      if (current.origin === 'local') fail('LOCAL_REVISION_PROTECTED', '个人条目通过确认编辑草稿更新');
+      this.resolve(ref);
+      if (current.expression.revision_id !== ref.revision_id) {
+        this.db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(ref.revision_id, ref.asset_id);
+        this.db.prepare('UPDATE entry_state SET version=version+1 WHERE asset_id=?').run(ref.asset_id);
+      }
+      return this.getEntry(ref.asset_id);
+    });
+  }
+  async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
+    if (!Array.isArray(refs) || refs.length < 1 || refs.length > 200) fail('INVALID_ARGUMENT', '导出需要 1–200 个确定版本');
+    const expressions = refs.map(ref => this.resolve(ref));
+    const defaults = new Map<string, ExpressionRef>();
+    for (const ref of refs) {
+      if (!defaults.has(ref.asset_id) || this.getEntry(ref.asset_id).expression.revision_id === ref.revision_id) defaults.set(ref.asset_id, ref);
+    }
+    return exportPack(expressions, [...defaults.values()], name, async blob => { await this.verifyBlob(blob); return readFile(join(this.directory, 'blobs', blob.sha256)); });
   }
 
   private getRevision(ref: ExpressionRef): Expression | undefined {

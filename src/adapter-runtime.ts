@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
+import { PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -10,6 +10,7 @@ type Awaitable<T> = T | Promise<T>;
 export interface AdapterRuntime {
   connectionSignal?: AbortSignal;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
+  packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
   management?: Pick<SharedClient, 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
   suggestions?: Pick<SharedClient, 'suggestText'>;
   catalog: { root: URL; all(): Awaitable<Expression[]>; resolve(ref: ExpressionRef): Awaitable<Expression> };
@@ -30,8 +31,10 @@ export class ConnectedRuntime implements AdapterRuntime {
   readonly creation;
   readonly suggestions;
   readonly management;
+  readonly packs;
   constructor(private readonly client: SharedClient) {
     this.connectionSignal = client.signal;
+    this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;
     this.management = client.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY) ? client : undefined;
     this.creation = client.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY) ? client : undefined;
     this.suggestions = client.identity.capabilities?.includes(TEXT_SUGGESTION_CAPABILITY) ? client : undefined;

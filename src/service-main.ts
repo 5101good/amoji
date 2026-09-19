@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { dataDirectory } from './shared-contract.js';
 import { startSharedService } from './shared-service.js';
 
-const seed = process.env.AMOJI_SAMPLE_ROOT ? pathToFileURL(`${resolve(process.env.AMOJI_SAMPLE_ROOT)}/`) : new URL(import.meta.url.endsWith('.ts') ? '../assets/samples/' : '../../assets/samples/', import.meta.url);
+const seed = process.env.AMOJI_SAMPLE_ROOT ? pathToFileURL(`${resolve(process.env.AMOJI_SAMPLE_ROOT)}/`) : new URL(import.meta.url.endsWith('.ts') ? '../assets/base-library/base.amoji' : '../../assets/base-library/base.amoji', import.meta.url);
 try {
   const service = await startSharedService(dataDirectory(), seed, Number(process.env.AMOJI_SERVICE_IDLE_MS) || 60000);
   process.once('SIGTERM', () => { void service.close(); });

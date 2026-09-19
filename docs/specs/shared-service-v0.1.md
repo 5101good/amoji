@@ -196,3 +196,17 @@ frequency 支持 restrained / moderate / active：所有模式每真实回合至
 `BindingContext.turnOrdinal?` 是可信适配层的正整数回合顺序，不是模型参数或 UI 字段。dsh 每次工具调用核对真实 Session、公开 turnBoundary projection 的 openTurnStartSeq，并从该 Session 原生 `turn/start` 事件计数至当前回合；缺少对应事件则返回 `DSH_TURN_UNAVAILABLE`。因此未调用 Amoji 的中间回合也参与冷却，重建 Host/冷恢复沿原事件计数。其他暂缓适配器未提供 ordinal 时只数核心实际看到的不同可信 turnId，属于保守冷却，可能比完整宿主回合更晚放行，不宣称那些端已完成同等真机验收。模型 search/resolve/emit 参数保持原合同，不能自报 ordinal、目标会话或语义覆盖。
 
 D3 导入实现须沿同一 Store 事务写入来源与 entry_state，新增 imported 条目版本为 1；推进已有上游默认时增加修改序号并保留归档状态，不覆盖 local 条目、个人副本或旧 revision。D2 的 imported 测试通过隔离数据库模拟导入前后状态；完整包导入仍由 D3 实现。完整原生管理 UI 属 D4，真实多会话使用与发行验收属 D5。
+
+## D3 完整包能力（数据库 4 / API 2）
+
+新增 `packs-v1` capability；没有向模型注册包管理工具。数据库 4 添加 `imported_packs(digest, pack_id, manifest)`，旧数据库只前向迁移，版本、origin、归档、消息与 blob 保留。D2 的 `library-management-v1` 不隐式表示具备包能力。
+
+`SharedClient` 和 capability 存在时的 `ConnectedRuntime.packs` 提供：
+
+- `importPack(bytes: Uint8Array): Promise<ImportResult>`：`{pack_id, added, existing, defaults}`；added/existing 统计不可变 revision；defaults 是包所带默认引用，不表示替换已有当前版本。相同文件可安全重试；未知结果为 `PACK_OUTCOME_UNKNOWN`，应保留文件并重试原包。
+- `exportPack(refs: ExpressionRef[], name: string): Promise<Buffer>`：返回已经完整写完的 `.amoji` 字节。明确列出1–200个确定版本，可含旧版本；一个 asset 的所选当前版本作默认，没有选择当前版本则以所选的第一版作默认。重复素材只存一次。失败不会返回半个 ZIP。
+- `selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry>`：人类明确选定已导入精确版本；CAS 冲突返回 `ENTRY_CONFLICT` 和 current。拒绝 local 条目（`LOCAL_REVISION_PROTECTED`），成功保留 archived 与 origin，仅实际更换时增 version。旧消息仍用旧 revision/hash。
+
+导入/导出使用受相同 service/connection 认证保护的 POST `/packs/import`（`application/zip`）和 `/packs/export`（JSON `{refs,name}`），不借用14MiB普通RPC body上限。上传流先落0600隔离临时文件，压缩字节限260MiB；真实展开限250MiB、条目1000、manifest2MiB、表情200、单blob10MiB。请求、ZIP、媒体或事务失败不发布半包，临时目录在结束时删除。数据库提交之前写入的摘要素材可能成为不可发送的孤立文件；本阶段不清理历史或孤立素材。
+
+首次生产启动读取 `assets/base-library/base.amoji`，通过同一完整包校验并登记 builtin；外部文件导入只能登记 imported，rights.creator/包内容不能取得local权限。`AMOJI_SAMPLE_ROOT` 仅保留明确的开发fixture覆盖。包不会改变个人副本、已有默认、设置或会话，也不会触发外部公开发布。

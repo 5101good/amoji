@@ -1,6 +1,6 @@
 # Amoji
 
-让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **共享本地服务和 Codex、Claude Code、dsh 三端适配**，仍使用三个受控样本，不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
+让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **共享本地服务和 Codex、Claude Code、dsh 三端适配**，新库通过普通包加载24项基础表情，尚不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
 
 已实现静态图、短循环 WebP、文字检索与精确版本解析、绑定会话/回合的选择凭据、幂等发送、本地选择面板和 Codex 插件包。独立共享服务统一保存不可变版本、当前库条目、素材、消息快照、展示回执和选择凭据；MCP 进程通过公共客户端访问。多个适配器使用相同库，消息按可信宿主实例与会话隔离。三端用户入口和AI工具使用同一中文检索，候选保留完整语义并受8KiB文本预算限制；无匹配返回空结果，详见[搜索与待验记录](docs/validation/search-ticket-05.md)。公共接口与后续适配方法见 [共享服务合同](docs/specs/shared-service-v0.1.md)。
 
@@ -29,7 +29,7 @@ codex plugin add amoji@personal
 
 本机 helper 返回的市场名是 `personal`；若返回其他名称，替换安装命令中的市场名。初次在其他机器建立市场条目时，先使用官方 plugin-creator 的 scaffold 流程。已安装插件的启动配置引用 `~/plugins/amoji` 中的本地运行时，因此要保留该目录；移动目录或更换 Node 后重新构建并安装。新会话才能可靠加载更新。本期产物是 macOS 本地安装小样，还不是无需安装器的跨平台发布包。
 
-`scripts/build-samples.mjs` 从已经保存的 imagegen 原始图重新封装三个固定样本，不调用图像生成服务。生成提示与来源见 [generation.json](assets/samples/generation.json)。样本分发许可尚未确定，不宣称已完成开源发布。
+`scripts/build-samples.mjs` 从已经保存的 imagegen 原始图重新封装三个固定样本，不调用图像生成服务。生成提示与来源见 [generation.json](assets/samples/generation.json)。这些历史样本的旧许可不变。生产基础库使用独立身份与 CC0-1.0 声明，普通包、提示与来源见 [基础库](assets/base-library/README.md)；包导入导出、事务边界与 D4 接口见 [D3 验证](docs/validation/dsh-packs-library.md)。
 
 ## Codex 接入小样
 

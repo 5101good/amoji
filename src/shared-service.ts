@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -25,7 +25,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -81,6 +81,19 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       res.write(`${JSON.stringify({ connectionId: id })}\n`);
       res.once('close', () => disconnect(id)); return;
     }
+    if (req.method === 'POST' && ['/packs/import', '/packs/export'].includes(url.pathname)) {
+      if (!connections.has(String(req.headers['x-amoji-connection'] ?? ''))) fail('CONNECTION_CLOSED', '适配器连接已失效');
+      if (url.pathname === '/packs/import') {
+        if (req.headers['content-type'] !== 'application/zip') fail('INVALID_ARGUMENT', '需要 ZIP 文件');
+        json(res, 200, { result: await store.importPack(req) });
+      } else {
+        const args = object(await readJson(req), ['refs', 'name']);
+        if (!Array.isArray(args.refs) || args.refs.length > 200) fail('INVALID_ARGUMENT', '需要有界确定版本列表');
+        const bytes = await store.exportPack(args.refs.map(expressionRef), nonempty(args.name));
+        res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': bytes.length, 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="expressions.amoji"' }); res.end(bytes);
+      }
+      return;
+    }
     if (req.method !== 'POST' || !['/rpc', '/stop'].includes(url.pathname)) { json(res, 404, { code: 'NOT_FOUND', error: '接口不存在' }); return; }
     const body = await readJson(req);
     if (url.pathname === '/stop') {
@@ -111,6 +124,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }
       case 'startRevisionDraft': { const args = object(value, ['ref', 'version']); result = store.startRevisionDraft(expressionRef(args.ref), draftVersion(args.version)); break; }
       case 'setArchived': { const args = object(value, ['asset_id', 'version', 'archived']); result = store.setArchived(nonempty(args.asset_id), draftVersion(args.version), args.archived as boolean); break; }
+      case 'selectRevision': { const args = object(value, ['ref', 'version']); result = store.selectRevision(expressionRef(args.ref), draftVersion(args.version)); break; }
       case 'getSettings': object(value, []); result = store.getSettings(); break;
       case 'updateSettings': { const args = object(value, ['version', 'preferences']); result = store.updateSettings(draftVersion(args.version), args.preferences); break; }
       case 'createDraft': object(value, []); result = store.createDraft(); break;

@@ -8,6 +8,7 @@ export async function copyRuntime(root, destination) {
   await mkdir(`${destination}/assets/samples`, { recursive: true });
   await cp(`${root}/assets/samples/blobs`, `${destination}/assets/samples/blobs`, { recursive: true });
   await cp(`${root}/assets/samples/manifest.json`, `${destination}/assets/samples/manifest.json`);
+  await cp(`${root}/assets/base-library`, `${destination}/assets/base-library`, { recursive: true });
   await cp(`${root}/web`, `${destination}/web`, { recursive: true });
   await cp(`${root}/package.json`, `${destination}/runtime/package.json`);
   await cp(`${root}/package-lock.json`, `${destination}/runtime/package-lock.json`);

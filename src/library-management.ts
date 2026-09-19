@@ -8,8 +8,9 @@ export interface PersonalSettings extends PersonalPreferences { version: number 
 export const DEFAULT_SETTINGS: PersonalSettings = { version: 1, style: 'neutral', frequency: 'restrained', paused: false };
 export function preferences(value: unknown): PersonalPreferences {
   const p = object(value, ['style', 'frequency', 'paused']);
-  if (!['neutral', 'warm', 'playful'].includes(String(p.style)) || !['restrained', 'moderate', 'active'].includes(String(p.frequency)) || typeof p.paused !== 'boolean') fail('INVALID_ARGUMENT', '偏好值不合法');
-  return p as unknown as PersonalPreferences;
+  const { style, frequency, paused } = p;
+  if ((style !== 'neutral' && style !== 'warm' && style !== 'playful') || (frequency !== 'restrained' && frequency !== 'moderate' && frequency !== 'active') || typeof paused !== 'boolean') fail('INVALID_ARGUMENT', '偏好值不合法');
+  return { style, frequency, paused };
 }
 export function expressionRef(value: unknown): ExpressionRef {
   const r = object(value, ['asset_id', 'revision_id']);

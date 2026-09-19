@@ -164,3 +164,14 @@ test('数据库2导入来源迁移按个人副本处理，上游新默认不覆�
   a = await connect(); assert.deepEqual((await a.getEntry(copy.asset_id)).expression, ownNew);
   assert.deepEqual(await a.resolve(ref(imported)), imported); assert.deepEqual(await a.resolve(ref(copy)), copy);
 });
+
+test('真实公共 API 拒绝非字符串风格和频率，失败不改变设置或修改序号', async t => {
+  const { connect } = await sandbox(t); const a = await connect();
+  for (const [field, valid] of [['style', 'warm'], ['frequency', 'restrained']] as const) await t.test(field, async () => {
+    const before = await a.updateSettings((await a.getSettings()).version, { style: 'warm', frequency: 'restrained', paused: false });
+    for (const invalid of [[valid], [[valid]], { value: valid }, null, 1, true]) {
+      await assert.rejects(a.updateSettings(before.version, { style: before.style, frequency: before.frequency, paused: before.paused, [field]: invalid } as any), /INVALID_ARGUMENT/, `${field} 必须拒绝 ${JSON.stringify(invalid)}`);
+      assert.deepEqual(await a.getSettings(), before, '拒绝非法偏好不能更改已保存设置或版本');
+    }
+  });
+});

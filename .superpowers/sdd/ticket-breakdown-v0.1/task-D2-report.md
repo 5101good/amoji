@@ -44,3 +44,17 @@ D3 导入须在同一 Store 事务初始化 imported 来源与 entry_state，推
 D4 读取 management capability，使用 entry.version 建编辑草稿；调用原 creation.saveDraft/previewDraft/confirmDraft 完成编辑。冲突把 ServiceError.current 提供给用户同时保留本地输入。若确认冲突，可用户显式从当前条目新建草稿并重用字段/素材；不自动覆盖。完整 dsh UI 未在 D2 实现。
 
 D5 负责真实管理 UI/多会话/模型风格行为/完整 alltest 与发行验收。当前 dsh ordinal 来自原生事件；暂缓端没有 ordinal 时只观察核心见过的可信 turnId，可能更保守，不宣称那些端完成完整回合验收。moderate 与 active 都无额外硬冷却，区别是使用建议；连续相同 AI asset 禁止，手动消息不解除该限制。以上界限已公开，无其他未解决正确性疑虑。
+
+## Fix round 1（I1，2026-09-20）
+
+FIX_BASE：2f6c379005a7f8b9278626125c6c211510268754。仅处理综合审查 I1 的偏好类型漏洞，没有扩大功能、派代理或修改 root QA。
+
+原验证先 String(...) 再将原输入 cast 返回，导致单元素数组可以伪装成枚举并被持久化，frequency 数组随后无法命中严格字符串冷却条件。现在对 style/frequency 分别进行严格枚举值比较（自然拒绝所有非 string 值），paused 仍要求 boolean；返回新建的 `{style, frequency, paused}` 规范对象，不再返回未经收窄的原输入。
+
+新增真实 SharedClient → HTTP → Store 测试，分别覆盖 style 与 frequency 的单元素数组、嵌套数组、对象、null、数字、boolean；每次 INVALID_ARGUMENT 后读取 getSettings，断言内容与版本均完全不变。
+
+RED：`node --import tsx --test --test-name-pattern='真实公共 API 拒绝非字符串' tests/library-management.test.ts`，父测试及两个子例共 3 fail；明确输出 `Missing expected rejection: style 必须拒绝 ["warm"]` 和 `frequency 必须拒绝 ["restrained"]`。
+
+GREEN：`node --import tsx --test tests/library-management.test.ts`，8 tests，8 pass，0 fail，0 skipped（含两个类型边界子例及已有克制冷却/风格/CAS 回归）。`npm run typecheck` 通过；`npm run build:dsh` 通过，更新本地分发 runtime；`git diff --check` 通过。没有重跑 46 项回归或全套 alltest。
+
+自审：修改仅限 src/library-management.ts、tests/library-management.test.ts 与本报告；严格比较使 TypeScript 直接收窄为合法联合类型，源码没有使用类型断言掩盖输入。无已知剩余 I1 问题。

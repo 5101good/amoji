@@ -27,9 +27,12 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   const globals = globalThis as Record<string, unknown>;
   const names = ['document', 'location', 'matchMedia', 'fetch', 'addEventListener', 'setInterval', 'FileReader'];
   const previous = new Map(names.map(name => [name, globals[name]]));
-  let deferred: { release(): void } | undefined;
+  let deferredSuggestion: { release(): void } | undefined;
+  let deferredSave: { release(): void } | undefined;
   let failSuggestion = false;
+  let obscureNextSave = false;
   let suggestionRequests = 0;
+  let saveRequests = 0;
   Object.assign(globals, {
     document: dom.window.document,
     location: dom.window.location,
@@ -41,7 +44,14 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
       if (input === '/api/suggest') {
         suggestionRequests++;
         if (failSuggestion) throw new TypeError('模拟建议服务不可用');
-        if (deferred) await new Promise<void>(resolve => { deferred!.release = resolve; });
+        if (deferredSuggestion) await new Promise<void>(resolve => { deferredSuggestion!.release = resolve; });
+      }
+      if (input === '/api/draft/save') {
+        saveRequests++;
+        if (deferredSave) await new Promise<void>(resolve => { deferredSave!.release = resolve; });
+        const response = await nativeFetch(new URL(input, url), options);
+        if (obscureNextSave) { obscureNextSave = false; throw new TypeError('模拟保存响应丢失'); }
+        return response;
       }
       return nativeFetch(new URL(input, url), options);
     },
@@ -64,17 +74,17 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   assert.match(doc.querySelector('#suggestion-capability')!.textContent!, /本机文字规则.*未调用模型.*不读取图像/);
 
   input('suggestion-intent').value = '想真诚感谢对方';
-  deferred = { release() {} };
+  deferredSuggestion = { release() {} };
   button('request-suggestion').click();
   await eventually(() => suggestionRequests === 1);
   input('draft-meaning').value = '我正在手工填写';
   input('draft-meaning').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-  deferred.release();
+  deferredSuggestion.release();
   await eventually(() => !button('request-suggestion').disabled);
   assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true, '编辑后的迟到结果不得覆盖当前工作');
   assert.equal(input('draft-meaning').value, '我正在手工填写');
 
-  deferred = undefined;
+  deferredSuggestion = undefined;
   button('request-suggestion').click();
   await eventually(() => !doc.querySelector<HTMLElement>('#suggestion-result')!.hidden);
   assert.equal(input('draft-meaning').value, '我正在手工填写', '显示候选本身不得写入草稿表单');
@@ -92,25 +102,70 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true);
   assert.equal(input('draft-meaning').value, '由我修改后的感谢含义', '拒绝候选不撤销用户已有内容');
 
-  deferred = { release() {} };
   button('request-suggestion').click();
-  await eventually(() => suggestionRequests === 4);
+  await eventually(() => !doc.querySelector<HTMLElement>('#suggestion-result')!.hidden);
+  const activeDraftId = (await client.listDrafts())[0]!.draft_id;
+  const versionBeforeSave = (await client.getDraft(activeDraftId)).version;
+  button('save-draft').click();
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('草稿已保存'));
+  assert.equal((await client.getDraft(activeDraftId)).version, versionBeforeSave + 1);
+  assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true, '候选显示后保存成功必须使旧版本候选失效');
+  assert.equal(button('apply-suggestion').disabled, true);
+
+  deferredSuggestion = { release() {} };
+  deferredSave = { release() {} };
+  const requestsBeforeRace = suggestionRequests;
+  const savesBeforeRace = saveRequests;
+  button('request-suggestion').click();
+  await eventually(() => suggestionRequests === requestsBeforeRace + 1);
+  button('save-draft').click();
+  await eventually(() => saveRequests === savesBeforeRace + 1);
+  deferredSuggestion.release();
+  await eventually(() => !doc.querySelector<HTMLElement>('#suggestion-result')!.hidden);
+  assert.equal(button('apply-suggestion').disabled, true, '并发保存期间不得采用绑定旧版本的候选');
+  const meaningBeforeForcedApply = input('draft-meaning').value;
+  button('apply-suggestion').disabled = false;
+  button('apply-suggestion').click();
+  assert.equal(input('draft-meaning').value, meaningBeforeForcedApply, '采用处理器必须独立复核候选与当前草稿上下文');
+  deferredSave.release();
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('草稿已保存'));
+  assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true, '建议先返回、保存后返回时旧候选也必须失效');
+  deferredSuggestion = undefined;
+  deferredSave = undefined;
+
+  button('request-suggestion').click();
+  await eventually(() => !doc.querySelector<HTMLElement>('#suggestion-result')!.hidden);
+  const versionBeforeUnknownSave = (await client.getDraft(activeDraftId)).version;
+  obscureNextSave = true;
+  button('save-draft').click();
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('DRAFT_OUTCOME_UNKNOWN'));
+  assert.equal((await client.getDraft(activeDraftId)).version, versionBeforeUnknownSave + 1, '保存响应虽丢失，服务端已产生新版本');
+  assert.equal(button('apply-suggestion').disabled, true, '保存结果待核对期间不得采用候选');
+  button('save-draft').click();
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('草稿已保存'));
+  assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true, '核对保存成功取得新版本后必须使旧候选失效');
+
+  deferredSuggestion = { release() {} };
+  const cancelRequest = suggestionRequests;
+  button('request-suggestion').click();
+  await eventually(() => suggestionRequests === cancelRequest + 1);
   button('cancel-suggestion').click();
-  deferred.release();
+  deferredSuggestion.release();
   await eventually(() => !button('request-suggestion').disabled);
   assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true);
 
-  deferred = { release() {} };
+  deferredSuggestion = { release() {} };
   input('suggestion-intent').value = '切换草稿前的旧请求';
+  const switchRequest = suggestionRequests;
   button('request-suggestion').click();
-  await eventually(() => suggestionRequests === 5);
+  await eventually(() => suggestionRequests === switchRequest + 1);
   button('new-draft').click();
   await eventually(() => doc.querySelectorAll('#draft-list option').length === 2);
-  deferred.release();
+  deferredSuggestion.release();
   await eventually(() => !button('request-suggestion').disabled);
   assert.equal(doc.querySelector<HTMLElement>('#suggestion-result')!.hidden, true, '切换草稿后旧结果不得进入新草稿');
 
-  deferred = undefined;
+  deferredSuggestion = undefined;
   failSuggestion = true;
   input('suggestion-intent').value = '故障时仍手工完成';
   input('draft-meaning').value = '切换后的手工内容';

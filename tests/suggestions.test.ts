@@ -49,6 +49,10 @@ test('建议器拒绝空白、越界和非文字输入，不截断最终语义',
   await assert.rejects(client.suggestText('😀'.repeat(241)), /SUGGESTION_INPUT_TOO_LONG/);
   await assert.rejects(client.suggestText('鼓励', 'a'.repeat(65)), /SUGGESTION_INPUT_TOO_LONG/);
   await assert.rejects((client as any).suggestText({ image: 'secret.png' }), /SUGGESTION_INPUT_INVALID/);
+  const exactNotes = Array.from({ length: 4 }, (_, index) => String(index).repeat(64));
+  const boundary = await client.suggestText('鼓励', exactNotes.join('\r\n'));
+  assert.deepEqual(boundary.fields.semantics.use_when, exactNotes, '合法的四行 64 code point CRLF 说明必须原样进入语境');
+  await assert.rejects((client as any).suggestText('鼓励', null), /SUGGESTION_INPUT_INVALID/);
   const exact = '😀'.repeat(240);
   const suggestion = await client.suggestText(exact);
   assert.equal(suggestion.fields.semantics.meaning, exact);

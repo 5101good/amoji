@@ -33,8 +33,9 @@ function inputText(value: unknown, label: string, max: number, required: boolean
 /** Local text-only helper. It never receives or reads draft media. */
 export function suggestText(intentValue: unknown, notesValue?: unknown): TextSuggestion {
   const intent = inputText(intentValue, '文字意图', 240, true);
-  const notes = inputText(notesValue ?? '', '补充说明', 260, false);
-  const contexts = notes ? notes.split(/\r?\n/).map(item => item.trim()).filter(Boolean) : [];
+  const normalizedNotes = typeof notesValue === 'string' ? notesValue.replace(/\r\n?/g, '\n') : notesValue;
+  const notes = notesValue === undefined ? '' : inputText(normalizedNotes, '补充说明', 260, false);
+  const contexts = notes ? notes.split('\n').map(item => item.trim()).filter(Boolean) : [];
   if (contexts.length > 4 || contexts.some(item => [...item].length > 64)) fail('SUGGESTION_INPUT_TOO_LONG', '补充说明最多 4 行，每行最多 64 个 Unicode 字符；不会自动截断');
   const chinese = /[\p{Script=Han}]/u.test(intent + notes);
   const match = patterns.find(item => item.matches.test(intent + notes));

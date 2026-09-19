@@ -42,3 +42,15 @@ root 在独立 QA 首次启动确认 /api 只能有一个 interceptor，原实�
 真机首回合已由 root 观察到原生用户 observed/rendered、search/resolve 成功及自造 token 被拒绝。本轮源码修复把已核实用户消息的精确投影文字在显示层转换为名称/固定语义，原图片、附件、引用、额外文字和宿主交互保留，版本数据放入详情；未核实的行和持久原消息不改。新 prompt 用自然名称开头，明确表情是用户感受表达而非任务/授权，原精确 modelProjection 仍附在说明后，既有或用户自定义标题不重写。工具说明补齐 token 来源；settled 失败展示实际错误并支持文字 fallback，不再停留在等待占位。
 
 对应三个失败测试已先红后绿，聚焦三个 dsh 测试文件 28 项、typecheck、build:dsh 与 diff 检查通过。模型是否按新说明自然回应及新标题效果仍由 root 短回合 QA 证明。
+
+## 2026-09-20 root 独立安装与真实模型证据
+
+在实际 `dsh@0.1.5-rc.2` 上，独立 `amoji-qa` profile、专用工作区和 Amoji 数据目录通过官方 plugin add 安装 `e2b76de` 构建包（exit 0），在 65501 启动；用户原 3080 服务、模型默认与凭据保持不变。
+
+已实际观察：空白会话首条直接发送静态表情，原生用户行呈现图与简洁语义，原生 user/message 和共享 observed/rendered 关联一致；模型自然回复，完整回合结束且不需工具。静态/动图预览、暂停、1280×720 浮层在视口内、真实进程冷启动后旧用户行与精确素材恢复均已核对。首回合主请求 usage 为 input 9,495、cacheRead 1,024、output 121（另有标题请求）。
+
+AI 发图使用同一网关配置的 `deepseek-v4-flash`。原 `openai-responses` 路径出现思考数据回传 400；显式发送 reasoning.effort=none 后另一回合出现缺失 stream terminal 的传输失败。失败保留，未归因为产品已成功，也没有切高价模型。核对安装版 pi 适配代码后，只在 QA 配置改用 `openai-completions`、`compat.thinkingFormat: deepseek`、`maxTokensField: max_tokens`、`supportsDeveloperRole: false`、`supportsStore: false`、`requiresReasoningContentOnAssistantMessages: true`、推理 Off。无网络 onPayload 检查和真实出站记录均确认 `thinking.type=disabled`、最大输出768、只用同一 Flash 模型。
+
+新的真实回合执行 `amoji_search → amoji_emit → 普通文字鼓励`，原生 turn/end=completed，动图 message `e58dacd2-3c97-48cf-a006-541be5d4aa3e` 与 tool/result.meta 精确关联且 rendered。三个主请求总 input 11,324、cacheRead 20,480、output 172，总31,976 tokens；另1次标题请求。全程捕获的16次供应商请求都无图片内容块及图片data URL，语义检索与发送不依赖识图。网关价格未取得，不能据此报告精确金额。原始脱敏证据在忽略目录 `.local/dsh-focus/{natural-first-send,first-cold-restore,chat-completed,chat-off-contract}.json` 与 `provider-requests.jsonl`。
+
+**仍有真实UX缺口：** dsh 完成回合后默认折叠工具组，AI表情也随之隐藏；展开才可见。rendered 回执不等于终态可见。D4必须把表情放在正常对话主流，并验证历史与重复展示；在修复前不能称原生表达体验已完整。完整管理、并发、附加内容和故障旅程继续由 D4/D5 验收。

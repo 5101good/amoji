@@ -94,6 +94,7 @@ export class SharedClient {
   emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
   receive(binding: string, ref: ExpressionRef, requestId: string): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId }); }
   history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }
+  dshAccepted(binding: string, messageId: string): Promise<void> { return this.call('dshAccepted', { binding, message_id: messageId }); }
   presentation(binding: string, messageId: string, presentation: 'rendered' | 'fallback'): Promise<void> { return this.call('presentation', { binding, message_id: messageId, presentation }); }
   async close(): Promise<void> {
     if (this.closed) { this.lease.abort(); this.disconnected.abort(); return; }

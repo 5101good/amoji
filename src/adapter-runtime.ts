@@ -16,6 +16,7 @@ export interface AdapterRuntime {
   emit(context: HostContext, token: string): Awaitable<SampleMessage>;
   messages(context: HostContext): Awaitable<SampleMessage[]>;
   receive(context: HostContext, ref: ExpressionRef, requestId: string): Awaitable<SampleMessage>;
+  dshAccepted?(context: HostContext, messageId: string): Awaitable<void>;
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback'): Awaitable<void>;
   blobPath?(digest: string): Promise<string>;
   readBlob?(digest: string): Promise<Buffer>;
@@ -43,6 +44,7 @@ export class ConnectedRuntime implements AdapterRuntime {
   messages(context: HostContext) { return this.withBinding(context, binding => this.client.history(binding)); }
   receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId)); }
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.withBinding(context, binding => this.client.presentation(binding, messageId, state)); }
+  dshAccepted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAccepted(binding, messageId)); }
   blobPath(digest: string) { return this.client.blobPath(digest); }
   async readBlob(digest: string) { return readFile(await this.client.blobPath(digest)); }
 }

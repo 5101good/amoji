@@ -51,14 +51,14 @@ Hook、MCP、面板和独立产物已执行本地合同检查；**真实 Claude 
 
 ## dsh 适配
 
-dsh 分发包包含实际 Host/Client 双入口：Host 将三个日常工具映射到共享核心，Client 提供选择器、工具视觉和历史呈现。模型只接收固定文字投影，用户图像读取与精确版本关联；运行时不识图。
+dsh 分发包包含实际 Host/Client 双入口：Host 将三个日常工具映射到共享核心，Client 在原生输入区提供选择器，在对应用户消息与 AI 工具结果处展示图像。模型只接收固定文字投影，用户图像读取与精确版本关联；运行时不识图。
 
 ```sh
 npm run build:dsh
 npm run test:dsh
 ```
 
-`build:dsh` 构建 `adapters/dsh`；`test:dsh` 显式准备固定提交的源码基线，再执行真实 `defineTool`/`SlotCore` 与 loader/组件合同检查，首次准备需要网络和 `curl`。普通 `npm test` 不含此下载前置。构建与使用见 [dsh 插件说明](adapters/dsh/README.md)。**完整 dsh 宿主未验证**；Session/Connection 测试端口和 JSDOM 图片事件不能证明原生持久化、浏览器解码或模型请求。边界与补验步骤见 [04 验证记录](docs/validation/dsh-ticket-04.md)。
+`build:dsh` 构建 `adapters/dsh`；`test:dsh` 使用锁定的 npm `0.1.5-rc.2` 发布包，执行真实 `defineTool`、`SlotRegistry`、Session 持久文件恢复及公开类型合同检查，无旧源码下载前置。选择工作区后可以零文字首发表情，不改变全局默认模型。构建与使用见 [dsh 插件说明](adapters/dsh/README.md)。真实浏览器解码、安装激活与模型调用仍须独立 QA 补证；边界见 [当前验证记录](docs/validation/dsh-native-2026-09-19.md)。
 
 ## 实测脚本
 

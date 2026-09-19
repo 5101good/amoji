@@ -264,6 +264,15 @@ export class LibraryStore {
       session.received.push([requestId, message.message_id]); this.save(context, session); return message;
     });
   }
+  dshAccepted(context: BindingContext, messageId: string): void {
+    if (context.host !== 'dsh') fail('BINDING_MISMATCH', '只有 dsh 可以保存原生投递回执');
+    this.transaction(() => {
+      const session = this.session(context);
+      const message = session.messages.find(m => m.message_id === messageId && m.direction === 'human_to_ai');
+      if (!message) fail('BINDING_MISMATCH', '投递消息不属于当前会话');
+      message.dsh_submission = 'accepted'; this.save(context, session);
+    });
+  }
   presentation(context: BindingContext, messageId: string, state: 'rendered' | 'fallback'): void {
     this.transaction(() => {
       const session = this.session(context);

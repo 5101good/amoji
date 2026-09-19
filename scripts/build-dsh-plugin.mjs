@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY } from '../dist/src/shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_NATIVE_CAPABILITY } from '../dist/src/shared-contract.js';
 const root = resolve(import.meta.dirname, '..');
 const out = resolve(root, 'adapters/dsh');
 // These are exclusively generated directories owned by this build.
@@ -19,5 +19,5 @@ await cp(`${root}/assets/samples/blobs`, `${out}/assets/samples/blobs`, { recurs
 await cp(`${root}/assets/samples/manifest.json`, `${out}/assets/samples/manifest.json`);
 await build({ entryPoints: [`${root}/src/dsh/client.tsx`], outfile: `${out}/client.js`, bundle: true, format: 'cjs', platform: 'browser', target: 'es2022', jsx: 'transform', tsconfigRaw: { compilerOptions: { jsx: 'react' } }, external: ['react', 'react/*'], banner: { js: 'window.__ModuleLoader__.load({id:"@amoji/dsh",factory:(require)=>{var module={exports:{}};var exports=module.exports;' }, footer: { js: 'return module.exports;}});' } });
 const hash = createHash('sha256').update(await readFile(`${out}/client.js`)).digest('hex');
-await writeFile(`${out}/BUILD.json`, JSON.stringify({ dshCommit: 'd347e703908d0406b7a7ef80e3a0e594d86b2215', dshVersion: '0.1.3-alpha.1', serviceApi: API_VERSION, databaseVersion: DATABASE_VERSION, providedManagementCapabilities: [CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], requiredCapabilities: [DSH_SUBMISSION_CAPABILITY], clientSha256: hash, node: process.version, validation: 'loader and pinned source contract checks; full dsh host not run' }, null, 2) + '\n');
+await writeFile(`${out}/BUILD.json`, JSON.stringify({ dshVersion: '0.1.5-rc.2', serviceApi: API_VERSION, databaseVersion: DATABASE_VERSION, providedManagementCapabilities: [CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], requiredCapabilities: [DSH_NATIVE_CAPABILITY], clientSha256: hash, node: process.version, validation: 'published npm contracts and local lifecycle tests; live QA tracked separately' }, null, 2) + '\n');
 console.log(`Built ${out}`);

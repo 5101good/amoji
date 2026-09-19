@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, DATABASE_VERSION, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -24,7 +24,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -122,6 +122,10 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'receive': {
         const args = object(value, ['binding', 'ref', 'send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
         result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id)); break;
+      }
+      case 'dshAccepted': {
+        const args = object(value, ['binding', 'message_id']);
+        store.dshAccepted(context(args), nonempty(args.message_id)); result = null; break;
       }
       case 'presentation': {
         const args = object(value, ['binding', 'message_id', 'presentation']);

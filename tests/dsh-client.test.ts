@@ -10,14 +10,17 @@ import type { ClientPort } from '../src/dsh/client.js';
 import type { VisualMeta, RpcResult } from '../src/dsh/contracts.js';
 const require = createRequire(import.meta.url);
 interface SlotCorePort {
+  inject(name: string, factory: () => () => void): () => void;
+  entries: ClientPort['slots']['entries'];
+  subscribe: ClientPort['slots']['subscribe'];
   register(options: object, component: unknown): () => void;
-  entriesOfSlot(key: string): Array<{ component: React.ComponentType<{ sessionId: string; block?: { meta: VisualMeta } }>; options: { key?: string } }>;
+  entriesOfSlot(key: string): Array<{ component: React.ComponentType<{ sessionId: string; block?: { kind?: string; meta: VisualMeta } }>; options: { key?: string } }>;
 }
 const source = new URL('../.cache/dsh-source/slots.mjs', import.meta.url).href;
 const { SlotCore } = await import(source) as { SlotCore: new () => SlotCorePort };
 const settle = () => new Promise(resolve => setTimeout(resolve, 20));
 
-test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动画封面、选择与会话切换', async t => {
+test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图片事件、动画封面、选择与会话切换', async t => {
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
   const previous = { window: globalThis.window, document: globalThis.document };
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
@@ -34,7 +37,7 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
   const visual = { expression: e, primary: await data(e.visual.primary), poster: e.visual.poster ? await data(e.visual.poster) : null };
   const meta: VisualMeta = { kind: 'amoji', messageId: 'message-a', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: e.semantics.fallback };
-  const slots = new SlotCore(); slots.register({ name: 'root', children: { 'conversation.input.left': { kind: 'list', scope: 'session' }, 'conversation.composer.dock': { kind: 'list', scope: 'session' }, 'tool.call.toolview': { kind: 'keyed', scope: 'session' } } }, () => null);
+  const slots = new SlotCore(); slots.register({ name: 'root', children: { 'conversation.input.left': { kind: 'list', scope: 'session' }, 'conversation.composer.dock': { kind: 'list', scope: 'session' }, 'conversation.chat.node': { kind: 'keyed', scope: 'session' }, 'tool.call.toolview': { kind: 'keyed', scope: 'session' } } }, () => null);
   const disposers: Array<() => void> = [];
   const ctx: ClientPort = { slots, effect(factory) { disposers.push(factory()); }, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
     const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
@@ -43,10 +46,10 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   } } } };
   module.apply(ctx);
   assert.equal(slots.entriesOfSlot('tool.call.toolview')[0]!.options.key, 'amoji_emit');
-  assert.equal(slots.entriesOfSlot('conversation.composer.dock').length, 1);
+  assert.equal(slots.entriesOfSlot('conversation.composer.dock').length, 0);
   const root = createRoot(dom.window.document.getElementById('root')!); unmount = async () => { await act(() => root.unmount()); };
   const Tool = slots.entriesOfSlot('tool.call.toolview')[0]!.component;
-  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-a', block: { meta } })); await settle(); });
+  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-a', block: { kind: 'tool-result', meta } })); await settle(); });
   let img = dom.window.document.querySelector('img')!; assert.ok(img); assert.equal(img.src, visual.primary); assert.equal(img.alt, meta.alt);
   await act(async () => { img.dispatchEvent(new dom.window.Event('load')); await settle(); });
   const receipt = requests.find(r => r.endpoint === 'amoji/display')!; assert.equal(receipt.payload.sessionId, 'session-a'); assert.equal(receipt.payload.messageId, 'message-a'); assert.equal(receipt.payload.hash, meta.visualHash);
@@ -87,13 +90,13 @@ test('真实 loader 产物与基线 SlotCore：挂载三槽、图片事件、动
   assert.equal(slots.entriesOfSlot('tool.call.toolview').length, 1);
   disposers.pop()!();
   const order: string[] = [];
-  const failing: ClientPort = { ...ctx, slots: { register(options, component) {
+  const failing: ClientPort = { ...ctx, slots: { inject: slots.inject.bind(slots), entries: slots.entries.bind(slots), subscribe: slots.subscribe.bind(slots), register(options, component) {
     if (options.name === 'tool.call.toolview') throw new Error('third registration failed');
     const dispose = slots.register(options, component);
     return () => { order.push(options.name); dispose(); };
   } } };
   assert.throws(() => module!.apply(failing), /third registration failed/);
-  assert.deepEqual(order, ['conversation.composer.dock', 'conversation.input.left']);
+  assert.deepEqual(order, ['conversation.input.left']);
   module.apply(ctx); assert.equal(slots.entriesOfSlot('tool.call.toolview').length, 1); disposers.pop()!();
 });
 
@@ -118,7 +121,7 @@ test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时
     catalog: async () => [], search: async () => [], submit: async () => { throw new Error('unused'); }, history: async () => [], display: async () => {}, visual: async () => visual,
   };
   const Tool = module.createComponents(rpc).ToolView;
-  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-reduced', block: { meta } })); await settle(); });
+  await act(async () => { root.render(React.createElement(Tool, { sessionId: 'session-reduced', block: { kind: 'tool-result', meta } })); await settle(); });
   assert.equal(dom.window.document.querySelector<HTMLImageElement>('img')!.src, visual.poster);
   const play = [...dom.window.document.querySelectorAll('button')].find(button => button.textContent === '播放动图')!;
   assert.equal(play.getAttribute('aria-pressed'), 'true');
@@ -129,7 +132,7 @@ test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时
 
   const missingRpc = { ...rpc, visual: async () => { throw new Error('BLOB_MISSING：保留素材缺失'); } };
   const MissingTool = module.createComponents(missingRpc).ToolView;
-  await act(async () => { root.render(React.createElement(MissingTool, { sessionId: 'session-missing', block: { meta: { ...meta, messageId: 'missing-message' } } })); await settle(); });
+  await act(async () => { root.render(React.createElement(MissingTool, { sessionId: 'session-missing', block: { kind: 'tool-result', meta: { ...meta, messageId: 'missing-message' } } })); await settle(); });
   const alert = dom.window.document.querySelector('[role=alert]')!;
   assert.match(alert.textContent!, new RegExp(meta.alt.replace(/[\[\]]/g, '\\$&')));
   assert.match(alert.textContent!, /BLOB_MISSING：保留素材缺失/);

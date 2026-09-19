@@ -1,67 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Expression, ExpressionRef } from '../sample-catalog.js';
-import type { DshRpc, HistoryEntry, RpcResult, VisualData, VisualMeta } from './contracts.js';
+import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
+import { mountUserMessages } from './messages.js';
+import type { DshRpc, HistoryEntry, RpcResult } from './contracts.js';
 
 export interface ClientPort {
   connection: { rpc: { call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<RpcResult<unknown>> } };
   effect(factory: () => (() => void), label?: string): unknown;
-  slots: { register(options: { name: string; key?: string; id?: string }, component: React.ComponentType<SessionProps & { block?: { meta?: unknown } }>): () => void };
+  slots: {
+    register(options: { name: string; key?: string; id?: string; priority?: number; locale?: string; inject?: StoredEntry['inject']; store?: StoredEntry['store'] }, component: React.ComponentType<any>): () => void;
+    inject(name: string, factory: () => (() => void)): () => void;
+    entries(name: string): readonly StoredEntry[];
+    subscribe(name: string, listener: () => void): () => void;
+  };
 }
 interface SessionProps { sessionId: string }
-function errorText(error: unknown): string { return error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : '操作失败'; }
-function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
-export function createRpc(ctx: ClientPort): DshRpc {
-  const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
-    const result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal);
-    if (!result.ok) throw new Error(result.error.message);
-    return result.value as T;
-  };
-  return {
-    manage: (sessionId, signal) => call('manage', { sessionId }, signal),
-    catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
-    search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
-    submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref, requestId }, signal),
-    history: (sessionId, signal) => call('history', { sessionId }, signal),
-    visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref, ...(messageId ? { messageId } : {}) }, signal),
-    display: (sessionId, messageId, hash, state, signal) => call('display', { sessionId, messageId, hash, state }, signal),
-  };
-}
-export function parseMeta(raw: unknown): VisualMeta | undefined {
-  if (!raw || typeof raw !== 'object') return;
-  const value = raw as Partial<VisualMeta>;
-  if (value.kind !== 'amoji' || typeof value.messageId !== 'string' || typeof value.ref?.asset_id !== 'string' || typeof value.ref.revision_id !== 'string' || typeof value.alt !== 'string' || !/^[a-f0-9]{64}$/.test(value.visualHash ?? '') || (value.posterHash !== null && !/^[a-f0-9]{64}$/.test(value.posterHash ?? ''))) return;
-  return value as VisualMeta;
-}
-function sameRef(a: ExpressionRef, b: ExpressionRef): boolean { return a.asset_id === b.asset_id && a.revision_id === b.revision_id; }
-
-export function AmojiImage({ rpc, sessionId, refValue, meta }: SessionProps & { rpc: DshRpc; refValue: ExpressionRef; meta?: VisualMeta }) {
-  const [data, setData] = useState<VisualData>(); const [paused, setPaused] = useState(reducedMotion); const [error, setError] = useState(''); const [receiptError, setReceiptError] = useState('');
-  useEffect(() => {
-    const abort = new AbortController(); setData(undefined); setError(''); setReceiptError(''); setPaused(reducedMotion());
-    void rpc.visual(sessionId, refValue, meta?.messageId, abort.signal).then(value => {
-      if (!sameRef(value.expression, refValue) || (meta && (value.expression.visual.primary.sha256 !== meta.visualHash || (value.expression.visual.poster?.sha256 ?? null) !== meta.posterHash || value.expression.semantics.fallback !== meta.alt))) throw new Error('图片版本或摘要不匹配');
-      if (!abort.signal.aborted) setData(value);
-    }).catch(e => { if (!abort.signal.aborted) setError(errorText(e)); });
-    return () => abort.abort();
-  }, [rpc, sessionId, refValue.asset_id, refValue.revision_id, meta?.messageId, meta?.visualHash, meta?.posterHash]);
-  useEffect(() => {
-    const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const changed = (event: MediaQueryListEvent) => { if (event.matches) setPaused(true); };
-    preference?.addEventListener?.('change', changed);
-    return () => preference?.removeEventListener?.('change', changed);
-  }, []);
-  const acknowledge = (state: 'rendered' | 'failed') => {
-    if (!meta || !data) return;
-    const hash = paused && data.poster ? data.expression.visual.poster!.sha256 : data.expression.visual.primary.sha256;
-    void rpc.display(sessionId, meta.messageId, hash, state).catch(e => setReceiptError(`回执未保存：${errorText(e)}`));
-  };
-  const alt = meta?.alt ?? data?.expression.semantics.fallback ?? '表情加载中';
-  return <figure style={{ margin: 8 }}>
-    {error ? <span role="alert">{alt} · {error}</span> : data ? <img style={{ width: 96, height: 96, objectFit: 'contain' }} src={paused && data.poster ? data.poster : data.primary} alt={alt} onLoad={() => acknowledge('rendered')} onError={() => { setError('浏览器无法解码图片，显示固定文字'); acknowledge('failed'); }} /> : <span>加载中…</span>}
-    {data?.expression.visual.animated && data.poster && !error && <button type="button" aria-pressed={paused} onClick={() => setPaused(v => !v)}>{paused ? '播放动图' : '暂停动图'}</button>}
-    {receiptError && <small role="alert">{receiptError}</small>}
-  </figure>;
-}
+import { AmojiImage, createRpc, parseMeta, errorText, sameRef } from './media.js';
+export { AmojiImage, createRpc, parseMeta } from './media.js';
 export function createComponents(rpc: DshRpc) {
   function Picker({ sessionId }: SessionProps) { return <PickerSession key={sessionId} sessionId={sessionId} />; }
   function PickerSession({ sessionId }: SessionProps) {
@@ -112,8 +67,8 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) setStatus(errorText(e)); }
       finally { if (current()) setBusy(false); }
     };
-    return <div><button type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择">
-      <p>发送到当前会话 · {target}</p>
+    return <div style={{ position: 'relative' }}><button type="button" onClick={() => { setTarget(sessionId); setQuery(''); setSelected(undefined); setStatus(''); }}>表情</button>{target === sessionId && <section aria-label="Amoji 表情选择" style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 30, width: 'min(420px, 80vw)', maxHeight: '65vh', overflow: 'auto', padding: 16, borderRadius: 12, border: '1px solid var(--dsw-alias-border-l, #8886)', background: 'var(--dsw-alias-bg-module-platform, Canvas)', color: 'inherit', boxShadow: '0 8px 32px #0002' }}>
+      <p>发送到当前会话</p>
       <button type="button" onClick={() => void manage()}>创建自己的表情</button>
       {managementUrl && <p><a aria-label="打开创建面板" href={managementUrl} target="_blank" rel="noreferrer">打开创建面板</a> · 确认后返回这里，点击“显示全部”刷新共享库。</p>}
       <form aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); void load(query); }}>
@@ -138,19 +93,19 @@ export function createComponents(rpc: DshRpc) {
     }, [sessionId]);
     return <details><summary>Amoji 历史 · {rows.length}</summary>{error && <p role="alert">{error}</p>}{rows.map(row => <div key={row.meta.messageId}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} /><span>{row.message.direction === 'human_to_ai' ? '用户' : 'AI'} · {row.host?.status ?? '工具消息'} · {row.message.presentation}</span></div>)}</details>;
   }
-  function ToolView({ sessionId, block }: SessionProps & { block?: { meta?: unknown } }) { const meta = parseMeta(block?.meta); return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <span>表情等待结果或元数据不合法</span>; }
+  function ToolView({ sessionId, block }: SessionProps & { block?: { kind?: string; meta?: unknown } }) { const meta = block?.kind === 'tool-result' ? parseMeta(block.meta) : undefined; return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <span>表情等待结果或元数据不合法</span>; }
   return { Picker, History, ToolView };
 }
 export const inject = ['slots', 'connection'];
 export function apply(ctx: ClientPort): void {
-  const views = createComponents(createRpc(ctx));
+  const rpc = createRpc(ctx); const views = createComponents(rpc);
   ctx.effect(() => {
     const disposers: Array<() => void> = [];
     const dispose = () => { for (const release of disposers.splice(0).reverse()) release(); };
     try {
-      disposers.push(ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker' }, views.Picker));
-      disposers.push(ctx.slots.register({ name: 'conversation.composer.dock', id: 'amoji-history' }, views.History));
-      disposers.push(ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView));
+      disposers.push(ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker' }, views.Picker)));
+      disposers.push(ctx.slots.inject('conversation.chat.node', () => mountUserMessages(ctx.slots, rpc)));
+      disposers.push(ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView)));
     } catch (error) { dispose(); throw error; }
     return dispose;
   }, 'amoji: client slots');

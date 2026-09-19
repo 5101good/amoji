@@ -1,13 +1,15 @@
 # Amoji for dsh
 
-可分发的 Host / Web Client 适配包，兼容基线是 deepseek-harness `d347e703908d0406b7a7ef80e3a0e594d86b2215`（`0.1.3-alpha.1`）。完整宿主尚未验收。
+Host / Web Client 适配包，当前唯一发布验证目标是 `dsh 0.1.5-rc.2`。以 npm 发布包的真实 `defineTool`、Session 持久化校验器、SlotRegistry 和公开声明作为合同，不再依赖旧 alpha 源码快照。
 
-默认 `npm test` 只运行无需 dsh 源码下载的普通回归。`npm run prepare:dsh` 显式准备固定源码（首次需要 curl/网络）。在项目根运行 `npm run test:dsh` 构建、显式准备基线并验证，再用 `npm pack ./adapters/dsh --ignore-scripts --pack-destination .cache/dsh-package` 生成包。依赖由包管理器安装；本机测试没有安装 dsh 或修改宿主配置。
+在项目根运行 `npm ci`、`npm run test:dsh`，然后运行 `mkdir -p .cache/dsh-package` 与 `npm pack ./adapters/dsh --ignore-scripts --pack-destination .cache/dsh-package`。版本与完整性由 `package-lock.json` 固定，`scripts/dsh/baseline.json` 指定目标；`prepare:dsh` 只核对本地依赖，不下载旧源码。Client 经 `window.__ModuleLoader__` 加载，React 使用宿主提供的 18.x 平台模块，不声明或安装独立 React peer。Cordis/tools/connection 是 Host 提供的 optional peer，不要求向 profile 重复安装。
 
-Host 自动连接同一 Amoji 共享服务，要求 API 2 与 `dsh-idle-submission-v1`。浏览器只调用宿主受限 RPC；不会得到核心服务密钥。会话需要持久化 flush 监听。
+Host 自动连接同一 Amoji 共享服务，要求 API 2 与 `dsh-native-delivery-v1`。旧服务不满足时会明确拒绝连接，需要在适配器断开后由用户授权更新服务。浏览器只调用宿主受限 RPC，不得到核心服务密钥。Host 通过 connection.fetch.register 注册独立 /api/amoji/* POST 端点，继承 Connection 认证，不占用内置网关的 /api interceptor。安装或替换插件后重启对应 dsh profile，依赖安装完成本身不表示运行中插件已激活。
 
-详细实现、已运行检查与真机补验步骤见项目 `docs/validation/dsh-ticket-04.md`。Client 模块不是普通 ESM：`client.js` 必须经 dsh 的 `window.__ModuleLoader__` 加载。
+在 dsh 选择工作区后，宿主会预创建真实空白 Session；无需先发文字，即可从输入区“表情”搜索、预览和发送。当前工作区及 Agent preset 使用宿主原有流程，不调用 `selectModel`，不改变全局默认模型。完全未选择工作区时，先使用宿主工作区选择器。
 
-### 手工创建（票据 07）
+用户表情展示在原生用户消息行：通过公开 Slot 包装已有 user/steering renderer，保留原组件、locale、inject 与全部 props，因此文字、附件、引用和原交互仍由宿主负责。AI 表情显示在对应顶层 direct tool 结果处。Code Dispatch / PTC 嵌套工具可能丢失 `presentationMeta`，本版本不保证其表情视图；验收使用 direct tools。
 
-在原生表情选择器点击“创建自己的表情”，再打开 Host 为当前会话生成的管理面板链接。面板提供上传、保存恢复草稿、图文预览和明确确认；确认后返回 dsh，点击“显示全部”刷新共享库，再选择发送。此入口通过人类 `amoji/manage` RPC 验证会话，不新增模型管理工具，也不发起模型调用。API 2 保持不变，数据库 2 和 `create-drafts-v1` 能力由同一共享核心提供；构建产物包含共用 web 面板。dsh 真宿主验收仍待集中执行。
+Session 中只使用原生 `user/message.source.rpcId=amoji:<message_id>` 与 `tool/result.meta`；Amoji 自有消息、accepted 与展示回执只由共享服务写入 SQLite。accepted 表示 prompt 接纳并通过 flush，不表示已观察到用户消息或模型已收到；观察到对应原生消息才显示 observed。
+
+“创建自己的表情”暂时打开 Host 为当前会话生成的管理面板，创建确认后返回选择器刷新。完整内嵌管理属于 D4，不包含在本阶段。实现边界、检查和真机补验见项目 `docs/validation/dsh-native-2026-09-19.md`。

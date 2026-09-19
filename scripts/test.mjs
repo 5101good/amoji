@@ -2,8 +2,8 @@ import { readdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 
-// The default regression suite needs only npm dependencies. Pinned dsh source
-// downloads and the dsh-* integration checks belong exclusively to test:dsh.
+// The dsh integration suite requires a freshly built plugin and pinned public
+// package contracts; those checks belong exclusively to test:dsh.
 const root = resolve(import.meta.dirname, '..');
 const files = (await readdir(resolve(root, 'tests'))).filter(name => name.endsWith('.test.ts') && !name.startsWith('dsh-')).sort().map(name => `tests/${name}`);
 if (process.argv.includes('--list')) console.log(JSON.stringify(files));

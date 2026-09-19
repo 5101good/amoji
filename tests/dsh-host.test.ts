@@ -36,7 +36,7 @@ async function setup(t: TestContext) {
       inspect: async id => { const session = sessions.get(id); if (!session) throw new Error('session not found'); return { events: session.snapshotEvents() }; },
       prompt: async request => { prompts.push(request); return { accepted: true }; },
     },
-    connection: { rpc: { intercept: () => async () => {} } },
+    connection: { fetch: { register: () => async () => {} } },
     effect(factory) { disposers.push(factory()); },
   };
   installDsh(ctx, runtime, 'fixture-host', defineTool);
@@ -46,7 +46,7 @@ async function setup(t: TestContext) {
   return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call, disposers };
 }
 
-test('固定源码 defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
+test('0.1.5-rc.2 defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
   const f = await setup(t);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, { callId: 'x', signal: signal() }), /DSH_CONTEXT_UNAVAILABLE/);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, f.exec(new Session(f.a.id))), /DSH_CONTEXT_UNAVAILABLE/);
@@ -67,7 +67,7 @@ test('固定源码 defineTool 的真实入口：身份、回合、参数拒绝�
   assert.ok(visual.primary.startsWith('data:image/'));
   await f.adapter.rpc('amoji/display', { sessionId: f.a.id, messageId: emitted.meta.messageId, hash: emitted.meta.visualHash, state: 'failed' }, signal());
   assert.equal((await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[])[0]!.message.presentation, 'fallback');
-  assert.equal(f.a.events.at(-1)!.type, 'amoji/display');
+  assert.equal(f.a.events.some(event => event.type.startsWith('amoji/')), false, '不得污染原生 Session 冷恢复');
 });
 
 test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持久记录恢复', async t => {
@@ -75,6 +75,9 @@ test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持�
   const ref = { asset_id: expression.asset_id, revision_id: expression.revision_id }; const request = { sessionId: f.a.id, ref, requestId: 'user-choice-1' };
   const first = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry;
   assert.equal(first.host!.status, 'accepted'); assert.equal(first.message.delivery, 'pending');
+  assert.equal(f.a.events.some(event => event.type.startsWith('amoji/')), false);
+  const recovered = new DshAdapter(f.ctx, new ConnectedRuntime(f.client), 'fixture-host');
+  assert.equal(((await recovered.rpc('amoji/history', { sessionId: f.a.id }, signal())) as HistoryEntry[])[0]!.host!.status, 'accepted');
   const again = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry; assert.equal(first.meta.messageId, again.meta.messageId);
   assert.equal(f.prompts[0]!.requestId, `amoji:${first.meta.messageId}`); assert.equal(f.prompts[0]!.requestId, f.prompts[1]!.requestId);
   assert.ok(f.prompts.every(p => p.sessionId === f.a.id && p.content.every(c => c.type === 'text'))); assert.doesNotMatch(JSON.stringify(f.prompts), /data:image|base64|visual/);
@@ -119,7 +122,9 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
   const cleanups: Array<() => void | Promise<void>> = [];
   let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>) | undefined;
   f.ctx.effect = factory => { cleanups.push(factory()); };
-  f.ctx.connection.rpc.intercept = (channel, match, callback) => { assert.equal(channel, '/api'); assert.equal(match('amoji/submit'), true); assert.equal(match('amoji/search'), true); assert.equal(match('arbitrary/write'), false); handler = callback; return async () => { handler = undefined; }; };
+  const routes = new Map<string, import('@deepseek-ai/dsh-client-connection').ConnectionFetchRoute>();
+  f.ctx.connection.fetch.register = route => { routes.set(route.path, route); return async () => { routes.delete(route.path); }; };
+  handler = async (endpoint, payload, signal) => (await (await routes.get(`/api/${endpoint}`)!.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'test-rpc', method: endpoint, payload }), signal }))).json()).result;
   const entry = new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href;
   const plugin = await import(entry) as { apply(ctx: HostPort): Promise<void>; inject: string[] };
   const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
@@ -139,7 +144,9 @@ test('打包dsh Host提供会话校验的创建面板入口，不增加模型工
   const cleanups: Array<() => void | Promise<void>> = [];
   let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<any>) | undefined;
   f.ctx.effect = factory => { cleanups.push(factory()); };
-  f.ctx.connection.rpc.intercept = (_channel, match, callback) => { assert.equal(match('amoji/manage'), true); handler = callback; return async () => {}; };
+  const routes = new Map<string, import('@deepseek-ai/dsh-client-connection').ConnectionFetchRoute>();
+  f.ctx.connection.fetch.register = route => { routes.set(route.path, route); return async () => { routes.delete(route.path); }; };
+  handler = async (endpoint, payload, signal) => (await (await routes.get(`/api/${endpoint}`)!.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'test-rpc', method: endpoint, payload }), signal }))).json()).result;
   const plugin = await import(new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href);
   const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
   let origin: string | undefined;
@@ -259,4 +266,71 @@ test('共享 submit 生命周期：连接断开或 adapter 卸载中止工作，
     assert.equal(f.a.events.some(event => event.type === 'amoji/accepted'), false, '迟到成功不能越过生命周期终止写 accepted');
     await assert.rejects(f.adapter.rpc('amoji/submit', { ...request, requestId: 'after-lifecycle' }, signal()));
   });
+});
+
+test('真实 Session 零文字首发表情，经 flush 文件重建后 native rpcId 与共享消息关联', async t => {
+  const { Session: NativeSession } = await import('@deepseek-ai/dsh-session');
+  const { SessionId, SessionLogOffset } = await import('@deepseek-ai/dsh-session/types');
+  const { validateStoredEvents } = await import('@deepseek-ai/dsh-session-persistence');
+  const { writeFile } = await import('node:fs/promises');
+  const f = await setup(t); const id = SessionId('native-first-amoji'); let session = NativeSession.create(id);
+  const file = join(f.directory, 'native-session.json');
+  f.ctx.sessions.get = key => key === id ? session : undefined;
+  f.ctx.sessions.flush = async () => { await writeFile(file, JSON.stringify({ header: session.header, events: session.snapshotEvents() })); return true; };
+  f.ctx.sessionController.resolveAgent = async () => ({ agent: { id, session } });
+  f.ctx.sessionController.inspect = async () => ({ events: session.snapshotEvents() });
+  f.ctx.sessionController.prompt = async request => {
+    session.append('user/message', { role: 'user', id: 'native-user-message' as never, content: [...request.content], source: { kind: 'user', rpcId: request.requestId as never } }, { surfaceOp: 'append' });
+    return { accepted: true };
+  };
+  assert.equal(session.snapshotEvents().length, 0);
+  const e = (await f.client.list())[0]!;
+  const result = await f.adapter.rpc('amoji/submit', { sessionId: id, requestId: 'first-expression', ref: { asset_id: e.asset_id, revision_id: e.revision_id } }, signal()) as HistoryEntry;
+  assert.equal(result.host!.status, 'observed');
+  assert.equal(session.snapshotEvents().some(e => e.type.startsWith('amoji/')), false);
+  const stored = JSON.parse(await readFile(file, 'utf8'));
+  session = NativeSession.fromRestore(id, validateStoredEvents(stored.header, stored.events), stored.header, SessionLogOffset(0), 'shared-frozen');
+  const fresh = new DshAdapter(f.ctx, f.runtime, 'fixture-host');
+  const rows = await fresh.rpc('amoji/history', { sessionId: id }, signal()) as HistoryEntry[];
+  assert.equal(rows[0]!.host!.requestId, `amoji:${result.message.message_id}`);
+  assert.equal(rows[0]!.host!.hostMessageId, 'native-user-message');
+  assert.equal(rows[0]!.message.dsh_submission, 'accepted');
+});
+
+test('accepted 必须在 prompt 后 flush 成功，且共享回执拒绝跨会话/跨宿主/AI方向', async t => {
+  const f = await setup(t); const e = (await f.client.list())[0]!;
+  let flushes = 0; f.ctx.sessions.flush = async () => ++flushes === 1;
+  await assert.rejects(f.adapter.rpc('amoji/submit', { sessionId: f.a.id, requestId: 'flush-failed', ref: { asset_id: e.asset_id, revision_id: e.revision_id } }, signal()), /DSH_PERSISTENCE_UNAVAILABLE/);
+  assert.equal(f.prompts.length, 1);
+  const [row] = await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[];
+  assert.equal(row!.host!.status, 'prepared'); assert.equal(row!.message.dsh_submission, undefined);
+  const other = await f.client.bind({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.b.id });
+  await assert.rejects(f.client.dshAccepted(other, row!.message.message_id), /BINDING_MISMATCH/);
+  const foreign = await f.client.bind({ host: 'codex', hostInstanceId: 'fixture-host', sessionId: f.a.id, turnId: 'turn' });
+  await assert.rejects(f.client.dshAccepted(foreign, row!.message.message_id), /BINDING_MISMATCH/);
+  const found = JSON.parse((await f.call('amoji_search', { query: e.name }, f.exec(f.a)) as { text: string }).text);
+  const emitted = await f.call('amoji_emit', { selection_token: found.candidates[0].selection_token }, f.exec(f.a)) as { meta: { messageId: string } };
+  const own = await f.client.bind({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.a.id });
+  await assert.rejects(f.client.dshAccepted(own, emitted.meta.messageId), /BINDING_MISMATCH/);
+});
+
+test('真实 Connection 允许网关 /api interceptor 与 Amoji exact routes 共存、派发与卸载', async t => {
+  const { Context } = await import('@deepseek-ai/cordis');
+  const { HostConnectionService } = await import('@deepseek-ai/dsh-client-connection');
+  const f = await setup(t); const context = new Context();
+  const connection = new HostConnectionService(context, [], {} as never);
+  const gateway = connection.rpc.intercept('/api', endpoint => endpoint === 'session/native', async () => ({ ok: true, value: 'native gateway' }));
+  t.after(gateway);
+  f.ctx.connection = connection as unknown as HostPort['connection'];
+  const cleanup: Array<() => void | Promise<void>> = []; f.ctx.effect = factory => { cleanup.push(factory()); };
+  installDsh(f.ctx, f.runtime, 'fixture-host', defineTool);
+  const handler = connection.createSharedFetchHandler('/api');
+  const call = (endpoint: string, payload: unknown, method = endpoint) => handler.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture-rpc', method, payload }) }));
+  assert.equal((await (await call('session/native', {})).json()).result.value, 'native gateway');
+  const catalog = await (await call('amoji/catalog', { sessionId: f.a.id })).json();
+  assert.equal(catalog.type, 'server-response'); assert.equal(catalog.rpcId, 'fixture-rpc'); assert.equal(catalog.result.value.length, 3);
+  assert.equal((await call('amoji/catalog', {}, 'session/native')).status, 400);
+  for (const dispose of cleanup.reverse()) await dispose();
+  assert.equal((await call('amoji/catalog', { sessionId: f.a.id })).status, 404);
+  assert.equal((await (await call('session/native', {})).json()).result.value, 'native gateway');
 });

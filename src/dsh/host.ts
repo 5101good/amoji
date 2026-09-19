@@ -1,3 +1,5 @@
+import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection';
+import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { PanelServer } from '../panel-server.js';
 import { modelProjection } from '../projection.js';
 import { searchExpressions } from '../search.js';
@@ -43,8 +45,8 @@ export class DshAdapter {
   tool(name: 'amoji_search' | 'amoji_resolve' | 'amoji_emit'): ToolOptions {
     return { name, description: name === 'amoji_search' ? '按固定文字语义检索 Amoji。每回合最多发送一个。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。' : '将已选精确版本展示给当前会话的人类；模型只接收固定文字语义。',
       parameters: name === 'amoji_search' ? { query: { type: 'string', required: true }, limit: { type: 'integer' } } : name === 'amoji_resolve' ? { asset_id: { type: 'string', required: true }, revision_id: { type: 'string', required: true } } : { selection_token: { type: 'string', required: true } },
-      output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_emit' ? { presentationMeta: (_args: unknown, value: unknown) => record(value).meta } : {}) },
-      execute: async (raw, exec) => {
+      output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_emit' ? { presentationMeta: (_args: unknown, value: unknown) => record(value).meta as JsonValue } : {}) },
+      execute: async (raw, exec): Promise<JsonValue> => {
         const frozen = this.capture(exec);
         const keys = name === 'amoji_search' ? ['query', 'limit'] : name === 'amoji_resolve' ? ['asset_id', 'revision_id'] : ['selection_token'];
         const args = object(raw, keys, name === 'amoji_search' ? ['query'] : keys);
@@ -58,9 +60,6 @@ export class DshAdapter {
         }
         frozen.check(); const message = await this.runtime.emit(frozen.context, nonempty(args.selection_token)); frozen.check();
         const meta = visualMeta(message);
-        // Non-surface durable association; no media enters model history.
-        exec.agent!.session.append('amoji/tool', { messageId: message.message_id, callId: exec.callId, rootCallId: exec.rootCallId ?? exec.callId, turnId: frozen.context.turnId! });
-        await this.flush(exec.agent!.session); frozen.check();
         return { text: JSON.stringify({ message_id: message.message_id, expression: JSON.parse(modelProjection(message.revision)) }), meta };
       } };
   }
@@ -76,11 +75,10 @@ export class DshAdapter {
   }
   private async rows(sessionId: string, events: readonly DshEvent[]): Promise<HistoryEntry[]> {
     return (await this.runtime.messages(this.context(sessionId))).map(message => {
-      const prepared = events.find(e => e.type === 'amoji/submission' && record(e.data).messageId === message.message_id);
-      if (!prepared) return { message, meta: visualMeta(message), host: null };
-      const requestId = nonempty(record(prepared.data).requestId);
-      const user = events.find(e => e.type === 'user/message' && record(record(e.data).source).rpcId === requestId);
-      const accepted = events.some(e => e.type === 'amoji/accepted' && record(e.data).requestId === requestId);
+      if (message.direction !== 'human_to_ai') return { message, meta: visualMeta(message), host: null };
+      const requestId = `amoji:${message.message_id}`;
+      const user = events.find(e => e.type === 'user/message' && record(record(e.data).source).kind === 'user' && record(record(e.data).source).rpcId === requestId);
+      const accepted = message.dsh_submission === 'accepted';
       const turn = user ? [...events].reverse().find(e => e.type === 'turn/start' && e.seq <= user.seq) : undefined;
       return { message, meta: visualMeta(message), host: { status: user ? 'observed' : accepted ? 'accepted' : 'prepared', requestId, ...(user ? { hostMessageId: nonempty(record(user.data).id), seq: user.seq } : {}), ...(turn ? { turnStartSeq: turn.seq } : {}) } };
     });
@@ -120,10 +118,9 @@ export class DshAdapter {
       const messageId = nonempty(args.messageId); const message = (await this.runtime.messages(context)).find(m => m.message_id === messageId);
       if (!message || ![message.revision.visual.primary.sha256, message.revision.visual.poster?.sha256].includes(nonempty(args.hash))) fail('BINDING_MISMATCH', '显示回执不匹配消息素材');
       if (!['rendered', 'fallback', 'failed'].includes(String(args.state))) fail('INVALID_ARGUMENT', '显示状态不合法');
-      const session = await this.session(sessionId, signal); signal.throwIfAborted();
-      session.append('amoji/display', { messageId, hash: args.hash, state: args.state });
+      signal.throwIfAborted();
       await this.runtime.acknowledge(context, messageId, args.state === 'rendered' ? 'rendered' : 'fallback');
-      await this.flush(session); return null;
+      return null;
     }
     const requestId = nonempty(args.requestId); const ref = refOf(args.ref); const key = JSON.stringify([sessionId, requestId]);
     signal.throwIfAborted();
@@ -153,17 +150,15 @@ export class DshAdapter {
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
     const message = await this.runtime.receive(context, ref, requestId); signal.throwIfAborted();
     const hostRequestId = `amoji:${message.message_id}`;
-    if (!session.snapshotEvents().some(e => e.type === 'amoji/submission' && record(e.data).requestId === hostRequestId)) {
-      session.append('amoji/submission', { requestId: hostRequestId, messageId: message.message_id, ref });
-    }
     await this.flush(session);
     signal.throwIfAborted();
     const result = await this.ctx.sessionController.prompt({ sessionId, requestId: hostRequestId, mode: 'queue', content: [{ type: 'text', text: modelProjection(message.revision) }] }, signal);
     signal.throwIfAborted();
     if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
-    if (!session.snapshotEvents().some(e => e.type === 'amoji/accepted' && record(e.data).requestId === hostRequestId)) session.append('amoji/accepted', { requestId: hostRequestId, messageId: message.message_id });
     await this.flush(session);
     signal.throwIfAborted();
+    if (!this.runtime.dshAccepted) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持 dsh 投递回执');
+    await this.runtime.dshAccepted(context, message.message_id); signal.throwIfAborted();
     const entry = (await this.rows(sessionId, session.snapshotEvents())).find(r => r.message.message_id === message.message_id)!;
     signal.throwIfAborted();
     return entry;
@@ -172,9 +167,26 @@ export class DshAdapter {
 export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown): DshAdapter {
   const adapter = new DshAdapter(ctx, runtime, hostInstanceId);
   for (const name of ['amoji_search', 'amoji_resolve', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
-  ctx.effect(() => ctx.connection.rpc.intercept('/api', endpoint => /^amoji\/(catalog|search|history|visual|submit|display|manage)$/.test(endpoint), async (endpoint, payload, signal) => {
-    try { return { ok: true, value: await adapter.rpc(endpoint, payload, signal) }; }
-    catch (error) { return { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }
-  }), 'amoji: bounded human RPC');
+  ctx.effect(() => {
+    const releases: Array<() => Promise<void>> = [];
+    const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
+    try {
+      for (const method of ['catalog', 'search', 'history', 'visual', 'submit', 'display', 'manage']) {
+        const endpoint = `amoji/${method}`;
+        releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
+          if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });
+          let body: unknown; try { body = await request.json(); } catch { return new Response('body is not JSON', { status: 400 }); }
+          const parsed = clientRequestSchema.safeParse(body);
+          if (!parsed.success || parsed.data.method !== endpoint) return new Response('invalid RPC envelope', { status: 400 });
+          const message = parsed.data;
+          let result: import('./contracts.js').RpcResult<unknown>;
+          try { result = { ok: true, value: await adapter.rpc(endpoint, message.payload, request.signal) }; }
+          catch (error) { result = { ok: false, error: { code: 'amoji/failed', message: error instanceof Error ? error.message : 'Amoji 操作失败', details: {} } }; }
+          return Response.json({ type: 'server-response', rpcId: message.rpcId, result });
+        } }));
+      }
+    } catch (error) { void dispose(); throw error; }
+    return dispose;
+  }, 'amoji: bounded human RPC routes');
   return adapter;
 }

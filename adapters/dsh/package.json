@@ -7,6 +7,7 @@
     "client.js",
     "runtime",
     "assets",
+    "web",
     "patch.yml",
     "BUILD.json",
     "README.md",

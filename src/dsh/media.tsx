@@ -8,12 +8,14 @@ export function errorText(error: unknown): string { return error && typeof error
 function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
 function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.asset_id, revision_id: ref.revision_id }; }
 export function createRpc(ctx: ClientPort): DshRpc {
-  const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
+  const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal, operation = method): Promise<T> => {
     signal?.throwIfAborted();
     let result;
     try { result = await ctx.connection.rpc.call('/api', `amoji/${method}`, payload, signal); }
     catch {
       signal?.throwIfAborted();
+      if (operation === 'saveDraft' || operation === 'confirmDraft') throw rpcError({code:'DRAFT_OUTCOME_UNKNOWN',message:'草稿写入结果尚待核对。原填写和上传已保留，请重新连接后核对当前状态，不要重复保存或确认。'});
+      if (operation === 'previewDraft') throw rpcError({code:'DRAFT_PREVIEW_UNAVAILABLE',message:'预览连接中断，请重新连接后重试预览；原草稿仍保留。'});
       throw rpcError({ code: method === 'submit' ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: method === 'submit' ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
     }
     if (!result.ok) throw rpcError(result.error);
@@ -30,7 +32,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
   };
   return {
     reconnect: (sessionId, signal) => call('reconnect', { sessionId }, signal),
-    management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal),
+    management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal, method),
     importPack: async (sessionId, file) => {
       try {
         const { result } = await (await binary(sessionId, 'import', file)).json();

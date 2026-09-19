@@ -29,15 +29,19 @@ function deliveryText(row: HistoryEntry): string {
   return '尚未提交到宿主，可保留原选择重试。';
 }
 export function createComponents(rpc: DshRpc) {
+  // Keep unresolved identities beyond a keyed PickerSession's lifetime. A UI abort
+  // cannot tell us whether the host already accepted the original submission.
+  const pendingSelections = new Map<string, {selected: Expression; requestId: string; sent?: HistoryEntry}>();
   function Picker({ sessionId }: SessionProps) {
     const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
     return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} onManage={()=>{setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
   }
   function PickerSession({ sessionId, onManage, refresh }: SessionProps & {onManage:()=>void;refresh:number}) {
+    const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
-    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression>(); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
+    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
     const selectionEpoch = useRef(0);
-    const [unavailable, setUnavailable] = useState(false); const [uncertain, setUncertain] = useState(false); const [sent, setSent] = useState<HistoryEntry>();
+    const [unavailable, setUnavailable] = useState(!!pending); const [uncertain, setUncertain] = useState(!!pending); const [sent, setSent] = useState<HistoryEntry | undefined>(pending?.sent);
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
@@ -68,11 +72,20 @@ export function createComponents(rpc: DshRpc) {
       if (!target || !selected || busy || unavailable) return;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
       const current = () => !signal.aborted && owner.generation === generation && owner.sessionId === frozen;
+      const identity = { selected, requestId, sent };
+      pendingSelections.set(frozen, identity);
       setBusy(true); setStatus('');
       try {
         const result = await rpc.submit(frozen, { asset_id: selected.asset_id, revision_id: selected.revision_id }, requestId, signal);
+        if (pendingSelections.get(frozen) === identity) {
+          if (result.host?.status === 'unknown') identity.sent = result;
+          else pendingSelections.delete(frozen);
+        }
         if (current()) { setSent(result); setUncertain(result.host?.status === 'unknown'); setStatus(deliveryText(result)); }
-      } catch (e) { if (current()) { setStatus(errorText(e)); if (['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '')) { setUncertain(true); setUnavailable(true); setCatalog([]); searchTask.current.generation++; searchTask.current.abort.abort(); setSearching(false); } } }
+      } catch (e) {
+        const unknown = signal.aborted || ['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '');
+        if (!unknown && pendingSelections.get(frozen) === identity) pendingSelections.delete(frozen);
+        if (current()) { setStatus(errorText(e)); if (['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '')) { setUncertain(true); setUnavailable(true); setCatalog([]); searchTask.current.generation++; searchTask.current.abort.abort(); setSearching(false); } } }
       finally { if (current()) setBusy(false); }
     };
     const check = async () => {
@@ -82,7 +95,10 @@ export function createComponents(rpc: DshRpc) {
         const rows = await rpc.history(frozen, owner.abort.signal);
         if (owner.abort.signal.aborted || owner.generation !== generation || selection !== selectionEpoch.current) return;
         const row = rows.find(row => row.meta.messageId === sent.meta.messageId && row.host?.requestId === sent.host?.requestId);
-        if (row) { setSent(row); setUncertain(row.host?.status === 'unknown'); setStatus(deliveryText(row)); }
+        if (row) {
+          const pending = pendingSelections.get(frozen);
+          if (pending?.requestId === requestId) { if (row.host?.status === 'unknown') pending.sent = row; else pendingSelections.delete(frozen); }
+          setSent(row); setUncertain(row.host?.status === 'unknown'); setStatus(deliveryText(row)); }
         else setStatus('原消息暂时无法核对，请保留原选择，不要另发一次。');
       } catch (e) { if (!owner.abort.signal.aborted && owner.generation === generation && selection === selectionEpoch.current) setStatus(errorText(e)); }
     };

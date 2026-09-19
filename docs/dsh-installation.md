@@ -50,4 +50,4 @@ accepted仅表示宿主接纳并flush；observed表示对应用户消息已观�
 
 代码和技术文档MIT；24项基础视觉、语义和提示CC0-1.0。来源、生成提示及非保证说明在assets/base-library/provenance.json和README。用户个人库默认私有，不会随源码或包导出而公开。`LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/`随当前dsh包提供；Sharp/libvips实际macOS依赖明确记录各自许可，并未把原生动态库称作MIT。
 
-源码、协议、基础包和dsh tgz仅为本地分发候选；无remote/push/外部项目创建。Codex和Claude Code保留现有实现，但新增适配与真机验收暂停。最终候选安装、六分钟空闲、多会话、冷恢复和30场景模型质量/成本验收尚需root补证。
+源码、协议、基础包和dsh tgz仅为本地分发候选；无remote/push/外部项目创建。Codex和Claude Code保留现有实现，但新增适配与真机验收暂停。最终bbcd0cc候选已在隔离QA及日常web实际安装；六分钟空闲、核心重连、卸载重装、双会话版本隔离、30组模型对照及定点修补复验均已有分层证据。剩余真实浏览器及其他未观察路径仍见验收表，不把公共合同结果冒充UI通过。

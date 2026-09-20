@@ -19,17 +19,18 @@ test('Picker 连接故障清除失效候选并可恢复；核对原消息把 acc
  let disconnected=false;let submissions=0;let history:HistoryEntry[]|Promise<HistoryEntry[]>=[];
  const rpc={catalog:async()=>{if(disconnected)throw Object.assign(new Error('共享服务连接已断开'),{code:'CONNECTION_CLOSED'});return [e];},visual:async()=>({expression:e,primary:'data:image/png;base64,AA',poster:null}),submit:async()=>{submissions++;return row;},history:async()=>history,reconnect:async()=>{disconnected=false;}} as unknown as DshRpc;
  const Picker=createComponents(rpc).Picker;
- const click=async(label:string)=>{const el=[...dom.window.document.querySelectorAll('button')].find(e=>e.textContent===label);assert.ok(el,label);await act(async()=>{el.click();});};
+ const click=async(label:string)=>{const el=[...dom.window.document.querySelectorAll('button')].find(e=>(e.getAttribute('aria-label')??e.textContent)===label);assert.ok(el,label);await act(async()=>{el.click();});};
  await act(()=>root.render(React.createElement(Picker,{sessionId:'a'})));await click('表情');await click(e.name);await click('发送所选表情');
- assert.match(dom.window.document.body.textContent!,/尚未确认/);
+ assert.ok(!dom.window.document.querySelector('[aria-label="Amoji 表情选择"]'));
+ await click('表情');assert.match(dom.window.document.body.textContent!,/尚未确认/);
  history=[{...row,host:{...row.host!,status:'observed',seq:2,hostMessageId:'native-id'}}];
  await click('核对投递状态');assert.match(dom.window.document.body.textContent!,/已观察到会话用户消息/);assert.equal(submissions,1);
  let finish!: (rows:HistoryEntry[])=>void;history=new Promise(r=>{finish=r;});
  await click('核对投递状态');await click(e.name);await act(()=>finish([{...row,host:{...row.host!,status:'observed'}}]));
- assert.doesNotMatch(dom.window.document.querySelector('[role=status]')!.textContent!,/已观察到/, '迟到核对不能覆盖新选择的状态');
- disconnected=true;await click('显示全部');assert.equal(dom.window.document.querySelectorAll('.tile').length,0);
+ assert.doesNotMatch(dom.window.document.querySelector('[role=status]')?.textContent??'',/已观察到/, '迟到核对不能覆盖新选择的状态');
+ disconnected=true;await click('搜索');assert.equal(dom.window.document.querySelectorAll('.amoji-expression-tile').length,0);
  const send=[...dom.window.document.querySelectorAll('button')].find(e=>e.textContent==='发送所选表情')!;assert.equal(send.disabled,true);
- await click('重新连接并核对');assert.equal(dom.window.document.querySelectorAll('.tile').length,1);assert.equal(submissions,1);
+ await click('重新连接并核对');assert.equal(dom.window.document.querySelectorAll('.amoji-expression-tile').length,1);assert.equal(submissions,1);
 });
 
 test('真实 Client RPC 将传输失败与主动取消分开，提交丢失响应明确未知', async()=>{
@@ -56,7 +57,7 @@ test('实际 createRpc 提交丢响应后冻结改选，恢复仍核对原 ref/r
   if(endpoint==='amoji/visual')return {ok:true,value:{expression:payload.ref.asset_id===e.asset_id?e:other,primary:'data:image/png;base64,AA',poster:null}};
   return {ok:true,value:[]};
  }}}} as any);
- const Picker=createComponents(rpc).Picker;const button=(label:string)=>[...dom.window.document.querySelectorAll('button')].find(el=>el.textContent===label)!;
+ const Picker=createComponents(rpc).Picker;const button=(label:string)=>[...dom.window.document.querySelectorAll('button')].find(el=>(el.getAttribute('aria-label')??el.textContent)===label)!;
  const click=async(label:string)=>{assert.ok(button(label),label);await act(async()=>button(label).click());};
  await act(()=>root.render(React.createElement(Picker,{sessionId:'original-session'})));await click('表情');await click(e.name);await click('发送所选表情');
  assert.match(dom.window.document.body.textContent!,/结果尚待核对/);assert.equal(button('发送所选表情').disabled,true);

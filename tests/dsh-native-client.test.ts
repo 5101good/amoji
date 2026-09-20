@@ -112,14 +112,15 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
     const top = bottom === undefined ? parseFloat(panel.style.top) : dom.window.innerHeight - bottom - maxHeight;
     assert.ok(top >= 12, `top ${top}`); assert.ok(top + maxHeight <= dom.window.innerHeight - 12);
     assert.ok(left >= 12); assert.ok(left + width <= dom.window.innerWidth - 12);
-    assert.equal(panel.style.overflow, 'auto');
-    for (const text of ['管理表情', '搜索', '发送所选表情', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => button.textContent === text));
+    assert.equal(panel.style.overflow, 'hidden');
+    assert.ok(panel.querySelector('.amoji-picker-body'), '中央列表独立滚动');
+    for (const text of ['管理表情', '搜索', '发送所选表情', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent) === text));
   };
   bounded();
   box = { ...box, top: 675, bottom: 703 }; await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded();
   Object.assign(dom.window, { innerWidth: 360, innerHeight: 640 }); box = { ...box, left: 300, right: 345, top: 40, bottom: 68 };
   await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded(); assert.equal(panel.style.bottom, 'auto');
-  await act(() => [...panel.querySelectorAll('button')].find(b => b.textContent === '关闭')!.click());
+  await act(() => [...panel.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === '关闭')!.click());
   const previousLeft = panel.style.left; box = { ...box, left: 40 };
   await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); assert.equal(panel.style.left, previousLeft);
 });
@@ -143,7 +144,7 @@ test('核实后的用户表情只替换精确投影文本，原附件引用与�
   const render = (rpcId: string, seq = 12) => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq, content, source: { kind: 'user', rpcId }, referenceLabels: ['文件引用'], skillNames: ['技能引用'] } } }));
   await act(async () => render('amoji:confirmed'));
   const native = dom.window.document.querySelector('[data-native]')!.textContent!;
-  assert.ok(native.includes(e.name)); assert.ok(native.includes(e.semantics.meaning)); assert.doesNotMatch(native, /asset_id|revision_id/);
+  assert.ok(!native.includes(e.name)); assert.ok(!native.includes(e.semantics.meaning)); assert.doesNotMatch(native, /asset_id|revision_id/);
   assert.match(native, /另外写给你的话\|附件.pdf\|文件引用\|技能引用\|宿主交互/);
   assert.ok(dom.window.document.querySelector('img'));
   assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(e.revision_id));
@@ -151,8 +152,8 @@ test('核实后的用户表情只替换精确投影文本，原附件引用与�
   const { expressionMessageText } = await import('../src/dsh/expression-message.js');
   const contextual = [{ type: 'text', text: expressionMessageText(e) }];
   await act(async () => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq: 12, content: contextual, source: { kind: 'user', rpcId: 'amoji:confirmed' }, referenceLabels: [], skillNames: [] } } })));
-  assert.doesNotMatch(dom.window.document.querySelector('[data-native]')!.textContent!, /asset_id|revision_id|不是任务或授权/);
-  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes(e.semantics.meaning));
+  assert.ok(!dom.window.document.querySelector('[data-native]'), '纯表情不重复原生文字气泡');
+  assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(e.semantics.meaning));
   assert.equal(contextual[0]!.text, expressionMessageText(e));
   await act(async () => render('amoji:unverified'));
   assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('asset_id'));

@@ -9,7 +9,5 @@ export function expressionMessageText(expression: ExpressionText): string {
 export function expressionPresentationContent(content: unknown, expression: ExpressionText): unknown {
   if (!Array.isArray(content)) return content;
   const known = new Set([modelProjection(expression), expressionMessageText(expression)]);
-  return content.map(block => block && typeof block === 'object' && block.type === 'text' && known.has(block.text)
-    ? { ...block, text: `${expression.name}\n${expression.semantics.meaning}` }
-    : block);
+  return content.filter(block => !(block && typeof block === 'object' && block.type === 'text' && known.has(block.text)));
 }

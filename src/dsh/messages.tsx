@@ -3,7 +3,7 @@ import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ClientPort } from './client.js';
 import type { DshRpc, HistoryEntry } from './contracts.js';
 import { expressionPresentationContent } from './expression-message.js';
-import { modelProjection } from '../projection.js';
+import { Styles } from './ui.js';
 import { AmojiImage, errorText } from './media.js';
 
 interface UserProps { sessionId: string; node: { data: { seq?: number; content?: unknown; source?: { kind?: string; rpcId?: string } } } }
@@ -21,10 +21,16 @@ function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: 
     return () => abort.abort();
   }, [rpc, sessionId, messageId, seq]);
   const visible = row ? { ...props, node: { ...props.node, data: { ...props.node.data, content: expressionPresentationContent(props.node.data.content, row.message.revision) } } } : props;
-  return <><Original {...visible} />{row ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-    <AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} />
-    <details><summary>固定语义与版本详情</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(JSON.parse(modelProjection(row.message.revision)), null, 2)}</pre></details>
-  </div> : error ? <small role="alert">{error}</small> : <span>表情加载中…</span>}</>;
+  if (!row) return error ? <><Original {...props}/><small role="alert">{error}</small></> : <div className="amoji amoji-message amoji-message-human"><Styles/><span className="muted" role="status">正在加载表情…</span></div>;
+  const content = visible.node.data.content;
+  const hasOtherContent = !Array.isArray(content) || content.length > 0;
+  return <>{hasOtherContent && <Original {...visible}/>}
+    <div className="amoji amoji-message amoji-message-human"><Styles/>
+      <AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta}/>
+      <details className="amoji-message-detail"><summary>表情含义</summary><strong>{row.message.revision.name}</strong><p>{row.message.revision.semantics.meaning}</p><small>固定版本 {row.meta.ref.revision_id}</small></details>
+    </div>
+  </>;
+
 }
 
 /** Public entry inspection + shadow priority; never copy the host's message UI. */

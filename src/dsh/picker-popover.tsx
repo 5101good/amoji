@@ -1,8 +1,9 @@
 import React, { useLayoutEffect, useRef } from 'react';
 
 /** Native top-layer popover keeps the composer's theme without ancestor clipping. */
-export function PickerPopover({ anchor, children }: { anchor: React.RefObject<HTMLButtonElement | null>; children: React.ReactNode }) {
+export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.RefObject<HTMLButtonElement | null>; onDismiss: (restoreFocus?: boolean) => void; children: React.ReactNode }) {
   const panel = useRef<HTMLElement>(null);
+  const dismiss = useRef(onDismiss); dismiss.current = onDismiss;
   useLayoutEffect(() => {
     const element = panel.current; const button = anchor.current;
     if (!element || !button) return;
@@ -18,10 +19,10 @@ export function PickerPopover({ anchor, children }: { anchor: React.RefObject<HT
       const anchorBottom = Math.max(top, Math.min(bottom, rect.bottom));
       const above = Math.max(0, anchorTop - top - gap); const below = Math.max(0, bottom - anchorBottom - gap);
       const upwards = above >= below;
-      const panelWidth = Math.max(0, Math.min(420, width - 2 * margin));
+      const panelWidth = Math.max(0, Math.min(432, width - 2 * margin));
       element.style.width = `${panelWidth}px`;
       element.style.left = `${Math.max(leftEdge + margin, Math.min(rect.left, leftEdge + width - margin - panelWidth))}px`;
-      element.style.maxHeight = `${Math.min(520, upwards ? above : below)}px`;
+      element.style.maxHeight = `${Math.min(560, upwards ? above : below)}px`;
       element.style.top = upwards ? 'auto' : `${anchorBottom + gap}px`;
       element.style.bottom = upwards ? `${view.innerHeight - anchorTop + gap}px` : 'auto';
     };
@@ -29,14 +30,30 @@ export function PickerPopover({ anchor, children }: { anchor: React.RefObject<HT
     // The current dsh Web browser exposes this standard API. Fixed positioning
     // remains usable in DOM fixtures/older browsers without the top-layer API.
     element.showPopover?.();
+    element.querySelector<HTMLButtonElement>('[aria-label="关闭"]')?.focus({ preventScroll: true });
+    const outside = (event: Event) => {
+      const path = event.composedPath();
+      if (!path.includes(element) && !path.includes(button)) dismiss.current(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); dismiss.current(true); }
+    };
+    element.ownerDocument.addEventListener('pointerdown', outside, true);
+    element.ownerDocument.addEventListener('click', outside, true);
+    element.ownerDocument.addEventListener('focusin', outside, true);
+    element.ownerDocument.addEventListener('keydown', escape, true);
     view.addEventListener('resize', position); view.addEventListener('scroll', position, true);
     viewport?.addEventListener('resize', position); viewport?.addEventListener('scroll', position);
     const observer = view.ResizeObserver ? new view.ResizeObserver(position) : undefined; observer?.observe(button);
     return () => {
+      element.ownerDocument.removeEventListener('pointerdown', outside, true);
+      element.ownerDocument.removeEventListener('click', outside, true);
+      element.ownerDocument.removeEventListener('focusin', outside, true);
+      element.ownerDocument.removeEventListener('keydown', escape, true);
       observer?.disconnect(); view.removeEventListener('resize', position); view.removeEventListener('scroll', position, true);
       viewport?.removeEventListener('resize', position); viewport?.removeEventListener('scroll', position);
       element.hidePopover?.();
     };
   }, [anchor]);
-  return <section ref={panel} popover="manual" aria-label="Amoji 表情选择" style={{ position: 'fixed', inset: 'auto', margin: 0, zIndex: 30, boxSizing: 'border-box', overflow: 'auto', padding: 16, borderRadius: 12, border: '1px solid var(--dsw-alias-border-l, #8886)', background: 'var(--dsw-alias-bg-module-platform, Canvas)', color: 'inherit', boxShadow: '0 8px 32px #0002' }}>{children}</section>;
+  return <section ref={panel} popover="manual" role="dialog" aria-label="Amoji 表情选择" className="amoji-picker" style={{ position: 'fixed', inset: 'auto', margin: 0, zIndex: 30, boxSizing: 'border-box', overflow: 'hidden' }}>{children}</section>;
 }

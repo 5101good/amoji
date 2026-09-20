@@ -66,7 +66,7 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   await act(async () => { manage.click(); await settle(); });
   assert.ok(dom.window.document.querySelector('dialog[aria-label="管理表情"]'));
   assert.equal(requests.find(r => r.endpoint === 'amoji/management')!.payload.sessionId, 'session-a');
-  await act(() => [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '返回选择器')!.click());
+  await act(() => [...dom.window.document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === '返回选择器')!.click());
   const search = dom.window.document.querySelector<HTMLInputElement>('[aria-label="搜索表情"]')!; assert.ok(search);
   const setSearch = async (value: string) => act(async () => { const search=dom.window.document.querySelector<HTMLInputElement>('[aria-label="搜索表情"]')!; Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(search, value); search.dispatchEvent(new dom.window.Event('input', { bubbles: true })); await settle(); });
   await setSearch('刚完成的进展');

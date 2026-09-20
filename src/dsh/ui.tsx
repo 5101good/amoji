@@ -18,12 +18,12 @@ export const styles = `
 .amoji button[aria-pressed=true]{background:var(--amoji-selected);border-color:var(--amoji-accent)}
 .amoji button.primary{background:#4468dc;color:#fff;border-color:transparent;font-weight:600}.amoji button.primary:hover:not(:disabled){background:#3658c4}
 .amoji :focus-visible{outline:2px solid var(--amoji-accent);outline-offset:3px}.amoji label{display:grid;gap:6px}.amoji textarea{min-height:76px;resize:vertical}.amoji input:not([type=checkbox]),.amoji textarea{width:100%}.amoji input::placeholder,.amoji textarea::placeholder{color:var(--amoji-muted)}
-.amoji h2{font-size:18px;font-weight:600;letter-spacing:-.2px;margin:0}.amoji h3{font-size:15px;font-weight:600;margin:0}.amoji p{margin:0}.amoji small,.amoji .muted{color:var(--amoji-muted);font-size:12px}.amoji pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.amoji summary{cursor:pointer;color:var(--amoji-muted);font-size:12px;padding:4px 0}.amoji details[open]>summary{margin-bottom:8px}.amoji .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.amoji .stack{display:grid;gap:16px}.amoji .quiet{border-color:transparent;background:transparent;color:var(--amoji-muted);padding:6px 8px}.amoji .icon-button{width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;background:transparent;flex:none}
+.amoji h2{font-size:18px;font-weight:600;letter-spacing:-.2px;margin:0}.amoji h3{font-size:15px;font-weight:600;margin:0}.amoji p{margin:0}.amoji small,.amoji .muted{color:var(--amoji-muted);font-size:12px}.amoji pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.amoji summary{cursor:pointer;color:var(--amoji-muted);font-size:12px;padding:4px 0}.amoji details[open]>summary{margin-bottom:8px}.amoji .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.amoji .stack{display:grid;gap:16px}.amoji .amoji-download{display:inline-block;justify-self:start;color:var(--amoji-accent);text-decoration:underline;text-underline-offset:3px;padding:8px 0}.amoji .quiet{border-color:transparent;background:transparent;color:var(--amoji-muted);padding:6px 8px}.amoji .icon-button{width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;background:transparent;flex:none}
 .amoji .amoji-trigger{display:flex;align-items:center;gap:6px;border-color:transparent;background:transparent;padding:6px 8px;color:inherit}.amoji .amoji-trigger[aria-expanded=true]{background:var(--amoji-selected);color:var(--amoji-accent)}
 .amoji-picker{display:flex;flex-direction:column;border:1px solid var(--amoji-line);border-radius:16px;background:var(--amoji-bg);color:var(--amoji-ink);padding:0;box-shadow:0 12px 44px #0003;min-height:0}
 .amoji-picker-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;padding:8px 10px 0 18px}.amoji-picker-head h2{font-size:15px}
 .amoji-picker-search{display:flex;align-items:center;gap:6px;padding:10px 16px 12px;flex:none}.amoji-picker-search input{min-width:0;background:var(--amoji-wash);border-color:transparent}.amoji-picker-search button{flex:none}
-.amoji-categories{display:flex;gap:4px;flex:none;padding:0 16px 10px;overflow-x:auto}.amoji-categories button{font-size:12px;white-space:nowrap;min-height:30px}.amoji-categories button[aria-pressed=true]{background:var(--amoji-selected);color:var(--amoji-accent);border-color:transparent}.amoji-picker-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1 1 80px;padding:0 12px 12px;scrollbar-width:thin}
+.amoji-categories{display:flex;gap:4px;flex:none;padding:0 16px 10px;overflow-x:auto}.amoji-categories button{font-size:12px;white-space:nowrap;min-height:36px}.amoji-categories button[aria-pressed=true]{background:var(--amoji-selected);color:var(--amoji-accent);border-color:transparent}.amoji-picker-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1 1 80px;padding:0 12px 12px;scrollbar-width:thin}
 .amoji-expression-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .amoji button.amoji-expression-tile{border:1px solid transparent;border-radius:10px;background:transparent;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px;min-width:0;min-height:114px;color:var(--amoji-ink)}
 .amoji button.amoji-expression-tile[aria-pressed=true]{background:var(--amoji-selected);border-color:var(--amoji-accent)}
@@ -43,7 +43,7 @@ export const styles = `
 @media(max-height:460px){
 .amoji-picker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto}
 .amoji-picker-head,.amoji-picker-search,.amoji-categories,.amoji-send-row{grid-column:1/-1}
-.amoji-picker-head{padding:2px 8px 0 12px}.amoji-picker-head .icon-button{height:32px;min-height:32px}
+.amoji-picker-head{padding:2px 8px 0 12px}.amoji-picker-head .icon-button{height:40px;min-height:40px}
 .amoji-picker-search{padding:4px 12px 6px}.amoji-categories{padding:0 12px 6px}
 .amoji-picker-body{grid-column:1;grid-row:4;padding:0 6px 6px;min-width:0}
 .amoji-picker-footer{grid-column:2;grid-row:4;max-height:none;height:100%;min-width:0;padding:8px;border-top:0;border-left:1px solid var(--amoji-line)}
@@ -53,4 +53,16 @@ export const styles = `
 @media(prefers-reduced-motion:reduce){.amoji button{transition:none}}
 `;
 export function Styles(){return <style>{styles}</style>;}
-export function Conflict({error,onRefresh}:{error:unknown;onRefresh?:()=>void}) {if (!error) return null;const e=error as {message?:string;current?:unknown};return <div role="alert" className="error"><p>{e.message||'操作失败，请重试'}</p>{e.current!==undefined&&<><p>当前内容已变化，本次输入已保留。</p><details><summary>查看服务中的当前内容</summary><pre>{JSON.stringify(e.current,null,2)}</pre></details></>}{onRefresh&&<button type="button" onClick={onRefresh}>核对当前状态</button>}</div>;}
+export function Conflict({error,onRefresh}:{error:unknown;onRefresh?:()=>void}) {
+ if(!error)return null;
+ const e=error as {code?:string;message?:string;current?:unknown};
+ const raw=e.message||'操作失败，请重试';
+ const code=e.code??raw.match(/^([A-Z][A-Z_]+)(?:[:：]|$)/)?.[1];
+ let message=raw.replace(/^(?:[A-Z][A-Z_]+[:：]\s*)+/,'');
+ if(e.current!==undefined)message='这项内容已被其他操作更新，请核对后继续。';
+ else if(code==='INVALID_SCHEMA'){
+  const field=/data\/name\b/.test(raw)?'名称':/\/semantics\/meaning\b/.test(raw)?'固定含义':/\/semantics\/fallback\b/.test(raw)?'文字回退':undefined;
+  message=field?`请检查“${field}”：不能为空，内容长度需符合要求。`:'表情信息不完整或格式有误，请检查名称、固定含义、文字回退和来源。';
+ }else if(code==='MEDIA_REQUIRED')message='请先上传表情图片，再进行图文预览。';
+ return <div role="alert" className="error"><p>{message}</p>{e.current!==undefined?<><p>当前内容已变化，本次输入已保留。</p><details><summary>查看服务中的当前内容</summary><p>{raw}</p><pre>{JSON.stringify(e.current,null,2)}</pre></details></>:message!==raw&&<details><summary>查看错误详情</summary><p>{raw}</p></details>}{onRefresh&&<button type="button" onClick={onRefresh}>核对当前状态</button>}</div>;
+}

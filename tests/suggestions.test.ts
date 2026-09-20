@@ -58,3 +58,10 @@ test('建议器拒绝空白、越界和非文字输入，不截断最终语义',
   assert.equal(suggestion.fields.semantics.meaning, exact);
   assert.equal([...suggestion.fields.semantics.meaning].length, 240);
 });
+
+test('协作建议能表达进度澄清和控制意图，不误作庆祝或排斥事实询问',async()=>{
+ const {suggestText}=await import('../src/suggestions.js');
+ for(const [intent,name] of [['任务完成多少了，报告进度','进度如何'],['请举个具体例子','举个例子'],['哪里卡住了','卡在哪里'],['说具体些，我没看懂','说具体些'],['先等一下，暂停','先等一下'],['按已确认的方向继续','继续吧'],['方向不对，请重新对齐','方向不对']]){
+  const value=suggestText(intent!);assert.equal(value.fields.name,name);assert.equal(value.fields.semantics.meaning,intent);assert.ok(value.fields.tags?.some(tag=>tag.startsWith('协作:')));assert.ok(!value.fields.semantics.avoid_when?.includes('需要具体事实、承诺或操作说明时'));
+ }
+});

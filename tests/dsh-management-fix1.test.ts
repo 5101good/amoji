@@ -140,6 +140,7 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
     for (let attempt = 0; attempt < 100 && !ready(); attempt++) await React.act(async () => { await new Promise(r => setTimeout(r, 10)); });
     assert.ok(ready(), '异步UI操作在期限内完成');
   };
+  await waitFor(() => f.dom.window.document.body.textContent!.includes('素材尚未保存'));
   await React.act(() => f.button('保存并预览').click());
   await waitFor(() => !!f.dom.window.document.querySelector('img'));
   const concurrent = await client.startRevisionDraft({ asset_id: personal.asset_id, revision_id: personal.revision_id }, entry.version);

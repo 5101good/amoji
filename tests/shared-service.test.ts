@@ -137,7 +137,7 @@ test('适配器操作结束释放实际绑定，多回合调用不使先前在�
   t.after(async () => { await client.close(); await stopSharedService(directory, client.identity.serviceId); await rm(directory, { recursive: true, force: true }); });
   const context = { host: 'codex' as const, sessionId: 'long-lived', turnId: '1' };
   const inFlight = await client.bind(context);
-  const choice = (await client.search(inFlight, '加油')).candidates[0]!;
+  const choice = (await client.search(inFlight, '一步一步来')).candidates[0]!;
   // Observe public handles without replacing the actual transport or service.
   const issued: string[] = [];
   const bind = client.bind.bind(client);

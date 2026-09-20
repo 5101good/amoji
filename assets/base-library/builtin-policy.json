@@ -1,0 +1,101 @@
+{
+  "pack_id": "337223fa-1bc3-4326-933d-1afbebd6cc17",
+  "retired": [
+    {
+      "asset_id": "6284460e-6971-4b04-b71f-f23849f6d800",
+      "revision_id": "5dafedaa-1cca-4cdb-806d-5d3bed4dc0c7"
+    },
+    {
+      "asset_id": "0c143783-e167-4b51-ac2f-12a08f664c52",
+      "revision_id": "b791e3d7-9cd8-4aa4-b6f7-87f84b071812"
+    },
+    {
+      "asset_id": "872d19b9-dc9f-4d5c-bb92-fb51484141dd",
+      "revision_id": "5e3a0f25-2156-4313-a297-bb031b7d974e"
+    },
+    {
+      "asset_id": "0289ce60-140b-4c37-8498-c182cb0a42a8",
+      "revision_id": "4775353b-1344-43f9-9ce2-be00960e8dfe"
+    },
+    {
+      "asset_id": "36569d98-c460-483d-9a7c-7a972ded803c",
+      "revision_id": "8eeffba6-e3c7-4171-860e-bc4b731a833b"
+    },
+    {
+      "asset_id": "87c78369-26de-455b-bc46-c6056638deca",
+      "revision_id": "c3211d35-a71d-4e9d-b7c4-0d9251e21916"
+    },
+    {
+      "asset_id": "6c526364-2d8f-48b3-a2ec-36951efe08f5",
+      "revision_id": "0cdec4b3-22b2-4c21-bdb2-9627f5601ab0"
+    },
+    {
+      "asset_id": "f685f5af-1981-40bd-b638-160dbcfefe99",
+      "revision_id": "835ffee3-9d4d-4dab-b9c9-60b5f42f7242"
+    },
+    {
+      "asset_id": "090f4253-7068-480f-a303-fa41c606e802",
+      "revision_id": "4ea5be0b-699e-4800-9401-9a5db62aae6c"
+    },
+    {
+      "asset_id": "534f0a35-aadc-40d0-88cd-28468521421b",
+      "revision_id": "bba01c5f-7f02-4d9b-bc7c-72075545d980"
+    },
+    {
+      "asset_id": "d75eb5a1-8896-47c0-9c7d-3c17120fbcfc",
+      "revision_id": "2db7db82-ab4a-408c-a28f-f2f0f4295d06"
+    },
+    {
+      "asset_id": "9523dda3-c6d5-4874-83c7-b50f2754a14f",
+      "revision_id": "2adb2ac6-95a9-4b2a-a9c2-f4f52826a820"
+    },
+    {
+      "asset_id": "3364c4c6-8243-4f17-8fac-ddc82431ca06",
+      "revision_id": "00162107-23ae-4fdb-aa08-c7c309fe70b4"
+    },
+    {
+      "asset_id": "1104a305-94c7-4c08-a6ad-a124344c1cc5",
+      "revision_id": "34cd0a47-e31d-4bdf-83da-17be3372426b"
+    },
+    {
+      "asset_id": "17e6ef81-32e1-489f-8852-d3c51b7ff41f",
+      "revision_id": "256272e1-835f-4f7c-b064-79c4e162a3aa"
+    },
+    {
+      "asset_id": "a5de26a5-a184-47c5-80ea-21acf21efa4f",
+      "revision_id": "aefc6238-9301-4442-a146-ee7ea56f073d"
+    },
+    {
+      "asset_id": "09ca8efb-d9ac-4064-ae69-649e602853a6",
+      "revision_id": "acd1b5c6-4a8e-4126-93fe-da72582cc95f"
+    },
+    {
+      "asset_id": "2f961f0f-182a-4206-8f3d-f4b8095e1cd7",
+      "revision_id": "3c2cc443-aee0-405e-bfd8-4ac4e6bff8f1"
+    },
+    {
+      "asset_id": "f4b318fa-7a6b-4056-ab05-d42d4819b5d7",
+      "revision_id": "5423db7f-dc5f-4019-93ba-b292b6e801fc"
+    },
+    {
+      "asset_id": "01ddf2b1-51d8-4f9c-a798-d1cc8fe08813",
+      "revision_id": "d3a551ee-6ca9-4794-936e-fc8955de9041"
+    },
+    {
+      "asset_id": "ce211f65-0f2f-4356-b288-952b3cd48f72",
+      "revision_id": "8693f4ed-fe3d-4cd5-ad0e-e002c4594356"
+    },
+    {
+      "asset_id": "d0766dc5-f619-4916-a5af-d2dbc7eddc04",
+      "revision_id": "9f05f36b-f43d-4044-ae5e-557f0a64153b"
+    },
+    {
+      "asset_id": "fcaffd71-8a92-4852-81e0-dbc9dc170f39",
+      "revision_id": "1c2e0e45-475a-4c50-a3ee-6bb2c09187be"
+    },
+    {
+      "asset_id": "d66d31cc-e678-4961-924d-faada2efe3ad",
+      "revision_id": "66af4805-a447-408b-a0dc-b9329ad8f8d1"
+    }
+  ]
+}

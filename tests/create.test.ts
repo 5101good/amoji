@@ -15,6 +15,12 @@ async function sandbox(t: TestContext) {
   return { directory, connect };
 }
 async function upload(client: SharedClient, animated = false) {
+  if (animated) {
+    const samples = new URL('../assets/samples/', import.meta.url);
+    const manifest = JSON.parse(await readFile(new URL('manifest.json', samples), 'utf8'));
+    const source = manifest.expressions.find((e: any) => e.visual.animated);
+    return (await readFile(new URL(`blobs/${source.visual.primary.sha256}`, samples))).toString('base64');
+  }
   const expression = (await client.list()).find(e => e.visual.animated === animated)!;
   return (await readFile(await client.blobPath(expression.visual.primary.sha256))).toString('base64');
 }
@@ -29,7 +35,7 @@ test('公共草稿在确认前不可检索发送，重启和跨宿主确认重�
   const binding = await client.bind({ host: 'codex', sessionId: 'creation', turnId: '1' });
   assert.deepEqual((await client.search(binding, fields.name)).candidates, []);
   await assert.rejects(client.receive(binding, { asset_id: saved.draft_id, revision_id: saved.draft_id }, 'draft-send'), /REVISION_NOT_FOUND/);
-  assert.equal((await client.list()).length, 24);
+  assert.equal((await client.list()).length, 14);
   const old = (await client.list())[0]!;
   const oldMessage = await client.receive(binding, { asset_id: old.asset_id, revision_id: old.revision_id }, 'old-message');
   await client.close();
@@ -43,7 +49,7 @@ test('公共草稿在确认前不可检索发送，重启和跨宿主确认重�
   assert.deepEqual(duplicate, expression);
   assert.match(expression.asset_id, /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   assert.equal(expression.name, fields.name);
-  assert.equal((await client.list()).length, 25);
+  assert.equal((await client.list()).length, 15);
   await assert.rejects(client.saveDraft(saved.draft_id, saved.version, { ...fields, name: '更改已确认' }), /DRAFT_CONFIRMED/);
   for (const host of ['codex', 'claude-code', 'dsh'] as const) {
     const adapter = await connect();
@@ -84,7 +90,7 @@ test('草稿保留未完成字段，严格拒绝伪造归属、未知字段和�
   await assert.rejects(client.saveDraft(changed.draft_id, changed.version, { ...fields, semantics: { ...fields.semantics, override: '伪造' } } as any), /INVALID_ARGUMENT/);
   const budget = await client.saveDraft(changed.draft_id, changed.version, { ...fields, semantics: { ...fields.semantics, meaning: '\u0000'.repeat(239) + '😀', tone: '😀'.repeat(80), fallback: '😀'.repeat(80), use_when: Array.from({ length: 4 }, (_, i) => '😀'.repeat(63) + String(i)), avoid_when: Array.from({ length: 4 }, (_, i) => '😀'.repeat(63) + String(i)) } });
   await assert.rejects(client.previewDraft(budget.draft_id, budget.version), /SEMANTICS_BUDGET_EXCEEDED/);
-  assert.equal((await client.list()).length, 24);
+  assert.equal((await client.list()).length, 14);
 });
 
 test('动图上传自动生成合法静态封面；坏素材不会覆盖原草稿或产生半可用表情', async t => {

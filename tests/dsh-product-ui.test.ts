@@ -68,3 +68,29 @@ for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保
  else assert.ok(!native,'纯表情无需额外宿主文字气泡');
  assert.ok(f.dom.window.document.querySelector('details'),'语义仍可主动查看');
 });
+test('协作类别只过滤当前列表，切换后不会发送隐藏的旧选择',async t=>{
+ const f=await fixture(t);const progress={...expressions[0]!,tags:['协作:进度']};const feedback={...expressions[1]!,tags:['协作:反馈']};
+ f.rpc.catalog=async()=>[progress,feedback];const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
+ await f.click('进度');assert.ok(f.button(progress.name));assert.ok(!f.button(feedback.name));await f.click(progress.name);assert.equal(f.button('发送所选表情').disabled,false);
+ await f.click('反馈');assert.ok(f.button(feedback.name));assert.ok(!f.button(progress.name));assert.equal(f.button('发送所选表情').disabled,true);
+});
+
+test('纯表情仍保留宿主引用标签和技能信息',async t=>{
+ const f=await fixture(t);const meta=visualMeta({message_id:'m',revision:expression} as any);
+ f.rpc.history=async()=>[{message:{message_id:'m',direction:'human_to_ai',revision:expression},meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
+ const core=new SlotCore();core.register({name:'root',children:{'conversation.chat.node':{kind:'keyed',scope:'session'}}} as any,()=>null);
+ const Original=(p:any)=>React.createElement('div',{'data-original':true},JSON.stringify(p.node.data));
+ core.register({name:'conversation.chat.node',key:'user'} as any,Original);
+ const release=mountUserMessages(core as unknown as ClientPort['slots'],f.rpc);t.after(release);
+ const View=core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
+ await act(async()=>f.root.render(React.createElement(View,{sessionId:'s',node:{data:{content:[{type:'text',text:expressionMessageText(expression)}],referenceLabels:['引用的对话'],skillNames:['project-skill'],seq:1,source:{kind:'user',rpcId:'amoji:m'}}}})));
+ const native=f.dom.window.document.querySelector('[data-original]');assert.ok(native);assert.match(native.textContent!,/引用的对话/);assert.match(native.textContent!,/project-skill/);assert.ok(!native.textContent!.includes(expression.semantics.meaning));
+});
+
+test('低高度选择器使用完整视口并让发送操作独立于可滚动详情',async t=>{
+ const f=await fixture(t);Object.defineProperty(f.dom.window,'innerHeight',{value:320,configurable:true});Object.defineProperty(f.dom.window,'innerWidth',{value:568,configurable:true});
+ const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
+ const panel=f.panel() as HTMLElement;assert.equal(panel.style.height,'296px');assert.equal(panel.style.top,'12px');
+ await f.click(expression.name);assert.equal(f.button('发送所选表情').closest('footer'),null,'发送操作必须独立于可能很长的语义和恢复内容');
+ assert.equal(f.button('发送所选表情').parentElement?.parentElement,panel);
+});

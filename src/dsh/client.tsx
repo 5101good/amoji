@@ -42,6 +42,10 @@ export function createComponents(rpc: DshRpc) {
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
     const previousReopen = useRef(reopen);
     useEffect(()=>{if(previousReopen.current !== reopen){previousReopen.current = reopen;setTarget(sessionId);}},[reopen,sessionId]);
+    const [category,setCategory]=useState('全部');
+    const categoryOf=(e:Expression)=>e.tags?.find(t=>t.startsWith('协作:'))?.slice(3)||'其他';
+    const categories=['进度','澄清','方向','反馈','其他'].filter(c=>catalog.some(e=>categoryOf(e)===c));
+    const visibleCatalog=category==='全部'?catalog:catalog.filter(e=>categoryOf(e)===category);
     const selectionEpoch = useRef(0);
     const [unavailable, setUnavailable] = useState(!!pending); const [uncertain, setUncertain] = useState(!!pending); const [sent, setSent] = useState<HistoryEntry | undefined>(pending?.sent);
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
@@ -136,26 +140,27 @@ export function createComponents(rpc: DshRpc) {
         if (target === sessionId) { dismiss(); return; }
         selectionEpoch.current++; setTarget(sessionId);
         if (uncertain || busy) return;
-        setQuery(''); setSelected(undefined);
+        setQuery(''); setCategory('全部'); setSelected(undefined);
       }}><SmileIcon/><span>表情</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
         <header className="amoji-picker-head"><h2>用表情表达</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>管理表情</button><button className="icon-button" type="button" aria-label="关闭" onClick={()=>dismiss()}><CloseIcon/></button></div></header>
-        <form className="amoji-picker-search" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); void load(query); }}>
+        <form className="amoji-picker-search" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
           <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="想表达什么？" />
           <button type="submit" disabled={busy || uncertain}>{searching ? '搜索中…' : '搜索'}</button>
           {query && <button className="quiet" type="button" disabled={busy || uncertain} onClick={() => { setQuery(''); void load(''); }}>显示全部</button>}
         </form>
+        {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label="表情场景">{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{c}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
-          {catalog.length ? <div className="amoji-expression-grid">{catalog.map(e => <ExpressionTile key={`${e.asset_id}:${e.revision_id}`} rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={sameRef(e, selected ?? {asset_id:'',revision_id:''})} onSelect={()=>{selectionEpoch.current++;setSelected(e);setRequestId(crypto.randomUUID());setSent(undefined);setStatus('');}} />)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
+          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <ExpressionTile key={`${e.asset_id}:${e.revision_id}`} rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={sameRef(e, selected ?? {asset_id:'',revision_id:''})} onSelect={()=>{selectionEpoch.current++;setSelected(e);setRequestId(crypto.randomUUID());setSent(undefined);setStatus('');}} />)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
         </div>
         <footer className="amoji-picker-footer">
           {selected ? <section className="amoji-selection" aria-label="固定语义与精确版本"><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>查看含义与适用场景</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>版本 {selected.revision_id}</small></details></section> : <p className="muted">选一张表情，看看它想表达什么。</p>}
-          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? `${catalog.length} 个表情` : ''}</span><button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button></div>
           {!sent && status && <p className="amoji-notice" role="status">{status}</p>}
           {sent && !uncertain && <details className="amoji-notice"><summary>上次发送记录</summary><p role="status">{status}</p><button type="button" disabled={busy} onClick={()=>void check()}>核对投递状态</button></details>}
           {sent && uncertain && <p className="amoji-notice" role="status">{status}</p>}
           {(unavailable || uncertain) && <div className="row">{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={()=>void check()}>核对投递状态</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={()=>void recover()}>重新连接并核对</button>}</div>}
         </footer>
+          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? `${visibleCatalog.length} 个表情` : ''}</span><button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button></div>
       </PickerPopover>}
     </div>;
   }

@@ -1,0 +1,1076 @@
+{
+  "kind": "amoji.pack",
+  "schema_version": "0.1",
+  "pack_id": "6ffb2b6e-c8e7-4d6d-952b-f398897ebb74",
+  "name": "Amoji 基础表情库",
+  "created_at": "2026-09-19T00:00:00Z",
+  "expressions": [
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "6284460e-6971-4b04-b71f-f23849f6d800",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "好开心",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "此刻感到轻松愉快，想和你分享这份开心。",
+        "fallback": "[好开心]",
+        "tone": "轻快、真诚",
+        "use_when": [
+          "分享日常开心的小事"
+        ],
+        "avoid_when": [
+          "对方正在认真表达痛苦"
+        ]
+      },
+      "tags": [
+        "开心",
+        "高兴",
+        "愉快"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "4d45260d4be6eea5c557a592791f2ba95afa8845fcaac9c52503c19a768a6896",
+          "mime": "image/png",
+          "bytes": 904319,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "5dafedaa-1cca-4cdb-806d-5d3bed4dc0c7"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "0c143783-e167-4b51-ac2f-12a08f664c52",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "一起庆祝",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "为刚完成的进展真诚高兴并庆祝。",
+        "fallback": "[一起庆祝]",
+        "tone": "开心、真诚",
+        "use_when": [
+          "完成阶段目标或分享好消息"
+        ],
+        "avoid_when": [
+          "对方正在表达痛苦"
+        ]
+      },
+      "tags": [
+        "庆祝",
+        "完成",
+        "进展"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "5684c88497966b68b1081c18d0bd60667e020a9771558fdebf9defcf67fbb154",
+          "mime": "image/png",
+          "bytes": 735307,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "b791e3d7-9cd8-4aa4-b6f7-87f84b071812"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "872d19b9-dc9f-4d5c-bb92-fb51484141dd",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "击个掌",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我们配合得真好，为这次共同的进展击个掌。",
+        "fallback": "[击个掌]",
+        "tone": "热情、平等",
+        "use_when": [
+          "一起完成一件事情"
+        ],
+        "avoid_when": [
+          "需要严肃说明问题"
+        ]
+      },
+      "tags": [
+        "击掌",
+        "合作",
+        "完成"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "5862a643e7a667e13793d7a6009dfe8c0795df7bbf61ca40cd04281cd9fb890d",
+          "mime": "image/png",
+          "bytes": 990896,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "5e3a0f25-2156-4313-a297-bb031b7d974e"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "0289ce60-140b-4c37-8498-c182cb0a42a8",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "好期待",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "对即将发生的事情充满开心的期待。",
+        "fallback": "[好期待]",
+        "tone": "雀跃、温暖",
+        "use_when": [
+          "期待见面、结果或新的尝试"
+        ],
+        "avoid_when": [
+          "结果尚未确定却需要谨慎承诺"
+        ]
+      },
+      "tags": [
+        "期待",
+        "盼望",
+        "兴奋"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "d1a7b204d00e698e3979e5d81113de3fe460307df2406d97619d12b3b498504c",
+          "mime": "image/png",
+          "bytes": 905973,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "4775353b-1344-43f9-9ce2-be00960e8dfe"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "36569d98-c460-483d-9a7c-7a972ded803c",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "谢谢啦",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "谢谢你给我的帮助，我真心领情。",
+        "fallback": "[谢谢啦]",
+        "tone": "真诚、温暖",
+        "use_when": [
+          "收到帮助或支持"
+        ],
+        "avoid_when": [
+          "用感谢替代仍需处理的问题"
+        ]
+      },
+      "tags": [
+        "感谢",
+        "谢谢",
+        "领情"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "173385587a317ff55d2e5b84ea7215010e301b0de7a58a69fa042e74394a7645",
+          "mime": "image/png",
+          "bytes": 925588,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "8eeffba6-e3c7-4171-860e-bc4b731a833b"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "87c78369-26de-455b-bc46-c6056638deca",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "真厉害",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "真心佩服你展现出来的能力或认真付出的努力。",
+        "fallback": "[真厉害]",
+        "tone": "欣赏、真诚",
+        "use_when": [
+          "看到出色表现或认真努力"
+        ],
+        "avoid_when": [
+          "带讽刺意味地评价对方"
+        ]
+      },
+      "tags": [
+        "佩服",
+        "厉害",
+        "欣赏"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "f2a008da31c9824178b83dd0cb8b59743c468639f7ce3aaa69c922c7a608e373",
+          "mime": "image/png",
+          "bytes": 906029,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "c3211d35-a71d-4e9d-b7c4-0d9251e21916"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "6c526364-2d8f-48b3-a2ec-36951efe08f5",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "给你点赞",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "认可你这次的做法或努力，给你一个赞。",
+        "fallback": "[给你点赞]",
+        "tone": "友好、肯定",
+        "use_when": [
+          "表达对一件具体事情的认可"
+        ],
+        "avoid_when": [
+          "代替对风险操作的明确授权"
+        ]
+      },
+      "tags": [
+        "点赞",
+        "认可",
+        "肯定"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "427477356d4e3873e399bde4ee0df28a071e6277ef879ae2b39fcc4ba3058afa",
+          "mime": "image/png",
+          "bytes": 957351,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "0cdec4b3-22b2-4c21-bdb2-9627f5601ab0"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "f685f5af-1981-40bd-b638-160dbcfefe99",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "心意收到",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我感受到了你的关心，这份心意我收到了。",
+        "fallback": "[心意收到]",
+        "tone": "温柔、感激",
+        "use_when": [
+          "收到关心、祝福或安慰"
+        ],
+        "avoid_when": [
+          "需要保持正式疏离语气"
+        ]
+      },
+      "tags": [
+        "心意",
+        "关心",
+        "感激"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "eb6963d197270490ed87c138a92c658c90e1605a977e1fda725b653a617e874d",
+          "mime": "image/png",
+          "bytes": 891195,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "835ffee3-9d4d-4dab-b9c9-60b5f42f7242"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "090f4253-7068-480f-a303-fa41c606e802",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "一步一步来",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "支持你的努力，我们一步一步来。",
+        "fallback": "[一步一步来]",
+        "tone": "温暖、坚定",
+        "use_when": [
+          "对方需要支持和鼓励"
+        ],
+        "avoid_when": [
+          "用表情代替具体帮助或必要解释"
+        ]
+      },
+      "tags": [
+        "鼓励",
+        "支持",
+        "加油"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "477edc002d150c0db9f40cf06d8e346d642a4dcc9a394c7565983b35df99f997",
+          "mime": "image/webp",
+          "bytes": 538634,
+          "width": 887,
+          "height": 887
+        },
+        "animated": true,
+        "duration_ms": 1000,
+        "poster": {
+          "sha256": "5dd2653e91467ba9a797f7070e12e9c3dc6f72b3d80e1777a6881ea39e4a6434",
+          "mime": "image/png",
+          "bytes": 466198,
+          "width": 887,
+          "height": 887
+        }
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "4ea5be0b-699e-4800-9401-9a5db62aae6c"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "534f0a35-aadc-40d0-88cd-28468521421b",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "给你抱抱",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "想给你一个温暖的拥抱，陪你待一会儿。",
+        "fallback": "[给你抱抱]",
+        "tone": "温柔、亲近",
+        "use_when": [
+          "对方愿意接受亲近的安慰"
+        ],
+        "avoid_when": [
+          "对方不喜欢亲昵表达"
+        ]
+      },
+      "tags": [
+        "抱抱",
+        "安慰",
+        "陪伴"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "469698ae2525ef761ebbbc56152e2c0220e6f9f3e5d53e6c1b0f8e3f21e7e88b",
+          "mime": "image/png",
+          "bytes": 945308,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "bba01c5f-7f02-4d9b-bc7c-72075545d980"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d75eb5a1-8896-47c0-9c7d-3c17120fbcfc",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "慢慢来",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "不用着急，我们可以按舒服的节奏慢慢来。",
+        "fallback": "[慢慢来]",
+        "tone": "舒缓、耐心",
+        "use_when": [
+          "进展缓慢时表达耐心和陪伴"
+        ],
+        "avoid_when": [
+          "事情紧急且需要立即处理"
+        ]
+      },
+      "tags": [
+        "耐心",
+        "慢慢来",
+        "别急"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "82e98a0ba4b2a902f396b67a6e08d5f7428c1fb3dca9db6682e2f0aa3fdabb80",
+          "mime": "image/png",
+          "bytes": 948728,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "2db7db82-ab4a-408c-a28f-f2f0f4295d06"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "9523dda3-c6d5-4874-83c7-b50f2754a14f",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "辛苦啦",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我看见了你付出的辛苦，愿你能歇一歇。",
+        "fallback": "[辛苦啦]",
+        "tone": "体贴、感谢",
+        "use_when": [
+          "对方刚完成辛苦的事情"
+        ],
+        "avoid_when": [
+          "用客套话回避具体帮助"
+        ]
+      },
+      "tags": [
+        "辛苦",
+        "体贴",
+        "歇歇"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "b132b74f6f2cdb290681459a719a998e747827c71e057e4beb7411453df431d3",
+          "mime": "image/png",
+          "bytes": 905215,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "2adb2ac6-95a9-4b2a-a9c2-f4f52826a820"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "3364c4c6-8243-4f17-8fac-ddc82431ca06",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "有点疑惑",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我有一点没弄明白，想再确认一下。",
+        "fallback": "[有点疑惑]",
+        "tone": "友好、好奇",
+        "use_when": [
+          "信息不清楚或出现不一致"
+        ],
+        "avoid_when": [
+          "以质疑语气嘲讽对方"
+        ]
+      },
+      "tags": [
+        "疑惑",
+        "不明白",
+        "确认"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "94189311eda01264f5b52fb8d89dee312a01dd69592a669d80c5e325d8dd7c3a",
+          "mime": "image/png",
+          "bytes": 899330,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "00162107-23ae-4fdb-aa08-c7c309fe70b4"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "1104a305-94c7-4c08-a6ad-a124344c1cc5",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "想一想",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我正在认真想一想，暂时还没有结论。",
+        "fallback": "[想一想]",
+        "tone": "专注、平和",
+        "use_when": [
+          "需要一点思考时间"
+        ],
+        "avoid_when": [
+          "把尚未得出的结论说成已确定"
+        ]
+      },
+      "tags": [
+        "思考",
+        "琢磨",
+        "想想"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "c87632bd9f94cb1212aab928a1d52a7e557321dc57143475a5a6a9dfd2e624cf",
+          "mime": "image/png",
+          "bytes": 920658,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "34cd0a47-e31d-4bdf-83da-17be3372426b"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "17e6ef81-32e1-489f-8852-d3c51b7ff41f",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "原来如此",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "刚才的解释让我理解了，原来是这样。",
+        "fallback": "[原来如此]",
+        "tone": "恍然、明快",
+        "use_when": [
+          "听完解释后表达理解"
+        ],
+        "avoid_when": [
+          "尚未理解却假装明白"
+        ]
+      },
+      "tags": [
+        "明白",
+        "理解",
+        "原来如此"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "5bfb14f058a0b055a4752fed71da966200c517eefe53304a40acc7869c5a0ea6",
+          "mime": "image/png",
+          "bytes": 921270,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "256272e1-835f-4f7c-b064-79c4e162a3aa"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "a5de26a5-a184-47c5-80ea-21acf21efa4f",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "愿闻其详",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我对你说的内容有兴趣，愿意继续听你展开。",
+        "fallback": "[愿闻其详]",
+        "tone": "好奇、专注",
+        "use_when": [
+          "邀请对方继续分享"
+        ],
+        "avoid_when": [
+          "对方已经表示不愿继续"
+        ]
+      },
+      "tags": [
+        "倾听",
+        "展开",
+        "好奇"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "fa3b349c329167737c4a9ea279e6af1d293c75d679c8ff91f1121fd21f998e94",
+          "mime": "image/png",
+          "bytes": 932195,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "aefc6238-9301-4442-a146-ee7ea56f073d"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "09ca8efb-d9ac-4064-ae69-649e602853a6",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "挠头苦笑",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "面对自己无伤大雅的小失误，带着善意自嘲和无奈。",
+        "fallback": "[挠头苦笑]",
+        "tone": "温和、自嘲",
+        "use_when": [
+          "承认自己的小失误"
+        ],
+        "avoid_when": [
+          "讽刺他人",
+          "对方正在认真表达痛苦"
+        ]
+      },
+      "tags": [
+        "自嘲",
+        "无奈",
+        "失误"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "7d755db2140bc72de9072a5867b08bea06ba79aa82426118fc9e3ecc4679e8ba",
+          "mime": "image/png",
+          "bytes": 706223,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "acd1b5c6-4a8e-4126-93fe-da72582cc95f"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "2f961f0f-182a-4206-8f3d-f4b8095e1cd7",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "有点尴尬",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "刚刚有一点小尴尬，我带着善意轻轻笑一下。",
+        "fallback": "[有点尴尬]",
+        "tone": "含蓄、自嘲",
+        "use_when": [
+          "无伤大雅的小尴尬"
+        ],
+        "avoid_when": [
+          "严重伤害需要认真道歉"
+        ]
+      },
+      "tags": [
+        "尴尬",
+        "不好意思",
+        "自嘲"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "4b4906f4f2e967adaf715d8039528c57cf8cfcd26fabd2d38c8c173bff22b687",
+          "mime": "image/png",
+          "bytes": 940530,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "3c2cc443-aee0-405e-bfd8-4ac4e6bff8f1"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "f4b318fa-7a6b-4056-ab05-d42d4819b5d7",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "这局认输",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "这次我就轻松认输啦，是带着笑意的玩笑。",
+        "fallback": "[这局认输]",
+        "tone": "轻松、玩笑",
+        "use_when": [
+          "无伤大雅的玩笑或小比赛"
+        ],
+        "avoid_when": [
+          "真实的争执、伤害或严肃分歧"
+        ]
+      },
+      "tags": [
+        "认输",
+        "玩笑",
+        "服了"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "97e64f44c035290c0226812d17108edc92d69988276c670ae6dd2f6fc947cdc4",
+          "mime": "image/png",
+          "bytes": 935178,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "5423db7f-dc5f-4019-93ba-b292b6e801fc"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "01ddf2b1-51d8-4f9c-a798-d1cc8fe08813",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "调皮一下",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "轻轻调皮一下，想让这段对话更轻松。",
+        "fallback": "[调皮一下]",
+        "tone": "俏皮、友善",
+        "use_when": [
+          "彼此都接受轻松玩笑"
+        ],
+        "avoid_when": [
+          "对方正在认真表达不满或痛苦"
+        ]
+      },
+      "tags": [
+        "调皮",
+        "俏皮",
+        "玩笑"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "33d6aeab8ff5ca655438354605169a513889dd9baaa880515eb0702242953b74",
+          "mime": "image/png",
+          "bytes": 883053,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "d3a551ee-6ca9-4794-936e-fc8955de9041"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "ce211f65-0f2f-4356-b288-952b3cd48f72",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "嗨你好",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "友好地和你打个招呼，很高兴在这里见到你。",
+        "fallback": "[嗨你好]",
+        "tone": "友好、轻快",
+        "use_when": [
+          "开始对话或再次见面"
+        ],
+        "avoid_when": [
+          "打断需要紧急处理的事情"
+        ]
+      },
+      "tags": [
+        "你好",
+        "打招呼",
+        "见面"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "47b5b89dee1eadda7568f3f4b0ea8c424e9ed01e855d42d5c769694bc5ba576f",
+          "mime": "image/png",
+          "bytes": 979023,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "8693f4ed-fe3d-4cd5-ad0e-e002c4594356"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d0766dc5-f619-4916-a5af-d2dbc7eddc04",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "回头见",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "这次先聊到这里，期待下次再见。",
+        "fallback": "[回头见]",
+        "tone": "温暖、轻松",
+        "use_when": [
+          "结束一段日常对话"
+        ],
+        "avoid_when": [
+          "对方仍在请求紧急帮助"
+        ]
+      },
+      "tags": [
+        "再见",
+        "告别",
+        "回头见"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "0af947cc66cffcbf482c66c528e27df5291ade7b9f7d0006bd9df0b243006055",
+          "mime": "image/png",
+          "bytes": 945877,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "9f05f36b-f43d-4044-ae5e-557f0a64153b"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "fcaffd71-8a92-4852-81e0-dbc9dc170f39",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "抱歉啦",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "为自己刚才的小失误认真说一声抱歉。",
+        "fallback": "[抱歉啦]",
+        "tone": "诚恳、温和",
+        "use_when": [
+          "自己的小失误给对方带来不便"
+        ],
+        "avoid_when": [
+          "严重伤害仅用表情代替说明和补救"
+        ]
+      },
+      "tags": [
+        "抱歉",
+        "道歉",
+        "失误"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "077edd50ffb67ab418f88643380c1498efd36b3ccc530ddc16100fd9b715669a",
+          "mime": "image/png",
+          "bytes": 800666,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "1c2e0e45-475a-4c50-a3ee-6bb2c09187be"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d66d31cc-e678-4961-924d-faada2efe3ad",
+      "created_at": "2026-09-19T00:00:00Z",
+      "name": "放松一下",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "忙了一阵，愿我们可以暂时放松一下。",
+        "fallback": "[放松一下]",
+        "tone": "舒适、轻松",
+        "use_when": [
+          "阶段工作结束或需要短暂休息"
+        ],
+        "avoid_when": [
+          "事情紧急尚未处理"
+        ]
+      },
+      "tags": [
+        "放松",
+        "休息",
+        "轻松"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "04d47b3f7c9b87cfb3c9e5ada73d5d3e4e416acfe2dd26f313c4fcff18489e48",
+          "mime": "image/png",
+          "bytes": 946899,
+          "width": 1254,
+          "height": 1254
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "AI-generated with Codex imagegen; assets/base-library/provenance.json"
+      },
+      "revision_id": "66af4805-a447-408b-a0dc-b9329ad8f8d1"
+    }
+  ],
+  "defaults": [
+    {
+      "asset_id": "6284460e-6971-4b04-b71f-f23849f6d800",
+      "revision_id": "5dafedaa-1cca-4cdb-806d-5d3bed4dc0c7"
+    },
+    {
+      "asset_id": "0c143783-e167-4b51-ac2f-12a08f664c52",
+      "revision_id": "b791e3d7-9cd8-4aa4-b6f7-87f84b071812"
+    },
+    {
+      "asset_id": "872d19b9-dc9f-4d5c-bb92-fb51484141dd",
+      "revision_id": "5e3a0f25-2156-4313-a297-bb031b7d974e"
+    },
+    {
+      "asset_id": "0289ce60-140b-4c37-8498-c182cb0a42a8",
+      "revision_id": "4775353b-1344-43f9-9ce2-be00960e8dfe"
+    },
+    {
+      "asset_id": "36569d98-c460-483d-9a7c-7a972ded803c",
+      "revision_id": "8eeffba6-e3c7-4171-860e-bc4b731a833b"
+    },
+    {
+      "asset_id": "87c78369-26de-455b-bc46-c6056638deca",
+      "revision_id": "c3211d35-a71d-4e9d-b7c4-0d9251e21916"
+    },
+    {
+      "asset_id": "6c526364-2d8f-48b3-a2ec-36951efe08f5",
+      "revision_id": "0cdec4b3-22b2-4c21-bdb2-9627f5601ab0"
+    },
+    {
+      "asset_id": "f685f5af-1981-40bd-b638-160dbcfefe99",
+      "revision_id": "835ffee3-9d4d-4dab-b9c9-60b5f42f7242"
+    },
+    {
+      "asset_id": "090f4253-7068-480f-a303-fa41c606e802",
+      "revision_id": "4ea5be0b-699e-4800-9401-9a5db62aae6c"
+    },
+    {
+      "asset_id": "534f0a35-aadc-40d0-88cd-28468521421b",
+      "revision_id": "bba01c5f-7f02-4d9b-bc7c-72075545d980"
+    },
+    {
+      "asset_id": "d75eb5a1-8896-47c0-9c7d-3c17120fbcfc",
+      "revision_id": "2db7db82-ab4a-408c-a28f-f2f0f4295d06"
+    },
+    {
+      "asset_id": "9523dda3-c6d5-4874-83c7-b50f2754a14f",
+      "revision_id": "2adb2ac6-95a9-4b2a-a9c2-f4f52826a820"
+    },
+    {
+      "asset_id": "3364c4c6-8243-4f17-8fac-ddc82431ca06",
+      "revision_id": "00162107-23ae-4fdb-aa08-c7c309fe70b4"
+    },
+    {
+      "asset_id": "1104a305-94c7-4c08-a6ad-a124344c1cc5",
+      "revision_id": "34cd0a47-e31d-4bdf-83da-17be3372426b"
+    },
+    {
+      "asset_id": "17e6ef81-32e1-489f-8852-d3c51b7ff41f",
+      "revision_id": "256272e1-835f-4f7c-b064-79c4e162a3aa"
+    },
+    {
+      "asset_id": "a5de26a5-a184-47c5-80ea-21acf21efa4f",
+      "revision_id": "aefc6238-9301-4442-a146-ee7ea56f073d"
+    },
+    {
+      "asset_id": "09ca8efb-d9ac-4064-ae69-649e602853a6",
+      "revision_id": "acd1b5c6-4a8e-4126-93fe-da72582cc95f"
+    },
+    {
+      "asset_id": "2f961f0f-182a-4206-8f3d-f4b8095e1cd7",
+      "revision_id": "3c2cc443-aee0-405e-bfd8-4ac4e6bff8f1"
+    },
+    {
+      "asset_id": "f4b318fa-7a6b-4056-ab05-d42d4819b5d7",
+      "revision_id": "5423db7f-dc5f-4019-93ba-b292b6e801fc"
+    },
+    {
+      "asset_id": "01ddf2b1-51d8-4f9c-a798-d1cc8fe08813",
+      "revision_id": "d3a551ee-6ca9-4794-936e-fc8955de9041"
+    },
+    {
+      "asset_id": "ce211f65-0f2f-4356-b288-952b3cd48f72",
+      "revision_id": "8693f4ed-fe3d-4cd5-ad0e-e002c4594356"
+    },
+    {
+      "asset_id": "d0766dc5-f619-4916-a5af-d2dbc7eddc04",
+      "revision_id": "9f05f36b-f43d-4044-ae5e-557f0a64153b"
+    },
+    {
+      "asset_id": "fcaffd71-8a92-4852-81e0-dbc9dc170f39",
+      "revision_id": "1c2e0e45-475a-4c50-a3ee-6bb2c09187be"
+    },
+    {
+      "asset_id": "d66d31cc-e678-4961-924d-faada2efe3ad",
+      "revision_id": "66af4805-a447-408b-a0dc-b9329ad8f8d1"
+    }
+  ]
+}

@@ -100,13 +100,13 @@ test('非法ZIP、协议、路径、闭包、CRC及媒体失败不留下可用�
   await assert.rejects(client.importPack(await f.encode(nested)), /UNSUPPORTED_SCHEMA/);
 });
 
-test('正式基础包通过公共校验，空环境仅24项且外部导入不能声称builtin', async t => {
+test('正式基础包通过公共校验，空环境仅14项且外部导入不能声称builtin', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-builtin-'));
   const service = await startSharedService(directory, new URL('../assets/base-library/base.amoji', import.meta.url));
   const client = await SharedClient.connect({ directory });
   t.after(async () => { await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
-  const entries = await client.listEntries(); assert.equal(entries.length, 24); assert.ok(entries.every(e => e.origin === 'builtin'));
-  assert.equal(entries.filter(e => e.expression.visual.animated).length, 1);
+  const entries = await client.listEntries(); assert.equal(entries.length, 14); assert.ok(entries.every(e => e.origin === 'builtin'));
+  assert.equal(entries.filter(e => e.expression.visual.animated).length, 0);
   assert.ok(entries.every(e => e.expression.rights.license === 'CC0-1.0'));
   const external = await sandbox(t); await external.client.importPack(await readFile(new URL('../assets/base-library/base.amoji', import.meta.url)));
   for (const e of entries) { assert.deepEqual(await external.client.resolve(ref(e.expression)), e.expression); assert.equal((await external.client.getEntry(e.expression.asset_id)).origin, 'imported'); }
@@ -204,7 +204,7 @@ test('实际dsh分发runtime可加载普通基础包并提供完整包公共能�
   const service = await startPackaged(directory, new URL('../adapters/dsh/assets/base-library/base.amoji', import.meta.url));
   const client = await SharedClient.connect({ directory, requiredCapabilities: ['packs-v1'] });
   t.after(async () => { await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
-  const entries = await client.listEntries(); assert.equal(entries.length, 24);
+  const entries = await client.listEntries(); assert.equal(entries.length, 14);
   const result = await client.importPack(await client.exportPack([ref(entries[0]!.expression)], '分发自检'));
   assert.equal(result.added, 0); assert.equal(result.existing, 1);
 });

@@ -57,8 +57,9 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   input('draft-fallback').value = '为努力鼓掌';
   input('draft-tone').value = '真诚认可';
   input('draft-use').value = '对方完成一小步';
-  const source = (await client.list()).find(e => e.visual.animated)!;
-  const bytes = await readFile(await client.blobPath(source.visual.primary.sha256));
+  const samples = new URL('../assets/samples/', import.meta.url);
+  const source = JSON.parse(await readFile(new URL('manifest.json', samples), 'utf8')).expressions.find((e: any) => e.visual.animated);
+  const bytes = await readFile(new URL(`blobs/${source.visual.primary.sha256}`, samples));
   const file = new dom.window.File([new Uint8Array(bytes)], 'my-animation.gif', { type: 'image/gif' });
   Object.defineProperty(input('draft-file'), 'files', { configurable: true, value: [file] });
   input('draft-file').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
@@ -66,7 +67,7 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('INVALID_SCHEMA'));
   assert.equal(input('draft-meaning').value, '  ');
   assert.equal(input('draft-file').files![0]!.name, 'my-animation.gif');
-  assert.equal((await client.list()).length, 24);
+  assert.equal((await client.list()).length, 14);
   input('draft-meaning').value = '认可持续投入与小小进步';
   loseResponse = '/api/draft/save';
   button('save-draft').click();
@@ -127,7 +128,7 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   recoveredImage.dispatchEvent(new dom.window.Event('load'));
   await eventually(() => !button('confirm-draft').disabled);
   assert.match(doc.querySelector('#session')!.getAttribute('title')!, /create-dom-target/);
-  assert.equal((await client.list()).length, 24);
+  assert.equal((await client.list()).length, 14);
   button('new-draft').click();
   await eventually(() => input('draft-name').value === '' && !button('new-draft').disabled);
   recoveredImage.dispatchEvent(new dom.window.Event('load'));
@@ -163,9 +164,9 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   loseResponse = '/api/draft/confirm';
   button('confirm-draft').click();
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('DRAFT_OUTCOME_UNKNOWN') && !button('confirm-draft').disabled);
-  assert.equal((await client.list()).length, 25);
+  assert.equal((await client.list()).length, 15);
   button('confirm-draft').click();
-  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 25);
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 15);
   const created = (await client.list()).find(e => e.name === '新建鼓励')!;
   assert.ok(created);
   assert.equal(confirmRequests, 2, '只在用户明确核对时重试同一次确认，无自动循环');

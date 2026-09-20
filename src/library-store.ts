@@ -124,9 +124,33 @@ export class LibraryStore {
       }
       this.db.prepare("INSERT OR IGNORE INTO metadata VALUES ('initialized','1')").run();
     });
-    if (builtinPack && !this.db.prepare("SELECT value FROM metadata WHERE key='base-library-v1'").get()) {
-      await withValidatedPack(createReadStream(seed), pack => this.importValidatedPack(pack, 'builtin'));
-      this.db.prepare("INSERT OR IGNORE INTO metadata VALUES ('base-library-v1','1')").run();
+    if (builtinPack) {
+      await withValidatedPack(createReadStream(seed), async pack => {
+        const marker = `builtin-pack:${pack.manifest.pack_id}`;
+        if (this.db.prepare('SELECT value FROM metadata WHERE key=?').get(marker)) return;
+        let policy: {pack_id: string; retired: ExpressionRef[]} | undefined;
+        try {
+          const raw = JSON.parse(await readFile(new URL('builtin-policy.json', seed), 'utf8'));
+          if (!raw || raw.pack_id !== pack.manifest.pack_id || !Array.isArray(raw.retired) || raw.retired.length > 200 ||
+              !raw.retired.every((ref: ExpressionRef) => ref && typeof ref.asset_id === 'string' && typeof ref.revision_id === 'string')) {
+            fail('BUILTIN_POLICY_INVALID', '内置表情升级声明与内容包不匹配');
+          }
+          policy = raw;
+        } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+        await this.importValidatedPack(pack, 'builtin');
+        this.transaction(() => {
+          // Archive only shipped, exact old defaults. Personal copies and imported
+          // collections have their own ownership; immutable revisions/blobs stay.
+          for (const ref of policy?.retired ?? []) {
+            const current = this.db.prepare(`SELECT e.revision_id,o.origin,s.archived FROM library_entries e
+              JOIN expression_origins o ON e.asset_id=o.asset_id JOIN entry_state s ON e.asset_id=s.asset_id WHERE e.asset_id=?`).get(ref.asset_id);
+            if (current?.origin === 'builtin' && current.revision_id === ref.revision_id && current.archived === 0) {
+              this.db.prepare('UPDATE entry_state SET archived=1,version=version+1 WHERE asset_id=?').run(ref.asset_id);
+            }
+          }
+          this.db.prepare('INSERT INTO metadata VALUES (?,?)').run(marker, '1');
+        });
+      });
     }
   }
 

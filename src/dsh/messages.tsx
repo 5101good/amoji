@@ -6,7 +6,7 @@ import { expressionPresentationContent } from './expression-message.js';
 import { Styles } from './ui.js';
 import { AmojiImage, errorText } from './media.js';
 
-interface UserProps { sessionId: string; node: { data: { seq?: number; content?: unknown; source?: { kind?: string; rpcId?: string } } } }
+interface UserProps { sessionId: string; node: { data: { seq?: number; content?: unknown; referenceLabels?: readonly string[]; skillNames?: readonly string[]; source?: { kind?: string; rpcId?: string } } } }
 function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: UserProps; messageId: string; Original: React.ComponentType<UserProps> }) {
   const { sessionId } = props; const seq = props.node.data.seq;
   const [row, setRow] = useState<HistoryEntry>(); const [error, setError] = useState('');
@@ -23,7 +23,8 @@ function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: 
   const visible = row ? { ...props, node: { ...props.node, data: { ...props.node.data, content: expressionPresentationContent(props.node.data.content, row.message.revision) } } } : props;
   if (!row) return error ? <><Original {...props}/><small role="alert">{error}</small></> : <div className="amoji amoji-message amoji-message-human"><Styles/><span className="muted" role="status">正在加载表情…</span></div>;
   const content = visible.node.data.content;
-  const hasOtherContent = !Array.isArray(content) || content.length > 0;
+  const hasOtherContent = !Array.isArray(content) || content.length > 0 ||
+    !!props.node.data.referenceLabels?.length || !!props.node.data.skillNames?.length;
   return <>{hasOtherContent && <Original {...visible}/>}
     <div className="amoji amoji-message amoji-message-human"><Styles/>
       <AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta}/>

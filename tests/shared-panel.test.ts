@@ -53,7 +53,7 @@ test('适配器连接关闭会收口自己的待选请求，另一连接的面�
   const url = new URL(opened[0]!);
   const headers = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' };
   const state = await (await fetch(`${url.origin}/api/state`, { headers })).json();
-  const revision = state.expressions.find((e: any) => e.visual.animated);
+  const revision = state.expressions[0];
   const response = await fetch(`${url.origin}/api/select`, { method: 'POST', headers, body: JSON.stringify({ pick_id: state.pending_pick, asset_id: revision.asset_id, revision_id: revision.revision_id }) });
   assert.equal(response.status, 200);
   const message = await pendingB;

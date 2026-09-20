@@ -86,14 +86,14 @@ function panelApi(panel: URL, path: string, body?: unknown) {
 
 test('真实 Hook 覆盖模型伪票据并保留审批；缺身份、子代理与非法参数都拒绝', async t => {
   const s = await sandbox(t);
-  const input = payload('amoji_search', { query: '加油', limit: 2, [ticketKey]: { sessionId: 'forged' } });
+  const input = payload('amoji_search', { query: '一步一步来', limit: 2, [ticketKey]: { sessionId: 'forged' } });
   const valid = await s.hook(input);
   assert.equal(valid.code, 0, valid.stderr);
   const output = JSON.parse(valid.stdout).hookSpecificOutput;
   assert.deepEqual(Object.keys(output).sort(), ['hookEventName', 'updatedInput']);
-  assert.equal(output.updatedInput.query, '加油'); assert.equal(output.updatedInput.limit, 2);
+  assert.equal(output.updatedInput.query, '一步一步来'); assert.equal(output.updatedInput.limit, 2);
   assert.match(output.updatedInput[ticketKey], /^[A-Za-z0-9_-]{43}$/);
-  for (const change of [{ session_id: '' }, { prompt_id: undefined }, { tool_use_id: '' }, { agent_id: 'subagent-1' }, { agent_type: 'Explore' }, { tool_name: 'mcp__unrelated__amoji_search' }, { hook_event_name: 'PostToolUse' }, { tool_input: { query: '加油', session_id: 'forged' } }]) {
+  for (const change of [{ session_id: '' }, { prompt_id: undefined }, { tool_use_id: '' }, { agent_id: 'subagent-1' }, { agent_type: 'Explore' }, { tool_name: 'mcp__unrelated__amoji_search' }, { hook_event_name: 'PostToolUse' }, { tool_input: { query: '一步一步来', session_id: 'forged' } }]) {
     const rejected = await s.hook({ ...input, ...change });
     assert.equal(rejected.code, 2, JSON.stringify(change)); assert.equal(rejected.stdout, '');
     assert.match(rejected.stderr, /CLAUDE_|参数/);
@@ -103,8 +103,8 @@ test('真实 Hook 覆盖模型伪票据并保留审批；缺身份、子代理�
   const tools = (await client.listTools()).tools;
   assert.deepEqual(tools.map(tool => tool.name), ['amoji_search', 'amoji_resolve', 'amoji_emit', 'amoji_pick']);
   for (const tool of tools) assert.ok(!Object.keys(tool.inputSchema.properties ?? {}).some(k => /session|turn|prompt|invocation/.test(k)));
-  error(await client.callTool({ name: 'amoji_search', arguments: { query: '加油' } }), /CLAUDE_TICKET/);
-  error(await client.callTool({ name: 'amoji_search', arguments: { query: '加油', [ticketKey]: 'forged' } }), /CLAUDE_TICKET_UNAVAILABLE/);
+  error(await client.callTool({ name: 'amoji_search', arguments: { query: '一步一步来' } }), /CLAUDE_TICKET/);
+  error(await client.callTool({ name: 'amoji_search', arguments: { query: '一步一步来', [ticketKey]: 'forged' } }), /CLAUDE_TICKET_UNAVAILABLE/);
   error(await client.callTool({ name: 'amoji_search', arguments: { ...output.updatedInput, query: '庆祝' } }), /CLAUDE_TICKET_MISMATCH/);
   error(await client.callTool({ name: 'amoji_search', arguments: output.updatedInput, _meta: { 'claudecode/toolUseId': 'wrong' } }), /CLAUDE_TICKET_MISMATCH/);
   const found = value(await client.callTool({ name: 'amoji_search', arguments: output.updatedInput })); assert.ok(found.candidates.length);

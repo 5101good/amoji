@@ -76,7 +76,7 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
   await client.connect(new StdioClientTransport({ command: config.command, args: config.args, cwd: directory, env: { AMOJI_DATA_DIR: data, PATH: process.env.PATH ?? '' }, stderr: 'pipe' }));
   connected = true;
   const _meta = { 'x-codex-turn-metadata': { thread_id: 'artifact', turn_id: '1' } };
-  const search = await client.callTool({ name: 'amoji_search', arguments: { query: '加油' }, _meta });
+  const search = await client.callTool({ name: 'amoji_search', arguments: { query: '一步一步来' }, _meta });
   assert.equal(search.isError, undefined, JSON.stringify(search));
   const choice = JSON.parse((search.content as any)[0].text).candidates[0];
   const sent = await client.callTool({ name: 'amoji_emit', arguments: { selection_token: choice.selection_token }, _meta });
@@ -114,7 +114,7 @@ test('生成插件从独立目录启动共享服务与面板，素材及运行�
 
 
   const revision = state.messages[0].revision;
-  for (const blob of [revision.visual.primary, revision.visual.poster]) {
+  for (const blob of [revision.visual.primary, revision.visual.poster].filter(Boolean)) {
     const response = await fetch(`${panel.origin}/blobs/${blob.sha256}`, { headers });
     assert.equal(response.status, 200);
     assert.equal((await response.arrayBuffer()).byteLength, blob.bytes);
@@ -156,7 +156,7 @@ test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Cod
     if (entry.isSymbolicLink()) assert.ok((await realpath(join(entry.parentPath, entry.name))).startsWith(`${destination}/`));
   }
   const hooks = JSON.parse(await readFile(join(destination, 'hooks/hooks.json'), 'utf8')).hooks.PreToolUse;
-  const input = { hook_event_name: 'PreToolUse', session_id: 'artifact', prompt_id: '550e8400-e29b-41d4-a716-446655440000', tool_use_id: 'toolu_artifact', tool_name: 'mcp__plugin_amoji_amoji__amoji_search', tool_input: { query: '加油' } };
+  const input = { hook_event_name: 'PreToolUse', session_id: 'artifact', prompt_id: '550e8400-e29b-41d4-a716-446655440000', tool_use_id: 'toolu_artifact', tool_name: 'mcp__plugin_amoji_amoji__amoji_search', tool_input: { query: '一步一步来' } };
   const selected = hooks.find((group: any) => new RegExp(group.matcher).test(input.tool_name));
   assert.ok(selected); assert.equal(new RegExp(selected.matcher).test('mcp__plugin_other_amoji__amoji_search'), false);
   const bin = join(directory, 'bin'); await mkdir(bin);
@@ -209,7 +209,7 @@ test('Claude 独立产物从空 cwd 执行实际 Hook 和 MCP，且不覆盖 Cod
 
 
   assert.equal(state.host, 'claude-code'); assert.equal(state.messages[0].message_id, message.message_id);
-  for (const blob of [state.messages[0].revision.visual.primary, state.messages[0].revision.visual.poster]) {
+  for (const blob of [state.messages[0].revision.visual.primary, state.messages[0].revision.visual.poster].filter(Boolean)) {
     const response = await fetch(`${panel.origin}/blobs/${blob.sha256}`, { headers });
     assert.equal(response.status, 200); assert.equal((await response.arrayBuffer()).byteLength, blob.bytes);
   }

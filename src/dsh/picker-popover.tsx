@@ -22,9 +22,14 @@ export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.R
       const panelWidth = Math.max(0, Math.min(432, width - 2 * margin));
       element.style.width = `${panelWidth}px`;
       element.style.left = `${Math.max(leftEdge + margin, Math.min(rect.left, leftEdge + width - margin - panelWidth))}px`;
-      element.style.maxHeight = `${Math.min(560, upwards ? above : below)}px`;
-      element.style.top = upwards ? 'auto' : `${anchorBottom + gap}px`;
-      element.style.bottom = upwards ? `${view.innerHeight - anchorTop + gap}px` : 'auto';
+      const available = upwards ? above : below;
+      const useViewport = available < Math.min(360, height - 2 * margin);
+      const panelHeight = Math.max(0, Math.min(560, useViewport ? height - 2 * margin : available));
+      // A definite height bounds percentage-sized details; a cramped composer
+      // must not reserve half the viewport at the expense of sending controls.
+      element.style.height = element.style.maxHeight = `${panelHeight}px`;
+      element.style.top = useViewport ? `${top}px` : upwards ? 'auto' : `${anchorBottom + gap}px`;
+      element.style.bottom = useViewport ? 'auto' : upwards ? `${view.innerHeight - anchorTop + gap}px` : 'auto';
     };
     position();
     // The current dsh Web browser exposes this standard API. Fixed positioning

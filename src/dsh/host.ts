@@ -48,7 +48,7 @@ export class DshAdapter {
     check(); return { context: { ...this.context(sessionId), turnId: `turn:${seq}`, turnOrdinal }, check };
   }
   tool(name: 'amoji_search' | 'amoji_resolve' | 'amoji_emit'): ToolOptions {
-    return { name, description: name === 'amoji_search' ? '仅在你想主动用表情回应时检索；返回候选固定语义及供 amoji_emit 使用的 selection_token。选择前从发送者视角核对主体和对象：固定含义应表达 AI 此刻对用户的意思，不要机械映射用户的情绪词。无合适候选就用文字，每回合最多发一个。limit 默认 3，范围 1–5。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。用户表达中已有固定语义时无需调用 resolve。' : '仅使用本回合 amoji_search 返回的 selection_token 发送合适表情，不得自造或猜测 token。发送前核对固定含义的主体和对象，确保表达 AI 此刻对用户的意思。收到用户表情无需重复发送；不合适或失败就用文字回应。模型只接收固定文字语义。',
+    return { name, description: name === 'amoji_search' ? '仅在你想主动用表情回应时检索；返回候选固定语义及供 amoji_emit 使用的 selection_token。选择前从发送者视角核对主体和对象：固定含义应表达 AI 此刻对用户的意思，不要机械映射用户的情绪词。无合适候选就用文字，每回合最多发一个。不能用表情编造进度、后台运行或完成状态；查询进度和纠正方向类表情通常是用户对AI的意图，不要反向使用。limit 默认 3，范围 1–5。' : name === 'amoji_resolve' ? '按 asset_id 和 revision_id 读取精确版本的固定文字语义，不发送消息。用户表达中已有固定语义时无需调用 resolve。' : '仅使用本回合 amoji_search 返回的 selection_token 发送合适表情，不得自造或猜测 token。发送前核对固定含义的主体和对象，确保表达 AI 此刻对用户的意思。收到用户表情无需重复发送；不合适或失败就用文字回应。模型只接收固定文字语义。',
       parameters: name === 'amoji_search' ? { query: { type: 'string', required: true }, limit: { type: 'integer' } } : name === 'amoji_resolve' ? { asset_id: { type: 'string', required: true }, revision_id: { type: 'string', required: true } } : { selection_token: { type: 'string', required: true } },
       output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_emit' ? { presentationMeta: (_args: unknown, value: unknown) => record(value).meta as JsonValue } : {}) },
       execute: async (raw, exec): Promise<JsonValue> => {

@@ -106,12 +106,15 @@ export function createComponents(rpc: DshRpc) {
       finally { sendLock.current = false; if (current()) setBusy(false); }
     };
     const changeAppearance = async (appearance: Appearance) => {
-      if (!target || !settings || busy || settings.appearance === appearance) return;
+      if (!target || !settings || busy || uncertain || settings.appearance === appearance) return;
       setBusy(true); setStatus('');
       try {
         const next = await rpc.management(target,'updateSettings',{version:settings.version,preferences:{style:settings.style,frequency:settings.frequency,paused:settings.paused,appearance}});
         setSettings(next); setCategory('全部'); setSelected(undefined); await load('');
-      } catch (e) { setStatus(errorText(e)); try { setSettings(await rpc.management(target,'getSettings',{})); } catch {} }
+      } catch (e) {
+        setStatus(errorText(e));
+        try { setSettings(await rpc.management(target,'getSettings',{})); await load(''); } catch {}
+      }
       finally { setBusy(false); }
     };
     const check = async () => {
@@ -159,7 +162,7 @@ export function createComponents(rpc: DshRpc) {
       }}><SmileIcon/><span>表情</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
         <header className="amoji-picker-head"><h2>用表情表达</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>管理表情</button><button className="icon-button" type="button" aria-label="关闭" onClick={()=>dismiss()}><CloseIcon/></button></div></header>
-        <div className="amoji-appearance" aria-label="表情画风"><span className="muted">画风</span>{([['classic','经典'],['office','办公']] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">点击即发送</span></div>
+        <div className="amoji-appearance" aria-label="表情画风"><span className="muted">画风</span>{([['classic','经典'],['office','办公']] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy||uncertain} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">点击即发送</span></div>
         <form className="amoji-picker-search" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
           <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="想表达什么？" />
           <button type="submit" disabled={busy || uncertain}>{searching ? '搜索中…' : '搜索'}</button>
@@ -167,7 +170,7 @@ export function createComponents(rpc: DshRpc) {
         </form>
         {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label="表情场景">{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{c}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
-          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={`查看 ${e.name} 详情`} disabled={busy} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>详情</button></div>)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
+          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={`查看 ${e.name} 详情`} disabled={busy||uncertain} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>详情</button></div>)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
         </div>
         <footer className="amoji-picker-footer">
           {selected ? <section className="amoji-selection" aria-label="固定语义与精确版本"><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>查看含义与适用场景</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>版本 {selected.revision_id}</small></details></section> : <p className="muted">选一张表情，看看它想表达什么。</p>}

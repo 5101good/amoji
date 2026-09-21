@@ -61,6 +61,15 @@ test('选择器切换办公画风立即 CAS 保存并刷新 catalog',async t=>{
  const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(classic.name));
  await f.click('办公');assert.equal(settings.appearance,'office');assert.ok(f.button(office.name));assert.ok(catalogs>=2);
 });
+test('画风 CAS 冲突后同步最新设置与 catalog',async t=>{
+ const f=await fixture(t);const classic={...expression,name:'冲突前经典',tags:['amoji:appearance:classic','amoji:family:conflict']};const office={...expressions[1]!,name:'冲突后办公',tags:['amoji:appearance:office','amoji:family:conflict']};
+ let remote={version:1,style:'neutral' as const,frequency:'restrained' as const,paused:false,appearance:'classic' as 'classic'|'office'};
+ f.rpc.catalog=async()=>remote.appearance==='classic'?[classic]:[office];
+ f.rpc.management=async(_session:string,method:string)=>{if(method==='getSettings')return remote as any;if(method==='updateSettings')throw Object.assign(new Error('设置冲突'),{code:'SETTINGS_CONFLICT',current:remote});throw new Error(method);};
+ const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(classic.name));
+ remote={...remote,version:2,appearance:'office'};await f.click('办公');
+ assert.equal(f.button('办公').getAttribute('aria-pressed'),'true');assert.ok(f.button(office.name));assert.ok(!f.button(classic.name));assert.match(f.dom.window.document.body.textContent!,/设置冲突/);
+});
 for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保留额外文字与附件':'没有重复语义气泡'}`,async t=>{
  const f=await fixture(t);const meta=visualMeta({message_id:'m',revision:expression} as any);
  f.rpc.history=async()=>[{message:{message_id:'m',direction:'human_to_ai',revision:expression},meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;

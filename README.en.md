@@ -1,18 +1,67 @@
 # Amoji
 
-[中文](README.md) · [Documentation](docs/README.en.md) · [Installation](docs/dsh-installation.en.md)
+[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.0](https://github.com/5101good/amoji/releases/tag/v1.0.0)
 
-**Expressions for people and AI. People see artwork; AI reads fixed meaning.**
+**Working with AI needs room for expression.**
 
-Amoji adds a native expression picker, two-way message rendering, and a personal expression library to dsh. Each expression has an explicit meaning, tone, usage guidance, and text fallback. Models search and select through text without image recognition.
+AI-native expressions: people see the artwork; AI reads its fixed meaning. A shared way to express gratitude, uncertainty, encouragement, and care.
 
-- **Two-way expression:** click to send; AI uses `amoji_search`, `amoji_resolve`, and `amoji_emit` with the same fixed semantics.
-- **Two appearances:** Classic and Office cover the same 24 meanings, totaling 48 assets. Switching appearances preserves old messages.
-- **Create your own:** upload artwork and enter semantics, or describe your intent in one field for AI text suggestions. Choose a model, defaulting to the current conversation model. Adopt, edit, save, and confirm a loaded preview before publishing to your library.
-- **Local management:** drafts, revisions, archiving, personal copies, complete `.amoji` import/export, and AI expression preferences.
-- **Chinese and English UI:** follows the dsh interface language. UI translation does not rewrite stored semantics; built-in meanings are currently Chinese.
+<p align="center">
+  <img src="assets/samples/source/celebrate.png" alt="Celebrating together" width="140" />
+  <img src="assets/samples/source/wry.png" alt="A sheepish smile" width="140" />
+  <img src="assets/samples/encourage-poster.png" alt="Cheering you on" width="140" />
+</p>
 
-<p align="center"><img src="assets/samples/source/celebrate.png" alt="Amoji Classic character celebrating together" width="160" /></p>
+## Why we are building this
+
+In human conversation, an expression can make gratitude warmer, confusion easier to admit, and a reminder less abrupt. As AI becomes part of everyday work, those needs remain. We still want to say “I don't understand” without friction, celebrate progress together, and have our effort acknowledged with a thoughtful “You've worked hard.”
+
+**We believe emotional expression is a basic need in human–AI collaboration. It should remain available whether a model supports images or visual inference is affordable.**
+
+Amoji makes that possible through text. You express a feeling or intention with an image; AI reads the meaning attached to it. AI can also choose an appropriate expression in return. Understanding what an expression means can follow a text-only path.
+
+## What makes an expression AI-native?
+
+One expression supports two ways of reading it:
+
+| Reader | What they receive | What it helps them do |
+| --- | --- | --- |
+| People | Artwork, gestures, and facial expressions | Feel the tone and express themselves quickly |
+| AI | Explicit meaning, tone, and guidance on when to use or avoid it | Understand intent and choose an appropriate response |
+
+Traditional stickers primarily rely on a viewer interpreting the picture. Amoji adds an **explicit, directly readable meaning** alongside the artwork. A character scratching its head might convey confusion, self-deprecation, or embarrassment; its creator can specify which meaning this expression carries.
+
+Users can write that meaning themselves or ask AI for a suggestion, then edit, review, and confirm it. A confirmed revision keeps its semantics fixed, and past messages retain the revision that was sent. The model does not need to infer the meaning from pixels each time, and it cannot rewrite a sent expression's meaning on the fly.
+
+## What it looks like in collaboration
+
+| Moment | Expression | Intended meaning |
+| --- | --- | --- |
+| An explanation is too complicated | You → AI: I don't understand | Please explain it more simply; we have not reached a shared understanding yet. |
+| AI's help was useful | You → AI: Thank you | Your help made a difference, and I want to acknowledge it. |
+| You have just thanked AI | AI → you: You're welcome | I hear your thanks. Glad I could help. |
+| The evidence is still insufficient | AI → you: I'm not sure yet | There is not enough evidence for a confident judgment; the uncertainty needs explaining. |
+| You have put substantial effort into something | AI → you: You've worked hard | I recognize the time and effort you have invested. |
+
+An expression can accompany an explanation or result, making the tone clearer. You can choose the more restrained Office artwork, adjust how often AI uses expressions, or pause AI expression replies.
+
+## What this makes possible
+
+- **Participation from text-only models.** The information needed to understand an expression arrives as text, without requiring vision capability for that image.
+- **No visual inference just to read the expression.** Models can search and read concise semantics instead. Normal text inference and tool-call costs still apply.
+- **Meaning you can inspect.** You can see what AI will read and define the tone and usage boundaries, reducing the need to guess what the same picture means to each side.
+- **Expression in both directions.** People can convey feedback and emotion; AI can acknowledge thanks, express uncertainty, or offer encouragement with an appropriate expression.
+- **A vocabulary you define.** Create your own, import artwork, confirm its meaning, and share it through `.amoji` files. Build an expression library that feels like yours.
+
+## Starting with dsh
+
+Our vision is an expression system that can travel across models and clients. **Version 1.0 starts with native dsh integration**, bringing selection, sending, interpretation, and library management into one workflow:
+
+- **Native expressions in both directions:** click to send from the composer; AI searches and chooses through text tools. Images appear directly in the conversation.
+- **Classic and Office artwork:** the same 24 meanings across 48 assets, covering both human-to-AI expression and AI replies.
+- **One field to start creating:** describe your intent and choose a host model for wording suggestions, defaulting to the current conversation model. You adopt, edit, and confirm the result.
+- **A local personal library:** drafts, revisions, archiving, personal copies, complete pack import/export, and AI usage preferences.
+- **Chinese and English UI:** follows dsh's language setting without rewriting stored expression semantics. Built-in meanings are currently Chinese; the examples above explain them in English.
 
 ## Install
 
@@ -41,7 +90,13 @@ Version 1.0 primarily supports dsh. Existing evidence includes local installatio
 
 Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Codex and Claude Code implementations remain legacy and are outside the 1.0 live-validation and compatibility scope. See [release scope and known limitations](docs/release.en.md).
 
-## Develop and contribute
+## Help shape this vocabulary
+
+Through an open format and an open-source implementation, we want more people to help define expression in the age of AI. That expression can be warm or playful, serious or restrained. Share a need from your own collaboration, create new artwork and meanings, or help improve the interaction and host integrations.
+
+Start by [trying Amoji](#install), [sharing an idea](https://github.com/5101good/amoji/issues), or [contributing code and assets](CONTRIBUTING.en.md).
+
+## Develop
 
 ```sh
 npm ci

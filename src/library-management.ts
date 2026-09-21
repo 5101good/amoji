@@ -1,9 +1,10 @@
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import { fail, object, nonempty } from './shared-contract.js';
+import type { Appearance } from './expression-appearance.js';
+export type { Appearance } from './expression-appearance.js';
 
 export type ExpressionOrigin = 'local' | 'builtin' | 'imported';
 export interface LibraryEntry { expression: Expression; origin: ExpressionOrigin; version: number; archived: boolean }
-export type Appearance = 'classic' | 'office';
 export interface PersonalPreferences { style: 'neutral' | 'warm' | 'playful'; frequency: 'restrained' | 'moderate' | 'active'; paused: boolean; appearance?: Appearance }
 export interface PersonalSettings extends PersonalPreferences { version: number; appearance: Appearance }
 export const DEFAULT_SETTINGS: PersonalSettings = { version: 1, style: 'neutral', frequency: 'restrained', paused: false, appearance: 'classic' };
@@ -15,13 +16,6 @@ export function preferences(value: unknown): PersonalPreferences {
   return { style, frequency, paused, ...(appearance === undefined ? {} : { appearance }) };
 }
 
-export function expressionAppearance(expression: Expression): Appearance | undefined {
-  const value = expression.tags?.find(tag => tag.startsWith('amoji:appearance:'))?.slice('amoji:appearance:'.length);
-  return value === 'classic' || value === 'office' ? value : undefined;
-}
-export function expressionFamily(expression: Expression): string | undefined {
-  return expression.tags?.find(tag => tag.startsWith('amoji:family:'))?.slice('amoji:family:'.length);
-}
 export function expressionRef(value: unknown): ExpressionRef {
   const r = object(value, ['asset_id', 'revision_id']);
   return { asset_id: nonempty(r.asset_id), revision_id: nonempty(r.revision_id) };

@@ -7,7 +7,8 @@ import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import { PickerPopover } from './picker-popover.js';
 import { mountUserMessages } from './messages.js';
 import type { DshRpc, HistoryEntry, RpcResult } from './contracts.js';
-import type { Appearance, PersonalSettings } from '../library-management.js';
+import type { PersonalSettings } from '../library-management.js';
+import type { Appearance } from '../expression-appearance.js';
 
 export interface ClientPort {
   uiConversation?: { events: { register(definition: typeof aiExpressionDefinition): () => void } };

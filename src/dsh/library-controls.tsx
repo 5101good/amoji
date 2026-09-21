@@ -1,5 +1,6 @@
 import React,{useEffect,useLayoutEffect,useState,useRef} from 'react';
-import {expressionAppearance,type Appearance,type LibraryEntry} from '../library-management.js';
+import type {LibraryEntry} from '../library-management.js';
+import {expressionAppearance,type Appearance} from '../expression-appearance.js';
 import type {Expression,ExpressionRef} from '../sample-catalog.js';
 import type {Draft} from '../drafts.js';
 import type {DshRpc} from './contracts.js';

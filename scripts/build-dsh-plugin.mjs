@@ -9,7 +9,7 @@ const out = resolve(root, 'adapters/dsh');
 await rm(`${out}/runtime`, { recursive: true, force: true });
 await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
-for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'library-management', 'packs', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
+for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'library-management', 'expression-appearance', 'packs', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
 await cp(`${root}/web`, `${out}/web`, { recursive: true });
 for (const name of ['host', 'host-management', 'expression-message']) await cp(`${root}/dist/src/dsh/${name}.js`, `${out}/runtime/src/dsh/${name}.js`);
 await mkdir(`${out}/runtime/docs/specs`, { recursive: true });

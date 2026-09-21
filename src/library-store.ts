@@ -9,7 +9,8 @@ import { pathToFileURL } from 'node:url';
 import { SampleCatalog, type BlobRef, type Expression, type ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import { DATABASE_VERSION, fail, sessionKey, type BindingContext } from './shared-contract.js';
-import { DEFAULT_SETTINGS, expressionAppearance, expressionFamily, preferences, styleOrder, preferencePolicy, type LibraryEntry, type PersonalSettings } from './library-management.js';
+import { DEFAULT_SETTINGS, preferences, styleOrder, preferencePolicy, type LibraryEntry, type PersonalSettings } from './library-management.js';
+import { expressionAppearance, expressionFamily } from './expression-appearance.js';
 import { buildSearchResult, searchExpressions } from './search.js';
 import { prepareUploadedMedia, MEDIA_LIMITS, validateExpressionMedia } from './media.js';
 

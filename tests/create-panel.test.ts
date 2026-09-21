@@ -67,7 +67,7 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('INVALID_SCHEMA'));
   assert.equal(input('draft-meaning').value, '  ');
   assert.equal(input('draft-file').files![0]!.name, 'my-animation.gif');
-  assert.equal((await client.list()).length, 14);
+  assert.equal((await client.list()).length, 16);
   input('draft-meaning').value = '认可持续投入与小小进步';
   loseResponse = '/api/draft/save';
   button('save-draft').click();
@@ -128,7 +128,7 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   recoveredImage.dispatchEvent(new dom.window.Event('load'));
   await eventually(() => !button('confirm-draft').disabled);
   assert.match(doc.querySelector('#session')!.getAttribute('title')!, /create-dom-target/);
-  assert.equal((await client.list()).length, 14);
+  assert.equal((await client.list()).length, 16);
   button('new-draft').click();
   await eventually(() => input('draft-name').value === '' && !button('new-draft').disabled);
   recoveredImage.dispatchEvent(new dom.window.Event('load'));
@@ -164,9 +164,9 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   loseResponse = '/api/draft/confirm';
   button('confirm-draft').click();
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('DRAFT_OUTCOME_UNKNOWN') && !button('confirm-draft').disabled);
-  assert.equal((await client.list()).length, 15);
+  assert.equal((await client.list()).length, 17);
   button('confirm-draft').click();
-  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 15);
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 17);
   const created = (await client.list()).find(e => e.name === '新建鼓励')!;
   assert.ok(created);
   assert.equal(confirmRequests, 2, '只在用户明确核对时重试同一次确认，无自动循环');

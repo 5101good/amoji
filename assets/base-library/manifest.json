@@ -1,14 +1,14 @@
 {
   "kind": "amoji.pack",
   "schema_version": "0.1",
-  "pack_id": "337223fa-1bc3-4326-933d-1afbebd6cc17",
-  "name": "Amoji 协作表情",
+  "pack_id": "faf053c3-1804-4381-822e-816edc3cba5e",
+  "name": "Amoji 协作表情 · 经典与办公",
   "created_at": "2026-09-21T00:00:00Z",
   "expressions": [
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "5d062b01-2b96-45a8-99b9-2ef731311212",
+      "asset_id": "29103bbd-941b-4680-8f13-ea135468724f",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "进度如何",
       "semantics": {
@@ -28,13 +28,15 @@
       "tags": [
         "协作:进度",
         "进度如何",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:progress"
       ],
       "visual": {
         "primary": {
-          "sha256": "f97ff3acb30f153b558e697ce91d58a86befd6ccb060652c4617c563e72955cf",
+          "sha256": "7766d6ca6a3c338fd45a5302ed7e8cf1052227ff91f892331d094fa53553cd10",
           "mime": "image/png",
-          "bytes": 119738,
+          "bytes": 175433,
           "width": 512,
           "height": 512
         },
@@ -45,12 +47,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "cfb5e3fd-391c-4633-8690-fd3bacf2a1be"
+      "revision_id": "c5bfa366-7330-442f-a2b9-2a373f2fd765"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "ab4cf21c-521e-4bce-ba1c-367cf8092b4f",
+      "asset_id": "981bd20a-2b3c-493a-abb8-443a35b30142",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "还在吗",
       "semantics": {
@@ -70,13 +72,15 @@
       "tags": [
         "协作:进度",
         "还在吗",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:still-there"
       ],
       "visual": {
         "primary": {
-          "sha256": "fa0f036c21645e8b8ef64fdad627427a257e5033a766407c70d1e7d22b28a63e",
+          "sha256": "cc24d1e6dbfc7fe0107548fb117e2bac81f4cbf2e9e3b7a5d33bc2280b78ac80",
           "mime": "image/png",
-          "bytes": 125117,
+          "bytes": 162723,
           "width": 512,
           "height": 512
         },
@@ -87,12 +91,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "65e36f22-4aeb-4544-adf6-c58b0e31b7e7"
+      "revision_id": "86cc4887-4959-46ed-bb19-b52e03450dfe"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "74bb8f1e-2cae-4df7-b259-d45934396cad",
+      "asset_id": "b6b8faa7-8382-4ee6-bd98-687e53bbfad3",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "卡在哪里",
       "semantics": {
@@ -112,13 +116,15 @@
       "tags": [
         "协作:进度",
         "卡在哪里",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:blocked"
       ],
       "visual": {
         "primary": {
-          "sha256": "16d4917704d3affdf11d2a3144427d2c6709b7bdb41ffdbc9b72b40a74159289",
+          "sha256": "abf8225f037f0c0b79664b9a95be5b0ade81d55cf2a38e9cb83d4620bc878546",
           "mime": "image/png",
-          "bytes": 113155,
+          "bytes": 198814,
           "width": 512,
           "height": 512
         },
@@ -129,12 +135,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "899fa4ef-7409-4adf-b345-43c8c53ec2df"
+      "revision_id": "ea67e12e-5818-4865-b0a8-c937074863cf"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "cd747235-35af-4406-9ec8-5520b046cee5",
+      "asset_id": "6d3290ef-3221-4291-894b-f098b0d091f0",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "说具体些",
       "semantics": {
@@ -154,13 +160,15 @@
       "tags": [
         "协作:澄清",
         "说具体些",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:clarify"
       ],
       "visual": {
         "primary": {
-          "sha256": "a7689b51cec914361fd8d00b06651fb9579ac059ba13c8b5e0d7bba3d7895bc3",
+          "sha256": "4f8e35161eb1d8567beef56e950c2b9362106a5fbc7fe5293ab8cdf0a7d57e9b",
           "mime": "image/png",
-          "bytes": 138999,
+          "bytes": 172477,
           "width": 512,
           "height": 512
         },
@@ -171,12 +179,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "943123ce-a8c4-4039-bd09-0b1086435985"
+      "revision_id": "c022665d-0ba0-4f63-a49d-41649822c020"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "6cfb12e0-d435-41d6-b41e-34fcdd1e5468",
+      "asset_id": "3527a0e2-0715-441b-bb99-8c6294d92e57",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "举个例子",
       "semantics": {
@@ -196,13 +204,15 @@
       "tags": [
         "协作:澄清",
         "举个例子",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:example"
       ],
       "visual": {
         "primary": {
-          "sha256": "eca05e995f7c40a86d9c02ccdb921bea98cdb803713902f829b9c793d34f92ad",
+          "sha256": "cb54d840c3878f07f88a0b76609f7da8c98338ed50a1d2ab8ba4542a6f4c7430",
           "mime": "image/png",
-          "bytes": 140456,
+          "bytes": 184705,
           "width": 512,
           "height": 512
         },
@@ -213,12 +223,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "e7119785-b6ab-40d4-a6a4-17f16f6cbd8d"
+      "revision_id": "a0ddbae6-af9f-453a-8fcb-684e08030870"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "a3e2efad-5bc1-4bb3-85f5-59fe891ffcbc",
+      "asset_id": "d932804d-0456-4420-adbf-32484008c731",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "没看懂",
       "semantics": {
@@ -238,13 +248,15 @@
       "tags": [
         "协作:澄清",
         "没看懂",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:confused"
       ],
       "visual": {
         "primary": {
-          "sha256": "813235af329fbe4dea990ad0be086ae99f87bac7f2455f8c43fa74e58822ef0f",
+          "sha256": "d81ef39b82be4d1f5a7d4294955e5687e26186ba5fdd629c34626a8da532705a",
           "mime": "image/png",
-          "bytes": 102685,
+          "bytes": 153488,
           "width": 512,
           "height": 512
         },
@@ -255,12 +267,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "6d687280-34c6-415c-a9a8-2c0e154685a9"
+      "revision_id": "8411b5bf-fd02-4ba6-9f84-cd2e84a3a374"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "3f5211cc-7afa-4d9c-83ee-9833bcd46f22",
+      "asset_id": "4c033d35-e1c2-45d6-90e6-626ec8bf1ad9",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "方向不对",
       "semantics": {
@@ -280,13 +292,15 @@
       "tags": [
         "协作:方向",
         "方向不对",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:direction"
       ],
       "visual": {
         "primary": {
-          "sha256": "419aa9662ff9c692f9402c52e5080f5eab2e9b1643a053918f9cf93154cd2e97",
+          "sha256": "e378dd522ebdb55c97ca4cd8586aeb1c7af71d54387c25735b4637225dfbf24d",
           "mime": "image/png",
-          "bytes": 124708,
+          "bytes": 174437,
           "width": 512,
           "height": 512
         },
@@ -297,12 +311,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "f8b087bd-1305-4898-afc9-8dcf3436ba9f"
+      "revision_id": "bea09fca-b417-416c-92b9-888b0ef638e2"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "d24b0d2f-d82a-4ca4-9ad6-469bb1fcc469",
+      "asset_id": "ecf20835-6ea4-405e-8601-44c84452f274",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "先等一下",
       "semantics": {
@@ -322,13 +336,15 @@
       "tags": [
         "协作:方向",
         "先等一下",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:wait"
       ],
       "visual": {
         "primary": {
-          "sha256": "bbfcd0fb16351e097931453bf46682db0dd151476d36dcf15598d9ff9254e1e9",
+          "sha256": "9f425fb387085e5ea7425a08c9986631e2f6c56e06923984bbb6a40a1d28569a",
           "mime": "image/png",
-          "bytes": 123824,
+          "bytes": 152987,
           "width": 512,
           "height": 512
         },
@@ -339,12 +355,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "da021f1e-c143-45a5-a87f-0d752f5085fd"
+      "revision_id": "1e91beaf-2cc8-4b9b-9712-4256a8e95e27"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "287423a3-2e81-4609-a7e5-0e72952006fb",
+      "asset_id": "e8c169bd-91b7-403d-bc3d-9368b521a660",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "继续吧",
       "semantics": {
@@ -364,13 +380,15 @@
       "tags": [
         "协作:方向",
         "继续吧",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:continue"
       ],
       "visual": {
         "primary": {
-          "sha256": "8d3db98ea0a93aab9579940b20bff1f787ba26c07a8d405d756bd06e5434e28d",
+          "sha256": "53fae3424d6d53839f29f1169107a7b90adbd37228a01fd9d3bcf5c93501f165",
           "mime": "image/png",
-          "bytes": 111462,
+          "bytes": 159227,
           "width": 512,
           "height": 512
         },
@@ -381,12 +399,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "a1530ac7-b86c-4140-8419-49d639d7a488"
+      "revision_id": "c18caef9-d8ee-46f1-a498-ae644cc2519d"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "78a5fb05-7dbc-42ce-b4c8-7950ab7c779e",
+      "asset_id": "c9bd3b96-ac2a-4cd4-833f-67acfe93ddb0",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "一步一步来",
       "semantics": {
@@ -406,13 +424,15 @@
       "tags": [
         "协作:方向",
         "一步一步来",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:steps"
       ],
       "visual": {
         "primary": {
-          "sha256": "c689079195959e73054b53f9d27ca7921ee804c1c1e42fcd7c4b1197305254b7",
+          "sha256": "bcd64672faddad021ff37151c28fdacaf4258a7644cc44dd23af348ae82dc0e9",
           "mime": "image/png",
-          "bytes": 103055,
+          "bytes": 174547,
           "width": 512,
           "height": 512
         },
@@ -423,12 +443,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "d5901ee7-5ec2-4bc8-870e-4335fd42f5ca"
+      "revision_id": "7dbf8fc0-27b5-4158-a5fd-bb27c5246290"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "67c4eacc-895a-40c5-ae3a-9114c6bb002b",
+      "asset_id": "544066ae-a69b-4428-b466-bff808f83e2d",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "明白了",
       "semantics": {
@@ -448,13 +468,15 @@
       "tags": [
         "协作:反馈",
         "明白了",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:understood"
       ],
       "visual": {
         "primary": {
-          "sha256": "f1c0c327f31de585f39e931caf6dda9f1bee6cc360e8edb30513b0eec54af9c2",
+          "sha256": "b46377d0fb53356945ce7379b5632a37d9b8847673ed014be1fd8eb5ae6b60ee",
           "mime": "image/png",
-          "bytes": 116390,
+          "bytes": 143771,
           "width": 512,
           "height": 512
         },
@@ -465,12 +487,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "df26ccb4-16f2-4b64-bda9-6d283850483e"
+      "revision_id": "fbb52b23-4fb2-4334-aff5-b4ecb56fa9c3"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "6bbccbf0-4719-4aa8-a283-f22e2b5168bd",
+      "asset_id": "2cc19f40-5f20-485f-821d-aac006e6912c",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "这个不错",
       "semantics": {
@@ -490,13 +512,15 @@
       "tags": [
         "协作:反馈",
         "这个不错",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:nice"
       ],
       "visual": {
         "primary": {
-          "sha256": "6f1b50732cbc0f36f65a406d59ddace3aaa1c6f1f9bc517f2da02041a281a935",
+          "sha256": "0508563bb515a8e2cd3a8ec156e3211fd9bdba216c7d8a239663a9a10122a846",
           "mime": "image/png",
-          "bytes": 108513,
+          "bytes": 147659,
           "width": 512,
           "height": 512
         },
@@ -507,12 +531,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "f7192fcb-debf-479a-a306-614d0ba4fba2"
+      "revision_id": "3a213af9-1187-428b-8d37-9bba681ca14a"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "569449de-01cc-4ab8-b3c0-8e76d3fa92ec",
+      "asset_id": "4fc57079-a88b-4804-8a3f-f6a0601ecc6d",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "谢谢",
       "semantics": {
@@ -532,13 +556,15 @@
       "tags": [
         "协作:反馈",
         "谢谢",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:thanks"
       ],
       "visual": {
         "primary": {
-          "sha256": "75e5be6049d52c1236a8aedb75570892737f5fa75bd4415be0b98fa6ddd9a1aa",
+          "sha256": "558a1022adc27ac780ca3d5e61f550d0e35277e3cf56924cd47abc9675e91f43",
           "mime": "image/png",
-          "bytes": 101313,
+          "bytes": 139677,
           "width": 512,
           "height": 512
         },
@@ -549,12 +575,12 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "cb454c05-41d0-4ec9-b715-0c8374321620"
+      "revision_id": "f5f68c44-9e91-4c2b-b500-356ea5560c87"
     },
     {
       "kind": "amoji.expression",
       "schema_version": "0.1",
-      "asset_id": "6bb35499-18be-4b9e-b5b6-66ce2ef679ce",
+      "asset_id": "d7d24e27-b1d1-4c20-a7e9-ecbd4f3f6010",
       "created_at": "2026-09-21T00:00:00Z",
       "name": "一起庆祝",
       "semantics": {
@@ -574,13 +600,15 @@
       "tags": [
         "协作:反馈",
         "一起庆祝",
-        "人与AI协作"
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:celebrate"
       ],
       "visual": {
         "primary": {
-          "sha256": "465550b304a52e5120bd0d4ec810efc0eb3f784c8fc6713a8806921e2bbe01d1",
+          "sha256": "91cac51f184b4ac83f6804f1f21a6e5a06c626706e88301ee785476060621335",
           "mime": "image/png",
-          "bytes": 122536,
+          "bytes": 168970,
           "width": 512,
           "height": 512
         },
@@ -591,65 +619,943 @@
         "creator": "Amoji contributors",
         "source": "Original Codex imagegen character; assets/base-library/provenance.json"
       },
-      "revision_id": "9abf96a9-a839-4a27-a49d-cb539eba8f24"
+      "revision_id": "c7bf741a-1da2-410a-b63d-981cdf41b392"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d98baf64-db1f-4e12-b960-1e1f31862118",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "挠头苦笑",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "面对自己无伤大雅的小失误，带着善意自嘲和无奈。",
+        "fallback": "[挠头苦笑]",
+        "tone": "温和、自嘲",
+        "use_when": [
+          "承认自己的小失误时"
+        ],
+        "avoid_when": [
+          "讽刺他人",
+          "对方正在认真表达痛苦时"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "挠头苦笑",
+        "人与AI协作",
+        "自嘲",
+        "无奈",
+        "失误",
+        "amoji:appearance:classic",
+        "amoji:family:wry"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "f67fc2846450f476b92d540f633af2ce1527ac6105e6a0515e4a97f5401a6d1e",
+          "mime": "image/png",
+          "bytes": 156246,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "13cf5e8c-4750-4cf4-966c-9e55f599cc0a"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "3f8578f1-2c1f-4525-9189-fecae0d07537",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "给你加油",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "支持你的努力，我们一步一步来。",
+        "fallback": "[给你加油]",
+        "tone": "温暖、坚定",
+        "use_when": [
+          "对方需要支持和鼓励时"
+        ],
+        "avoid_when": [
+          "用表情代替具体帮助或必要解释"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "给你加油",
+        "人与AI协作",
+        "鼓励",
+        "支持",
+        "加油",
+        "amoji:appearance:classic",
+        "amoji:family:encourage"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "477edc002d150c0db9f40cf06d8e346d642a4dcc9a394c7565983b35df99f997",
+          "mime": "image/webp",
+          "bytes": 538634,
+          "width": 887,
+          "height": 887
+        },
+        "animated": true,
+        "duration_ms": 1000,
+        "poster": {
+          "sha256": "5dd2653e91467ba9a797f7070e12e9c3dc6f72b3d80e1777a6881ea39e4a6434",
+          "mime": "image/png",
+          "bytes": 466198,
+          "width": 887,
+          "height": 887
+        }
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "0b3e2332-ece8-47a9-a9a1-8f3306333ada"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d8c61727-5d8f-405a-95fb-6f4146619c3b",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "进度如何",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我想了解当前任务做到哪一步了，请简要说明已完成、正在处理和剩余事项。",
+        "tone": "友好、关注进展",
+        "fallback": "[进度如何]",
+        "use_when": [
+          "等待任务结果时查询真实进度",
+          "需要一个简短状态更新"
+        ],
+        "avoid_when": [
+          "不要凭表情编造完成比例或后台工作",
+          "AI不要用它声称自己正在执行任务"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "进度如何",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:progress"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "bdb25a221dbc6185bc9de13513c1ca795a83ae9c683180523b6c5ddef2349bfb",
+          "mime": "image/png",
+          "bytes": 114325,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "79357f02-afe0-41c6-8087-6cfca504acec"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "4ef39af8-03b9-4bae-8b34-56be8c77b29c",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "还在吗",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我在等你的回应，想确认你是否还能继续响应，以及当前是否有需要我处理的阻碍。",
+        "tone": "轻轻提醒",
+        "fallback": "[还在吗]",
+        "use_when": [
+          "等待较久而没有回应",
+          "确认对话是否仍可继续"
+        ],
+        "avoid_when": [
+          "这不是持续后台运行的证明",
+          "不要用空泛的正在处理代替可核对状态"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "还在吗",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:still-there"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "34f32955da73007c154aa5c4776915ffe09f3cef17d67401b8501978029a6a86",
+          "mime": "image/png",
+          "bytes": 103027,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "4adec52c-83d9-4150-b17e-c793bb2e5a24"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "68fc227d-3b7d-4cfa-8fa9-5cc780eb72b1",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "卡在哪里",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我想知道目前具体卡在什么地方、缺少什么，以及我能提供什么帮助。",
+        "tone": "直接、愿意配合",
+        "fallback": "[卡在哪里]",
+        "use_when": [
+          "任务受阻时询问具体原因",
+          "需要明确下一步依赖"
+        ],
+        "avoid_when": [
+          "不要捏造阻碍",
+          "不要用它暗示用户已经授予额外权限"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "卡在哪里",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:blocked"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "f486992eb0c1089ce92bf2d94db72f675483485693089040f23fdb349108a74e",
+          "mime": "image/png",
+          "bytes": 115818,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "768500e7-5895-4fb4-9cff-68ee73bf6814"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "352263d3-d368-472c-bfd5-1444b92219eb",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "说具体些",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "刚才的说明太抽象，我希望你说得更具体，指出对象、原因或可以执行的下一步。",
+        "tone": "认真、建设性",
+        "fallback": "[说具体些]",
+        "use_when": [
+          "回答过于笼统",
+          "需要把建议落到具体事项"
+        ],
+        "avoid_when": [
+          "不是对对方的讽刺",
+          "不表示同意任何尚未确认的执行方案"
+        ]
+      },
+      "tags": [
+        "协作:澄清",
+        "说具体些",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:clarify"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "8432826e83bad255b69e6aaf4afae209645e1603e7b77c1d9556230c8aebd9e5",
+          "mime": "image/png",
+          "bytes": 130004,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "be3e0a41-3f08-4aaa-adde-d45d25b3edb0"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "6675ce98-1280-4fa8-8cf3-f4cb0c651fc9",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "举个例子",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我希望看到一个与当前问题相关的具体例子，帮助我理解你刚才的解释。",
+        "tone": "好奇、求理解",
+        "fallback": "[举个例子]",
+        "use_when": [
+          "抽象概念难以理解",
+          "想用实例判断方案是否适合"
+        ],
+        "avoid_when": [
+          "例子不能冒充真实发生的事实",
+          "不要把虚构的演示数据当作用户数据"
+        ]
+      },
+      "tags": [
+        "协作:澄清",
+        "举个例子",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:example"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "ea454dde80166ea4441585df9a92d2663bee7d266e9f248b5e0a7515355882b9",
+          "mime": "image/png",
+          "bytes": 114123,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "dd587b19-39d2-4d8b-bde4-3d93203f6384"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "7ba7438b-02c5-4abb-bd64-22a620256179",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "没看懂",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我还没有理解刚才的内容，请换一种更简单的说法，或先澄清我们分歧的地方。",
+        "tone": "坦诚、不责备",
+        "fallback": "[没看懂]",
+        "use_when": [
+          "解释难以理解",
+          "发现彼此理解不一致"
+        ],
+        "avoid_when": [
+          "不代表同意之前的结论",
+          "AI不要用它回避能回答的问题"
+        ]
+      },
+      "tags": [
+        "协作:澄清",
+        "没看懂",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:confused"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "e810462510e10befd1743c8d80f8a1da9c4dbcfa52baf8b02a42ea332391cdca",
+          "mime": "image/png",
+          "bytes": 106773,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "d2b87aa9-60b4-4acc-ae3e-4bcfc707b46e"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "bb823331-4ab9-421b-8d12-276241417cfe",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "方向不对",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我觉得当前理解或推进方向偏离了原本需求，希望先重新对齐目标，再决定如何继续。",
+        "tone": "明确、建设性",
+        "fallback": "[方向不对]",
+        "use_when": [
+          "结果偏离需求",
+          "需要纠正假设或工作方向"
+        ],
+        "avoid_when": [
+          "不意味着可以擅自丢弃已有成果",
+          "不能据此推断新的具体目标或范围"
+        ]
+      },
+      "tags": [
+        "协作:方向",
+        "方向不对",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:direction"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "709e029dd468740f2384b446a853c97c541c68299e9dc8d26a0506446eb4fda5",
+          "mime": "image/png",
+          "bytes": 108560,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "9253fea3-b35b-400a-8974-7f51d1c5d055"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "77de8e82-9193-4b1c-8b31-70eba163439f",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "先等一下",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我希望先暂停当前推进，等我补充说明或重新确认后再继续。",
+        "tone": "平静、明确",
+        "fallback": "[先等一下]",
+        "use_when": [
+          "准备修改要求",
+          "需要先检查当前结果"
+        ],
+        "avoid_when": [
+          "这不是系统已经停止任务的回执",
+          "AI不能用它声称已经完成取消操作"
+        ]
+      },
+      "tags": [
+        "协作:方向",
+        "先等一下",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:wait"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "4eb2c8aa990e3f6e190872550abf3fa32906fd722a3bf37d70cfe394402077d7",
+          "mime": "image/png",
+          "bytes": 100617,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "573ebda6-22cf-484a-900f-1ef5b1f1e6dd"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "cd810fd6-4203-4fb3-b7f4-ebc9c9e1a7ba",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "继续吧",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我希望沿着已经明确且已授权的方向继续推进当前任务，不需要重复询问同一个已确认事项。",
+        "tone": "信任、鼓励",
+        "fallback": "[继续吧]",
+        "use_when": [
+          "已经对齐方案后推进下一步",
+          "继续尚未完成的既定工作"
+        ],
+        "avoid_when": [
+          "不授予新权限或扩大任务范围",
+          "不替代尚未提供的关键答案或高风险操作确认"
+        ]
+      },
+      "tags": [
+        "协作:方向",
+        "继续吧",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:continue"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "71a53fe18ae47f3037ea8143b8bab77b3294836995c6b1a37ae7cdd44695652b",
+          "mime": "image/png",
+          "bytes": 104386,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "bf244c62-c901-41f0-a237-a2fc1adedce3"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "54fcb10a-c07e-467b-a0a8-8ab8d0bb6e13",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "一步一步来",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我们把问题拆开，先处理眼前明确的一步，再逐步推进。",
+        "tone": "耐心、务实",
+        "fallback": "[一步一步来]",
+        "use_when": [
+          "问题复杂时分解工作",
+          "避免一次做太多导致混乱"
+        ],
+        "avoid_when": [
+          "不意味着后台将持续自行运行",
+          "不能代替具体步骤或真实进度"
+        ]
+      },
+      "tags": [
+        "协作:方向",
+        "一步一步来",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:steps"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "2464f6357d3fcb6ba63bedc49c415c18d1213311f5b170fa68621be6ad189399",
+          "mime": "image/png",
+          "bytes": 116137,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "c5373363-ef66-45e2-81ac-96d07bd56959"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "2921fa12-73de-4ee1-81f3-a03e5b9fe2fb",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "明白了",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我理解了刚才的解释或说明，表示收到并听明白了。",
+        "tone": "自然、简洁",
+        "fallback": "[明白了]",
+        "use_when": [
+          "确认已经理解",
+          "结束一轮解释"
+        ],
+        "avoid_when": [
+          "不等于批准执行新的操作",
+          "不代表任务已经完成或验证通过"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "明白了",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:understood"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "3c8097e9f136b20498bc39d28802cd21c0a8414e41eedaee597f37039b9bb407",
+          "mime": "image/png",
+          "bytes": 107528,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "9e9309f6-cf0e-4bbb-a29f-ce9759d6c2cc"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "43d052ec-4d89-4144-a42e-b93d8b175eb1",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "这个不错",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我认可刚才展示的想法、做法或结果，觉得这个方向不错。",
+        "tone": "真诚、克制",
+        "fallback": "[这个不错]",
+        "use_when": [
+          "对有用的回答或成果表示认可",
+          "鼓励继续保持当前方向"
+        ],
+        "avoid_when": [
+          "不代表已经完成全部验收",
+          "不等于授权发布、删除或其他新操作"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "这个不错",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:nice"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "2cbdd2b309de75ba9ee975004cdb2c1ced7da88d53eccda055acee37626561a0",
+          "mime": "image/png",
+          "bytes": 106716,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "987a0b7f-2f64-4813-a2a6-5b64f5f3534d"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "706c326f-4784-4578-ba5d-1cb2ae0c2fe3",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "谢谢",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "谢谢你刚才提供的帮助，我真心领情。",
+        "tone": "真诚、轻松",
+        "fallback": "[谢谢]",
+        "use_when": [
+          "得到有用的帮助",
+          "回应对方投入的时间和努力"
+        ],
+        "avoid_when": [
+          "发送者是在感谢接收者，不能颠倒主体",
+          "不代表接下来有新的任务或操作授权"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "谢谢",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:thanks"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "094a1cd13aed8153c889a8263c0821b61a0860fd1bb1e5939aa59fe34b8128c9",
+          "mime": "image/png",
+          "bytes": 99288,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "6b069dd2-27d5-42e6-b8ef-9e880b9cb868"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "7fda0573-cc1e-4359-935b-7178b3d70d2f",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "一起庆祝",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "为已经发生并确认的小进展感到开心，想一起庆祝一下。",
+        "tone": "开心、适度",
+        "fallback": "[一起庆祝]",
+        "use_when": [
+          "确实完成一个阶段后",
+          "确认问题得到解决后"
+        ],
+        "avoid_when": [
+          "不能在没有证据时暗示任务完成",
+          "不能用庆祝替代结果、验证和未完成事项的说明"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "一起庆祝",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:celebrate"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "a7e2456187e2bccd062637ba8722b3327bf25eb1d9c698d35c38ac01be9bf8b7",
+          "mime": "image/png",
+          "bytes": 103976,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "eb407bb5-6de7-4e2b-944b-e7621b3a2593"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "c174ac29-64c2-47a2-b8b6-82a3fe66464d",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "挠头苦笑",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "面对自己无伤大雅的小失误，带着善意自嘲和无奈。",
+        "fallback": "[挠头苦笑]",
+        "tone": "温和、自嘲",
+        "use_when": [
+          "承认自己的小失误时"
+        ],
+        "avoid_when": [
+          "讽刺他人",
+          "对方正在认真表达痛苦时"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "挠头苦笑",
+        "人与AI协作",
+        "自嘲",
+        "无奈",
+        "失误",
+        "amoji:appearance:office",
+        "amoji:family:wry"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "06f50ec4a61f7ffd428d2d6f0845dc66a471c22185e4f383b37e4fa68248b9c4",
+          "mime": "image/png",
+          "bytes": 96002,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "8d3fbb7b-e47b-454d-bfe9-9de6207eb370"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "7f14d94a-02ee-4989-88d1-be181523f958",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "给你加油",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "支持你的努力，我们一步一步来。",
+        "fallback": "[给你加油]",
+        "tone": "温暖、坚定",
+        "use_when": [
+          "对方需要支持和鼓励时"
+        ],
+        "avoid_when": [
+          "用表情代替具体帮助或必要解释"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "给你加油",
+        "人与AI协作",
+        "鼓励",
+        "支持",
+        "加油",
+        "amoji:appearance:office",
+        "amoji:family:encourage"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "989e1cf3928a421806a51670a13dae62fd75ab6bd44ab779d3aad39eacd9bd90",
+          "mime": "image/png",
+          "bytes": 104257,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "49f96342-0848-4cbb-8f9d-78ea94e98bdf"
     }
   ],
   "defaults": [
     {
-      "asset_id": "5d062b01-2b96-45a8-99b9-2ef731311212",
-      "revision_id": "cfb5e3fd-391c-4633-8690-fd3bacf2a1be"
+      "asset_id": "29103bbd-941b-4680-8f13-ea135468724f",
+      "revision_id": "c5bfa366-7330-442f-a2b9-2a373f2fd765"
     },
     {
-      "asset_id": "ab4cf21c-521e-4bce-ba1c-367cf8092b4f",
-      "revision_id": "65e36f22-4aeb-4544-adf6-c58b0e31b7e7"
+      "asset_id": "981bd20a-2b3c-493a-abb8-443a35b30142",
+      "revision_id": "86cc4887-4959-46ed-bb19-b52e03450dfe"
     },
     {
-      "asset_id": "74bb8f1e-2cae-4df7-b259-d45934396cad",
-      "revision_id": "899fa4ef-7409-4adf-b345-43c8c53ec2df"
+      "asset_id": "b6b8faa7-8382-4ee6-bd98-687e53bbfad3",
+      "revision_id": "ea67e12e-5818-4865-b0a8-c937074863cf"
     },
     {
-      "asset_id": "cd747235-35af-4406-9ec8-5520b046cee5",
-      "revision_id": "943123ce-a8c4-4039-bd09-0b1086435985"
+      "asset_id": "6d3290ef-3221-4291-894b-f098b0d091f0",
+      "revision_id": "c022665d-0ba0-4f63-a49d-41649822c020"
     },
     {
-      "asset_id": "6cfb12e0-d435-41d6-b41e-34fcdd1e5468",
-      "revision_id": "e7119785-b6ab-40d4-a6a4-17f16f6cbd8d"
+      "asset_id": "3527a0e2-0715-441b-bb99-8c6294d92e57",
+      "revision_id": "a0ddbae6-af9f-453a-8fcb-684e08030870"
     },
     {
-      "asset_id": "a3e2efad-5bc1-4bb3-85f5-59fe891ffcbc",
-      "revision_id": "6d687280-34c6-415c-a9a8-2c0e154685a9"
+      "asset_id": "d932804d-0456-4420-adbf-32484008c731",
+      "revision_id": "8411b5bf-fd02-4ba6-9f84-cd2e84a3a374"
     },
     {
-      "asset_id": "3f5211cc-7afa-4d9c-83ee-9833bcd46f22",
-      "revision_id": "f8b087bd-1305-4898-afc9-8dcf3436ba9f"
+      "asset_id": "4c033d35-e1c2-45d6-90e6-626ec8bf1ad9",
+      "revision_id": "bea09fca-b417-416c-92b9-888b0ef638e2"
     },
     {
-      "asset_id": "d24b0d2f-d82a-4ca4-9ad6-469bb1fcc469",
-      "revision_id": "da021f1e-c143-45a5-a87f-0d752f5085fd"
+      "asset_id": "ecf20835-6ea4-405e-8601-44c84452f274",
+      "revision_id": "1e91beaf-2cc8-4b9b-9712-4256a8e95e27"
     },
     {
-      "asset_id": "287423a3-2e81-4609-a7e5-0e72952006fb",
-      "revision_id": "a1530ac7-b86c-4140-8419-49d639d7a488"
+      "asset_id": "e8c169bd-91b7-403d-bc3d-9368b521a660",
+      "revision_id": "c18caef9-d8ee-46f1-a498-ae644cc2519d"
     },
     {
-      "asset_id": "78a5fb05-7dbc-42ce-b4c8-7950ab7c779e",
-      "revision_id": "d5901ee7-5ec2-4bc8-870e-4335fd42f5ca"
+      "asset_id": "c9bd3b96-ac2a-4cd4-833f-67acfe93ddb0",
+      "revision_id": "7dbf8fc0-27b5-4158-a5fd-bb27c5246290"
     },
     {
-      "asset_id": "67c4eacc-895a-40c5-ae3a-9114c6bb002b",
-      "revision_id": "df26ccb4-16f2-4b64-bda9-6d283850483e"
+      "asset_id": "544066ae-a69b-4428-b466-bff808f83e2d",
+      "revision_id": "fbb52b23-4fb2-4334-aff5-b4ecb56fa9c3"
     },
     {
-      "asset_id": "6bbccbf0-4719-4aa8-a283-f22e2b5168bd",
-      "revision_id": "f7192fcb-debf-479a-a306-614d0ba4fba2"
+      "asset_id": "2cc19f40-5f20-485f-821d-aac006e6912c",
+      "revision_id": "3a213af9-1187-428b-8d37-9bba681ca14a"
     },
     {
-      "asset_id": "569449de-01cc-4ab8-b3c0-8e76d3fa92ec",
-      "revision_id": "cb454c05-41d0-4ec9-b715-0c8374321620"
+      "asset_id": "4fc57079-a88b-4804-8a3f-f6a0601ecc6d",
+      "revision_id": "f5f68c44-9e91-4c2b-b500-356ea5560c87"
     },
     {
-      "asset_id": "6bb35499-18be-4b9e-b5b6-66ce2ef679ce",
-      "revision_id": "9abf96a9-a839-4a27-a49d-cb539eba8f24"
+      "asset_id": "d7d24e27-b1d1-4c20-a7e9-ecbd4f3f6010",
+      "revision_id": "c7bf741a-1da2-410a-b63d-981cdf41b392"
+    },
+    {
+      "asset_id": "d98baf64-db1f-4e12-b960-1e1f31862118",
+      "revision_id": "13cf5e8c-4750-4cf4-966c-9e55f599cc0a"
+    },
+    {
+      "asset_id": "3f8578f1-2c1f-4525-9189-fecae0d07537",
+      "revision_id": "0b3e2332-ece8-47a9-a9a1-8f3306333ada"
+    },
+    {
+      "asset_id": "d8c61727-5d8f-405a-95fb-6f4146619c3b",
+      "revision_id": "79357f02-afe0-41c6-8087-6cfca504acec"
+    },
+    {
+      "asset_id": "4ef39af8-03b9-4bae-8b34-56be8c77b29c",
+      "revision_id": "4adec52c-83d9-4150-b17e-c793bb2e5a24"
+    },
+    {
+      "asset_id": "68fc227d-3b7d-4cfa-8fa9-5cc780eb72b1",
+      "revision_id": "768500e7-5895-4fb4-9cff-68ee73bf6814"
+    },
+    {
+      "asset_id": "352263d3-d368-472c-bfd5-1444b92219eb",
+      "revision_id": "be3e0a41-3f08-4aaa-adde-d45d25b3edb0"
+    },
+    {
+      "asset_id": "6675ce98-1280-4fa8-8cf3-f4cb0c651fc9",
+      "revision_id": "dd587b19-39d2-4d8b-bde4-3d93203f6384"
+    },
+    {
+      "asset_id": "7ba7438b-02c5-4abb-bd64-22a620256179",
+      "revision_id": "d2b87aa9-60b4-4acc-ae3e-4bcfc707b46e"
+    },
+    {
+      "asset_id": "bb823331-4ab9-421b-8d12-276241417cfe",
+      "revision_id": "9253fea3-b35b-400a-8974-7f51d1c5d055"
+    },
+    {
+      "asset_id": "77de8e82-9193-4b1c-8b31-70eba163439f",
+      "revision_id": "573ebda6-22cf-484a-900f-1ef5b1f1e6dd"
+    },
+    {
+      "asset_id": "cd810fd6-4203-4fb3-b7f4-ebc9c9e1a7ba",
+      "revision_id": "bf244c62-c901-41f0-a237-a2fc1adedce3"
+    },
+    {
+      "asset_id": "54fcb10a-c07e-467b-a0a8-8ab8d0bb6e13",
+      "revision_id": "c5373363-ef66-45e2-81ac-96d07bd56959"
+    },
+    {
+      "asset_id": "2921fa12-73de-4ee1-81f3-a03e5b9fe2fb",
+      "revision_id": "9e9309f6-cf0e-4bbb-a29f-ce9759d6c2cc"
+    },
+    {
+      "asset_id": "43d052ec-4d89-4144-a42e-b93d8b175eb1",
+      "revision_id": "987a0b7f-2f64-4813-a2a6-5b64f5f3534d"
+    },
+    {
+      "asset_id": "706c326f-4784-4578-ba5d-1cb2ae0c2fe3",
+      "revision_id": "6b069dd2-27d5-42e6-b8ef-9e880b9cb868"
+    },
+    {
+      "asset_id": "7fda0573-cc1e-4359-935b-7178b3d70d2f",
+      "revision_id": "eb407bb5-6de7-4e2b-944b-e7621b3a2593"
+    },
+    {
+      "asset_id": "c174ac29-64c2-47a2-b8b6-82a3fe66464d",
+      "revision_id": "8d3fbb7b-e47b-454d-bfe9-9de6207eb370"
+    },
+    {
+      "asset_id": "7f14d94a-02ee-4989-88d1-be181523f958",
+      "revision_id": "49f96342-0848-4cbb-8f9d-78ea94e98bdf"
     }
   ]
 }

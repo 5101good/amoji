@@ -73,10 +73,10 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   await act(async () => { dom.window.document.querySelector<HTMLFormElement>('[aria-label="搜索 Amoji"]')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await settle(); });
   const searchRequest = requests.find(r => r.endpoint === 'amoji/search')!; assert.equal(searchRequest.payload.sessionId, 'session-a'); assert.equal(searchRequest.payload.query, '刚完成的进展'); assert.equal(searchRequest.payload.limit, 5);
   const choose = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent?.includes(e.name)); assert.ok(choose);
-  await act(() => choose.click());
+  const detail = [...dom.window.document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === `查看 ${e.name} 详情`); assert.ok(detail);
+  await act(() => detail.click());
   const preview = dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')!; assert.match(preview.textContent!, new RegExp(e.semantics.meaning)); assert.match(preview.textContent!, new RegExp(e.semantics.avoid_when![0]!)); assert.match(preview.textContent!, new RegExp(e.revision_id));
-  const send = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === '发送所选表情')!;
-  await act(async () => { send.click(); await settle(); }); assert.equal(requests.find(r => r.endpoint === 'amoji/submit')!.payload.sessionId, 'session-a');
+  await act(async () => { choose.click(); await settle(); }); assert.equal(requests.find(r => r.endpoint === 'amoji/submit')!.payload.sessionId, 'session-a');
   await act(async () => { [...dom.window.document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='表情')!.click(); await settle(); });
   await setSearch('完全不存在');
   await act(async () => { dom.window.document.querySelector<HTMLFormElement>('[aria-label="搜索 Amoji"]')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await settle(); });
@@ -166,18 +166,21 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   };
   const { Picker, History } = module.createComponents(rpc);
   const button = (label: string) => { const value = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === label); assert.ok(value, label); return value; };
-  const openChoose = async () => {
+  const openPicker = async () => {
     await act(async () => { button('表情').click(); await settle(); });
     assert.equal(button(e.name).disabled, false);
+  };
+  const openChoose = async () => {
+    await openPicker();
     await act(() => button(e.name).click());
   };
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' }))); await openChoose();
-  await act(() => button('发送所选表情').click()); assert.ok(submits.has('session-a'));
+  assert.ok(submits.has('session-a'));
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-b' })));
   assert.equal(submits.get('session-a')!.signal!.aborted, true);
-  await openChoose(); await act(() => button('发送所选表情').click()); assert.ok(submits.has('session-b'));
+  await openChoose(); assert.ok(submits.has('session-b'));
   await act(async () => { submits.get('session-a')!.finish({ ...row, host: { status: 'accepted', requestId: 'old' } }); await settle(); });
-  assert.equal(button('发送中…').disabled, true); assert.doesNotMatch(dom.window.document.querySelector('[role="status"]')?.textContent??'', /已接收|已观察/);
+  assert.equal(button(e.name).disabled, true); assert.doesNotMatch(dom.window.document.querySelector('[role="status"]')?.textContent??'', /已接收|已观察/);
   await act(async () => { submits.get('session-b')!.finish({ ...row, host: { status: 'accepted', requestId: 'new' } }); await settle(); });
   assert.ok(!dom.window.document.querySelector('[aria-label="Amoji 表情选择"]'));
   await act(async()=>{button('表情').click();await settle();});
@@ -189,7 +192,7 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
   assert.equal(searches.get('session-b')!.signal!.aborted, true);
   await act(async () => { searches.get('session-b')!.finish([other]); await settle(); });
-  await openChoose(); assert.equal([...dom.window.document.querySelectorAll('button')].some(value => value.textContent === other.name), false);
+  await openPicker(); assert.equal([...dom.window.document.querySelectorAll('button')].some(value => value.textContent === other.name), false);
   await act(async () => { root.render(React.createElement(History, { sessionId: 'session-a' })); await settle(); });
   assert.ok(reads.some(value => value.sessionId === 'session-a' && value.messageId === 'history-a'));
   await act(() => root.render(React.createElement(History, { sessionId: 'session-b' })));

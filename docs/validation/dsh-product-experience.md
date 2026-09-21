@@ -106,3 +106,10 @@ SHA-256：`5d5504efd4a46f1332003ba8f1befaa7bd2770224b791c2fb511ed6f284b2549`。
 - 下载收口证据：`.local/dsh-focus/edge-export-verified.json`。原工具拒绝及等待记录保留为历史，不能再视为当前未完成项。
 - 原有第三方导入条目保留，14项只指新的builtin库。原UIZZE检索参考不足为过程局限，不虚构设计参考；真实宿主视觉验收已完成。
 - 目标完成范围为本轮dsh产品体验重构及日常安装验收。main合并、远程推送和公开发布未执行，Codex/Claude新适配仍按用户要求暂停。
+
+## 主分支首次入库验证（2026-09-21）
+
+- 用户授权合并main并创建GitHub私有仓库。实现分支已快进合并到main。
+- 主目录使用锁文件执行`npm ci --ignore-scripts`。首次无生成产物的`npm test`暴露一项dsh分发测试误归通用套件，依赖不存在的`adapters/dsh/runtime`。
+- 将该完整测试移至`tests/dsh-packs-runtime.test.ts`，保留全部断言，由会先构建插件的`test:dsh`执行；产品代码和安装包未改变。
+- 无dsh生成产物条件下通用套件105/105通过，随后完整构建及dsh套件80/80通过，总覆盖仍185项。失败日志及修正后日志保留在本机`/tmp/amoji-main-*.log`。

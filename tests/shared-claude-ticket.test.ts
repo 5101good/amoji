@@ -62,6 +62,6 @@ test('共享服务签发单次票据，固定真实身份、工具、参数与�
   assert.equal(client.identity.apiVersion, 2);
   assert.equal(client.identity.databaseVersion, 4);
   assert.ok((client.identity as any).capabilities.includes('claude-hook-tickets-v1'));
-  assert.equal((await client.list()).length, 16);
+  assert.equal((await client.list()).length, 24);
   await rpc('close', {});
 });

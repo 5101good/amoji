@@ -148,6 +148,86 @@
       "theme": "office",
       "slug": "encourage",
       "prompt": "Generate ONE new standalone Amoji office expression sticker. Supplied image is the office CHARACTER AND STYLE REFERENCE, not an edit target: the same paper-white rounded rectangular document character, upper-right folded corner, graphite-gray outline, restrained dark dot eyes and minimal mouth, simple arms and legs. Preserve exact identity, face style, outline weight and proportions. Professional, sober, concise editorial flat illustration. Limited paper white, graphite #343B43, muted slate blue #647F91 and cool gray palette. No blush, baby proportions, hair tufts, big grins, gloss or 3D. Do not include the reference clipboard unless specified for this gesture. One full character centered with12% safety padding, readable at76px. No letters, text, numbers, logos, watermark, speech bubbles, background card/tile, border or shadow. Square canvas, TRUE transparent alpha background. POSE AND MEANING: Encouragement and support for someone's effort: a small firm fist raised close to chest, quietly determined supportive smile, shoulders steady, no confetti."
+    },
+    {
+      "theme": "classic",
+      "slug": "handle",
+      "prompt": "Generate ONE standalone Amoji expression sticker. Supplied image is character/style reference only. Match exactly the cream-white mochi creature, two soft tufts, short limbs, dark chocolate thick hand-drawn outline, warm orange cheeks and cream watercolor texture. New meaning: I have understood your authorized request and will handle it. Pose: one hand resting confidently on its own chest, the other ready by its side, small reassuring smile, attentive eyes. NO clipboard, no completion checkmark. Single full character centered, 12% padding, readable at76px. No text, letters, numerals, logo, watermark, tile, canvas shadow. Square, TRUE transparent alpha background. Asset classic/handle."
+    },
+    {
+      "theme": "office",
+      "slug": "handle",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: I understand the request and will handle it: one hand resting confidently on its own chest, reassuring small smile. No clipboard or completion symbol. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/handle."
+    },
+    {
+      "theme": "classic",
+      "slug": "checking",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: cream-white mochi creature, two soft tufts, short limbs, thick chocolate brown hand-drawn contour, warm orange cheeks, subtle cream texture. Warm flat illustration. Meaning and new pose: I am checking carefully: character concentrating on a small sheet through a magnifying glass, calm focused eyes, no checkmark, no words. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset classic/checking."
+    },
+    {
+      "theme": "office",
+      "slug": "checking",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: I am checking carefully: character concentrating on a small sheet through a magnifying glass, calm focused eyes, no checkmark, no words. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/checking."
+    },
+    {
+      "theme": "classic",
+      "slug": "confirm",
+      "prompt": "Generate ONE standalone Amoji sticker. Input is character/style reference only. Match supplied cream-white mochi creature exactly: two soft tufts, short limbs, thick chocolate brown outline, orange cheeks, soft cream texture. Warm flat hand-drawn illustration. NEW POSE: Politely presenting two small blank cards, one in each hand, patient questioning expression. Meaning: I need your decision on a specific choice. No checkmark. One full character centered, all props visible,12% padding, legible at76px. No words, letters, numerals, logos, watermark, border, canvas shadow, scenery or background tile. Square TRUE transparent alpha background. Asset classic/confirm."
+    },
+    {
+      "theme": "office",
+      "slug": "confirm",
+      "prompt": "Generate ONE standalone Amoji sticker. Input is character/style reference only. Match supplied paper-white rounded rectangular character exactly: folded upper-right corner, graphite contour, dark simple eyes, minimal mouth, muted slate blue props. Sober concise office illustration, no blush or hair. NEW POSE: Politely presenting two small blank cards, one in each hand, patient questioning expression. Meaning: I need your decision on a specific choice. No checkmark. One full character centered, all props visible,12% padding, legible at76px. No words, letters, numerals, logos, watermark, border, canvas shadow, scenery or background tile. Square TRUE transparent alpha background. Asset office/confirm."
+    },
+    {
+      "theme": "classic",
+      "slug": "mistake",
+      "prompt": "Generate ONE standalone Amoji sticker. Input is character/style reference only. Match supplied cream-white mochi creature exactly: two soft tufts, short limbs, thick chocolate brown outline, orange cheeks, soft cream texture. Warm flat hand-drawn illustration. NEW POSE: Head bowed slightly, hands together near its chest, sincere apologetic eyes and small regretful mouth, one sweat droplet. Meaning: I misunderstood and acknowledge my mistake. No laughter. One full character centered, all props visible,12% padding, legible at76px. No words, letters, numerals, logos, watermark, border, canvas shadow, scenery or background tile. Square TRUE transparent alpha background. Asset classic/mistake."
+    },
+    {
+      "theme": "office",
+      "slug": "mistake",
+      "prompt": "Generate ONE standalone Amoji sticker. Input is character/style reference only. Match supplied paper-white rounded rectangular character exactly: folded upper-right corner, graphite contour, dark simple eyes, minimal mouth, muted slate blue props. Sober concise office illustration, no blush or hair. NEW POSE: Head bowed slightly, hands together near its chest, sincere apologetic eyes and small regretful mouth, one sweat droplet. Meaning: I misunderstood and acknowledge my mistake. No laughter. One full character centered, all props visible,12% padding, legible at76px. No words, letters, numerals, logos, watermark, border, canvas shadow, scenery or background tile. Square TRUE transparent alpha background. Asset office/mistake."
+    },
+    {
+      "theme": "classic",
+      "slug": "uncertain",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: cream-white mochi creature, two soft tufts, short limbs, thick chocolate brown hand-drawn contour, warm orange cheeks, subtle cream texture. Warm flat illustration. Meaning and new pose: I do not have enough evidence yet: character with one hand lightly at chin and other open palm raised, thoughtful uncertain eyebrows, composed rather than helpless, no question mark. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset classic/uncertain."
+    },
+    {
+      "theme": "office",
+      "slug": "uncertain",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: I do not have enough evidence yet: character with one hand lightly at chin and other open palm raised, thoughtful uncertain eyebrows, composed rather than helpless, no question mark. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/uncertain."
+    },
+    {
+      "theme": "classic",
+      "slug": "welcome",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: cream-white mochi creature, two soft tufts, short limbs, thick chocolate brown hand-drawn contour, warm orange cheeks, subtle cream texture. Warm flat illustration. Meaning and new pose: You are welcome, happy to help: gentle smile with one open palm towards the viewer in a welcoming relaxed gesture, no bow, no props. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset classic/welcome."
+    },
+    {
+      "theme": "office",
+      "slug": "welcome",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: You are welcome, happy to help: gentle smile with one open palm towards the viewer in a welcoming relaxed gesture, no bow, no props. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/welcome."
+    },
+    {
+      "theme": "classic",
+      "slug": "effort",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: cream-white mochi creature, two soft tufts, short limbs, thick chocolate brown hand-drawn contour, warm orange cheeks, subtle cream texture. Warm flat illustration. Meaning and new pose: I appreciate your effort, you have worked hard: character offering a small warm cup with both hands towards the viewer, kind and considerate expression, no hearts or romantic imagery. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset classic/effort."
+    },
+    {
+      "theme": "office",
+      "slug": "effort",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: I appreciate your effort, you have worked hard: character offering a small warm cup with both hands towards the viewer, kind and considerate expression, no hearts or romantic imagery. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/effort."
+    },
+    {
+      "theme": "classic",
+      "slug": "ready",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: cream-white mochi creature, two soft tufts, short limbs, thick chocolate brown hand-drawn contour, warm orange cheeks, subtle cream texture. Warm flat illustration. Meaning and new pose: The result is ready for your review: character presenting a neat completed folder with a single simple checkmark on its cover, calm modest satisfied expression, no confetti or celebratory fireworks. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset classic/ready."
+    },
+    {
+      "theme": "office",
+      "slug": "ready",
+      "prompt": "Generate ONE standalone Amoji sticker. Supplied image is ONLY a character and style reference, not an edit target. Match supplied reference character and style exactly: paper-white rounded rectangular desk companion with one folded upper-right corner, graphite gray contour, small dark eyes, minimal mouth, simple arms and legs, muted slate blue props. Professional, sober, concise flat editorial illustration. No blush, hair tufts or glossy 3D. Meaning and new pose: The result is ready for your review: character presenting a neat completed folder with a single simple checkmark on its cover, calm modest satisfied expression, no confetti or celebratory fireworks. One full character centered, full silhouette and props visible, 12% padding, readable at76px. No text, letters, numerals, watermark, logo, tile, border, canvas shadow or scenery. Square canvas with TRUE transparent alpha background. Asset office/ready."
     }
   ]
 }

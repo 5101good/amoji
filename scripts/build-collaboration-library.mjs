@@ -34,7 +34,7 @@ for(const appearance of ['classic','office'])for(const definition of definitions
  if(originalIndex===undefined&&!prompt)throw Error(`Missing prompt provenance: ${appearance}/${definition.slug}`);
  provenance.push({slug:definition.slug,appearance,group:definition.group,asset_id:expression.asset_id,revision_id:expression.revision_id,source_sha256:createHash('sha256').update(source).digest('hex'),pack_blob:`blobs/${visual.primary.sha256}`,generator:'Codex built-in imagegen',visual_intent:definition.name,reference:appearance==='classic'?'Original three cream-white Amoji characters.':'Original paper-white office character generated for this release.',...(originalIndex!==undefined?{reused_sample:samples.expressions[originalIndex].asset_id,prompt_source:'assets/samples/generation.json'}:{prompt_source:'assets/base-library/generation.json'}),processing:originalIndex===2?'Original animation and poster preserved byte-for-byte.':'Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing.'});
 }
-const manifest={kind:'amoji.pack',schema_version:'0.1',pack_id:uuid('amoji-appearance-v3:16x2'),name:definitions.name,created_at:'2026-09-21T00:00:00Z',expressions,defaults:expressions.map(({asset_id,revision_id})=>({asset_id,revision_id}))};
+const manifest={kind:'amoji.pack',schema_version:'0.1',pack_id:uuid(`amoji-appearance-v${definitions.version}:${definitions.entries.length}x2`),name:definitions.name,created_at:'2026-09-21T00:00:00Z',expressions,defaults:expressions.map(({asset_id,revision_id})=>({asset_id,revision_id}))};
 const temporary=`${destination}/base.amoji.tmp`;
 try{
  const zip=new ZipFile();const done=pipeline(zip.outputStream,createWriteStream(temporary));zip.on('error',error=>zip.outputStream.destroy(error));

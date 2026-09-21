@@ -10,10 +10,10 @@ import {expressionMessageText,expressionPresentationContent} from '../src/dsh/ex
 import {modelProjection} from '../src/projection.js';
 const seed=new URL('../assets/base-library/base.amoji',import.meta.url);
 const oldSeed=new URL('./fixtures/base-library-v1/base.amoji',import.meta.url);
-const names=['进度如何','还在吗','卡在哪里','说具体些','举个例子','没看懂','方向不对','先等一下','继续吧','一步一步来','明白了','这个不错','谢谢','一起庆祝','挠头苦笑','给你加油'];
-test('协作库含16个语义的经典与办公画风，全部素材是真实透明底且文本投影不含图像',async()=>{
+const names=['进度如何','还在吗','卡在哪里','说具体些','举个例子','没看懂','方向不对','先等一下','继续吧','一步一步来','明白了','这个不错','谢谢','一起庆祝','挠头苦笑','给你加油','我来处理','正在核对','需要你确认','是我理解错了','暂时没把握','不客气','辛苦了','准备好了'];
+test('协作库含24个语义的经典与办公画风，全部素材是真实透明底且文本投影不含图像',async()=>{
  await withValidatedPack(await readFile(seed),async pack=>{
-  assert.equal(pack.manifest.expressions.length,32);
+  assert.equal(pack.manifest.expressions.length,48);
   const classic=pack.manifest.expressions.filter(e=>e.tags?.includes('amoji:appearance:classic'));
   const office=pack.manifest.expressions.filter(e=>e.tags?.includes('amoji:appearance:office'));
   assert.deepEqual(classic.map(e=>e.name),names);assert.deepEqual(office.map(e=>e.name),names);

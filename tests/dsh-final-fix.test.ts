@@ -42,11 +42,11 @@ for(const timing of ['lost','inflight'] as const)test(`final I1 ${timing} A→B�
   throw new Error(endpoint);
  }}}} as any);
  const Picker=createComponents(rpc).Picker;const render=async(s:string)=>act(()=>f.root.render(React.createElement(Picker,{sessionId:s})));
- await render('A');await f.click('表情');await f.click(e.name);await f.click('发送所选表情');await render('B');assert.equal(!!f.button('发送所选表情'),false);await render('A');await f.click('表情');
+ await render('A');await f.click('表情');await f.click(e.name);await render('B');assert.equal(!!f.button('重试原请求'),false);await render('A');await f.click('表情');
  assert.ok(f.dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')?.textContent?.includes(e.revision_id),'返回必须保留原版本');
- assert.equal(f.button('发送所选表情').disabled,true);assert.ok(!f.button(other.name)||f.button(other.name).disabled);
+ assert.equal(f.button('重试原请求').disabled,true);assert.ok(!f.button(other.name)||f.button(other.name).disabled);
  await f.click('重新连接并核对');assert.equal(submits.length,1);assert.equal(f.button(other.name).disabled,true);
- await f.click('发送所选表情');assert.equal(submits.length,2);assert.deepEqual(submits[1],submits[0]);assert.equal(submits[0].sessionId,'A');
+ await f.click('重试原请求');assert.equal(submits.length,2);assert.deepEqual(submits[1],submits[0]);assert.equal(submits[0].sessionId,'A');
  observed=true;await f.click('核对投递状态');assert.equal(f.button(other.name).disabled,false);finish?.();
 });
 test('final I2 原生Fields清空可选项后真实保存预览确认；必填仍严格',async t=>{

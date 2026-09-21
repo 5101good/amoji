@@ -114,7 +114,7 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
     assert.ok(left >= 12); assert.ok(left + width <= dom.window.innerWidth - 12);
     assert.equal(panel.style.overflow, 'hidden');
     assert.ok(panel.querySelector('.amoji-picker-body'), '中央列表独立滚动');
-    for (const text of ['管理表情', '搜索', '发送所选表情', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent) === text));
+    for (const text of ['管理表情', '搜索', '经典', '办公', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent) === text));
   };
   bounded();
   box = { ...box, top: 675, bottom: 703 }; await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded();

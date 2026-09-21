@@ -3,14 +3,24 @@ import { fail, object, nonempty } from './shared-contract.js';
 
 export type ExpressionOrigin = 'local' | 'builtin' | 'imported';
 export interface LibraryEntry { expression: Expression; origin: ExpressionOrigin; version: number; archived: boolean }
-export interface PersonalPreferences { style: 'neutral' | 'warm' | 'playful'; frequency: 'restrained' | 'moderate' | 'active'; paused: boolean }
-export interface PersonalSettings extends PersonalPreferences { version: number }
-export const DEFAULT_SETTINGS: PersonalSettings = { version: 1, style: 'neutral', frequency: 'restrained', paused: false };
+export type Appearance = 'classic' | 'office';
+export interface PersonalPreferences { style: 'neutral' | 'warm' | 'playful'; frequency: 'restrained' | 'moderate' | 'active'; paused: boolean; appearance?: Appearance }
+export interface PersonalSettings extends PersonalPreferences { version: number; appearance: Appearance }
+export const DEFAULT_SETTINGS: PersonalSettings = { version: 1, style: 'neutral', frequency: 'restrained', paused: false, appearance: 'classic' };
 export function preferences(value: unknown): PersonalPreferences {
-  const p = object(value, ['style', 'frequency', 'paused']);
-  const { style, frequency, paused } = p;
+  const p = object(value, ['style', 'frequency', 'paused', 'appearance'], ['style', 'frequency', 'paused']);
+  const { style, frequency, paused, appearance } = p;
   if ((style !== 'neutral' && style !== 'warm' && style !== 'playful') || (frequency !== 'restrained' && frequency !== 'moderate' && frequency !== 'active') || typeof paused !== 'boolean') fail('INVALID_ARGUMENT', '偏好值不合法');
-  return { style, frequency, paused };
+  if (appearance !== undefined && appearance !== 'classic' && appearance !== 'office') fail('INVALID_ARGUMENT', '画风偏好不合法');
+  return { style, frequency, paused, ...(appearance === undefined ? {} : { appearance }) };
+}
+
+export function expressionAppearance(expression: Expression): Appearance | undefined {
+  const value = expression.tags?.find(tag => tag.startsWith('amoji:appearance:'))?.slice('amoji:appearance:'.length);
+  return value === 'classic' || value === 'office' ? value : undefined;
+}
+export function expressionFamily(expression: Expression): string | undefined {
+  return expression.tags?.find(tag => tag.startsWith('amoji:family:'))?.slice('amoji:family:'.length);
 }
 export function expressionRef(value: unknown): ExpressionRef {
   const r = object(value, ['asset_id', 'revision_id']);

@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { SampleCatalog, type BlobRef, type Expression, type ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import { DATABASE_VERSION, fail, sessionKey, type BindingContext } from './shared-contract.js';
-import { DEFAULT_SETTINGS, preferences, styleOrder, preferencePolicy, type LibraryEntry, type PersonalSettings } from './library-management.js';
+import { DEFAULT_SETTINGS, expressionAppearance, expressionFamily, preferences, styleOrder, preferencePolicy, type LibraryEntry, type PersonalSettings } from './library-management.js';
 import { buildSearchResult, searchExpressions } from './search.js';
 import { prepareUploadedMedia, MEDIA_LIMITS, validateExpressionMedia } from './media.js';
 
@@ -128,11 +128,16 @@ export class LibraryStore {
       await withValidatedPack(createReadStream(seed), async pack => {
         const marker = `builtin-pack:${pack.manifest.pack_id}`;
         if (this.db.prepare('SELECT value FROM metadata WHERE key=?').get(marker)) return;
-        let policy: {pack_id: string; retired: ExpressionRef[]} | undefined;
+        let policy: {pack_id: string; retired: ExpressionRef[]; retired_samples?: ExpressionRef[]} | undefined;
         try {
           const raw = JSON.parse(await readFile(new URL('builtin-policy.json', seed), 'utf8'));
-          if (!raw || raw.pack_id !== pack.manifest.pack_id || !Array.isArray(raw.retired) || raw.retired.length > 200 ||
-              !raw.retired.every((ref: ExpressionRef) => ref && typeof ref.asset_id === 'string' && typeof ref.revision_id === 'string')) {
+          const sampleRefs = new Set([
+            '10000000-0000-4000-8000-000000000001:30000000-0000-4000-8000-000000000001',
+            '10000000-0000-4000-8000-000000000002:30000000-0000-4000-8000-000000000002',
+            '10000000-0000-4000-8000-000000000003:30000000-0000-4000-8000-000000000003',
+          ]);
+          const validRefs = (refs: unknown): refs is ExpressionRef[] => Array.isArray(refs) && refs.length <= 200 && refs.every((ref: ExpressionRef) => ref && typeof ref.asset_id === 'string' && typeof ref.revision_id === 'string');
+          if (!raw || raw.pack_id !== pack.manifest.pack_id || !validRefs(raw.retired) || (raw.retired_samples !== undefined && (!validRefs(raw.retired_samples) || !raw.retired_samples.every((ref: ExpressionRef) => sampleRefs.has(`${ref.asset_id}:${ref.revision_id}`))))) {
             fail('BUILTIN_POLICY_INVALID', '内置表情升级声明与内容包不匹配');
           }
           policy = raw;
@@ -147,6 +152,11 @@ export class LibraryStore {
             if (current?.origin === 'builtin' && current.revision_id === ref.revision_id && current.archived === 0) {
               this.db.prepare('UPDATE entry_state SET archived=1,version=version+1 WHERE asset_id=?').run(ref.asset_id);
             }
+          }
+          for (const ref of policy?.retired_samples ?? []) {
+            const current = this.db.prepare(`SELECT e.revision_id,s.archived FROM library_entries e
+              JOIN entry_state s ON e.asset_id=s.asset_id WHERE e.asset_id=?`).get(ref.asset_id);
+            if (current?.revision_id === ref.revision_id && current.archived === 0) this.db.prepare('UPDATE entry_state SET archived=1,version=version+1 WHERE asset_id=?').run(ref.asset_id);
           }
           this.db.prepare('INSERT INTO metadata VALUES (?,?)').run(marker, '1');
         });
@@ -219,7 +229,20 @@ export class LibraryStore {
     return row ? JSON.parse(row.data) : undefined;
   }
   resolve(ref: ExpressionRef): Expression { return this.getRevision(ref) ?? fail('REVISION_NOT_FOUND', '精确版本不存在'); }
-  list(): Expression[] { return (this.db.prepare('SELECT r.data FROM library_entries l JOIN revisions r ON r.asset_id=l.asset_id AND r.revision_id=l.revision_id LEFT JOIN entry_state s ON s.asset_id=l.asset_id WHERE coalesce(s.archived,0)=0 ORDER BY l.rowid').all() as Array<{ data: string }>).map(row => JSON.parse(row.data)); }
+  private availableEntries(): LibraryEntry[] { return this.listEntries().filter(entry => !entry.archived); }
+  list(): Expression[] {
+    const appearance = this.getSettings().appearance;
+    const seen = new Set<string>();
+    return this.availableEntries().filter(entry => {
+      if (entry.origin !== 'builtin') return true;
+      const tagged = expressionAppearance(entry.expression);
+      if (tagged && tagged !== appearance) return false;
+      const family = expressionFamily(entry.expression);
+      if (!family) return true;
+      if (seen.has(family)) return false;
+      seen.add(family); return true;
+    }).map(entry => entry.expression);
+  }
 
   getEntry(assetId: string): LibraryEntry {
     const row = this.db.prepare('SELECT l.revision_id, o.origin, s.version, s.archived FROM library_entries l JOIN expression_origins o USING(asset_id) JOIN entry_state s USING(asset_id) WHERE l.asset_id=?').get(assetId) as { revision_id: string; origin: LibraryEntry['origin']; version: number; archived: number } | undefined;
@@ -253,14 +276,14 @@ export class LibraryStore {
   }
   getSettings(): PersonalSettings {
     const row = this.db.prepare("SELECT value FROM metadata WHERE key='personal_settings'").get() as {value: string} | undefined;
-    return row ? JSON.parse(row.value) : { ...DEFAULT_SETTINGS };
+    return row ? { ...DEFAULT_SETTINGS, ...JSON.parse(row.value) } : { ...DEFAULT_SETTINGS };
   }
   updateSettings(version: number, input: unknown): PersonalSettings {
     const fields = preferences(input);
     return this.transaction(() => {
       const current = this.getSettings();
       if (current.version !== version) fail('SETTINGS_CONFLICT', '偏好已变化；请保留输入并读取当前值', current);
-      const settings = { ...fields, version: version + 1 };
+      const settings = { ...current, ...fields, version: version + 1 };
       this.db.prepare("INSERT INTO metadata VALUES ('personal_settings',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(settings)); return settings;
     });
   }
@@ -403,7 +426,7 @@ export class LibraryStore {
       if (settings.paused) fail('AI_PAUSED', 'AI 主动表情已暂停，仍可手动发送');
       const ordinal = this.observeTurn(context, session);
       if (session.emittedTurns.includes(turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
-      if (!this.list().some(e => e.asset_id === selection.ref.asset_id && e.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
+      if (!this.availableEntries().some(e => e.expression.asset_id === selection.ref.asset_id && e.expression.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
       if (session.lastEmission?.assetId === selection.ref.asset_id) fail('REPEAT_LIMIT', '不能连续重复同一表情');
       if (settings.frequency === 'restrained' && session.lastEmission && ordinal - session.lastEmission.ordinal < 2) fail('FREQUENCY_LIMIT', '克制模式需冷却一个完整回合');
       const message = this.message(session, selection.ref, 'ai_to_human');
@@ -425,7 +448,7 @@ export class LibraryStore {
         return message;
       }
       this.resolve(ref);
-      if (!this.list().some(e => e.asset_id === ref.asset_id && e.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
+      if (!this.availableEntries().some(e => e.expression.asset_id === ref.asset_id && e.expression.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
       const message = this.message(session, ref, 'human_to_ai');
       session.received.push([requestId, message.message_id]); this.save(context, session); return message;
     });

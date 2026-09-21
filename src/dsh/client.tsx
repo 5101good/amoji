@@ -7,6 +7,7 @@ import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import { PickerPopover } from './picker-popover.js';
 import { mountUserMessages } from './messages.js';
 import type { DshRpc, HistoryEntry, RpcResult } from './contracts.js';
+import type { Appearance, PersonalSettings } from '../library-management.js';
 
 export interface ClientPort {
   uiConversation?: { events: { register(definition: typeof aiExpressionDefinition): () => void } };
@@ -47,6 +48,8 @@ export function createComponents(rpc: DshRpc) {
     const categories=['进度','澄清','方向','反馈','其他'].filter(c=>catalog.some(e=>categoryOf(e)===c));
     const visibleCatalog=category==='全部'?catalog:catalog.filter(e=>categoryOf(e)===category);
     const selectionEpoch = useRef(0);
+    const sendLock = useRef(false);
+    const [settings,setSettings]=useState<PersonalSettings>();
     const [unavailable, setUnavailable] = useState(!!pending); const [uncertain, setUncertain] = useState(!!pending); const [sent, setSent] = useState<HistoryEntry | undefined>(pending?.sent);
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
@@ -56,7 +59,7 @@ export function createComponents(rpc: DshRpc) {
     }, [sessionId]);
     useEffect(() => {
       if (!target) return;
-      void load('');
+      void Promise.all([load(''),rpc.management ? rpc.management(target,'getSettings',{}).then(setSettings) : Promise.resolve()]).catch(()=>{});
       return () => { searchTask.current.generation++; searchTask.current.abort.abort(); };
     }, [target, refresh]);
     const load = async (nextQuery: string, afterReconnect = false) => {
@@ -74,15 +77,18 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) { setCatalog([]); setUnavailable(true); setSearchStatus(errorText(e)); } }
       finally { if (current()) setSearching(false); }
     };
-    const send = async () => {
-      if (!target || !selected || busy || unavailable) return;
+    const send = async (choice = selected, retryRequestId = requestId) => {
+      if (!target || !choice || sendLock.current || unavailable) return;
+      sendLock.current = true;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
       const current = () => !signal.aborted && owner.generation === generation && owner.sessionId === frozen;
-      const identity = { selected, requestId, sent };
+      const id = retryRequestId || crypto.randomUUID();
+      setSelected(choice); setRequestId(id);
+      const identity = { selected: choice, requestId: id, sent };
       pendingSelections.set(frozen, identity);
       setBusy(true); setStatus('');
       try {
-        const result = await rpc.submit(frozen, { asset_id: selected.asset_id, revision_id: selected.revision_id }, requestId, signal);
+        const result = await rpc.submit(frozen, { asset_id: choice.asset_id, revision_id: choice.revision_id }, id, signal);
         if (pendingSelections.get(frozen) === identity) {
           if (result.host?.status === 'unknown') identity.sent = result;
           else pendingSelections.delete(frozen);
@@ -97,7 +103,16 @@ export function createComponents(rpc: DshRpc) {
         const unknown = signal.aborted || ['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '');
         if (!unknown && pendingSelections.get(frozen) === identity) pendingSelections.delete(frozen);
         if (current()) { setStatus(errorText(e)); if (['CONNECTION_CLOSED', 'SERVICE_OUTCOME_UNKNOWN', 'DSH_OUTCOME_UNKNOWN'].includes((e as {code?:string}).code ?? '')) { setUncertain(true); setUnavailable(true); setCatalog([]); searchTask.current.generation++; searchTask.current.abort.abort(); setSearching(false); } } }
-      finally { if (current()) setBusy(false); }
+      finally { sendLock.current = false; if (current()) setBusy(false); }
+    };
+    const changeAppearance = async (appearance: Appearance) => {
+      if (!target || !settings || busy || settings.appearance === appearance) return;
+      setBusy(true); setStatus('');
+      try {
+        const next = await rpc.management(target,'updateSettings',{version:settings.version,preferences:{style:settings.style,frequency:settings.frequency,paused:settings.paused,appearance}});
+        setSettings(next); setCategory('全部'); setSelected(undefined); await load('');
+      } catch (e) { setStatus(errorText(e)); try { setSettings(await rpc.management(target,'getSettings',{})); } catch {} }
+      finally { setBusy(false); }
     };
     const check = async () => {
       if (!target || !sent?.meta?.messageId) return;
@@ -144,6 +159,7 @@ export function createComponents(rpc: DshRpc) {
       }}><SmileIcon/><span>表情</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
         <header className="amoji-picker-head"><h2>用表情表达</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>管理表情</button><button className="icon-button" type="button" aria-label="关闭" onClick={()=>dismiss()}><CloseIcon/></button></div></header>
+        <div className="amoji-appearance" aria-label="表情画风"><span className="muted">画风</span>{([['classic','经典'],['office','办公']] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">点击即发送</span></div>
         <form className="amoji-picker-search" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
           <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="想表达什么？" />
           <button type="submit" disabled={busy || uncertain}>{searching ? '搜索中…' : '搜索'}</button>
@@ -151,7 +167,7 @@ export function createComponents(rpc: DshRpc) {
         </form>
         {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label="表情场景">{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{c}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
-          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <ExpressionTile key={`${e.asset_id}:${e.revision_id}`} rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={sameRef(e, selected ?? {asset_id:'',revision_id:''})} onSelect={()=>{selectionEpoch.current++;setSelected(e);setRequestId(crypto.randomUUID());setSent(undefined);setStatus('');}} />)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
+          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={`查看 ${e.name} 详情`} disabled={busy} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>详情</button></div>)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
         </div>
         <footer className="amoji-picker-footer">
           {selected ? <section className="amoji-selection" aria-label="固定语义与精确版本"><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>查看含义与适用场景</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>版本 {selected.revision_id}</small></details></section> : <p className="muted">选一张表情，看看它想表达什么。</p>}
@@ -160,7 +176,7 @@ export function createComponents(rpc: DshRpc) {
           {sent && uncertain && <p className="amoji-notice" role="status">{status}</p>}
           {(unavailable || uncertain) && <div className="row">{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={()=>void check()}>核对投递状态</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={()=>void recover()}>重新连接并核对</button>}</div>}
         </footer>
-          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? `${visibleCatalog.length} 个表情` : ''}</span><button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '发送中…' : '发送所选表情'}</button></div>
+          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? `${visibleCatalog.length} 个表情 · 点击即发送` : ''}</span>{uncertain&&<button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '核对中…' : '重试原请求'}</button>}</div>
       </PickerPopover>}
     </div>;
   }

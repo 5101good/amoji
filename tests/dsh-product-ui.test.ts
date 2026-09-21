@@ -37,20 +37,29 @@ for(const mode of ['toggle','escape','outside','outsideClick','focusOutside','cl
  if(mode==='escape'||mode==='close')assert.ok(f.dom.window.document.activeElement===f.button('表情'),'键盘焦点回到入口');
  await f.click('表情');assert.ok(f.panel(),'可以再次打开');
 });
-test('列表图片和名称属于同一个可选择按钮且不嵌套播放按钮',async t=>{
+test('列表图片和名称一次点选即发送，详情是独立可访问按钮',async t=>{
  const f=await fixture(t);const Picker=createComponents(f.rpc).Picker;
+ let calls=0;f.rpc.submit=async()=>{calls++;return {meta:{messageId:'sent'},host:{status:'accepted'}} as any;};
  await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
  const image=f.panel()!.querySelector('img')!;const tile=image.closest('button');
  assert.ok(tile,'图片整体可点击');assert.equal(tile.getAttribute('aria-label'),expression.name);
  assert.equal(tile.querySelector('button'),null);
- await act(()=>image.click());assert.equal(tile.getAttribute('aria-pressed'),'true');assert.equal(f.button('发送所选表情').disabled,false);
+ assert.ok(f.button(`查看 ${expression.name} 详情`));
+ await act(async()=>{image.click();await new Promise(r=>setTimeout(r,0));});assert.equal(calls,1);assert.ok(!f.panel());
 });
-test('宿主接纳发送后收起弹层，重开不能重复上次发送',async t=>{
+test('快速双击只提交一次，宿主接纳后收起弹层',async t=>{
  const f=await fixture(t);let count=0;
- f.rpc.submit=async()=>{count++;return {meta:{messageId:'sent'},host:{status:'accepted'}} as any;};
+ let release!:()=>void;f.rpc.submit=async()=>{count++;await new Promise<void>(r=>release=r);return {meta:{messageId:'sent'},host:{status:'accepted'}} as any;};
  const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));
- await f.click('表情');await f.click(expression.name);await f.click('发送所选表情');assert.ok(!f.panel(),'发送后关闭');
- await f.click('表情');assert.equal(f.button('发送所选表情').disabled,true);assert.equal(count,1);
+ await f.click('表情');const tile=f.button(expression.name);await act(async()=>{tile.click();tile.click();await Promise.resolve();});assert.equal(count,1);await act(async()=>{release();await new Promise(r=>setTimeout(r,0));});assert.ok(!f.panel(),'发送后关闭');
+});
+test('选择器切换办公画风立即 CAS 保存并刷新 catalog',async t=>{
+ const f=await fixture(t);const classic={...expression,name:'经典问候',tags:['amoji:appearance:classic','amoji:family:greeting']};const office={...expressions[1]!,name:'办公问候',tags:['amoji:appearance:office','amoji:family:greeting']};
+ let settings={version:1,style:'neutral' as const,frequency:'restrained' as const,paused:false,appearance:'classic' as const};let catalogs=0;
+ f.rpc.catalog=async()=>{catalogs++;return settings.appearance==='classic'?[classic]:[office];};
+ f.rpc.management=async(_session:string,method:string,args:any)=>{if(method==='getSettings')return settings as any;if(method==='updateSettings'){assert.equal(args.version,1);settings={...settings,...args.preferences,version:2};return settings as any;}throw new Error(method);};
+ const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(classic.name));
+ await f.click('办公');assert.equal(settings.appearance,'office');assert.ok(f.button(office.name));assert.ok(catalogs>=2);
 });
 for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保留额外文字与附件':'没有重复语义气泡'}`,async t=>{
  const f=await fixture(t);const meta=visualMeta({message_id:'m',revision:expression} as any);
@@ -71,8 +80,8 @@ for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保
 test('协作类别只过滤当前列表，切换后不会发送隐藏的旧选择',async t=>{
  const f=await fixture(t);const progress={...expressions[0]!,tags:['协作:进度']};const feedback={...expressions[1]!,tags:['协作:反馈']};
  f.rpc.catalog=async()=>[progress,feedback];const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
- await f.click('进度');assert.ok(f.button(progress.name));assert.ok(!f.button(feedback.name));await f.click(progress.name);assert.equal(f.button('发送所选表情').disabled,false);
- await f.click('反馈');assert.ok(f.button(feedback.name));assert.ok(!f.button(progress.name));assert.equal(f.button('发送所选表情').disabled,true);
+ await f.click('进度');assert.ok(f.button(progress.name));assert.ok(!f.button(feedback.name));await f.click(`查看 ${progress.name} 详情`);assert.ok(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'));
+ await f.click('反馈');assert.ok(f.button(feedback.name));assert.ok(!f.button(progress.name));assert.equal(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'),null);
 });
 
 test('纯表情仍保留宿主引用标签和技能信息',async t=>{
@@ -91,6 +100,6 @@ test('低高度选择器使用完整视口并让发送操作独立于可滚动�
  const f=await fixture(t);Object.defineProperty(f.dom.window,'innerHeight',{value:320,configurable:true});Object.defineProperty(f.dom.window,'innerWidth',{value:568,configurable:true});
  const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
  const panel=f.panel() as HTMLElement;assert.equal(panel.style.height,'296px');assert.equal(panel.style.top,'12px');
- await f.click(expression.name);assert.equal(f.button('发送所选表情').closest('footer'),null,'发送操作必须独立于可能很长的语义和恢复内容');
- assert.equal(f.button('发送所选表情').parentElement?.parentElement,panel);
+ await f.click(`查看 ${expression.name} 详情`);assert.ok(panel.querySelector('[aria-label="固定语义与精确版本"]'));
+ assert.match(panel.textContent!,/点击即发送/);
 });

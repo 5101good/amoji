@@ -1,10 +1,11 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SharedClient, stopSharedService } from '../src/shared-client.js';
 import { ConnectedRuntime } from '../src/adapter-runtime.js';
+import { LibraryStore } from '../src/library-store.js';
 
 async function sandbox(t: TestContext) {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-management-'));
@@ -14,6 +15,63 @@ async function sandbox(t: TestContext) {
   return { directory, connect };
 }
 const ref = (e: {asset_id: string; revision_id: string}) => ({ asset_id: e.asset_id, revision_id: e.revision_id });
+
+test('画风缺省为经典，旧客户更新 AI 偏好不重置已选画风', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-appearance-settings-'));
+  const store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  assert.equal(store.getSettings().appearance, 'classic');
+  const office = store.updateSettings(1, { style: 'neutral', frequency: 'restrained', paused: false, appearance: 'office' });
+  assert.equal(office.appearance, 'office');
+  const legacy = store.updateSettings(office.version, { style: 'warm', frequency: 'active', paused: false });
+  assert.equal(legacy.appearance, 'office');
+  assert.throws(() => store.updateSettings(legacy.version, { style: 'warm', frequency: 'active', paused: false, appearance: 'nope' } as any), /INVALID_ARGUMENT/);
+});
+
+test('内置同 family 只显示偏好画风，外部条目的画风 tags 不被误隐藏，在途 token 仍可发', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-appearance-list-'));
+  const store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  const base = store.list()[0]!;
+  const classic = { ...base, asset_id: 'a-classic', revision_id: 'r-classic', tags: ['amoji:appearance:classic', 'amoji:family:hello'] };
+  const office = { ...base, asset_id: 'a-office', revision_id: 'r-office', tags: ['amoji:appearance:office', 'amoji:family:hello'] };
+  const imported = { ...base, asset_id: 'a-imported', revision_id: 'r-imported', tags: ['amoji:appearance:office', 'amoji:family:hello'] };
+  const db = (store as any).db;
+  for (const [expression, origin] of [[classic, 'builtin'], [office, 'builtin'], [imported, 'imported']] as const) {
+    db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(expression.asset_id, expression.revision_id, JSON.stringify(expression));
+    db.prepare('INSERT INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
+    db.prepare('INSERT INTO expression_origins VALUES (?,?)').run(expression.asset_id, origin);
+    db.prepare('INSERT INTO entry_state VALUES (?,1,0)').run(expression.asset_id);
+  }
+  assert.ok(store.list().some(e => e.asset_id === classic.asset_id));
+  assert.ok(!store.list().some(e => e.asset_id === office.asset_id));
+  assert.ok(store.list().some(e => e.asset_id === imported.asset_id));
+  const context = { host: 'dsh' as const, sessionId: 'appearance', turnId: 'one' };
+  const token = store.search(context, classic.name, 5).candidates.find(c => c.asset_id === classic.asset_id)!.selection_token;
+  store.updateSettings(1, { style: 'neutral', frequency: 'active', paused: false, appearance: 'office' });
+  assert.ok(store.list().some(e => e.asset_id === office.asset_id));
+  assert.equal(store.emit(context, token).revision.asset_id, classic.asset_id);
+  assert.equal(store.receive({ ...context, turnId: 'two' }, classic, 'manual').revision.asset_id, classic.asset_id);
+});
+
+test('retired_samples 只接受三个固定开发样本引用，且只归档精确原版本', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-data-'));
+  const seedDirectory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-seed-'));
+  const seed = new URL(`file://${seedDirectory}/base.amoji`);
+  let store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
+  const samples = store.listEntries(); store.close();
+  await copyFile(new URL('../assets/base-library/base.amoji', import.meta.url), join(seedDirectory, 'base.amoji'));
+  const manifest = JSON.parse(await readFile(new URL('../assets/base-library/manifest.json', import.meta.url), 'utf8'));
+  const refs = samples.map(entry => ref(entry.expression));
+  await writeFile(join(seedDirectory, 'builtin-policy.json'), JSON.stringify({ pack_id: manifest.pack_id, retired: [], retired_samples: refs }));
+  store = await LibraryStore.open(directory, seed);
+  for (const entry of samples) assert.equal(store.getEntry(entry.expression.asset_id).archived, true);
+  store.close();
+  const badDirectory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-bad-'));
+  await writeFile(join(seedDirectory, 'builtin-policy.json'), JSON.stringify({ pack_id: manifest.pack_id, retired: [], retired_samples: [{ asset_id: refs[0]!.asset_id, revision_id: 'changed' }] }));
+  await assert.rejects(LibraryStore.open(badDirectory, seed), /BUILTIN_POLICY_INVALID/);
+  t.after(async () => { await rm(directory, { recursive: true, force: true }); await rm(seedDirectory, { recursive: true, force: true }); await rm(badDirectory, { recursive: true, force: true }); });
+});
 
 test('管理 capability、不可变编辑、个人副本和跨客户端 CAS 保留草稿与旧历史', async t => {
   const { directory, connect } = await sandbox(t);

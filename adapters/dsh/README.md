@@ -8,7 +8,10 @@
 
 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.0.0.tgz`，在文件所在目录执行：
 
+第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
+
 ```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
 npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```

@@ -63,13 +63,33 @@ Our vision is an expression system that can travel across models and clients. **
 - **A local personal library:** drafts, revisions, archiving, personal copies, complete pack import/export, and AI usage preferences.
 - **Chinese and English UI:** follows dsh's language setting without rewriting stored expression semantics. Built-in meanings are currently Chinese; the examples above explain them in English.
 
+<details>
+<summary>See Amoji in dsh: Classic, Office, and fixed meanings</summary>
+
+![Classic expressions](adapters/dsh/screenshots/classic.png)
+![Office expressions](adapters/dsh/screenshots/office.png)
+![The fixed meaning AI reads](adapters/dsh/screenshots/meaning.png)
+
+</details>
+
 ## Install
+
+If you already use dsh’s `web` profile, install the public Release package directly and restart that profile:
+
+```sh
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+```
+
+For a separate profile and checksum verification:
 
 1. Use **Node.js 24 or newer**. The verified baseline is **dsh 0.1.5-rc.2 on macOS arm64**.
 2. Download `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
 3. Install into your dsh profile, restart that profile, select a workspace, and open Expressions in the composer.
 
+The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
+
 ```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
 npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```

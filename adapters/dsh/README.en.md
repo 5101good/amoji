@@ -8,7 +8,10 @@ Native expressions for people and AI: people see artwork, models read fixed mean
 
 Download and verify `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
 
+The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
+
 ```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
 npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```

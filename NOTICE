@@ -1,9 +1,11 @@
-Amoji 0.1.0-dev.1
+Amoji 1.0.0
 
 原创核心、适配器代码及技术文档：MIT，见 LICENSE。
-assets/base-library 的24项原创基础视觉、固定语义及生成提示：CC0-1.0，见该目录 LICENSE、provenance.json。
+assets/base-library 的24组固定语义、48项原创基础视觉及生成提示：CC0-1.0，见该目录 LICENSE、provenance.json。
 基础素材由项目使用 Codex imagegen 制作，来源记录不构成输出独有性或第三方权利保证。
-历史开发样本中的旧 rights 字段保持不变，不包含在 dsh 分发包中。
+assets/samples 的项目原创生成视觉采用 CC0-1.0（见该目录 LICENSE）。
+测试 manifest 中的旧 rights 字段是不可变协议夹具，保留历史值，不替代目录许可。
+这些开发样本不包含在 dsh 分发包中。
 用户个人库、消息、导入内容不属于本项目分发许可范围，默认私有。
 
 npm dsh tarball 不内嵌 node_modules、Sharp .node 或 libvips 动态库。
@@ -18,5 +20,29 @@ Sharp: https://github.com/lovell/sharp/tree/v0.35.4 (Apache-2.0)
 安装说明: https://sharp.pixelplumbing.com/install/
 libvips npm 包声明 LGPL-3.0-or-later，所含组件还有 MIT、BSD、MPL 等许可；
 打包脚本的 Apache-2.0 不等于动态库的许可。实际版本与上游 Licensing 表一并保存。
-本候选不再分发第三方原生二进制；若后续制作离线含二进制安装器，须另行提供
+本插件包不分发第三方原生二进制；若后续制作离线含二进制安装器，须另行提供
 相应组件完整许可与对应源代码/重建材料，不能直接把本清单视作该安装器的审计。
+
+Project / 项目：https://github.com/5101good/amoji
+
+English notice
+
+Original Amoji code, adapters and technical documentation are licensed under MIT (LICENSE).
+The built-in collection contains 24 meanings in two appearances (48 visual assets).
+Its original visuals, fixed semantics and generation prompts are dedicated under CC0-1.0;
+see assets/base-library/LICENSE and provenance.json. Assets were generated with Codex
+imagegen. Provenance is not a guarantee of exclusivity or clearance of third-party rights.
+Project-generated visuals in assets/samples are also dedicated under CC0-1.0
+(see that directory's LICENSE). Their immutable protocol fixture metadata retains
+historical rights strings; those strings do not replace the directory license.
+Development samples are excluded from the dsh distribution. Users' libraries, messages and imported material remain private
+by default and are not relicensed by Amoji.
+
+The dsh tarball does not embed node_modules, Sharp native binaries or libvips libraries.
+Dependencies installed by the package manager keep their own licenses. THIRD_PARTY.json
+and THIRD_PARTY_LICENSES describe actual build-time resolved runtime and client-bundled
+packages; they are not a universal inventory of every platform's optional binaries.
+Sharp is Apache-2.0. Its optional libvips package declares LGPL-3.0-or-later and includes
+components under other licenses. Consult the upstream licensing and source links above.
+An offline installer embedding binaries would require a separate distribution review,
+including corresponding source and rebuilding materials where applicable.

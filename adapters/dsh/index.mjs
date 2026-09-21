@@ -3,7 +3,7 @@ import { SharedClient } from './runtime/src/shared-client.js';
 import { ConnectedRuntime } from './runtime/src/adapter-runtime.js';
 import { DSH_RELIABILITY_CAPABILITY, DSH_NATIVE_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, PACKS_CAPABILITY } from './runtime/src/shared-contract.js';
 import { installDsh } from './runtime/src/dsh/host.js';
-export const inject = ['tools', 'sessions', 'sessionProjections', 'sessionController', 'connection'];
+export const inject = ['tools', 'sessions', 'sessionProjections', 'sessionController', 'connection', 'llm'];
 export const name = 'amoji';
 export async function apply(ctx) {
   const client = await SharedClient.connect({ requiredCapabilities: [DSH_RELIABILITY_CAPABILITY, DSH_NATIVE_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, PACKS_CAPABILITY] });

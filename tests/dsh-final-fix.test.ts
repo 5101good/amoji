@@ -77,7 +77,7 @@ for(const lost of ['saveDraft','confirmDraft'] as const)test(`final I3 实际RPC
  assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,false,'上传读取已完成');
  await f.click(lost==='saveDraft'?'保存草稿':'保存并预览');
  await waitFor(()=>!!f.dom.window.document.querySelector('[role=alert], [aria-label="图文确认预览"]'));
- if(lost==='confirmDraft'){await act(()=>f.dom.window.document.querySelector('img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('确认加入表情库');await waitFor(()=>!!f.dom.window.document.querySelector('[role=alert]'));}
+ if(lost==='confirmDraft'){await act(()=>f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('确认加入表情库');await waitFor(()=>!!f.dom.window.document.querySelector('[role=alert]'));}
  assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,true,'未知写入必须冻结');
  assert.equal(store.getDraft(initial.draft_id).fields.name,'保留本次填写');assert.equal(store.getDraft(initial.draft_id).visual!.primary.sha256,other.visual.primary.sha256);
  const count=calls.length;await rpc.reconnect!('s');assert.equal(calls.length,count);assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,true,'重连不能代替核对');
@@ -95,7 +95,8 @@ test('final M3 保存后迟到建议、核对与冲突续编后旧候选不可�
  const f=await fixture(t);let draft:Draft={draft_id:'final-suggestions',version:1,updated_at:'now',fields:{name:e.name,semantics:e.semantics,rights:e.rights},visual:e.visual};let deliver!:(v:any)=>void;let deferred=true;
  const suggestion={fields:{...draft.fields,semantics:{...draft.fields.semantics,tone:'语气'},tags:['标签']},notice:'建议'};
  const rpc:any={management:async(_s:string,method:string,args:any)=>{
-  if(method==='suggestText')return deferred?new Promise(r=>{deliver=r;}):suggestion;
+  if(method==='listSuggestionModels')return{models:[{provider:'p',model:'flash',name:'Flash'}],current:{provider:'p',model:'flash'}};
+  if(method==='suggestAiText')return deferred?new Promise(r=>{deliver=r;}):suggestion;
   if(method==='saveDraft'){draft={...draft,version:args.version+1,fields:args.fields};return draft;}
   if(method==='getDraft')return draft;
   if(method==='previewDraft')return {draft,primary:'data:image/png;base64,AAAA',poster:null};
@@ -103,10 +104,11 @@ test('final M3 保存后迟到建议、核对与冲突续编后旧候选不可�
   if(method==='startRevisionDraft')return {...draft,draft_id:'continued',version:1};
  }};
  await act(()=>f.root.render(React.createElement(DraftEditor,{rpc,sessionId:'s',initial:draft,onCreated(){}})));
- await f.click('生成文字建议');await f.click('保存草稿');await act(()=>deliver(suggestion));assert.equal(!!f.button('采用建议'),false,'保存改变版本，迟到建议不能出现');
- deferred=false;await f.click('生成文字建议');const candidate=f.dom.window.document.querySelector('[aria-label="待选建议"]')!;await f.input('语气','',candidate);await f.input('标签（每行一项）','',candidate);await f.click('采用建议');
+ await act(async()=>{});await f.input('文字意图','感谢帮忙');
+ await f.click('AI 生成文字建议');await f.click('保存草稿');await act(()=>deliver(suggestion));assert.equal(!!f.button('采用建议'),false,'保存改变版本，迟到建议不能出现');
+ deferred=false;await f.click('AI 生成文字建议');const candidate=f.dom.window.document.querySelector('[aria-label="待选建议"]')!;await f.input('语气','',candidate);await f.input('标签（每行一项）','',candidate);await f.click('采用建议');
  assert.equal((f.dom.window.document.querySelector('[aria-label="语气"]') as HTMLTextAreaElement).value,'');
- const conflict=async()=>{await f.click('保存并预览');await act(()=>f.dom.window.document.querySelector('img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('生成文字建议');await f.click('确认加入表情库');assert.ok(f.button('采用建议'));};
+ const conflict=async()=>{await f.click('保存并预览');await act(()=>f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('AI 生成文字建议');await f.click('确认加入表情库');assert.ok(f.button('采用建议'));};
  await conflict();await f.click('核对当前状态');assert.equal(!!f.button('采用建议'),false,'核对版本后旧候选不能采用');
  await conflict();await f.click('基于当前版本继续，保留本次填写');assert.equal(!!f.button('采用建议'),false,'续编改变draft身份，旧候选不能采用');
 });

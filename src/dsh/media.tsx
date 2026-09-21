@@ -1,10 +1,11 @@
+import { useText, errorMessage, type TextMessage } from './i18n.js';
 import { rpcError } from './management-rpc.js';
 import React, { useEffect, useState } from 'react';
 import type { ExpressionRef } from '../sample-catalog.js';
 import type { ClientPort } from './client.js';
 import type { DshRpc, VisualData, VisualMeta } from './contracts.js';
 interface SessionProps { sessionId: string }
-export function errorText(error: unknown): string { return error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : '操作失败'; }
+export function errorText(error: unknown): TextMessage { return errorMessage(error); }
 function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
 function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.asset_id, revision_id: ref.revision_id }; }
 export function createRpc(ctx: ClientPort): DshRpc {
@@ -65,7 +66,8 @@ export function parseMeta(raw: unknown): VisualMeta | undefined {
 export function sameRef(a: ExpressionRef, b: ExpressionRef): boolean { return a.asset_id === b.asset_id && a.revision_id === b.revision_id; }
 
 export function AmojiImage({ rpc, sessionId, refValue, meta, thumbnail = false }: SessionProps & { rpc: DshRpc; refValue: ExpressionRef; meta?: VisualMeta; thumbnail?: boolean }) {
-  const [data, setData] = useState<VisualData>(); const [paused, setPaused] = useState(() => thumbnail || reducedMotion()); const [error, setError] = useState(''); const [receiptError, setReceiptError] = useState('');
+ const t=useText();
+  const [data, setData] = useState<VisualData>(); const [paused, setPaused] = useState(() => thumbnail || reducedMotion()); const [error, setError] = useState<TextMessage>(''); const [receiptError, setReceiptError] = useState<unknown>();
   useEffect(() => {
     const abort = new AbortController(); setData(undefined); setError(''); setReceiptError(''); setPaused(thumbnail || reducedMotion());
     void rpc.visual(sessionId, refValue, meta?.messageId, abort.signal).then(value => {
@@ -83,13 +85,13 @@ export function AmojiImage({ rpc, sessionId, refValue, meta, thumbnail = false }
   const acknowledge = (state: 'rendered' | 'failed') => {
     if (!meta || !data) return;
     const hash = paused && data.poster ? data.expression.visual.poster!.sha256 : data.expression.visual.primary.sha256;
-    void rpc.display(sessionId, meta.messageId, hash, state).catch(e => setReceiptError(`回执未保存：${errorText(e)}`));
+    void rpc.display(sessionId, meta.messageId, hash, state).catch(e => setReceiptError(e));
   };
-  const alt = meta?.alt ?? data?.expression.semantics.fallback ?? '表情加载中';
+  const alt = meta?.alt ?? data?.expression.semantics.fallback ?? t('表情加载中');
   const Frame = thumbnail ? 'span' : 'figure';
   return <Frame className={thumbnail ? 'amoji-media amoji-thumbnail' : 'amoji-media'}>
-    {error ? <span className="amoji-media-fallback" role="alert" title={error}>{alt}<small>{thumbnail ? '' : '图片暂不可用'}</small></span> : data ? <img key={paused && data.poster ? data.poster : data.primary}  src={paused && data.poster ? data.poster : data.primary} alt={alt} onLoad={() => acknowledge('rendered')} onError={() => { setError('浏览器无法解码图片，显示固定文字'); acknowledge('failed'); }} /> : <span className="amoji-media-loading" role="status" aria-label="图片加载中"/>}
-    {!thumbnail && data?.expression.visual.animated && data.poster && !error && <button className="amoji-playback" type="button" aria-pressed={paused} onClick={() => setPaused(v => !v)}>{paused ? '播放动图' : '暂停动图'}</button>}
-    {receiptError && <small role="alert">{receiptError}</small>}
+    {error ? <span className="amoji-media-fallback" role="alert" title={t(error)}>{alt}<small>{thumbnail ? '' : t("图片暂不可用")}</small></span> : data ? <img key={paused && data.poster ? data.poster : data.primary}  src={paused && data.poster ? data.poster : data.primary} alt={alt} onLoad={() => acknowledge('rendered')} onError={() => { setError('浏览器无法解码图片，显示固定文字'); acknowledge('failed'); }} /> : <span className="amoji-media-loading" role="status" aria-label={t("图片加载中")}/>}
+    {!thumbnail && data?.expression.visual.animated && data.poster && !error && <button className="amoji-playback" type="button" aria-pressed={paused} onClick={() => setPaused(v => !v)}>{paused ? t("播放动图") : t("暂停动图")}</button>}
+    {!!receiptError && <small role="alert">{t('回执未保存：{error}',{error:t(errorText(receiptError))})}</small>}
   </Frame>;
 }

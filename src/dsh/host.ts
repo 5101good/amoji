@@ -1,3 +1,4 @@
+import { AiSuggestions, conversationModel } from './ai-suggestions.js';
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection';
 import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { management, failure, installPackRoutes } from './host-management.js';
@@ -24,11 +25,13 @@ function modelText(value: unknown): string {
 function record(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 
 export class DshAdapter {
+  private readonly aiSuggestions: AiSuggestions;
   private panel?: Promise<PanelServer>;
   private readonly pending = new Map<string, { ref: ExpressionRef; work: Promise<HistoryEntry> }>();
   private readonly lifecycle: AbortSignal;
   constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string) {
     nonempty(hostInstanceId);
+    this.aiSuggestions = new AiSuggestions(ctx.llm);
     const disposed = new AbortController();
     this.lifecycle = disposed.signal;
     ctx.effect(() => async () => { disposed.abort(new Error('DSH_ADAPTER_DISPOSED')); if (this.panel) await (await this.panel).close(); }, 'amoji: submission lifecycle');
@@ -101,7 +104,18 @@ export class DshAdapter {
       if (!this.runtime.reconnect) fail('CAPABILITY_UNAVAILABLE', '当前连接不支持恢复，请升级插件');
       await this.runtime.reconnect(); signal.throwIfAborted(); return null;
     }
-    if (method === 'management') return management(this.runtime, nonempty(args.method), args.args);
+    if (method === 'management') {
+      const operation = nonempty(args.method);
+      if (operation === 'listSuggestionModels') {
+        object(args.args, []);
+        const models = await this.aiSuggestions.models(signal);
+        const current = conversationModel(events) ?? (await this.ctx.sessionController.modelCatalog?.())?.default ?? null;
+        signal.throwIfAborted();
+        return { models, current: current ? {provider:current.provider,model:current.model} : null };
+      }
+      if (operation === 'suggestAiText') return this.aiSuggestions.suggest(sessionId, args.args, signal);
+      return management(this.runtime, operation, args.args);
+    }
     if (method === 'manage') {
       if (!this.runtime.creation) fail('CAPABILITY_UNAVAILABLE', '当前共享服务不支持创建，请更新服务');
       const session = await this.session(sessionId, signal);

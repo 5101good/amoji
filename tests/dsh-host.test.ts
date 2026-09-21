@@ -506,3 +506,18 @@ test('两个适配器争用同一请求只有一个原生 prompt，重连 RPC �
   assert.notEqual(recovered, 'still waiting for old host', '重连核对不能继续等待已中止的旧宿主工作');
   assert.equal((recovered as HistoryEntry).host!.status, 'unknown');
 });
+
+test('AI建议RPC先核对会话，模型默认读取待用选择；生成不发聊天或修改库',async t=>{
+ const f=await setup(t);let calls=0;
+ f.ctx.sessionController.modelCatalog=async()=>({default:{provider:'p',model:'default'},routableProviders:['p'],groups:[],failures:[]});
+ f.ctx.llm={listProviders:()=>[{id:'p',name:'P'}],listModels:async()=>[{provider:'p',id:'current',name:'Current'}],resolveModelInfo:async()=>({provider:'p',id:'current',name:'Current'}),async *stream(){calls++;yield{type:'text-delta',index:0,text:JSON.stringify({name:'谢谢',semantics:{locale:'zh-CN',meaning:'感谢对方的帮助',fallback:'谢谢'},tags:['感谢']})};yield{type:'finish',reason:{kind:'stop'}};}};
+ f.a.append('model/selection',{provider:'p',model:'current'});const adapter=new DshAdapter(f.ctx,f.runtime,'fixture-host');
+ const before=await f.client.list();const events=f.a.snapshotEvents().length;
+ const models=await adapter.rpc('amoji/management',{sessionId:f.a.id,method:'listSuggestionModels',args:{}},signal()) as any;
+ assert.deepEqual(models.current,{provider:'p',model:'current'});
+ const args={intent:'感谢对方帮助',provider:'p',model:'current'};
+ await assert.rejects(adapter.rpc('amoji/management',{sessionId:'unknown',method:'suggestAiText',args},signal()),/session not found/);assert.equal(calls,0);
+ const result=await adapter.rpc('amoji/management',{sessionId:f.a.id,method:'suggestAiText',args},signal()) as any;
+ assert.equal(result.method,'dsh-llm-v1');assert.equal(calls,1);assert.equal(f.prompts.length,0);assert.equal(f.a.snapshotEvents().length,events);assert.deepEqual(await f.client.list(),before);
+ const defaultModels=await adapter.rpc('amoji/management',{sessionId:f.b.id,method:'listSuggestionModels',args:{}},signal()) as any;assert.deepEqual(defaultModels.current,{provider:'p',model:'default'});
+});

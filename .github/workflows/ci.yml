@@ -1,0 +1,94 @@
+name: CI and release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install locked dependencies
+        run: npm ci --registry=https://registry.npmjs.org
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Audit locked dependencies
+        run: npm audit --audit-level=low --registry=https://registry.npmjs.org
+      - name: Core tests
+        run: npm test
+      - name: Build plugin and test published dsh contracts
+        run: npm run test:dsh
+      - name: Release validation regression tests
+        run: node --test scripts/release-artifacts.test.mjs
+      - name: Verify package, licenses, content and checksums
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: node scripts/release-artifacts.mjs
+      - name: Upload verified release files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-release
+          path: .cache/release/*
+          if-no-files-found: error
+          # The dedicated, validated output directory lives inside .cache.
+          include-hidden-files: true
+          retention-days: 14
+          compression-level: 0
+          overwrite: true
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-release
+          path: release
+      - name: Verify downloaded release files
+        working-directory: release
+        run: sha256sum --check SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          tag_commit="$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)"
+          test "$tag_commit" = "$RELEASE_COMMIT"
+          if release_state="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"; then
+            if [ "$release_state" = true ]; then
+              # An interrupted create may leave an unpublished draft with partial assets.
+              gh release upload "$RELEASE_TAG" release/* --clobber
+              gh release edit "$RELEASE_TAG" --draft=false --title "Amoji $RELEASE_TAG" --notes-file release/RELEASE_NOTES.md
+            else
+              # A successful previous attempt is immutable here: verify, never replace it.
+              gh release download "$RELEASE_TAG" --dir published-release
+              cmp release/SHA256SUMS published-release/SHA256SUMS
+              (cd published-release && sha256sum --check SHA256SUMS)
+            fi
+          else
+            gh release create "$RELEASE_TAG" release/* --verify-tag --title "Amoji $RELEASE_TAG" --notes-file release/RELEASE_NOTES.md
+          fi

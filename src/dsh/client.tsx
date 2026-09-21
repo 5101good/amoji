@@ -1,3 +1,5 @@
+import { useText, message, type TextMessage, AmojiLocaleProvider, AMOJI_LOCALE, chinese, dictionaries, type AmojiLocale } from './i18n.js';
+import { english } from './i18n-dictionary.js';
 import { aiExpressionDefinition, AiExpressions } from './ai-messages.js';
 import { Manager } from './manager.js';
 import { Styles, CloseIcon, SmileIcon, ExpressionTile } from './ui.js';
@@ -11,6 +13,7 @@ import type { PersonalSettings } from '../library-management.js';
 import type { Appearance } from '../expression-appearance.js';
 
 export interface ClientPort {
+  locale?: AmojiLocale;
   uiConversation?: { events: { register(definition: typeof aiExpressionDefinition): () => void } };
   connection: { rpc: { call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<RpcResult<unknown>> } };
   effect(factory: () => (() => void), label?: string): unknown;
@@ -24,8 +27,8 @@ export interface ClientPort {
 interface SessionProps { sessionId: string }
 import { AmojiImage, createRpc, parseMeta, errorText, sameRef } from './media.js';
 export { AmojiImage, createRpc, parseMeta } from './media.js';
-function deliveryText(row: HistoryEntry): string {
-  if (row.host?.status === 'observed') return `已观察到会话用户消息${row.message?.presentation === 'rendered' ? '，图片已展示' : row.message?.presentation === 'fallback' ? '，当前使用固定文字回退' : '，图片展示尚待确认'}`;
+function deliveryText(row: HistoryEntry): TextMessage {
+  if (row.host?.status === 'observed') return row.message?.presentation === 'rendered' ? '已观察到会话用户消息，图片已展示' : row.message?.presentation === 'fallback' ? '已观察到会话用户消息，当前使用固定文字回退' : '已观察到会话用户消息，图片展示尚待确认';
   if (row.host?.status === 'accepted') return '宿主已接收入队，尚未确认用户消息落盘';
   if (row.host?.status === 'unknown') return '投递结果尚待核对；不会再次提交，请核对原会话。';
   return '尚未提交到宿主，可保留原选择重试。';
@@ -39,9 +42,10 @@ export function createComponents(rpc: DshRpc) {
     return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onManage={()=>{setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
   }
   function PickerSession({ sessionId, onManage, refresh, reopen }: SessionProps & {onManage:()=>void;refresh:number;reopen:number}) {
+ const t=useText();
     const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
-    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
+    const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState<TextMessage>(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState<TextMessage>(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
     const previousReopen = useRef(reopen);
     useEffect(()=>{if(previousReopen.current !== reopen){previousReopen.current = reopen;setTarget(sessionId);}},[reopen,sessionId]);
     const [category,setCategory]=useState('全部');
@@ -74,7 +78,7 @@ export function createComponents(rpc: DshRpc) {
         const value = nextQuery.trim() ? await rpc.search(frozen, nextQuery, 5, signal) : await rpc.catalog(frozen, signal);
         if (!current()) return;
         setUnavailable(false); setCatalog(value); setSelected(previous => uncertain ? previous : previous && value.some(expression => sameRef(expression, previous)) ? previous : undefined);
-        setSearchStatus(nextQuery.trim() ? (value.length ? `找到 ${value.length} 个候选。` : '没有合适的表情，可以继续用文字表达。') : `当前可选 ${value.length} 个表情。`);
+        setSearchStatus(nextQuery.trim() ? (value.length ? message('找到 {count} 个候选。',{count:value.length}) : '没有合适的表情，可以继续用文字表达。') : message('当前可选 {count} 个表情。',{count:value.length}));
       } catch (e) { if (current()) { setCatalog([]); setUnavailable(true); setSearchStatus(errorText(e)); } }
       finally { if (current()) setSearching(false); }
     };
@@ -155,38 +159,39 @@ export function createComponents(rpc: DshRpc) {
       if (restoreFocus) anchor.current?.focus({ preventScroll: true });
     };
     return <div className="amoji amoji-composer"><Styles/>
-      <button ref={anchor} className="amoji-trigger" type="button" aria-label="表情" aria-haspopup="dialog" aria-expanded={target === sessionId} onClick={() => {
+      <button ref={anchor} className="amoji-trigger" type="button" aria-label={t("表情")} aria-haspopup="dialog" aria-expanded={target === sessionId} onClick={() => {
         if (target === sessionId) { dismiss(); return; }
         selectionEpoch.current++; setTarget(sessionId);
         if (uncertain || busy) return;
         setQuery(''); setCategory('全部'); setSelected(undefined);
-      }}><SmileIcon/><span>表情</span></button>
+      }}><SmileIcon/><span>{t("表情")}</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
-        <header className="amoji-picker-head"><h2>用表情表达</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>管理表情</button><button className="icon-button" type="button" aria-label="关闭" onClick={()=>dismiss()}><CloseIcon/></button></div></header>
-        <div className="amoji-appearance" aria-label="表情画风"><span className="muted">画风</span>{([['classic','经典'],['office','办公']] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy||uncertain} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">点击即发送</span></div>
-        <form className="amoji-picker-search" aria-label="搜索 Amoji" onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
-          <input aria-label="搜索表情" value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder="想表达什么？" />
-          <button type="submit" disabled={busy || uncertain}>{searching ? '搜索中…' : '搜索'}</button>
-          {query && <button className="quiet" type="button" disabled={busy || uncertain} onClick={() => { setQuery(''); void load(''); }}>显示全部</button>}
+        <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={()=>dismiss()}><CloseIcon/></button></div></header>
+        <div className="amoji-appearance" aria-label={t("表情画风")}><span className="muted">{t("画风")}</span>{([['classic',t("经典")],['office',t("办公")]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy||uncertain} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">{t("点击即发送")}</span></div>
+        <form className="amoji-picker-search" aria-label={t("搜索 Amoji")} onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
+          <input aria-label={t("搜索表情")} value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder={t("想表达什么？")} />
+          <button type="submit" disabled={busy || uncertain}>{searching ? t("搜索中…") : t("搜索")}</button>
+          {query && <button className="quiet" type="button" disabled={busy || uncertain} onClick={() => { setQuery(''); void load(''); }}>{t("显示全部")}</button>}
         </form>
-        {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label="表情场景">{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{c}</button>)}</nav>}
+        {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label={t("表情场景")}>{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{t(c)}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
-          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={`查看 ${e.name} 详情`} disabled={busy||uncertain} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>详情</button></div>)}</div> : <p className="amoji-empty">{searching ? '正在打开表情库…' : searchStatus || '暂无可用表情，可以在管理中添加。'}</p>}
+          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情',{name:e.name})} disabled={busy||uncertain} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}
         </div>
         <footer className="amoji-picker-footer">
-          {selected ? <section className="amoji-selection" aria-label="固定语义与精确版本"><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>查看含义与适用场景</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>版本 {selected.revision_id}</small></details></section> : <p className="muted">选一张表情，看看它想表达什么。</p>}
-          {!sent && status && <p className="amoji-notice" role="status">{status}</p>}
-          {sent && !uncertain && <details className="amoji-notice"><summary>上次发送记录</summary><p role="status">{status}</p><button type="button" disabled={busy} onClick={()=>void check()}>核对投递状态</button></details>}
-          {sent && uncertain && <p className="amoji-notice" role="status">{status}</p>}
-          {(unavailable || uncertain) && <div className="row">{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={()=>void check()}>核对投递状态</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={()=>void recover()}>重新连接并核对</button>}</div>}
+          {selected ? <section className="amoji-selection" aria-label={t("固定语义与精确版本")}><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>{t("查看含义与适用场景")}</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>{t('版本 {revision}',{revision:selected.revision_id})}</small></details></section> : <p className="muted">{t("选一张表情，看看它想表达什么。")}</p>}
+          {!sent && status && <p className="amoji-notice" role="status">{t(status)}</p>}
+          {sent && !uncertain && <details className="amoji-notice"><summary>{t("上次发送记录")}</summary><p role="status">{t(status)}</p><button type="button" disabled={busy} onClick={()=>void check()}>{t("核对投递状态")}</button></details>}
+          {sent && uncertain && <p className="amoji-notice" role="status">{t(status)}</p>}
+          {(unavailable || uncertain) && <div className="row">{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={()=>void check()}>{t("核对投递状态")}</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={()=>void recover()}>{t("重新连接并核对")}</button>}</div>}
         </footer>
-          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? `${visibleCatalog.length} 个表情 · 点击即发送` : ''}</span>{uncertain&&<button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? '核对中…' : '重试原请求'}</button>}</div>
+          <div className="amoji-send-row"><span className="muted" aria-live="polite">{catalog.length ? t('{count} 个表情 · 点击即发送',{count:visibleCatalog.length}) : ''}</span>{uncertain&&<button className="primary" type="button" disabled={!selected || busy || unavailable} onClick={() => void send()}>{busy ? t("核对中…") : t("重试原请求")}</button>}</div>
       </PickerPopover>}
     </div>;
   }
 
   function History({ sessionId }: SessionProps) {
-    const [snapshot, setSnapshot] = useState<{ sessionId: string; rows: HistoryEntry[]; error: string }>({ sessionId, rows: [], error: '' });
+ const t=useText();
+    const [snapshot, setSnapshot] = useState<{ sessionId: string; rows: HistoryEntry[]; error: TextMessage }>({ sessionId, rows: [], error: '' });
     const rows = snapshot.sessionId === sessionId ? snapshot.rows : [];
     const error = snapshot.sessionId === sessionId ? snapshot.error : '';
     useEffect(() => {
@@ -195,32 +200,36 @@ export function createComponents(rpc: DshRpc) {
       refresh(); const timer = setInterval(refresh, 2000);
       return () => { abort.abort(); clearInterval(timer); };
     }, [sessionId]);
-    return <details><summary>Amoji 历史 · {rows.length}</summary>{error && <p role="alert">{error}</p>}{rows.map(row => <div key={row.meta.messageId}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} /><span>{row.message.direction === 'human_to_ai' ? '用户' : 'AI'} · {row.host?.status ?? '工具消息'} · {row.message.presentation}</span></div>)}</details>;
+    return <details><summary>{t('Amoji 历史 · {count}',{count:rows.length})}</summary>{error && <p role="alert">{t(error)}</p>}{rows.map(row => <div key={row.meta.messageId}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta} /><span>{row.message.direction === 'human_to_ai' ? t("用户") : 'AI'} · {row.host?t({prepared:'待提交',unknown:'结果待核对',accepted:'已接纳',observed:'已观察到'}[row.host.status]):t('工具消息')} · {t({pending:'等待展示',rendered:'图片已展示',fallback:'固定文字回退'}[row.message.presentation])}</span></div>)}</details>;
   }
   function ToolContent({ sessionId, block, useChat }: SessionProps & { useChat?: (selector: (snapshot: {nodes:{values():readonly {kind:string;data:unknown}[]}}) => boolean) => boolean; block?: { kind?: string; meta?: unknown; isError?: boolean; error?: { name?: string; code?: string }; content?: readonly { type: string; text?: string }[] } }) {
+ const t=useText();
     const inFlow = useChat?.(snapshot => snapshot.nodes.values().some(node => node.kind === 'amoji-expressions' && Array.isArray(node.data) && node.data.some(meta => parseMeta(meta)?.messageId === parseMeta(block?.meta)?.messageId))) ?? false;
-    if (block?.kind !== 'tool-result') return <span>表情正在发送…</span>;
+    if (block?.kind !== 'tool-result') return <span>{t("表情正在发送…")}</span>;
     const text = block.content?.filter(part => part.type === 'text' && typeof part.text === 'string').map(part => part.text).join('\n');
-    if (block.isError) return <div role="alert"><p>表情发送失败，可以继续用文字回应。</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text || block.error?.code || block.error?.name || '宿主未提供具体失败原因'}</pre></div>;
+    if (block.isError) return <div role="alert"><p>{t("表情发送失败，可以继续用文字回应。")}</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text || block.error?.code || block.error?.name || t("宿主未提供具体失败原因")}</pre></div>;
     const meta = parseMeta(block.meta);
-    if (meta && inFlow) return <span>表情已显示在对话中：{meta.alt}</span>;
-    return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <div><p>表情结果已返回，但显示信息不可用。可以继续用文字回应。</p>{text && <details><summary>查看工具文字结果</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text}</pre></details>}</div>;
+    if (meta && inFlow) return <span>{t("表情已显示在对话中：")}{meta.alt}</span>;
+    return meta ? <AmojiImage key={`${sessionId}:${meta.messageId}`} rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta} /> : <div><p>{t("表情结果已返回，但显示信息不可用。可以继续用文字回应。")}</p>{text && <details><summary>{t("查看工具文字结果")}</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text}</pre></details>}</div>;
   }
   function ToolView(props: React.ComponentProps<typeof ToolContent>) { return <div className="amoji"><Styles/><ToolContent {...props}/></div>; }
   return { Picker, History, ToolView };
 }
-export const inject = ['slots', 'connection', 'uiConversation'];
+export const inject = ['slots', 'connection', 'uiConversation', 'locale'];
 export function apply(ctx: ClientPort): void {
   const rpc = createRpc(ctx); const views = createComponents(rpc);
   ctx.effect(() => {
     const disposers: Array<() => void> = [];
     const dispose = () => { for (const release of disposers.splice(0).reverse()) release(); };
     try {
+      if (ctx.locale) disposers.push(ctx.locale.register(AMOJI_LOCALE, {zh:{...chinese,...dictionaries.zh} as Record<keyof typeof english,string>,en:{...english,...dictionaries.en}}));
+      const localized = (View: React.ComponentType<any>) => (props:any) => <AmojiLocaleProvider locale={ctx.locale} t={props.t}><View {...props}/></AmojiLocaleProvider>;
+      const localeOptions = ctx.locale ? {locale:AMOJI_LOCALE} : {};
       if (ctx.uiConversation) disposers.push(ctx.uiConversation.events.register(aiExpressionDefinition));
-      disposers.push(ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({name:'conversation.chat.node',key:'amoji-expressions'}, (props:any)=><AiExpressions {...props} rpc={rpc}/>)));
-      disposers.push(ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker' }, views.Picker)));
-      disposers.push(ctx.slots.inject('conversation.chat.node', () => mountUserMessages(ctx.slots, rpc)));
-      disposers.push(ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView)));
+      disposers.push(ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({name:'conversation.chat.node',key:'amoji-expressions',...localeOptions}, localized((props:any)=><AiExpressions {...props} rpc={rpc}/>))));
+      disposers.push(ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'amoji-picker', ...localeOptions }, localized(views.Picker))));
+      disposers.push(ctx.slots.inject('conversation.chat.node', () => mountUserMessages(ctx.slots, rpc, ctx.locale)));
+      disposers.push(ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'amoji_emit', ...localeOptions }, localized(views.ToolView))));
     } catch (error) { dispose(); throw error; }
     return dispose;
   }, 'amoji: client slots');

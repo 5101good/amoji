@@ -1,86 +1,55 @@
 # Amoji
 
-让人看见图像，让 AI 使用同一表情的固定文字语义。当前已实现 **共享本地服务和 Codex、Claude Code、dsh 三端适配**，当前以 dsh 为核心验收对象，新库通过普通包加载14项协作表情，尚不是完整 v0.1 产品。实现、可执行检查和真实宿主验证分别记录在 [实现状态](docs/planning/implementation-status-v0.1.md)。
+[English](README.en.md) · [文档](docs/README.md) · [安装](docs/dsh-installation.md)
 
-已实现静态图、短循环 WebP、文字检索与精确版本解析、绑定会话/回合的选择凭据、幂等发送、本地选择面板和 Codex 插件包。独立共享服务统一保存不可变版本、当前库条目、素材、消息快照、展示回执和选择凭据；MCP 进程通过公共客户端访问。多个适配器使用相同库，消息按可信宿主实例与会话隔离。三端用户入口和AI工具使用同一中文检索，候选保留完整语义并受8KiB文本预算限制；无匹配返回空结果，详见[搜索与待验记录](docs/validation/search-ticket-05.md)。公共接口与后续适配方法见 [共享服务合同](docs/specs/shared-service-v0.1.md)。
+**面向人和 AI 的表情。人看图，AI 读固定语义。**
 
-## 开发与验证
+Amoji 为 dsh 提供原生表情选择器、双向消息展示和个人表情库。同一张表情有明确的含义、语气、适用场景与文字回退；模型通过文字检索和选择表情，不需要识图。
 
-本次环境：macOS arm64、Node.js 24.19.0。锁文件记录依赖。其他 OS 尚未验证。
+- **双向表达**：用户点选即可发送，AI 通过 `amoji_search`、`amoji_resolve`、`amoji_emit` 使用同一套固定语义。
+- **两套画风**：经典、办公各覆盖相同的 24 个语义，共 48 个资产。切换画风不改变旧消息。
+- **自己创作**：上传图片、填写语义，或用一个意图输入框生成 AI 文字建议。模型可选，默认当前会话模型；采用后仍可编辑，保存并预览确认后才入库。
+- **本地管理**：草稿、版本、归档、个人副本、完整 `.amoji` 包导入导出和 AI 使用偏好。
+- **中英界面**：跟随 dsh 的界面语言。界面翻译不改写表情本身保存的语义；内置语义目前为中文。
+
+<p align="center"><img src="assets/samples/source/celebrate.png" alt="Amoji 经典角色：一起庆祝" width="160" /></p>
+
+## 安装
+
+1. 使用 Node.js **24 或更新版本**。当前验证基线为 **dsh 0.1.5-rc.2 / macOS arm64**。
+2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-1.0.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
+3. 安装到自己的 dsh profile，重启该 profile，选择工作区后打开输入区的“表情”。
+
+```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+```
+
+`amoji` 是示例 profile 名称；使用已有 profile 时替换它。源码安装参见[构建步骤](docs/dsh-installation.md)。插件安装成功与运行激活是两项不同检查。
+
+## 使用
+
+在选择器中搜索并点选表情即可发送；详情按钮用于先阅读固定语义。在“管理表情”中切换画风、调整 AI 语气与频率、管理自己的素材。AI 表情可独立暂停。
+
+创作时描述“谁对谁说、什么情境、想表达什么、什么语气”，选择模型后生成建议。Amoji 只向所选模型发送文字意图和生成指令，不发送图片或会话历史。生成按宿主所配置模型的规则计费；也可以完全手工填写。建议不会自动保存或入库。
+
+[完整使用指南](docs/usage.md)涵盖草稿确认、编辑旧版本、导入导出、连接恢复及发送状态。
+
+## 验证与边界
+
+1.0 以 dsh 为主要支持宿主。已有 macOS arm64 的本地安装、实际浏览器使用及一次真实 Flash 文字建议成功记录；这些证据不代表所有模型、平台或宿主版本均通过。一次 AI 发送测试的表情已成功显示，但提供方工具续答因 `reasoning_text` 兼容问题返回 HTTP 400，不能算完整模型回合成功。
+
+Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。Codex、Claude Code 实现作为 legacy 保留，暂不纳入 1.0 真机验证或兼容承诺。详见[发布与已知限制](docs/release.md)。
+
+## 开发与贡献
 
 ```sh
 npm ci
 npm run typecheck
-npm run build
 npm test
-node scripts/build-plugin.mjs
-```
-
-插件产物位于 `plugins/amoji`。其中 `runtime`、`assets`、`web` 和 `.mcp.json` 为生成产物，包含共享服务入口和全部运行依赖。构建保留依赖的相对链接；独立产物测试在临时目录、未提供开发素材路径的条件下执行真实 MCP 收发及面板取图。当前 Codex 插件加载路径不展开 MCP 参数中的 `${PLUGIN_ROOT}`，因此构建脚本按目标目录和当前 Node 路径生成启动配置。**不能直接把已生成目录搬到另一台机器；应在目标机器运行 `npm ci`、构建和下面的安装流程。**
-
-个人市场开发安装（需要已安装的官方 `plugin-creator` 技能及其 helper）：
-
-```sh
-python3 ~/.codex/skills/.system/plugin-creator/scripts/read_marketplace_name.py
-node scripts/build-plugin.mjs "$HOME/plugins/amoji"
-python3 ~/.codex/skills/.system/plugin-creator/scripts/update_plugin_cachebuster.py "$HOME/plugins/amoji"
-codex plugin add amoji@personal
-```
-
-本机 helper 返回的市场名是 `personal`；若返回其他名称，替换安装命令中的市场名。初次在其他机器建立市场条目时，先使用官方 plugin-creator 的 scaffold 流程。已安装插件的启动配置引用 `~/plugins/amoji` 中的本地运行时，因此要保留该目录；移动目录或更换 Node 后重新构建并安装。新会话才能可靠加载更新。本期产物是 macOS 本地安装小样，还不是无需安装器的跨平台发布包。
-
-`scripts/build-samples.mjs` 从已经保存的 imagegen 原始图重新封装三个固定样本，不调用图像生成服务。生成提示与来源见 [generation.json](assets/samples/generation.json)。这些历史样本的旧许可不变。生产基础库使用独立身份与 CC0-1.0 声明，普通包、提示与来源见 [基础库](assets/base-library/README.md)；包导入导出、事务边界与 D4 接口见 [D3 验证](docs/validation/dsh-packs-library.md)。
-
-## Codex 接入小样
-
-插件包含四个工具：`amoji_search`、`amoji_resolve`、`amoji_emit` 和用户入口 `amoji_pick`。前三个为日常表达工具；第四个沿用已确认的 `/amoji → 选择器 → 同次工具返回` 控制路径，已纳入 Spec。票据 01 在安装版 Codex Desktop 的接入证据见 [2026-09-15 验证](docs/validation/codex-ticket-01-2026-09-15.md)；共享服务改造后的安装版 Desktop 验收另行执行。
-
-在已加载插件的新会话中调用 `amoji` 技能或要求“打开 Amoji 表情选择器”。模型调用 `amoji_pick` 后打开默认浏览器，用户预览固定语义并点选发送。同一次 MCP 调用把文字交给原会话。AI 发送的图片在面板显示，并返回可用于 Codex Markdown 的本地图片路径。
-
-模型输入不接受会话 ID、图像路径或语义覆盖。会话和回合取自实测的 Codex MCP `_meta.x-codex-turn-metadata`。元数据缺失或不一致时明确失败。
-
-工具 `pending` 不代表宿主已经确认记录。面板仅在图片加载后记录同一消息 ID 的展示回执；HTTP 成功与显示成功都不会把宿主状态改成 `acknowledged`。适配器退出时关闭自己的面板和待选请求；其他连接继续使用服务，最后一个连接离开后服务默认空闲 60 秒退出。
-
-macOS 默认数据目录继续使用 `~/Library/Application Support/Amoji/prototype`，保留原命名以兼容已发本地图片引用。新服务写入 `library.sqlite` 与 `blobs/`；首次启动只读复制旧 `messages.sqlite` 和 `samples/` 中的数据，原文件保留且不改写。以后以共享库为准，不反复从旧原型合并。测试可用 `AMOJI_DATA_DIR` 隔离。重新关联同一真实会话后可读取完整消息与固定视觉；旧面板能力凭据失效。dsh已接入编辑、显式故障恢复和原请求核对，安装/升级边界见[安装说明](docs/dsh-installation.md)。
-
-## Claude Code 适配
-
-Claude Code 普通插件复用同一个共享服务和面板，通过 PreToolUse Hook 将可信会话、回合与调用关联到 MCP；模型只收到固定文字语义。其独立插件构建命令为 `node scripts/build-claude-plugin.mjs`，默认生成 `plugins/amoji-claude`，与 Codex 使用各自的启动配置。
-
-Hook、MCP、面板和独立产物已执行本地合同检查；**真实 Claude 宿主尚未验证**。完整适配要求 Claude Code 2.1.196+ 的公开 `prompt_id` 合同，本机2.1.177未登录，按用户授权跳过真机。构建与使用步骤见 [Claude 插件说明](plugins/amoji-claude/README.md)，检查范围及补验条件见 [03 验证记录](docs/validation/claude-ticket-03.md)。
-
-## dsh 适配
-
-dsh 分发包包含实际 Host/Client 双入口：Host 将三个日常工具映射到共享核心，Client 在原生输入区提供选择器，在对应用户消息与 AI 工具结果处展示图像。模型只接收固定文字投影，用户图像读取与精确版本关联；运行时不识图。
-
-```sh
-npm run build:dsh
 npm run test:dsh
 ```
 
-`build:dsh` 构建 `adapters/dsh`；`test:dsh` 使用锁定的 npm `0.1.5-rc.2` 发布包，执行真实 `defineTool`、`SlotRegistry`、Session 持久文件恢复及公开类型合同检查，无旧源码下载前置。选择工作区后可以零文字首发表情，不改变全局默认模型。构建与使用见 [dsh 插件说明](adapters/dsh/README.md)。真实浏览器解码、安装激活与模型调用仍须独立 QA 补证；边界见 [当前验证记录](docs/validation/dsh-native-2026-09-19.md)。
+`test:dsh` 会构建插件并检查锁定的 dsh npm 合同。构建输出为 `adapters/dsh`。[开发指南](docs/development.md)、[架构与协议](docs/architecture.md)、[贡献指南](CONTRIBUTING.md)和[安全政策](SECURITY.md)说明开发、验证与报告问题的方法。
 
-## 实测脚本
-
-这些脚本会使用本机 Codex 登录状态发起真实模型调用。仅观测调用结构，不保存认证头或原始模型请求。
-
-```sh
-node scripts/probes/codex.mjs
-node scripts/probes/live-tools.mjs
-AMOJI_PROBE_PICK=1 node scripts/probes/live-tools.mjs
-AMOJI_USE_PLUGIN=1 node scripts/probes/live-tools.mjs
-AMOJI_RESUME_THREAD=<测试会话ID> node scripts/probes/live-tools.mjs
-```
-
-可通过 `AMOJI_CODEX_BIN` 指定被测二进制、`AMOJI_REPLY_QUERY` 指定双向测试中 AI 检索的文字。每个探针默认使用临时数据目录；重开同一会话的面板时，同时传入原来的 `AMOJI_DATA_DIR` 和 `AMOJI_PROBE_PICK=1`。`codex.mjs` 只对自带的只读观测 Hook 使用该次运行的 Hook 信任测试标志；不修改全局 Hook 信任配置。真实表情测试仅对 Amoji 的本地发送/选图工具设置该次调用的允许规则。安装版探针保留宿主的安装发现配置，因此其他已配置 MCP 也可能启动；只将实际 Amoji 调用计入成功。
-
-探针要求预期工具成功且实际请求中图像输入为零，单有 Codex 进程退出码 0 不会通过。原始调用事件只保留在临时测试目录；仓库中的 [验收证据](docs/validation/codex-ticket-01.md) 是去除本地能力凭据后的摘要。
-
-完整范围见 [Spec](docs/specs/amoji-v0.1-spec.md)、[票据](docs/planning/ticket-breakdown-v0.1.md) 和 [实现状态](docs/planning/implementation-status-v0.1.md)。dsh已实现完整创作、导入导出、偏好及24项CC0基础库；最终安装版可靠性、生命周期和模型矩阵仍需补验，见[分发候选验收](docs/validation/dsh-release-acceptance.md)。Linux/Windows 仅有路径解析实现，未经实际宿主运行验证。
-
-
-### dsh 同页管理
-
-输入区“表情 → 管理表情”现已接入共享库、创作草稿、AI 偏好与完整包导入导出。图片预览成功后明确确认才成为可发表情；编辑保留旧版本，内置/导入项创建个人副本。AI 表情在完成回合的正常对话流中展示，默认折叠工具组仍可见。操作和实际验证边界见 [dsh 原生管理验证](docs/validation/dsh-native-management.md)。
-
-当前主验证宿主为dsh；[安装、升级和恢复](docs/dsh-installation.md)，[MIT代码许可](LICENSE)，[分发声明](NOTICE)。其他端新增实现与真机矩阵暂停。
+代码和技术文档使用 [MIT](LICENSE)；内置基础表情视觉、固定语义及生成提示使用 [CC0-1.0](assets/base-library/LICENSE)。生成来源见[基础库说明](assets/base-library/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。

@@ -4,6 +4,8 @@ import type { LibraryEntry, PersonalPreferences, PersonalSettings } from '../lib
 import type { TextSuggestion } from '../suggestions.js';
 import type { ImportResult } from '../packs.js';
 export interface ManagementMethods {
+  listSuggestionModels: [Record<string, never>, import('./ai-suggestions.js').SuggestionModels];
+  suggestAiText: [{ intent: string; provider: string; model: string }, import('./ai-suggestions.js').AiTextSuggestion];
   listEntries: [Record<string, never>, LibraryEntry[]];
   listRevisions: [{ asset_id: string }, Expression[]];
   startRevisionDraft: [{ ref: ExpressionRef; version: number }, Draft];

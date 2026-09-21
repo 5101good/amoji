@@ -1,3 +1,4 @@
+import { useText } from './i18n.js';
 import React from 'react';
 import type {ConversationNodeDefinition} from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type {ChatConversationViewNode} from '@deepseek-ai/dsh-client-ui-chat/client';
@@ -19,4 +20,5 @@ export const aiExpressionDefinition: ConversationNodeDefinition<null> = {
   return {key:context.key,kind:'amoji-expressions',id:context.id,target:'chat',anchorSeq:end.event.seq,location:end.location,visibility:'visible',data:[...found.values()]} as ChatConversationViewNode;
  }
 };
-export function AiExpressions({rpc,sessionId,node}:{rpc:DshRpc;sessionId:string;node:{data:VisualMeta[]}}){return <>{node.data.map(meta=><div key={`${sessionId}:${meta.messageId}`} className="amoji amoji-message amoji-message-ai" aria-label="AI 表情"><Styles/><AmojiImage rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta}/></div>)}</>;}
+export function AiExpressions({rpc,sessionId,node}:{rpc:DshRpc;sessionId:string;node:{data:VisualMeta[]}}){
+ const t=useText();return <>{node.data.map(meta=><div key={`${sessionId}:${meta.messageId}`} className="amoji amoji-message amoji-message-ai" aria-label={t("AI 表情")}><Styles/><AmojiImage rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={meta}/></div>)}</>;}

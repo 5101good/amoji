@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /adapters/dsh
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      # Review the dsh baseline and exact peer contracts together before merging.
+      dsh-contracts:
+        patterns:
+          - '@deepseek-ai/*'
+      npm-runtime:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@deepseek-ai/*'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      official-actions:
+        patterns:
+          - actions/*

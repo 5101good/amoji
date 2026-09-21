@@ -1,22 +1,11 @@
-# Amoji for Claude Code
+# Amoji for Claude Code — Legacy
 
-普通 Claude Code 插件，复用 Codex 的同一个本地版本库和服务。模型只收固定文字语义；人类在配套面板看同一确定版本的图片、动图和历史。
+本目录保留 Claude Code 适配器的开发实现，复用 Amoji 本地共享核心，通过 MCP 与 Hook 关联会话和调用。**它不属于 Amoji 1.0 的发布包或支持承诺，当前不进行 Claude Code 真机验证。** 代码、构建或合同测试存在，不代表当前 Claude Code 版本可用；其开发版本号也不等于 dsh 1.0 发行版本。
 
-需要 Node.js 24+、Claude Code 2.1.196+，以及可用的 `PreToolUse` Hook。共享服务须为 API 2 并声明 `claude-hook-tickets-v1`；缺少能力时明确失败，不更改正在运行的旧服务。仅支持默认主会话，子代理和 `--agent` 自定义主会话明确拒绝。当前机器的 2.1.177 不满足完整回合合同，未运行真实宿主验证。
+当前受维护的主要接入是 dsh。使用、安装与贡献请从[项目首页](../../README.md)开始。不要将本目录的旧安装配置用于推断当前共享服务兼容性，也不要为了尝试 legacy 适配器降级或清空日常库。
 
-从仓库构建：
+## English
 
-```sh
-npm run build
-node scripts/build-claude-plugin.mjs /目标目录/amoji-claude
-```
+This directory retains a development implementation of the Claude Code adapter, sharing Amoji's local core and correlating sessions/calls through MCP and a Hook. **It is outside the Amoji 1.0 release package and support commitment; live Claude Code validation is currently paused.** Source, builds, or contract tests do not establish compatibility with current Claude Code versions. Its development version is separate from the dsh 1.0 release.
 
-生成目录包含插件清单、MCP 配置、Hook、Skill、共享服务与面板入口、素材和 npm 运行依赖。复制到同平台同架构机器时可移动整个目录，路径由 `${CLAUDE_PLUGIN_ROOT}` 解析；其他平台需重新构建原生依赖。`node` 必须在宿主 PATH 中。不可用 Codex 的物化 `.mcp.json` 替换此包的配置。
-
-在已满足版本和认证的 Claude 中，用 `claude --plugin-dir /目标目录/amoji-claude` 加载候选插件；调用 `/amoji:amoji` 或明确要求选表情。`amoji_pick` 等待当前调用的用户选择，再返回固定语义；普通插件不提供空闲面板主动插入任意会话的能力。`amoji_emit` 打开配套面板，失败时返回可手动打开的 `panel_url`。面板按钮、动画暂停、版本语义与本会话完整历史共用现有实现。
-
-PreToolUse 用真实 `session_id`、`prompt_id`、`tool_use_id` 签发两分钟有效的一次性关联票据；覆盖模型填入的 `_amoji_ticket`，保留业务参数，不返回自动授权。若用户审批超过票据有效期，重新发起调用。MCP 校验、剥离票据后调用核心；多次 Hook 的同一 `prompt_id` 仍是同一回合。Hook 不记录 prompt 文本或转录，也不把图片或路径送入模型内容块。
-
-服务重启使尚未兑换的关联票据失效；已存表情消息和确定版本不会删除。同一宿主会话重连时重新打开面板恢复历史，面板 URL 及能力令牌会换新。HTTP/MCP 成功、浏览器命令成功或面板 `rendered` 均不充当 Claude 消息写入确认。宿主完成观察和完整投递状态机留待后续票据。
-
-Hook 与 MCP 处于同一个 OS 用户的本地可信适配边界，服务发现凭据不交给模型或网页；这不是隔离同用户恶意本地程序的沙箱。默认数据根与 Codex 相同；测试可明确使用 `AMOJI_DATA_DIR` 隔离。
+The primary maintained integration is dsh. Start at the [project README](../../README.en.md) for installation, usage, and contribution guidance. Do not infer current core compatibility from old adapter configurations or downgrade/erase a daily-use library to try legacy integration.

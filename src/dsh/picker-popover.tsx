@@ -1,7 +1,9 @@
+import { useText } from './i18n.js';
 import React, { useLayoutEffect, useRef } from 'react';
 
 /** Native top-layer popover keeps the composer's theme without ancestor clipping. */
 export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.RefObject<HTMLButtonElement | null>; onDismiss: (restoreFocus?: boolean) => void; children: React.ReactNode }) {
+ const t=useText();
   const panel = useRef<HTMLElement>(null);
   const dismiss = useRef(onDismiss); dismiss.current = onDismiss;
   useLayoutEffect(() => {
@@ -35,7 +37,7 @@ export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.R
     // The current dsh Web browser exposes this standard API. Fixed positioning
     // remains usable in DOM fixtures/older browsers without the top-layer API.
     element.showPopover?.();
-    element.querySelector<HTMLButtonElement>('[aria-label="关闭"]')?.focus({ preventScroll: true });
+    element.querySelector<HTMLButtonElement>('.amoji-picker-head .icon-button')?.focus({ preventScroll: true });
     const outside = (event: Event) => {
       const path = event.composedPath();
       if (!path.includes(element) && !path.includes(button)) dismiss.current(false);
@@ -60,5 +62,5 @@ export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.R
       element.hidePopover?.();
     };
   }, [anchor]);
-  return <section ref={panel} popover="manual" role="dialog" aria-label="Amoji 表情选择" className="amoji-picker" style={{ position: 'fixed', inset: 'auto', margin: 0, zIndex: 30, boxSizing: 'border-box', overflow: 'hidden' }}>{children}</section>;
+  return <section ref={panel} popover="manual" role="dialog" aria-label={t("Amoji 表情选择")} className="amoji-picker" style={{ position: 'fixed', inset: 'auto', margin: 0, zIndex: 30, boxSizing: 'border-box', overflow: 'hidden' }}>{children}</section>;
 }

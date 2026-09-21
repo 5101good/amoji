@@ -1,0 +1,34 @@
+name: 缺陷报告 / Bug report
+description: 报告可复现的问题 / Report a reproducible problem
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿上传密钥、访问令牌、私人表情、对话或未经脱敏的日志。使用虚构数据复现。
+        Do not share keys, access tokens, private expressions, conversations, or unredacted logs. Reproduce with synthetic data.
+  - type: input
+    id: versions
+    attributes:
+      label: 版本 / Versions
+      description: Amoji 插件版本、dsh 版本、Node.js 版本、操作系统 / Amoji plugin, dsh, Node.js, and OS versions
+      placeholder: Amoji 1.0.0; dsh 0.1.5-rc.2; Node.js 24.x; macOS ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 包括安装方式和最少操作步骤 / Include installation method and minimal steps
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际结果 / Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 脱敏证据（可选）/ Redacted evidence (optional)
+      description: 仅粘贴与问题有关的短错误片段；截图须遮盖私人内容 / Share only a short relevant error excerpt; redact private content in screenshots

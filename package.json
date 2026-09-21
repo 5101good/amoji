@@ -1,6 +1,6 @@
 {
   "name": "amoji",
-  "version": "0.1.0-dev.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -27,6 +27,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-api-session-controller": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-conversation": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.2",
@@ -34,6 +35,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-tool": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-workspace": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
     "@deepseek-ai/dsh-session": "0.1.5-rc.2",
     "@deepseek-ai/dsh-session-persistence": "0.1.5-rc.2",
     "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
@@ -43,12 +45,30 @@
     "@types/react-dom": "19.2.3",
     "@types/yauzl": "2.10.3",
     "@types/yazl": "3.3.0",
-    "esbuild": "0.27.4",
+    "esbuild": "0.28.2",
     "jsdom": "28.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tsx": "4.23.13",
     "typescript": "7.0.2"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "description": "AI-native expressions for dsh: images for people, immutable text semantics for AI.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/5101good/amoji.git"
+  },
+  "homepage": "https://github.com/5101good/amoji#readme",
+  "bugs": {
+    "url": "https://github.com/5101good/amoji/issues"
+  },
+  "keywords": [
+    "amoji",
+    "dsh",
+    "deepseek",
+    "ai",
+    "expressions",
+    "emoji",
+    "plugin"
+  ]
 }

@@ -20,10 +20,12 @@ export interface ToolOptions {
   execute(args: unknown, exec: DshExecution): Promise<JsonValue>;
 }
 export interface HostPort {
+  llm?: import('./ai-suggestions.js').SuggestionLlm;
   tools: { register(tool: unknown): unknown };
   sessions: { get(id: string): DshSession | undefined; flush(session: DshSession): Promise<boolean> };
   sessionProjections: { stateOf(session: DshSession, key: 'turnBoundary'): { openTurnStartSeq: number | null } | undefined };
   sessionController: {
+    modelCatalog?(): Promise<import('@deepseek-ai/dsh-api-session-controller').ModelCatalog>;
     resolveAgent(id: string): Promise<{ agent: DshAgent } | { error: Error }>;
     inspect(id: string, signal?: AbortSignal): Promise<{ events: readonly DshEvent[] }>;
     prompt(request: { sessionId: string; requestId: string; mode: 'queue'; content: readonly { type: 'text'; text: string }[] }, signal: AbortSignal): Promise<{ accepted: true }>;

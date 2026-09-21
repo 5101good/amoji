@@ -1,21 +1,36 @@
 # Amoji for dsh
 
-Host / Web Client 适配包，当前唯一发布验证目标是 `dsh 0.1.5-rc.2`。以 npm 发布包的真实 `defineTool`、Session 持久化校验器、SlotRegistry 和公开声明作为合同，不再依赖旧 alpha 源码快照。
+[English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-在项目根运行 `npm ci`、`npm run test:dsh`，然后运行 `mkdir -p .cache/dsh-package` 与 `npm pack ./adapters/dsh --ignore-scripts --pack-destination .cache/dsh-package`。版本与完整性由 `package-lock.json` 固定，`scripts/dsh/baseline.json` 指定目标；`prepare:dsh` 只核对本地依赖，不下载旧源码。Client 经 `window.__ModuleLoader__` 加载，React 使用宿主提供的 18.x 平台模块，不声明或安装独立 React peer。Cordis/tools/connection 是 Host 提供的 optional peer，不要求向 profile 重复安装。
+面向人和 AI 的原生表情：人看图，模型读固定语义。1.0.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
 
-Host 自动连接同一 Amoji 共享服务，要求 API 2、数据库 4 及 `dsh-reliable-delivery-v1` / `dsh-native-delivery-v1` / `library-management-v1` / `packs-v1` 能力。旧服务不满足时会明确拒绝连接，需要在适配器断开后由用户授权更新服务。浏览器只调用宿主受限 RPC，不得到核心服务密钥。Host 通过 connection.fetch.register 注册独立 /api/amoji/* POST 端点，继承 Connection 认证，不占用内置网关的 /api interceptor。安装或替换插件后重启对应 dsh profile，依赖安装完成本身不表示运行中插件已激活。
+## 安装与使用
 
-在 dsh 选择工作区后，宿主会预创建真实空白 Session；无需先发文字，即可从输入区“表情”搜索、预览和发送。当前工作区及 Agent preset 使用宿主原有流程，不调用 `selectModel`，不改变全局默认模型。完全未选择工作区时，先使用宿主工作区选择器。
+从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.0.0.tgz`，在文件所在目录执行：
 
-用户表情展示在原生用户消息行：通过公开 Slot 包装已有 user/steering renderer，保留原组件、locale、inject 与全部 props，因此文字、附件、引用和原交互仍由宿主负责。AI 表情在发送过程中显示于对应顶层 direct tool 结果处；原生回合结束后，由公开 ConversationNodeDefinition 创建独立对话节点，因此默认折叠工具组也可见。展开工具组时同 messageId 只保留文字反馈，不重复图片。无最终文字的结束回合也使用相同路径。Code Dispatch / PTC 嵌套工具可能丢失 `presentationMeta`，本版本不保证其表情视图；验收使用 direct tools。
+```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+```
 
-Session 中只使用原生 `user/message.source.rpcId=amoji:<message_id>` 与 `tool/result.meta`；Amoji 自有消息、accepted 与展示回执只由共享服务写入 SQLite。accepted 表示 prompt 接纳并通过 flush，不表示已观察到用户消息或模型已收到；观察到对应原生消息才显示 observed。
+`amoji` 是示例 profile，替换为自己的名称。安装到已有 profile 时先保存工作，安装后重启。选择工作区即可从输入区打开“表情”，无需先发送普通文字。点图发送，详情只查看含义；新库的经典/办公各有24个同语义表情，共48个资产。
 
-“表情 → 管理表情”在同页原生对话框打开完整管理。可浏览可用/归档库、查看精确历史版本、选择当前版本、创建或编辑个人副本、保存/恢复草稿、修改 AI 偏好以及导入/导出完整包。创建必须保存、图文预览成功 load 后明确勾选确认，随后返回选择器即可发送。固定语义、许可和来源均可手工填写；文字建议在独立待选区修改/采用/放弃，不读取图片或调用模型。
+“管理表情”支持草稿、个人副本、不可变历史版本、归档、偏好及 `.amoji` 包导入导出。创作只有一个意图输入框；AI 文字建议默认当前会话模型，可另选宿主已配置模型。只发送文字意图和生成指令，不发送图片或会话历史。采用建议后仍需编辑、保存、图文加载预览、勾选并确认入库。手工填写无需模型请求。
 
-未保存的草稿输入在当前页面内保留，切换会话/卸载编辑组件后可恢复；页面重载前请保存草稿。发送目标在选择时绑定，切换会话后需重新选择。并发修改保留本次输入并显示当前状态；确认或包导入结果未知时先核对原草稿/原文件，不把断连报成确定失败。完整包通过 Connection 认证的同源二进制流上传，最多 260 MiB；导出只有完整成功产物才触发下载，不输入服务器路径。
+界面跟随 dsh 中英语言，固定语义不会随 UI 翻译改写。内置语义为中文。模型建议按所选提供方配置计费，不自动重试。
 
-D2 的克制冷却按真实 Session 原生回合计数，包含中间未调用 Amoji 的纯文字回合。详细操作、自动检查和真实浏览器待验边界见 `docs/validation/dsh-native-management.md`；共享生命周期合同见 `docs/validation/dsh-library-lifecycle.md`。
+## 数据与兼容
 
-本候选可靠性、恢复与生命周期的精确步骤见源码 docs/dsh-installation.md；最终真实补验见 docs/validation/dsh-release-acceptance.md。包内 LICENSE/NOTICE/THIRD_PARTY.json 和 THIRD_PARTY_LICENSES 来自本次实际构建，不内嵌第三方原生库。
+Host 连接本地共享服务，要求 API 2、数据库4，以及 `dsh-native-delivery-v1`、`dsh-reliable-delivery-v1`、`library-management-v1`、`packs-v1`。macOS 默认数据目录为 `~/Library/Application Support/Amoji/prototype`，可用 `AMOJI_DATA_DIR` 隔离。升级保留共享数据和宿主会话；卸载插件不主动删除共享库。
+
+浏览器只使用宿主认证 RPC，模型只使用三个文字工具。`accepted` 表示宿主已接收入队，原生用户消息是否落盘仍需核对；`observed` 表示已观察到对应原生消息，图片 `rendered` 是独立的加载证据。断连或结果未知时核对原请求，避免另发。
+
+direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具不保证显示。Linux、Windows、新版 dsh 与全部模型组合尚未验证。某提供方续答会因 `reasoning_text` 兼容返回400，插件不能保证所有模型完整工具回合成功。Codex/Claude Code legacy 不在本包范围。
+
+## 包内容与许可
+
+包含 Host/Client、共享核心、基础资产、构建信息与许可清单，不嵌入 `node_modules`、Sharp `.node` 或 libvips 动态库；宿主包管理器安装依赖，因此不是离线安装包。Client 使用宿主 React，Host 使用宿主服务。
+
+代码 MIT；基础素材 CC0-1.0；第三方依赖保留各自许可。参见包内 `LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/` 和 `assets/base-library/`。
+
+完整[安装恢复](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)、[使用](https://github.com/5101good/amoji/blob/main/docs/usage.md)和[已知限制](https://github.com/5101good/amoji/blob/main/docs/release.md)见源码仓库。

@@ -1,6 +1,6 @@
 {
   "name": "@amoji/dsh",
-  "version": "0.1.0-dev.1",
+  "version": "1.0.0",
   "type": "module",
   "files": [
     "index.mjs",
@@ -14,7 +14,8 @@
     "LICENSE",
     "NOTICE",
     "THIRD_PARTY.json",
-    "THIRD_PARTY_LICENSES"
+    "THIRD_PARTY_LICENSES",
+    "README.en.md"
   ],
   "exports": {
     ".": "./index.mjs",
@@ -26,7 +27,9 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
     "@deepseek-ai/cordis": "4.0.2",
-    "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2"
+    "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.2"
   },
   "dependencies": {
     "ajv": "8.20.0",
@@ -47,7 +50,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-chat",
         "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-tool"
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-locale"
       ]
     }
   },
@@ -60,7 +64,32 @@
     },
     "@deepseek-ai/dsh-client-connection": {
       "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-locale": {
+      "optional": true
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "description": "AI-native expressions for dsh: images for people, immutable text semantics for AI.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/5101good/amoji.git",
+    "directory": "adapters/dsh"
+  },
+  "homepage": "https://github.com/5101good/amoji#readme",
+  "bugs": {
+    "url": "https://github.com/5101good/amoji/issues"
+  },
+  "keywords": [
+    "amoji",
+    "dsh",
+    "deepseek",
+    "ai",
+    "expressions",
+    "emoji",
+    "plugin"
+  ]
 }

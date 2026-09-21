@@ -29,11 +29,11 @@ test('fix1 新预览等待时旧load不得授权新图确认', async t => {
   } };
   await React.act(() => f.root.render(React.createElement(DraftEditor, { rpc, sessionId: 's', initial: { ...base, draft_id: 'old-load' }, onCreated() {} })));
   await React.act(async () => f.button('保存并预览').click());
-  const old = f.dom.window.document.querySelector('img')!;
+  const old = f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!;
   await React.act(async () => f.button('保存并预览').click());
   await React.act(() => old.dispatchEvent(new f.dom.window.Event('load')));
   await React.act(() => deliver({ draft: { ...base, version }, primary: 'data:image/png;base64,BBBB', poster: null }));
-  const current = f.dom.window.document.querySelector('img')!;
+  const current = f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!;
   assert.notEqual(current, old);
   const checkbox = f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!;
   assert.equal(checkbox.disabled, true, '新图没有load，必须不能勾选');
@@ -82,7 +82,7 @@ test('fix1 上传保存后ENTRY_CONFLICT续编仍保存本次图片', async t =>
   Object.defineProperty(input, 'files', { value: [new f.dom.window.File(['hello'], 'mine.png')] });
   await React.act(async () => { input.dispatchEvent(new f.dom.window.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 10)); });
   await React.act(async () => f.button('保存并预览').click());
-  await React.act(() => f.dom.window.document.querySelector('img')!.dispatchEvent(new f.dom.window.Event('load')));
+  await React.act(() => f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));
   await React.act(() => f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
   await React.act(async () => f.button('确认加入表情库').click());
   await React.act(async () => f.button('基于当前版本继续，保留本次填写').click());
@@ -105,8 +105,8 @@ test('fix1 Manager保存草稿立即更新列表名称且保留编辑输入', as
   const name = f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="名称"]')!;
   await React.act(() => { name.value = '我的草稿'; name.dispatchEvent(new f.dom.window.Event('input', { bubbles: true })); });
   await React.act(async () => f.button('保存草稿').click());
-  assert.ok(f.button('我的草稿'));
-  assert.equal(!!f.button('未命名草稿'), false);
+  assert.equal(f.dom.window.document.querySelector<HTMLSelectElement>('[aria-label="选择草稿"]')!.selectedOptions[0]!.textContent,'我的草稿');
+  assert.equal(f.dom.window.document.querySelector<HTMLSelectElement>('[aria-label="选择草稿"]')!.value,'rename');
   assert.equal(name.value, '我的草稿');
 });
 
@@ -142,19 +142,19 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
   };
   await waitFor(() => f.dom.window.document.body.textContent!.includes('素材尚未保存'));
   await React.act(() => f.button('保存并预览').click());
-  await waitFor(() => !!f.dom.window.document.querySelector('img'));
+  await waitFor(() => !!f.dom.window.document.querySelector('[aria-label="图文确认预览"] img'));
   const concurrent = await client.startRevisionDraft({ asset_id: personal.asset_id, revision_id: personal.revision_id }, entry.version);
   const competing = await client.saveDraft(concurrent.draft_id, concurrent.version, { ...base.fields, name: '其他客户端更新' });
   await client.confirmDraft(competing.draft_id, competing.version);
-  await React.act(() => f.dom.window.document.querySelector('img')!.dispatchEvent(new f.dom.window.Event('load')));
+  await React.act(() => f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));
   await React.act(() => f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
   await React.act(() => f.button('确认加入表情库').click());
   await waitFor(() => !!f.button('基于当前版本继续，保留本次填写'));
   await React.act(() => f.button('基于当前版本继续，保留本次填写').click());
   await waitFor(() => /本次填写仍保留/.test(f.dom.window.document.body.textContent!));
   await React.act(() => f.button('保存并预览').click());
-  await waitFor(() => !!f.dom.window.document.querySelector('img'));
-  await React.act(() => f.dom.window.document.querySelector('img')!.dispatchEvent(new f.dom.window.Event('load')));
+  await waitFor(() => !!f.dom.window.document.querySelector('[aria-label="图文确认预览"] img'));
+  await React.act(() => f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));
   await React.act(() => f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
   await React.act(() => f.button('确认加入表情库').click());
   await waitFor(() => !!created);
@@ -174,7 +174,24 @@ test('已确认草稿可直接切换新编辑，不误报未保存内容', async
   } };
   let confirmations=0; f.dom.window.confirm=()=>{confirmations++;return false;};
   await React.act(async()=>f.root.render(React.createElement(Manager,{rpc,sessionId:'s',currentSessionId:'s',open:true,onClose(){},onChanged(){}})));
-  await React.act(()=>f.button('创作与草稿').click()); await React.act(async()=>f.button(a.name).click());
+  await React.act(()=>f.button('创作与草稿').click()); await React.act(async()=>{const select=f.dom.window.document.querySelector<HTMLSelectElement>('[aria-label="选择草稿"]')!;select.value='done';select.dispatchEvent(new f.dom.window.Event('change',{bubbles:true}));});
   await React.act(async()=>f.button('新建表情').click());
   assert.equal(created,1);assert.equal(confirmations,0);assert.doesNotMatch(f.dom.window.document.body.textContent!,/当前草稿仍保留/);
+});
+
+test('草稿下拉切换保留未保存输入，不需要先结束编辑',async t=>{
+ const f=await fixture(t);const drafts=[{...base,draft_id:'switch-a'},{...base,draft_id:'switch-b'}];let saves=0;
+ const rpc:any={management:async(_s:string,method:string,args:any)=>{
+  if(method==='listEntries')return[];if(method==='listDrafts')return drafts;
+  if(method==='getDraft')return drafts.find(d=>d.draft_id===args.draft_id);
+  if(method==='listSuggestionModels')return{models:[],current:null};
+  if(method==='saveDraft')saves++;
+ }};
+ await React.act(async()=>f.root.render(React.createElement(Manager,{rpc,sessionId:'s',currentSessionId:'s',open:true,onClose(){},onChanged(){}})));
+ await React.act(()=>f.button('创作与草稿').click());
+ const choose=async(id:string)=>React.act(async()=>{const select=f.dom.window.document.querySelector<HTMLSelectElement>('[aria-label="选择草稿"]')!;select.value=id;select.dispatchEvent(new f.dom.window.Event('change',{bubbles:true}));});
+ await choose('switch-a');const input=f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="名称"]')!;
+ await React.act(()=>{input.value='切换后还在的输入';input.dispatchEvent(new f.dom.window.Event('input',{bubbles:true}));});
+ await choose('switch-b');await choose('switch-a');
+ assert.equal(f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="名称"]')!.value,'切换后还在的输入');assert.equal(saves,0);
 });

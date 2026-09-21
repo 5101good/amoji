@@ -1,53 +1,71 @@
-# dsh 安装、升级和恢复
+# dsh 安装、升级与恢复
 
-候选版本 Amoji 0.1.0-dev.1，已固定 dsh 0.1.5-rc.2 的公开合同；Node >=24，当前实际构建环境 Node24.19/macOS arm64。其他操作系统与新版dsh待验，不承诺兼容范围外版本。三个模型工具仅文字；原生AI图使用direct tools，Code Dispatch/PTC嵌套meta不保证展示。
+[English](dsh-installation.en.md) · [文档首页](README.md)
 
-## 从源码准备本地候选
+## 要求
+
+- Node.js >=24；当前真实宿主基线是 dsh 0.1.5-rc.2、macOS arm64。
+- 模型由 dsh 配置。发送用户表情会触发正常宿主会话；AI 文字建议使用 dsh 已配置的文本模型。
+- Linux/Windows 有路径处理实现，尚未完成实际宿主验证。不要把构建成功等同于跨平台兼容。
+
+## 安装发布包
+
+从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-1.0.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
 
 ```sh
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+```
+
+示例使用独立 `amoji` profile。若安装到已有 profile，替换命令中的名称并先保存工作、退出该 profile。插件通过官方 plugin 命令安装，依赖由宿主包管理器解析。tgz 不包含 `node_modules` 或原生二进制，安装需要网络访问依赖源；它不是离线安装器。
+
+重启后选择工作区，打开输入区“表情”。新会话无需先发送普通文字；新库在当前画风下显示 24 个内置表情。已有个人内容的库可能更多。安装返回 0 只说明安装命令成功；实际入口、图片加载和一次发送应分别检查。
+
+## 从源码构建
+
+```sh
+git clone https://github.com/5101good/amoji.git
+cd amoji
 npm ci
 npm run typecheck
 npm test
 npm run test:dsh
-mkdir -p .local/release-candidate
-npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release-candidate
+mkdir -p .local/release
+npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ```
 
-`test:dsh`含build和固定npm合同准备。`package-lock.json`固定源码构建树，插件直接依赖固定版本；宿主profile的pnpm-lock.yaml记录其实际安装依赖，应保留该锁文件。构建生成真实Client模块清单、当前平台生产/原生依赖版本与许可；npm tarball不内嵌node_modules。安装机器应核对其实际解析依赖与候选 `THIRD_PARTY.json`，不同平台不能套用macOS arm64检查。产物路径应使用唯一目录避免file缓存，核对SHA256后再安装。
+`test:dsh` 包含 `build:dsh` 与固定公开合同准备。只构建可运行 `npm run build:dsh`。`npm pack` 的文件名由 `adapters/dsh/package.json` 决定；1.0.0 为 `amoji-dsh-1.0.0.tgz`。安装自己刚生成的文件，而非旧缓存包。源码依赖由根目录 `package-lock.json` 锁定，宿主安装后的实际依赖由其 profile 锁文件记录。
 
-## 安装和激活
+## 数据与备份
 
-以下 `amoji-qa` 是可自行命名的独立profile；已安装同版本dsh时可用 `dsh` 替代固定版本npx入口。
+| 平台 | 默认目录 |
+| --- | --- |
+| macOS | `~/Library/Application Support/Amoji/prototype` |
+| Linux | `$XDG_DATA_HOME/amoji`，未设置时为 `~/.local/share/amoji` |
+| Windows | `%LOCALAPPDATA%/Amoji`，未设置时为用户目录下 `AppData/Local/Amoji` |
+
+`prototype` 是兼容历史图片引用保留的目录名。`AMOJI_DATA_DIR` 可覆盖位置；测试使用独立目录。运行库主要包括 `library.sqlite` 和 `blobs/`，服务发现文件可能含本地访问凭据。不要公开上传整个目录。
+
+升级前保存草稿，保留 dsh profile 的持久会话与锁文件。备份数据库应使用 SQLite 一致备份，或关闭全部相关客户端、等共享服务退出后复制完整数据目录；不要在写入过程中只复制一个 SQLite 文件。表情包导出只包含选定版本及素材，不是会话、草稿和偏好的完整备份。
+
+## 升级与卸载
+
+使用唯一路径保存新版 tgz，对相同 profile 再次执行 `plugin ... add`，然后重启。卸载：
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji-qa add /绝对唯一目录/amoji-dsh-0.1.0-dev.1.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji-qa --port 65501 --no-open
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji remove @amoji/dsh
 ```
 
-官方plugin命令代理pnpm，add已实际成功；安装exit0不代表运行中Host已激活。启动后选工作区，输入区“表情”打开24项基础库，新Session无需先发送普通文字。不需要改默认模型。隔离QA可仅对启动命令设置 `AMOJI_DATA_DIR=/独立目录`；普通运行默认共享库为 `~/Library/Application Support/Amoji/prototype`。不要把QA目录当作日常默认库。
+卸载不主动删除共享库。重新安装时保留原数据目录；不要通过删库解决连接问题。共享服务在最后一个连接离开后默认空闲 60 秒退出；其他客户端仍连接时继续运行。
 
-## 升级、卸载和重装
+当前要求共享 API 2、数据库 4，以及 `dsh-native-delivery-v1`、`dsh-reliable-delivery-v1`、`library-management-v1`、`packs-v1` 能力。不兼容时会拒绝连接，不会自动降级数据库。退出旧核心的全部使用端后再重新连接；不要强行启动第二个写入进程或按过期 PID 杀进程。
 
-升级前保存草稿、让当前会话完成并退出要升级的profile；保留共享数据目录和宿主profile持久会话/锁文件。使用新唯一路径的tgz再次执行同一add命令，重启该profile。移除命令是：
+## 故障恢复
 
-```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji-qa remove @amoji/dsh
-```
+- 连接丢失：用选择器“重新连接并核对”或管理窗口的重连操作恢复；它不会自动重发消息。
+- 发送结果未知：保留原选择，核对原会话和原请求；不要换一个表情另发来“重试”。
+- 图片失败：显示固定文字回退。文字或工具成功不等于图片已实际显示。
+- 草稿保存结果未知：先核对原草稿，再继续编辑；刷新页面前保存输入。
+- 没有建议模型：先在 dsh 配置模型，然后刷新列表。提供方连接、额度及工具续答错误需要在宿主/提供方侧排查。
 
-remove/重装的完整真实生命周期由[验收表](validation/dsh-release-acceptance.md)跟踪。插件清理只关闭自身连接，不删除共享库，不主动停止其他客户端。切勿删除数据目录、`library.sqlite`、`blobs`、旧消息或profile会话来“重装”。最后一个连接离开后核心默认空闲60秒退出；其他客户端仍连接则继续运行。重新add同一候选并重启profile后原资产和历史应保留，需实际核对。
-
-本版本要求API2、数据库4、`dsh-native-delivery-v1`、`library-management-v1`、`packs-v1`及`dsh-reliable-delivery-v1`。若旧Codex或其他端仍使用缺少能力的核心，dsh明确拒绝。先确认全部相关客户端/会话闲置、退出旧核心的所有使用端，再等待核心自然退出或由有权限维护者按正确serviceId执行管理stop；stop在仍有连接时拒绝。不要按历史PID kill、强开第二个writer或降级数据库。用户授权“忽略其他端”不等于可以强制更新或关闭它们。
-
-## 连接和投递恢复
-
-选择器“重新连接并核对”恢复当前共享库，旧连接绑定作废；管理窗口“重新连接共享库”保留当前输入。操作不会自动重发，原会话与原请求保持不变。已发送条目用“核对投递状态”读对应native rpcId；响应丢失时保留同一选择，再点原发送操作使用同一requestId核对。不要改选后另发来处理unknown。
-
-accepted仅表示宿主接纳并flush；observed表示对应用户消息已观察到；unknown表示无法确认，应检查原会话。rendered只来自匹配图片load，图片失败回退固定文字。页面重载前保存草稿；重载不会保留未保存的内存输入。版本不兼容时连接恢复按钮不会绕过能力检查或自动迁回旧DB。
-
-特定llm-ai-web网关的已验证低成本Flash配置选择见[D1记录](validation/dsh-native-2026-09-19.md)：openai-completions，compat中 `thinkingFormat: deepseek`、`maxTokensField: max_tokens`、`supportsDeveloperRole: false`、`supportsStore: false`、`requiresReasoningContentOnAssistantMessages: true`，模型 `reasoningEfforts: {off: none, low: low}` 并使用off。这仅描述该网关成功路径；Amoji不写模型配置、凭据或修改原默认gpt-reserve。
-
-## 许可与候选范围
-
-代码和技术文档MIT；24项基础视觉、语义和提示CC0-1.0。来源、生成提示及非保证说明在assets/base-library/provenance.json和README。用户个人库默认私有，不会随源码或包导出而公开。`LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/`随当前dsh包提供；Sharp/libvips实际macOS依赖明确记录各自许可，并未把原生动态库称作MIT。
-
-源码、协议、基础包和dsh tgz仅为本地分发候选；无remote/push/外部项目创建。Codex和Claude Code保留现有实现，但新增适配与真机验收暂停。最终bbcd0cc候选已在隔离QA及日常web实际安装；六分钟空闲、核心重连、卸载重装、双会话版本隔离、30组模型对照及定点修补复验均已有分层证据。剩余真实浏览器及其他未观察路径仍见验收表，不把公共合同结果冒充UI通过。
+更细的状态含义见[架构](architecture.md)，验收范围见[发布说明](release.md)。

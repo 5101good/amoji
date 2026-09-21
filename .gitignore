@@ -25,3 +25,14 @@ adapters/dsh/LICENSE
 adapters/dsh/NOTICE
 adapters/dsh/THIRD_PARTY.json
 adapters/dsh/THIRD_PARTY_LICENSES/
+
+# Local credentials and runtime state
+.env
+.env.*
+!.env.example
+*.log
+*.tgz
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*

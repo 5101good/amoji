@@ -29,6 +29,7 @@ function error(code: string, status: number) {
       },
     },
     status,
+    status === 429 ? { "retry-after": "900" } : undefined,
   );
 }
 async function mac(secret: string, value: string) {
@@ -241,7 +242,10 @@ export default {
           : ["email", "password"];
       if (Object.keys(body).some((k) => !allowed.includes(k)))
         return error("INVALID_BODY", 400);
-      const auth = createAuth(env);
+      let createdUserId: string | undefined;
+      const auth = createAuth(env, (id) => {
+        createdUserId = id;
+      });
       let response: Response;
       if (path.endsWith("logout"))
         response = await auth.api.signOut({
@@ -269,8 +273,9 @@ export default {
           ))
         )
           return error("RATE_LIMITED", 429);
-        response = path.endsWith("register")
-          ? await auth.api.signUpEmail({
+        if (path.endsWith("register")) {
+          try {
+            response = await auth.api.signUpEmail({
               body: {
                 email: body.email,
                 password: body.password,
@@ -278,12 +283,26 @@ export default {
               },
               headers: request.headers,
               asResponse: true,
-            })
-          : await auth.api.signInEmail({
-              body: { email: body.email, password: body.password },
-              headers: request.headers,
-              asResponse: true,
             });
+          } finally {
+            // D1's Better Auth adapter cannot span these writes in a transaction.
+            // Compensate only the identity created by this request, never an
+            // existing/competing identity or one with a committed credential.
+            if (createdUserId) {
+              await env.DB.prepare(
+                "DELETE FROM auth_user WHERE id=? AND NOT EXISTS (SELECT 1 FROM auth_account WHERE userId=auth_user.id)",
+              )
+                .bind(createdUserId)
+                .run();
+            }
+          }
+        } else {
+          response = await auth.api.signInEmail({
+            body: { email: body.email, password: body.password },
+            headers: request.headers,
+            asResponse: true,
+          });
+        }
       }
       // The library response contains a token: expose cookies only, never that body.
       const headers = new Headers();

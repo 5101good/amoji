@@ -47,6 +47,24 @@ export function authOptions(env: {
     },
   };
 }
-export function createAuth(env: Parameters<typeof authOptions>[0]) {
-  return betterAuth(authOptions(env));
+export function createAuth(
+  env: Parameters<typeof authOptions>[0],
+  onUserPrepared?: (id: string) => void,
+) {
+  return betterAuth({
+    ...authOptions(env),
+    databaseHooks: {
+      user: {
+        create: {
+          before: async () => {
+            // Allocate a request-owned ID before any write; after hooks are
+            // deferred by Better Auth and may never run on credential failure.
+            const id = crypto.randomUUID();
+            onUserPrepared?.(id);
+            return { data: { id } };
+          },
+        },
+      },
+    },
+  });
 }

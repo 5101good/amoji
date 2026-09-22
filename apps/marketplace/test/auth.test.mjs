@@ -194,6 +194,33 @@ test("real workerd signup, password login, secure session and immediate revocati
       (await one.fetch("http://localhost/api/auth/get-session")).status,
       404,
     ); // No default Better Auth routes are exposed.
+    await db.prepare("DELETE FROM auth_rate_limit").run();
+    for (let n = 0; n < 11; n++) {
+      const emailLimit = await post(
+        "login",
+        { email: "rate@example.test", password: "wrong password forever" },
+        "",
+        n % 2 ? one : two,
+        { "cf-connecting-ip": `192.0.2.${n + 10}` },
+      );
+      assert.equal(emailLimit.status, n < 10 ? 401 : 429);
+      if (n === 10)
+        assert.equal(emailLimit.headers.get("retry-after"), "900",
+          "email rate limits advertise retry time");
+    }
+    await db.prepare("DELETE FROM auth_rate_limit").run();
+    await db.prepare(
+      "CREATE TRIGGER deny_credential BEFORE INSERT ON auth_account BEGIN SELECT RAISE(ABORT,'fixture credential failure'); END",
+    ).run();
+    const credentialRetry = { ...body, email: "credential-retry@example.test" };
+    assert.equal((await post("register", credentialRetry)).status, 503);
+    await db.prepare("DROP TRIGGER deny_credential").run();
+    assert.equal((await post("register", credentialRetry)).status, 200,
+      "a failed credential insert must not reserve the email");
+    assert.equal((await post("login", {
+      email: credentialRetry.email, password: credentialRetry.password,
+    })).status, 200);
+    await db.prepare("DELETE FROM auth_rate_limit").run();
     await db
       .prepare(
         "CREATE TRIGGER deny_account BEFORE INSERT ON market_account BEGIN SELECT RAISE(ABORT,'fixture failure'); END",
@@ -220,7 +247,7 @@ test("real workerd signup, password login, secure session and immediate revocati
     );
     assert.equal(
       (await db.prepare("SELECT COUNT(*) AS n FROM market_account").first()).n,
-      2,
+      3,
     );
   } finally {
     await mf.dispose();

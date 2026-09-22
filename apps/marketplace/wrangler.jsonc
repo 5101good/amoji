@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "amoji-marketplace",
+  "main": "src/worker.ts",
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "compatibility_date": "2026-09-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/v1/*"],
+  },
+  "vars": { "APP_ORIGIN": "http://localhost:8787", "LOCAL_TEST": "true" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "amoji-marketplace",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "observability": { "enabled": true, "traces": { "enabled": true } },
+  "env": {
+    "production": {
+      "vars": { "APP_ORIGIN": "https://amoji.ai-web.ai" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "amoji-marketplace",
+          "database_id": "REPLACE_WITH_PROVISIONED_DATABASE_ID",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+  },
+}

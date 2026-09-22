@@ -36,3 +36,6 @@ adapters/dsh/THIRD_PARTY_LICENSES/
 *.sqlite-*
 *.db
 *.db-*
+
+# Local Cloudflare development state
+.wrangler/

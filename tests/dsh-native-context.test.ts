@@ -126,8 +126,9 @@ test('real JSONL cold resume reconciles original rpcId, while copy/fork/import/c
     adapter.setRules(agent, [{ id: 'organize', revision: 'v1', template: 'response-organization@1', config: { layout: 'answer-first' } }]);
     adapter.prepare(agent, 'amoji:observed', { id: 'once', revision: 'v1', instruction: 'ONCE ONLY', conflictGroup: 'explanation' });
     adapter.prepare(agent, 'amoji:uncertain', { id: 'uncertain', revision: 'v1', instruction: 'NEVER RETRY', conflictGroup: 'explanation' });
+    const saved = adapter.checkpoint(agent); // Crash-window checkpoint predates native claim/admission.
     agent.followup(input('amoji:observed')); await agent.whenIdle();
-    const saved = adapter.checkpoint(agent); const seed = agent.session.snapshotEvents();
+    const seed = agent.session.snapshotEvents();
     await first.ctx.sessions.flush(agent.session); await first.close(); first = undefined;
     assert.equal((await loadProfileIdentity(profile)).id, identity.id);
     await cp(profile, copy, { recursive: true }); const copiedIdentity = await loadProfileIdentity(copy);
@@ -230,4 +231,31 @@ test('a restored bound checkpoint with no native admission remains unknown', asy
     agent.followup(input('amoji:bound')); await agent.whenIdle();
     assert.equal(status, 'unknown'); assert.equal(host.provider.requests.length, 0);
   } finally { await host.close(); }
+});
+
+test('actual process exit after assembly cold-resumes native JSONL without admission or automatic resend', async () => {
+  const { mkdtemp, readFile, rm, appendFile } = await import('node:fs/promises'); const { join } = await import('node:path'); const { tmpdir } = await import('node:os');
+  const { execFile } = await import('node:child_process'); const { promisify } = await import('node:util');
+  const { fileURLToPath } = await import('node:url'); const { SessionId } = await import('@deepseek-ai/dsh-session/types');
+  const { loadProfileIdentity } = await import('../src/dsh/profile-identity.js');
+  const profile = await mkdtemp(join(tmpdir(), 'amoji-crash-'));
+  let host: Awaited<ReturnType<typeof nativeHost>> | undefined;
+  try {
+    const identity = await loadProfileIdentity(profile);
+    await promisify(execFile)(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('./helpers/dsh-crash-child.ts', import.meta.url)), profile], { timeout: 10000 });
+    const saved = JSON.parse(await readFile(join(profile, 'checkpoint.json'), 'utf8'));
+    assert.equal(saved.requests, 0);
+    assert.equal((await loadProfileIdentity(profile)).id, identity.id);
+    host = await nativeHost(true, join(profile, 'sessions'));
+    const { agent } = await host.ctx.agents.resume({ resumeSessionId: SessionId('bound-crash'), agentOptions: { provider: 'amoji-recording', model: 'no-network-no-cost' } });
+    const adapter = new CollaborationContext(host.ctx, identity.id);
+    assert.equal(adapter.restore(agent, saved.checkpoint), true);
+    assert.equal(adapter.receipt(agent, 'amoji:crash').status, 'unknown');
+    if (process.env.AMOJI_NATIVE_EVIDENCE) await appendFile(process.env.AMOJI_NATIVE_EVIDENCE, JSON.stringify({ kind: 'actual-child-process-exit', providerRequestsAtExit: saved.requests, nativeEventsAtExit: saved.events, restoredReceipt: adapter.receipt(agent, 'amoji:crash') }) + '\n');
+    assert.equal(host.provider.requests.length, 0);
+    assert.ok(!agent.session.snapshotEvents().some(e => e.type === 'user/message' && e.data.source.kind === 'user'));
+    agent.followup(input('a-new-user-request')); await agent.whenIdle();
+    assert.equal(host.provider.requests.length, 1);
+    assert.ok(!JSON.stringify(host.provider.requests).includes('NEVER RESEND'));
+  } finally { if (host) await host.close(); await rm(profile, { recursive: true, force: true }); }
 });

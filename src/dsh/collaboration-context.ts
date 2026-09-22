@@ -120,8 +120,8 @@ export class CollaborationContext {
     if (state.failure) return { status: 'failed', reason: state.failure };
     if (intent.turn === undefined) return { status: intent.status };
     const events = agent.session.snapshotEvents();
-    const user = events.find(e => e.seq > intent.turn! && e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && e.data.source.rpcId === rpcId);
     const end = events.find(e => e.seq > intent.turn! && e.type === 'turn/end');
+    const user = events.find(e => e.seq > intent.turn! && (!end || e.seq < end.seq) && e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && e.data.source.rpcId === rpcId);
     const snapshot = events.find(e => e.seq > intent.turn! && (!end || e.seq < end.seq) && section(e) === intent.text);
     if (user && snapshot && intent.text) return { status: 'attached', turnStartSeq: intent.turn, snapshotSeq: snapshot.seq, digest: hash(intent.text) };
     if (end?.type === 'turn/end') return { status: end.data.reason.kind === 'aborted' ? 'cancelled' : 'failed', turnStartSeq: intent.turn, reason: 'no-admitted-matching-snapshot' };

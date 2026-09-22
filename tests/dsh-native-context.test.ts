@@ -171,3 +171,17 @@ test('native same-ID replacement cannot restore a cleared history, and old agent
     assert.ok(!JSON.stringify(host.provider.requests.at(-1)).includes('amoji.collaboration'));
   } finally { await host.close(); }
 });
+
+test('a later reused rpcId cannot prove admission in an earlier turn whose user input was removed', async () => {
+  const host = await nativeHost();
+  try {
+    const adapter = new CollaborationContext(host.ctx, 'profile'); const { agent } = await host.create('admission-boundary'); adapter.authorize(agent);
+    adapter.prepare(agent, 'amoji:same', { id: 'once', revision: 'v1', instruction: 'EXACT TURN ONLY', conflictGroup: 'explanation' });
+    let first = true;
+    host.ctx.on('agent/pre-step', async (_p, next) => { const result = await next(); if (first && result.kind === 'enter') { first = false; return { ...result, messages: result.messages.filter(m => m.source.kind !== 'user') }; } return result; });
+    agent.followup(input('amoji:same')); await agent.whenIdle();
+    assert.notEqual(adapter.receipt(agent, 'amoji:same').status, 'attached');
+    agent.followup(input('amoji:same')); await agent.whenIdle();
+    assert.notEqual(adapter.receipt(agent, 'amoji:same').status, 'attached');
+  } finally { await host.close(); }
+});

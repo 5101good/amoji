@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
+import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
+import { joinContextSections } from '@deepseek-ai/dsh-system-prompt';
 import type { SessionEvent } from '@deepseek-ai/dsh-session';
 
 export const COLLABORATION_CONTEXT = 'amoji:collaboration';
@@ -11,7 +13,7 @@ export type CollaborationRule = { id: string; revision: string } & (
 );
 export interface CollaborationInstruction { id: string; revision: string; instruction: string; conflictGroup: 'explanation' | 'response-organization' | 'completion-report' | 'handoff' }
 export interface CollaborationReceipt { status: 'prepared' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
-interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number; text?: string }
+interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number }
 export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
 interface State { rules: CollaborationRule[]; intents: Map<string, Intent>; claimed: boolean; turn?: number; text?: string; generation: number; failure?: string }
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -68,15 +70,14 @@ export class CollaborationContext {
       }
       const events = agent.session.snapshotEvents();
       const lastAssistant = events.findLast(e => e.type === 'assistant/message');
-      const toolContinuation = lastAssistant?.type === 'assistant/message' && lastAssistant.data.message.content.some(b => b.type === 'tool-call') && events.findLast(e => e.type === 'turn/start')?.seq === turn;
+      const toolContinuation = lastAssistant?.type === 'assistant/message' && lastAssistant.seq > turn && lastAssistant.data.message.content.some(b => b.type === 'tool-call') && events.findLast(e => e.type === 'turn/start')?.seq === turn;
       const hasWork = state.claimed || toolContinuation;
       // Never manufacture a different snapshot during a completion-only assembly.
-      if (hasWork || state.turn !== turn) {
+      if (hasWork) {
         const intent = [...state.intents.values()].find(i => i.turn === turn && (i.status === 'bound' || i.status === 'attached'));
         if (state.rules.length || intent || state.text) {
           try { state.text = envelope(this.hostInstanceId, agent.id, turn, state.rules, intent?.action); state.failure = undefined; }
           catch { state.failure = 'context-budget'; return assembly; }
-          if (intent) intent.text = state.text;
         }
         state.turn = turn;
       }
@@ -86,6 +87,32 @@ export class CollaborationContext {
       assembly.variables[VARIABLE] = state.text;
       return assembly;
     }));
+    // Outermost cooperative waterfall: validate the downstream decision before admission.
+    // Only our exact named section may be edited; another plugin's input is preserved.
+    this.disposers.push(ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
+      const decision = await next();
+      const state = this.valid(agent); const turn = openTurn(agent);
+      if (decision.kind !== 'enter' || !state || turn === undefined || signal.aborted || !state.text || state.failure) return decision;
+      const native = agent.session.snapshotEvents().filter(e => e.seq > turn && e.type === 'user/message').map(e => (e as Extract<SessionEvent, { type: 'user/message' }>).data);
+      const users = [...native, ...decision.messages].filter(m => m.source.kind === 'user');
+      const entries = [...state.intents.entries()].filter(([, i]) => i.turn === turn && i.status === 'bound');
+      const missing = entries.filter(([rpcId]) => !users.some(m => 'rpcId' in m.source && m.source.rpcId === rpcId));
+      if (users.length && !missing.length) return decision;
+      for (const [, intent] of missing) intent.status = 'failed';
+      const previous = state.text;
+      const remaining = entries.find(([rpcId]) => users.some(m => 'rpcId' in m.source && m.source.rpcId === rpcId))?.[1].action;
+      state.text = users.length && (state.rules.length || remaining) ? envelope(this.hostInstanceId, agent.id, turn, state.rules, remaining) : undefined;
+      const messages: UserMessage[] = [];
+      for (const message of decision.messages) {
+        const source = message.source;
+        if (source.kind !== 'plugin' || !('sections' in source) || !source.sections?.some(c => c.name === COLLABORATION_CONTEXT && c.text === previous)) { messages.push(message); continue; }
+        const sections = source.sections.flatMap(c => c.name !== COLLABORATION_CONTEXT ? [c] : state.text ? [{ ...c, text: state.text }] : []);
+        const originalText = joinContextSections(source.sections);
+        const content = message.content.flatMap(block => block.type === 'text' && block.text === originalText ? (sections.length ? [{ ...block, text: joinContextSections(sections) }] : []) : [block]);
+        if (content.length) messages.push(createUserMessage({ content, source: { ...source, sections } }));
+      }
+      return { ...decision, messages };
+    }, { prepend: true }));
   }
   private valid(agent: Agent): State | undefined { return this.ctx.agents.get(agent.id) === agent ? this.states.get(agent) : undefined; }
   /** Called only after the host has established an exact profile/session identity, or explicit new user opt-in. */
@@ -116,16 +143,33 @@ export class CollaborationContext {
   receipt(agent: Agent, rpcId: string): CollaborationReceipt {
     const state = this.valid(agent); if (!state) return { status: 'unsupported', reason: 'identity-not-restored' };
     const intent = state.intents.get(rpcId); if (!intent) return { status: 'unknown', reason: 'original-request-not-known' };
-    if (intent.status === 'cancelled') return { status: 'cancelled' };
+    if (intent.status === 'cancelled' || intent.status === 'failed') return { status: intent.status };
     if (state.failure) return { status: 'failed', reason: state.failure };
-    if (intent.turn === undefined) return { status: intent.status };
     const events = agent.session.snapshotEvents();
-    const end = events.find(e => e.seq > intent.turn! && e.type === 'turn/end');
-    const user = events.find(e => e.seq > intent.turn! && (!end || e.seq < end.seq) && e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && e.data.source.rpcId === rpcId);
-    const snapshot = events.find(e => e.seq > intent.turn! && (!end || e.seq < end.seq) && section(e) === intent.text);
-    if (user && snapshot && intent.text) return { status: 'attached', turnStartSeq: intent.turn, snapshotSeq: snapshot.seq, digest: hash(intent.text) };
-    if (end?.type === 'turn/end') return { status: end.data.reason.kind === 'aborted' ? 'cancelled' : 'failed', turnStartSeq: intent.turn, reason: 'no-admitted-matching-snapshot' };
-    return { status: 'bound', turnStartSeq: intent.turn };
+    let turn = intent.turn;
+    // A crash may have persisted the intent before its native claim was recorded locally.
+    // Reconstruct only from one exact original rpcId, never by dispatching it again.
+    if (turn === undefined && intent.status === 'unknown') {
+      const originals = events.filter(e => e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && e.data.source.rpcId === rpcId);
+      if (originals.length !== 1) return { status: 'unknown', reason: 'original-request-not-unambiguously-admitted' };
+      turn = events.findLast(e => e.type === 'turn/start' && e.seq < originals[0]!.seq)?.seq;
+    }
+    if (turn === undefined) return { status: intent.status };
+    const end = events.find(e => e.seq > turn! && e.type === 'turn/end');
+    const inTurn = (event: SessionEvent) => event.seq > turn! && (!end || event.seq < end.seq);
+    const user = events.find(e => inTurn(e) && e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && e.data.source.rpcId === rpcId);
+    const snapshot = events.find(e => {
+      const text = inTurn(e) && section(e); if (!text || Buffer.byteLength(text) > 8192) return false;
+      try {
+        const value = JSON.parse(text);
+        return value.schema === 'amoji.collaboration/1' && value.scope?.profile === this.hostInstanceId && value.scope.session === agent.id && value.scope.turnStartSeq === turn && JSON.stringify(value.instruction) === JSON.stringify(intent.action);
+      } catch { return false; }
+    });
+    if (user && snapshot) return { status: 'attached', turnStartSeq: turn, snapshotSeq: snapshot.seq, digest: hash(section(snapshot)!) };
+    if (end?.type === 'turn/end' && end.data.reason.kind === 'aborted') return { status: 'cancelled', turnStartSeq: turn };
+    if (intent.status === 'unknown') return { status: 'unknown', turnStartSeq: turn, reason: 'original-request-not-proven' };
+    if (end) return { status: 'failed', turnStartSeq: turn, reason: 'no-admitted-matching-snapshot' };
+    return { status: 'bound', turnStartSeq: turn };
   }
   checkpoint(agent: Agent): CollaborationCheckpoint {
     const state = this.valid(agent); if (!state) throw new Error('Session identity is not authorized');
@@ -136,14 +180,15 @@ export class CollaborationContext {
   restore(agent: Agent, saved: CollaborationCheckpoint): boolean {
     if (saved.version !== 1 || saved.profile !== this.hostInstanceId || saved.session !== agent.id || saved.createdAt !== agent.session.header.createdAt || agent.session.header.parentSession || this.ctx.agents.get(agent.id) !== agent) return false;
     const anchor = saved.anchor && agent.session.snapshotEvents().find(e => e.seq === saved.anchor!.seq);
-    if (!anchor || hash(JSON.stringify(anchor)) !== saved.anchor?.digest) return false;
+    if (saved.anchor && (!anchor || hash(JSON.stringify(anchor)) !== saved.anchor.digest)) return false;
+    if (!saved.anchor && !agent.session.snapshotEvents().some(e => e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && saved.intents.some(([rpcId]) => 'rpcId' in e.data.source && e.data.source.rpcId === rpcId))) return false;
     this.authorize(agent);
     try { this.setRules(agent, saved.rules); }
     catch { this.forget(agent); return false; }
     const state = this.valid(agent)!;
     for (const [rpcId, intent] of structuredClone(saved.intents)) {
       // An unobserved request stays uncertain. Never rebind it when old inbox items replay.
-      state.intents.set(rpcId, { ...intent, status: intent.status === 'cancelled' ? 'cancelled' : 'unknown' });
+      state.intents.set(rpcId, { ...intent, status: intent.status === 'cancelled' || intent.status === 'failed' ? intent.status : 'unknown' });
     }
     return true;
   }

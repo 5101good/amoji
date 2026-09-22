@@ -181,7 +181,53 @@ test('a later reused rpcId cannot prove admission in an earlier turn whose user 
     host.ctx.on('agent/pre-step', async (_p, next) => { const result = await next(); if (first && result.kind === 'enter') { first = false; return { ...result, messages: result.messages.filter(m => m.source.kind !== 'user') }; } return result; });
     agent.followup(input('amoji:same')); await agent.whenIdle();
     assert.notEqual(adapter.receipt(agent, 'amoji:same').status, 'attached');
+    assert.equal(host.provider.requests.length, 0, 'a removed human input cannot leave an Amoji-only request');
     agent.followup(input('amoji:same')); await agent.whenIdle();
     assert.notEqual(adapter.receipt(agent, 'amoji:same').status, 'attached');
+  } finally { await host.close(); }
+});
+
+test('admission guard retains other plugins when removing an unadmitted one-time action', async () => {
+  const host = await nativeHost();
+  try {
+    host.ctx.systemPrompt.context({ name: 'other:context', order: 0, text: 'OTHER CONTEXT REMAINS' });
+    host.ctx.on('agent/pre-step', async (_p, next) => { const d = await next(); return d.kind === 'enter' ? { ...d, messages: d.messages.filter(m => m.source.kind !== 'user').map(m => ({ ...m, content: [...m.content, { type: 'text' as const, text: 'EXTRA PLUGIN TEXT' }] })) } : d; });
+    const adapter = new CollaborationContext(host.ctx, 'profile'); const { agent } = await host.create('other-context'); adapter.authorize(agent);
+    adapter.prepare(agent, 'amoji:filtered', { id: 'once', revision: 'v1', instruction: 'MUST NOT APPLY', conflictGroup: 'explanation' });
+    agent.followup(input('amoji:filtered')); await agent.whenIdle();
+    assert.equal(host.provider.requests.length, 1);
+    assert.ok(JSON.stringify(host.provider.requests).includes('OTHER CONTEXT REMAINS'));
+    assert.ok(JSON.stringify(host.provider.requests).includes('EXTRA PLUGIN TEXT'));
+    assert.ok(!JSON.stringify(host.provider.requests).includes('MUST NOT APPLY'));
+  } finally { await host.close(); }
+});
+
+test('a stale prepared checkpoint reconstructs attachment from original rpcId and native sections without resending', async () => {
+  const host = await nativeHost();
+  try {
+    let adapter = new CollaborationContext(host.ctx, 'profile'); const { agent } = await host.create('stale-checkpoint'); adapter.authorize(agent);
+    agent.followup(input('warmup')); await agent.whenIdle();
+    adapter.prepare(agent, 'amoji:stale', { id: 'one', revision: 'v1', instruction: 'ORIGINAL RPC', conflictGroup: 'explanation' });
+    const saved = adapter.checkpoint(agent);
+    agent.followup(input('amoji:stale')); await agent.whenIdle();
+    adapter.dispose(); adapter = new CollaborationContext(host.ctx, 'profile');
+    assert.equal(adapter.restore(agent, saved), true);
+    assert.equal(adapter.receipt(agent, 'amoji:stale').status, 'attached');
+    assert.equal(host.provider.requests.length, 2);
+  } finally { await host.close(); }
+});
+
+test('a restored bound checkpoint with no native admission remains unknown', async () => {
+  const host = await nativeHost();
+  try {
+    let adapter = new CollaborationContext(host.ctx, 'profile'); const { agent } = await host.create('bound-checkpoint'); adapter.authorize(agent);
+    adapter.prepare(agent, 'amoji:bound', { id: 'one', revision: 'v1', instruction: 'NOT ADMITTED', conflictGroup: 'explanation' });
+    let status: string | undefined;
+    host.ctx.on('agent/request', async (_p, next) => {
+      const config = await next(); const saved = adapter.checkpoint(agent); adapter.dispose(); adapter = new CollaborationContext(host.ctx, 'profile');
+      assert.equal(adapter.restore(agent, saved), true); status = adapter.receipt(agent, 'amoji:bound').status; agent.cancel({ kind: 'user' }); return config;
+    });
+    agent.followup(input('amoji:bound')); await agent.whenIdle();
+    assert.equal(status, 'unknown'); assert.equal(host.provider.requests.length, 0);
   } finally { await host.close(); }
 });

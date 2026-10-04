@@ -1,0 +1,26 @@
+{
+  "name": "@amoji/marketplace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node build.mjs --worker-only && node test/build.mjs && node --test test/*.test.mjs",
+    "build": "node build.mjs",
+    "typecheck": "wrangler types --env-interface CloudflareBindings && tsc --noEmit",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy --env production"
+  },
+  "dependencies": {
+    "better-auth": "1.7.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20260921.0-alpha",
+    "typescript": "7.0.2",
+    "wrangler": "4.136.2"
+  }
+}

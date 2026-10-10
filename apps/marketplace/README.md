@@ -42,6 +42,6 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 
 冻结对象写入客户端不可签名的 `sealed/`，条件写防覆盖；实际字节SHA与预留一致才验证。校验后公开/审核必须引用sealed对象与manifest digest，禁止引用staging。15分钟清理任务先CAS过期再删除；有效引用阻止过期。签名到期取5分钟与上传剩余期限的较小值，不跨越清理期限；剩余不足1秒时拒绝签发，避免删除后重放复生。操作记录至少保存7天（当前保留，不自动删除）；清理D1失败后可重入。
 
-部署前运行根依赖安装及本目录 `npm ci`、`npm test`、`npm run typecheck`、`npm run build`。`wrangler.jsonc` 用SQLite迁移，不启用Paid/Containers，上传默认 `UPLOAD_ENABLED=false`。需真实账户Free确认、共享用量检查、bucket限定R2 S3 Object Read & Write凭据、私有桶和实际Origin CORS后才启用。服务端配置 `R2_ACCOUNT_ID`、`R2_BUCKET`；`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`须secret bindings。不要将secret、预签名URL或密码打印日志。`r2-cors.json` 针对当前验收站点；Origin改变须同步精确替换，不能用 `*`。
+部署前运行根依赖安装及本目录 `npm ci`、`npm test`、`npm run typecheck`、`npm run build`。`wrangler.jsonc` 用SQLite迁移，不启用Paid/Containers，上传默认 `UPLOAD_ENABLED=false`。需真实账户Free确认、共享用量检查、bucket限定R2 S3 Object Read & Write凭据、私有桶和实际Origin CORS后才启用。服务端配置 `R2_ACCOUNT_ID`、`R2_BUCKET`；`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`须secret bindings。不要将secret、预签名URL或密码打印日志。`r2-cors.json` 针对当前验收站点；Origin改变须同步精确替换，不能用 `*`；`web/_headers` 的 CSP connect-src 同样需精确指向自己的 R2 account endpoint。
 
 真实部署必须分别验证旧账号、DO计量、实际S3的签名长度/类型/篡改/过期/竞态/回收、最大包和真实浏览器上传。本地workerd与R2 binding fixture不证明S3签名或浏览器CORS，也不证明当前套餐与整isolate内存。禁止因S3凭据未配置或validator不可用而声称上传完成。清理临时验收对象，保留正式资源。

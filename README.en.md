@@ -128,3 +128,7 @@ npm run test:dsh
 `test:dsh` builds the plugin and checks pinned dsh npm contracts. Output is written to `adapters/dsh`. Read [development](docs/development.en.md), [architecture and protocol](docs/architecture.en.md), [contributing](CONTRIBUTING.en.md), and [security](SECURITY.en.md).
 
 Code and technical documentation use [MIT](LICENSE). Built-in artwork, fixed semantics, and generation prompts use [CC0-1.0](assets/base-library/LICENSE); see [asset provenance](assets/base-library/README.en.md). Third-party dependencies and user content retain their own licenses; see [NOTICE](NOTICE).
+
+## Claude Desktop Mods (in development)
+
+[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. This layered adapter is separate from the legacy prototype and is not included in the published v1.0.0 release.

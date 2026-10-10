@@ -1,3 +1,4 @@
+import { failure } from "./upload-shared";
 export { FreeRuntime } from "./free-runtime";
 export type Env = Omit<
   CloudflareBindings,
@@ -31,11 +32,7 @@ export default {
       return env.ASSETS
         ? env.ASSETS.fetch(request)
         : new Response("Not found", { status: 404 });
-    if (!env.FREE_RUNTIME)
-      return Response.json(
-        { error: { code: "RUNTIME_UNAVAILABLE", retryable: true } },
-        { status: 503, headers: { "cache-control": "no-store" } },
-      );
+    if (!env.FREE_RUNTIME) return failure("RUNTIME_UNAVAILABLE", 503);
     const headers = new Headers(request.headers);
     // Never trust a client-supplied forwarding marker, even on local requests.
     headers.delete("x-amoji-edge-ip");
@@ -45,8 +42,12 @@ export default {
         ? "127.0.0.1"
         : null;
     if (ip) headers.set("x-amoji-edge-ip", ip);
-    return env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
-      new Request(request, { headers }),
-    );
+    try {
+      return await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
+        new Request(request, { headers }),
+      );
+    } catch {
+      return failure("RUNTIME_UNAVAILABLE", 503);
+    }
   },
 };

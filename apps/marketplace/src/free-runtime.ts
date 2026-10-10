@@ -49,8 +49,7 @@ export class FreeRuntime extends DurableObject<Env> {
         this.reading--;
       }
     }
-    if (this.queued >= 8)
-      return Promise.resolve(new Response(null, { status: 429 }));
+    if (this.queued >= 8) return failure("RUNTIME_BUSY", 429);
     this.queued++;
     const work = this.tail
       .then(() => this.handle(request))

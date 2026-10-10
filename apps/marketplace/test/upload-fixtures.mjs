@@ -85,3 +85,63 @@ export async function archive(upload, options = {}) {
     image,
   };
 }
+/** Legal unknown PNG ancillary chunks make exact byte boundaries compressible in transport. */
+export async function byteBoundaryArchive(upload, kind, extra = 0) {
+  const { crc32 } = await import("node:zlib");
+  const seed = await archive(upload);
+  const count = kind === "archive" ? 10 : 16;
+  const sizes = Array(count).fill(1024 * 1024);
+  const expressions = Array.from({ length: count }, () => ({
+    ...structuredClone(seed.manifest.expressions[0]),
+    asset_id: randomUUID(),
+    revision_id: randomUUID(),
+  }));
+  const manifest = {
+    ...seed.manifest,
+    expressions,
+    defaults: expressions.map((e) => ({
+      asset_id: e.asset_id,
+      revision_id: e.revision_id,
+    })),
+  };
+  const render = () => {
+    const files = {};
+    expressions.forEach((expression, index) => {
+      const data = Buffer.alloc(sizes[index] - seed.image.length - 12);
+      data[0] = index;
+      const typeAndData = Buffer.concat([Buffer.from("aaAa"), data]);
+      const length = Buffer.alloc(4),
+        crc = Buffer.alloc(4);
+      length.writeUInt32BE(data.length);
+      crc.writeUInt32BE(crc32(typeAndData));
+      const image = Buffer.concat([
+        seed.image.subarray(0, -12),
+        length,
+        typeAndData,
+        crc,
+        seed.image.subarray(-12),
+      ]);
+      expression.visual.primary = {
+        ...expression.visual.primary,
+        sha256: hash(image),
+        bytes: image.length,
+      };
+      files["blobs/" + hash(image)] = image;
+    });
+    files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+    const bytes = zipSync(files, { level: kind === "archive" ? 0 : 6 });
+    return {
+      bytes,
+      expanded: Object.values(files).reduce((sum, b) => sum + b.length, 0),
+    };
+  };
+  const target = (kind === "archive" ? 10 : 16) * 1024 * 1024 + extra;
+  let result = render();
+  for (let i = 0; i < 3; i++) {
+    const actual = kind === "archive" ? result.bytes.length : result.expanded;
+    if (actual === target) return result;
+    sizes[count - 1] += target - actual;
+    result = render();
+  }
+  throw Error("Boundary fixture did not converge");
+}

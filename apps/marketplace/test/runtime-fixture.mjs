@@ -19,7 +19,7 @@ export function convertV4MiniflareOptions(options) {
             contents: readFileSync(root + "decoder.wasm"),
           },
         ],
-        durableObjects: {
+        durableObjects: rest.durableObjects ?? {
           FREE_RUNTIME: { className: "FreeRuntime", useSQLite: true },
         },
         bindings: {

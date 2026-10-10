@@ -152,6 +152,23 @@ test("real workerd signup, password login, secure session and immediate revocati
       "request_id",
     ]);
     const cookie = cookies[0].split(";")[0];
+    const burst = await Promise.all(
+      Array.from({ length: 48 }, () =>
+        one.fetch("http://localhost/v1/me", { headers: { cookie } }),
+      ),
+    );
+    const throttled = burst.filter((r) => r.status === 429);
+    assert.ok(
+      throttled.length > 0,
+      "real shared runtime queue should apply backpressure",
+    );
+    for (const response of throttled) {
+      assert.equal(response.headers.get("retry-after"), "900");
+      const body = await response.json();
+      assert.equal(body.error.code, "RUNTIME_BUSY");
+      assert.equal(typeof body.request_id, "string");
+    }
+
     const me = await two.fetch("http://localhost/v1/me", {
       headers: { cookie },
     });
@@ -354,9 +371,53 @@ test("HTTP slow control body cannot hold the shared runtime queue", async () => 
     ]);
     assert.equal(quick.status, 200);
     assert.equal((await pending).status, 408);
-    assert.equal((await mf.dispatchFetch("http://localhost/v1/auth/csrf")).status,200);
+    assert.equal(
+      (await mf.dispatchFetch("http://localhost/v1/auth/csrf")).status,
+      200,
+    );
   } finally {
     close();
     await mf.dispose();
+  }
+});
+test("HTTP unavailable runtime returns a structured retryable error", async () => {
+  for (const unavailable of ["missing", "failed"]) {
+    const script =
+      (await readFile(new URL("../dist/worker.js", import.meta.url), "utf8")) +
+      "\nexport class RuntimeOffline { fetch() { throw Error('synthetic RPC failure'); } }";
+    const mf = new Miniflare(
+      convertV4MiniflareOptions({
+        workers: [
+          {
+            name: "unavailable-" + unavailable,
+            modules: true,
+            script,
+            compatibilityDate: "2026-09-21",
+            compatibilityFlags: ["nodejs_compat"],
+            durableObjects:
+              unavailable === "missing"
+                ? {}
+                : {
+                    FREE_RUNTIME: {
+                      className: "RuntimeOffline",
+                      useSQLite: true,
+                    },
+                  },
+            bindings: { APP_ORIGIN: "http://localhost" },
+          },
+        ],
+      }),
+    );
+    try {
+      const response = await mf.dispatchFetch("http://localhost/v1/auth/csrf");
+      assert.equal(response.status, 503);
+      const body = await response.json();
+      assert.equal(body.error.code, "RUNTIME_UNAVAILABLE");
+      assert.equal(body.error.retryable, true);
+      assert.equal(typeof body.error.message, "string");
+      assert.equal(typeof body.request_id, "string");
+    } finally {
+      await mf.dispose();
+    }
   }
 });

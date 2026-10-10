@@ -638,3 +638,23 @@ test("HTTP stale versions take precedence over competing operation keys", async 
   );
   assert.deepEqual(competing.map((r) => r.status).sort(), [200, 412]);
 });
+test("HTTP exact archive and expanded-byte boundaries validate actual legal media", async (t) => {
+  const f = await fixture(t),
+    { byteBoundaryArchive } = await import("./upload-fixtures.mjs");
+  for (const [kind, extra, expected] of [
+    ["archive", 0, 200],
+    ["expanded", 0, 200],
+    ["expanded", 1, 422],
+  ]) {
+    const u = await f.reserve(),
+      fixture = await byteBoundaryArchive(u, kind, extra);
+    assert.equal(
+      kind === "archive" ? fixture.bytes.length : fixture.expanded,
+      (kind === "archive" ? 10 : 16) * 1024 * 1024 + extra,
+    );
+    const authorization = await f.authorize(u, fixture.bytes);
+    await f.put(authorization, fixture.bytes);
+    const response = await f.post(`/v1/uploads/${u.id}/complete`, {}, f.cookie);
+    assert.equal(response.status, expected, await response.clone().text());
+  }
+});

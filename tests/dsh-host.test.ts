@@ -95,7 +95,14 @@ test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持�
   assert.equal(rows.length, 1); assert.deepEqual(rows[0]!.host, { status: 'observed', requestId: first.host!.requestId, hostMessageId: 'host-message-1', seq: turn.seq + 1, turnStartSeq: turn.seq });
   const binding = await f.client.bind({ host: 'dsh', sessionId: f.a.id });
   await assert.rejects(f.client.search(binding, '庆祝'), /TURN_REQUIRED/); await assert.rejects(f.client.emit(binding, 'forged'), /TURN_REQUIRED/); await f.client.unbind(binding);
-  await assert.rejects(f.client.bind({ host: 'codex', sessionId: 'x' }), /真实回合/);
+  // The shared session-bindings capability now supports every host for human sends.
+  // AI tools still enforce a real turn at the service boundary.
+  for (const host of ['codex', 'claude-code'] as const) {
+    const idle = await f.client.bind({ host, sessionId: 'idle-session' });
+    await assert.rejects(f.client.search(idle, '庆祝'), /TURN_REQUIRED/);
+    await assert.rejects(f.client.emit(idle, 'forged'), /TURN_REQUIRED/);
+    await f.client.unbind(idle);
+  }
 });
 
 test('人类搜索 RPC 复用同一检索核心：真实会话、完整精确版本、严格边界且不创建回合', async t => {

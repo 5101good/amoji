@@ -1,3 +1,4 @@
+import marketApi from "./market-api";
 import { DurableObject } from "cloudflare:workers";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { validateArchive } from "./market-validator";
@@ -44,10 +45,26 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
   }
   private async handle(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path.startsWith("/v1/")) {
+      // Already inside the serialized queue: private compute calls dispatch inline,
+      // avoiding a recursive RPC to the object currently awaiting its response.
+      const runtime = {
+        getByName: () => ({
+          fetch: (input: RequestInfo, init?: RequestInit) =>
+            this.handle(new Request(input, init)),
+        }),
+      } as unknown as DurableObjectNamespace;
+      return marketApi.fetch(request, { ...this.env, FREE_RUNTIME: runtime });
+    }
     if (request.method !== "POST") return new Response(null, { status: 404 });
     try {
       if (path === "/cleanup") {
         await cleanupUploads(this.env);
+        await this.env.DB.prepare(
+          "DELETE FROM auth_rate_limit WHERE bucket < ?",
+        )
+          .bind(Math.floor(Date.now() / 900000) - 1)
+          .run();
         return Response.json({ ok: true });
       }
       const data = JSON.parse(

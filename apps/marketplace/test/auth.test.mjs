@@ -47,6 +47,25 @@ test("HTTP account access requires authentication and rejects cross-origin write
       body: "{}",
     });
     assert.equal(bad.status, 403);
+    const forged = await mf.dispatchFetch("https://amoji.test/v1/auth/login", {
+      method: "POST",
+      headers: {
+        origin: "https://amoji.test",
+        "content-type": "application/json",
+        "x-amoji-edge-ip": "192.0.2.1",
+      },
+      body: "{}",
+    });
+    assert.equal(forged.status, 403);
+    assert.equal(
+      (
+        await mf.dispatchFetch("https://amoji.test/password", {
+          method: "POST",
+          body: "{}",
+        })
+      ).status,
+      404,
+    );
   } finally {
     await mf.dispose();
   }
@@ -206,21 +225,35 @@ test("real workerd signup, password login, secure session and immediate revocati
       );
       assert.equal(emailLimit.status, n < 10 ? 401 : 429);
       if (n === 10)
-        assert.equal(emailLimit.headers.get("retry-after"), "900",
-          "email rate limits advertise retry time");
+        assert.equal(
+          emailLimit.headers.get("retry-after"),
+          "900",
+          "email rate limits advertise retry time",
+        );
     }
     await db.prepare("DELETE FROM auth_rate_limit").run();
-    await db.prepare(
-      "CREATE TRIGGER deny_credential BEFORE INSERT ON auth_account BEGIN SELECT RAISE(ABORT,'fixture credential failure'); END",
-    ).run();
+    await db
+      .prepare(
+        "CREATE TRIGGER deny_credential BEFORE INSERT ON auth_account BEGIN SELECT RAISE(ABORT,'fixture credential failure'); END",
+      )
+      .run();
     const credentialRetry = { ...body, email: "credential-retry@example.test" };
     assert.equal((await post("register", credentialRetry)).status, 503);
     await db.prepare("DROP TRIGGER deny_credential").run();
-    assert.equal((await post("register", credentialRetry)).status, 200,
-      "a failed credential insert must not reserve the email");
-    assert.equal((await post("login", {
-      email: credentialRetry.email, password: credentialRetry.password,
-    })).status, 200);
+    assert.equal(
+      (await post("register", credentialRetry)).status,
+      200,
+      "a failed credential insert must not reserve the email",
+    );
+    assert.equal(
+      (
+        await post("login", {
+          email: credentialRetry.email,
+          password: credentialRetry.password,
+        })
+      ).status,
+      200,
+    );
     await db.prepare("DELETE FROM auth_rate_limit").run();
     await db
       .prepare(

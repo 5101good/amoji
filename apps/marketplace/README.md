@@ -36,7 +36,7 @@ D1 原子限流：注册每 IP 5 次 / 15 分钟、登录每 IP 20 次 / 15 分�
 
 上传使用三段公开 HTTP：`POST /v1/uploads {pack_id?}` 预留服务端身份；客户端构造最终 0.2 manifest 后，`POST /v1/uploads/:id/authorize {length,sha256}` 签发最长 300 秒的精确 staging PUT；`POST /v1/uploads/:id/complete {}` 冻结并完成可信验证。所有写入带会话、Origin、CSRF 和 UUID `Idempotency-Key`；GET 可查恢复状态。授权与完成各自保存独立操作 key，重试需复用；首次变更需发送 GET 返回的 `row_version` 为 `If-Match: "版本"`，过期版本返回412。客户端遇到已过期预留时创建新操作，允许重新选择同一文件。浏览器直接 PUT R2，普通 Worker 不接收包主体。新发布快照保留表达 identity/固定语义和原素材；本地 0.1 的原有限额未修改。
 
-SQLite DO `FreeRuntime` 通过私有 binding 使用，单实例串行重计算，最多排队 8 个请求。scrypt 保留 Better Auth 1.7.5 的 N16384/r16/p1/dkLen64、NFKC、32位hex盐字符串格式，验证采用常数时间比较。DO不保存密码。D1会话与账号停用逻辑沿用账号服务。每天应用最多 2000 次密码计算、128 次验证、128 次预留、256 次签发；每owner最多3个未完成上传；未回收上传最多100条、已预留存储1 GiB。这些是应用保守阈值，并不代表Cloudflare账户的剩余额度，也不能限制预签名URL被攻击者重放的全部S3尝试。
+SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 API，单实例串行处理，最多排队 8 个请求。普通 Worker 仅转发请求和静态资源；可信边缘 IP 标记由入口覆盖，客户端无法伪造。CSRF、会话、签名和验证计算都在 DO 内，嵌套计算不递归 RPC。scrypt 保留 Better Auth 1.7.5 的 N16384/r16/p1/dkLen64、NFKC、32位hex盐字符串格式，验证采用常数时间比较。DO不保存密码。D1会话与账号停用逻辑沿用账号服务。每天应用最多 2000 次密码计算、128 次验证、128 次预留、256 次签发；每owner最多3个未完成上传；未回收上传最多100条、已预留存储1 GiB。这些是应用保守阈值，并不代表Cloudflare账户的剩余额度，也不能限制预签名URL被攻击者重放的全部S3尝试。
 
 归档最多10 MiB、展开16 MiB、manifest512 KiB、256条目；仅manifest和SHA命名素材。每素材1 MiB/1024边/60帧/10秒/800万累计像素。ZIP解压检查中央目录、本地头、描述符、路径、重叠、实际长度、CRC；Rust WASM全量解码PNG/JPEG/GIF/WebP，GIF另检查完整子块与终止位置。WASM没有imports，最大线性内存64 MiB，单个解码分配24 MiB；线性内存不是整个isolate的峰值内存。DO默认平台CPU预算为每请求30秒；预算终止或I/O故障保留可重试状态，不改为客户端自证。
 

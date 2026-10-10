@@ -37,7 +37,7 @@ test('真实driver：三种layout、完成自检、刷新恢复、逐条停用�
  }
  let state:any=await f.call('collaboration.enable',{selection:choices[3],generation,replace:null});
  f.bridge.dispose();const bridge=new DshCollaboration(f.host.ctx,f.runtime,'profile');t.after(()=>bridge.dispose());const adapter=new DshAdapter(f.ctx,f.runtime,'profile',bridge);
- f.live.followup(input('refresh'));await f.live.whenIdle();assert.equal(f.host.provider.requests.length,4);assert.equal(snapshots(f.live).at(-1).rules.length,2);assert.match(JSON.stringify(snapshots(f.live).at(-1)),/完成前检查已有证据/);
+ f.live.followup(input('refresh'));await f.live.whenIdle();assert.equal(f.host.provider.requests.length,4);assert.equal(snapshots(f.live).at(-1).rules.length,2);assert.match(JSON.stringify(snapshots(f.live).at(-1)),/完成前检查已有证据/);assert.match(JSON.stringify(snapshots(f.live).at(-1)),/最终报告列明已完成、证据、未完成或不确定事项/);assert.match(JSON.stringify(snapshots(f.live).at(-1)),/final report must list completed work, evidence, incomplete work and uncertainties/);
  state=await adapter.rpc('amoji/collaboration.disableAll',{sessionId:'session',generation:state.generation},new AbortController().signal);
  assert.equal(f.host.provider.requests.length,4);f.live.followup(input('disabled'));await f.live.whenIdle();assert.equal(f.host.provider.requests.length,5);assert.equal(snapshots(f.live).at(-1).rules.length,0);assert.match(snapshots(f.live).at(-1).state,/已停用/);
 });
@@ -120,4 +120,14 @@ test('真实JSONL冷启动恢复UUID规则；复制profile与同ID清空历史�
  const cleared=await nativeHost();t.after(()=>cleared.close());const empty=(await cleared.create('session')).agent;const isolated=new DshCollaboration(cleared.ctx,f.runtime,identity.id);t.after(()=>isolated.dispose());const pending=await isolated.rules('session');assert.equal(pending.identity,'pending');assert.ok(pending.rules.every(r=>r.status==='unsupported'));
  await assert.rejects(isolated.change('session',{kind:'disable',selection:choices[0],generation:pending.generation}),/RULE_IDENTITY/);empty.followup(input('empty'));await empty.whenIdle();assert.equal(snapshots(empty).length,0);
  await isolated.change('session',{kind:'disableAll',generation:pending.generation});assert.equal((await isolated.rules('session')).identity,'ready');await rm(path+'-copy',{recursive:true,force:true});
+});
+
+test('fork/import不继承，但当前会话新的显式授权可用并可冷恢复',async t=>{
+ const f=await fixture(t);const choices=await hooks(f.c,f.ref);const {SessionId,SessionLogOffset}=await import('@deepseek-ai/dsh-session/types');const {nativeHost}=await import('./helpers/dsh-native.js');const {join}=await import('node:path');
+ f.live.followup(input('parent'));await f.live.whenIdle();const seed=f.live.session.snapshotEvents();
+ const fork=(await f.host.ctx.agents.create({sessionId:SessionId('new-fork'),seed,meta:{parentSession:SessionId('session'),isSeeded:true},inheritedEventCount:SessionLogOffset(seed.length),agentOptions:{provider:'amoji-recording',model:'no-network-no-cost'}})).agent;
+ const imported=(await f.host.ctx.agents.create({sessionId:SessionId('new-import'),seed,agentOptions:{provider:'amoji-recording',model:'no-network-no-cost'}})).agent;
+ for(const agent of [fork,imported]){assert.equal((await f.bridge.rules(agent.id)).rules.length,0);const view=await f.bridge.change(agent.id,{kind:'enable',selection:choices[0],generation:0,replace:null});assert.equal(view.identity,'ready');assert.equal(view.rules[0]?.status,'configured');agent.followup(input('consented'));await agent.whenIdle();assert.equal(snapshots(agent).at(-1).scope.session,agent.id);assert.equal(snapshots(agent).at(-1).rules.length,1);await f.host.ctx.sessions.flush(agent.session);}
+ f.bridge.dispose();await f.host.close();const host=await nativeHost(true,join(f.directory,'native'));t.after(()=>host.close());const bridge=new DshCollaboration(host.ctx,f.runtime,'profile');t.after(()=>bridge.dispose());
+ for(const id of ['new-fork','new-import']){const live=(await host.ctx.agents.resume({resumeSessionId:SessionId(id),agentOptions:{provider:'amoji-recording',model:'no-network-no-cost'}})).agent;assert.equal((await bridge.rules(id)).identity,'ready');live.followup(input('after-cold'));await live.whenIdle();assert.equal(snapshots(live).at(-1).rules.length,1);}assert.equal(host.provider.requests.length,2);
 });

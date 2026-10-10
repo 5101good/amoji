@@ -11,7 +11,7 @@ export const COLLABORATION_CONTEXT = 'amoji:collaboration';
 const VARIABLE = 'amoji_collaboration_text';
 export interface CollaborationReceipt { status: 'prepared' | 'dispatched' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
 interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number }
-export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
+export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; lineage?: {parentSession?:string;isSeeded:boolean}; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
 interface State { rules: CollaborationRule[]; intents: Map<string, Intent>; claimed: boolean; turn?: number; text?: string; generation: number; failure?: string }
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const openTurn = (agent: Agent): number | undefined => {
@@ -121,7 +121,10 @@ export class CollaborationContext {
   }
   forget(agent: Agent): void { this.states.delete(agent); }
   matchesIdentity(agent:Agent,saved:CollaborationCheckpoint):boolean {
-    if(saved.version!==1 || saved.profile!==this.hostInstanceId || saved.session!==agent.id || saved.createdAt!==agent.session.header.createdAt || agent.session.header.parentSession || agent.session.header.isSeeded || this.ctx.agents.get(agent.id)!==agent)return false;
+    if(saved.version!==1 || saved.profile!==this.hostInstanceId || saved.session!==agent.id || saved.createdAt!==agent.session.header.createdAt || this.ctx.agents.get(agent.id)!==agent)return false;
+    // New consent records this exact session's lineage; inherited checkpoints
+    // retain the parent's lineage and cannot authorize a fork or import.
+    if(saved.lineage ? saved.lineage.parentSession!==agent.session.header.parentSession || saved.lineage.isSeeded!==agent.session.header.isSeeded : !!agent.session.header.parentSession || agent.session.header.isSeeded)return false;
     const anchor=saved.anchor&&agent.session.snapshotEvents().find(e=>e.seq===saved.anchor!.seq);
     return !saved.anchor || !!anchor&&hash(JSON.stringify(anchor))===saved.anchor.digest;
   }
@@ -191,11 +194,11 @@ export class CollaborationContext {
   checkpoint(agent: Agent): CollaborationCheckpoint {
     const state = this.valid(agent); if (!state) throw new Error('Session identity is not authorized');
     const anchor = agent.session.snapshotEvents().at(-1);
-    return structuredClone({ version: 1, ...(anchor ? { anchor: { seq: anchor.seq, digest: hash(JSON.stringify(anchor)) } } : {}), profile: this.hostInstanceId, session: agent.id, createdAt: agent.session.header.createdAt, rules: state.rules, intents: [...state.intents] });
+    return structuredClone({ version: 1, ...(anchor ? { anchor: { seq: anchor.seq, digest: hash(JSON.stringify(anchor)) } } : {}), profile: this.hostInstanceId, session: agent.id, createdAt: agent.session.header.createdAt, lineage: {parentSession:agent.session.header.parentSession,isSeeded:agent.session.header.isSeeded}, rules: state.rules, intents: [...state.intents] });
   }
   /** Only exact native cold-resume identity may recover rules; histories are never authorization. */
   restore(agent: Agent, saved: CollaborationCheckpoint, restoreRules=true): boolean {
-    if (saved.version !== 1 || saved.profile !== this.hostInstanceId || saved.session !== agent.id || saved.createdAt !== agent.session.header.createdAt || agent.session.header.parentSession || this.ctx.agents.get(agent.id) !== agent) return false;
+    if (!this.matchesIdentity(agent,saved)) return false;
     const anchor = saved.anchor && agent.session.snapshotEvents().find(e => e.seq === saved.anchor!.seq);
     if (saved.anchor && (!anchor || hash(JSON.stringify(anchor)) !== saved.anchor.digest)) return false;
     if (!saved.anchor && !agent.session.snapshotEvents().some(e => e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && saved.intents.some(([rpcId]) => 'rpcId' in e.data.source && e.data.source.rpcId === rpcId))) return false;

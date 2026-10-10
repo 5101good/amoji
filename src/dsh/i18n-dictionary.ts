@@ -1,4 +1,8 @@
 export const english = {
+"回答组织":"Response organization",
+"完成自检":"Completion self-check",
+"来源版本":"Source version",
+"技术详情与精确版本":"Technical details and exact versions",
 "当前会话规则":"Conversation rules",
 "仅用于当前会话":"Applies only to this conversation",
 "规则是输入时文字指导，不是后台检查或完成认证。停用不删除历史，也不保证模型忘记。":"Rules provide input-time guidance, not background checks or certification. Disabling preserves history and cannot guarantee forgetting.",

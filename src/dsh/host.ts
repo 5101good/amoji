@@ -113,7 +113,7 @@ export class DshAdapter {
     const reconnect = endpoint === 'amoji/reconnect';
     signal = AbortSignal.any([signal, this.lifecycle, ...(!reconnect && this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], actions: ['sessionId','ref'], submit: ['sessionId', 'ref', 'requestId','action'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.capabilities':['sessionId'], 'collaboration.receipts':['sessionId'], visual: ['sessionId', 'ref', 'messageId'], actions: ['sessionId','ref'], submit: ['sessionId', 'ref', 'requestId'], submitWithAction: ['sessionId','ref','actionRef','releaseRef','requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'submit' ? ['sessionId','ref','requestId'] : method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
@@ -143,6 +143,8 @@ export class DshAdapter {
       if (this.ctx.sessions.get(sessionId) !== session) fail('DSH_CONTEXT_CHANGED', '创建面板的会话已变化');
       return { url: panel.url(context) };
     }
+    if(method==='collaboration.capabilities')return {supported:!!this.collaboration&&!!this.runtime.collaboration,scopes:['turn'],reason:this.collaboration&&this.runtime.collaboration?null:'host-context-unavailable'};
+    if(method==='collaboration.receipts')return (await this.rows(sessionId,events)).filter(row=>row.action);
     if (method === 'actions') {
       if(!this.runtime.collaboration || !this.collaboration)fail('CAPABILITY_UNAVAILABLE','当前宿主不支持协作动作，可明确选择仅发送');
       return this.runtime.collaboration.choices(context,refOf(args.ref));
@@ -169,7 +171,7 @@ export class DshAdapter {
       await this.runtime.acknowledge(currentMessages.some(m=>m.message_id===messageId)?context:{...context,hostInstanceId:'local'}, messageId, args.state === 'rendered' ? 'rendered' : 'fallback');
       return null;
     }
-    const action = args.action === undefined ? undefined : actionSelection(args.action);
+    const action = method === 'submitWithAction' ? actionSelection({...object(args.actionRef,['action_id','action_revision_id']),...object(args.releaseRef,['release_id'])}) : undefined;
     if(action && (!this.collaboration || !this.runtime.collaboration))fail('CAPABILITY_UNAVAILABLE','当前宿主不支持协作动作，可明确选择仅发送');
     const requestId = nonempty(args.requestId); const ref = refOf(args.ref); const key = JSON.stringify([sessionId, requestId]);
     signal.throwIfAborted();
@@ -240,7 +242,7 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
       releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
-      for (const method of ['reconnect', 'catalog', 'search', 'history', 'visual', 'actions', 'submit', 'display', 'manage', 'management']) {
+      for (const method of ['reconnect', 'catalog', 'search', 'history', 'visual', 'collaboration.capabilities', 'collaboration.receipts', 'actions', 'submit', 'submitWithAction', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });

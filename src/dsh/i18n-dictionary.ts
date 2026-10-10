@@ -1,4 +1,7 @@
 export const english = {
+"协作回执暂不可用，请重新核对。":"Action receipts are unavailable; check again.",
+"协作动作记录":"Collaboration action history",
+"核对协作记录":"Check action receipts",
 "一次性协作提示":"One-turn collaboration instruction",
 "选择协作提示":"Choose collaboration instruction",
 "正在读取可选动作…":"Loading optional actions\u2026",

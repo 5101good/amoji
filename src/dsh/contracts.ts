@@ -43,7 +43,10 @@ export interface DshRpc extends ManagementRpc {
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
   search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;
-  submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal, action?: import('../collaboration.js').ActionSelection): Promise<HistoryEntry>;
+  submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal): Promise<HistoryEntry>;
+  submitWithAction?(sessionId:string,ref:ExpressionRef,actionRef:import('../actions.js').ActionRef,releaseRef:{release_id:string},requestId:string,signal?:AbortSignal):Promise<HistoryEntry>;
+  receipts?(sessionId:string,signal?:AbortSignal):Promise<HistoryEntry[]>;
+  capabilities?(sessionId:string,signal?:AbortSignal):Promise<{supported:boolean;scopes:string[];reason:string|null}>;
   actions?(sessionId:string,ref:ExpressionRef,signal?:AbortSignal):Promise<import('../collaboration.js').ActionChoice[]>;
   history(sessionId: string, signal?: AbortSignal): Promise<HistoryEntry[]>;
   visual(sessionId: string, ref: ExpressionRef, messageId?: string, signal?: AbortSignal): Promise<VisualData>;

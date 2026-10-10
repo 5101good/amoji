@@ -59,6 +59,13 @@ export function createComponents(rpc: DshRpc) {
       catch(e){if(selectionEpoch.current===epoch)setStatus(errorText(e));}
       finally{if(selectionEpoch.current===epoch)setActionsLoading(false);}
     };
+    const [receipts,setReceipts]=useState<HistoryEntry[]>([]);
+    const refreshReceipts=async()=>{
+      if(!rpc.receipts || !target)return;
+      const owner=lifetime.current;const generation=owner.generation;
+      try{const rows=await rpc.receipts(sessionId,owner.abort.signal);if(!Array.isArray(rows))throw new Error('协作回执暂不可用，请重新核对。');if(!owner.abort.signal.aborted&&owner.generation===generation)setReceipts(rows);}
+      catch(error){if(!owner.abort.signal.aborted&&owner.generation===generation)setStatus(errorText(error));}
+    };
     const previousReopen = useRef(reopen);
     useEffect(()=>{if(previousReopen.current !== reopen){previousReopen.current = reopen;setTarget(sessionId);}},[reopen,sessionId]);
     const [category,setCategory]=useState('全部');
@@ -69,6 +76,7 @@ export function createComponents(rpc: DshRpc) {
     const sendLock = useRef(false);
     const [settings,setSettings]=useState<PersonalSettings>();
     const [unavailable, setUnavailable] = useState(!!pending); const [uncertain, setUncertain] = useState(!!pending); const [sent, setSent] = useState<HistoryEntry | undefined>(pending?.sent);
+    useEffect(()=>{void refreshReceipts();},[target,sent?.meta?.messageId]);
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
@@ -106,7 +114,9 @@ export function createComponents(rpc: DshRpc) {
       pendingSelections.set(frozen, identity);
       setBusy(true); setStatus('');
       try {
-        const result = await rpc.submit(frozen, { asset_id: choice.asset_id, revision_id: choice.revision_id }, id, signal, action);
+        const ref={asset_id:choice.asset_id,revision_id:choice.revision_id};
+        if(action && !rpc.submitWithAction)throw new Error('当前宿主不支持动作，可明确选择仅发送。');
+        const result = action ? await rpc.submitWithAction!(frozen,ref,{action_id:action.action_id,action_revision_id:action.action_revision_id},{release_id:action.release_id},id,signal) : await rpc.submit(frozen,ref,id,signal);
         if (pendingSelections.get(frozen) === identity) {
           if (result.host?.status === 'unknown') identity.sent = result;
           else pendingSelections.delete(frozen);
@@ -191,6 +201,7 @@ export function createComponents(rpc: DshRpc) {
           {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>void choose(e)} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情',{name:e.name})} disabled={busy||uncertain} onClick={()=>void choose(e,true)}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}
         </div>
         <footer className="amoji-picker-footer">
+          {!!receipts.length && <details><summary>{t('协作动作记录')}</summary><button type="button" onClick={()=>void refreshReceipts()}>{t('核对协作记录')}</button>{receipts.map(row=><p role="status" key={row.message.message_id}>{row.message.revision?.name} · {t(deliveryText(row))} {row.action?.reason} {row.action?.turnStartSeq!==undefined&&<> · turn {row.action.turnStartSeq} · snapshot {row.action.snapshotSeq??'—'}</>}</p>)}</details>}
           {selected ? <section className="amoji-selection" aria-label={t("固定语义与精确版本")}><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>{t("查看含义与适用场景")}</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>{t('版本 {revision}',{revision:selected.revision_id})}</small></details></section> : <p className="muted">{t("选一张表情，看看它想表达什么。")}</p>}
           {selected && !sent && <section aria-label={t('一次性协作提示')}>
             {actionsLoading && <p role="status">{t('正在读取可选动作…')}</p>}

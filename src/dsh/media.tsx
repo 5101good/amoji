@@ -17,7 +17,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
       signal?.throwIfAborted();
       if (operation === 'saveDraft' || operation === 'confirmDraft') throw rpcError({code:'DRAFT_OUTCOME_UNKNOWN',message:'草稿写入结果尚待核对。原填写和上传已保留，请重新连接后核对当前状态，不要重复保存或确认。'});
       if (operation === 'previewDraft') throw rpcError({code:'DRAFT_PREVIEW_UNAVAILABLE',message:'预览连接中断，请重新连接后重试预览；原草稿仍保留。'});
-      throw rpcError({ code: method === 'submit' ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: method === 'submit' ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
+      throw rpcError({ code: (method === 'submit' || method === 'submitWithAction') ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: (method === 'submit' || method === 'submitWithAction') ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
     }
     if (!result.ok) throw rpcError(result.error);
     return result.value as T;
@@ -52,7 +52,10 @@ export function createRpc(ctx: ClientPort): DshRpc {
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
     search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
-    submit: (sessionId, ref, requestId, signal, action) => call('submit', { sessionId, ref: narrowRef(ref), requestId, ...(action?{action}:{}) }, signal),
+    submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref: narrowRef(ref), requestId }, signal),
+    submitWithAction: (sessionId,ref,actionRef,releaseRef,requestId,signal) => call('submitWithAction',{sessionId,ref:narrowRef(ref),actionRef,releaseRef,requestId},signal),
+    capabilities: (sessionId,signal)=>call('collaboration.capabilities',{sessionId},signal),
+    receipts: (sessionId,signal)=>call('collaboration.receipts',{sessionId},signal),
     actions: (sessionId,ref,signal) => call('actions',{sessionId,ref:narrowRef(ref)},signal),
     history: (sessionId, signal) => call('history', { sessionId }, signal),
     visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref: narrowRef(ref), ...(messageId ? { messageId } : {}) }, signal),

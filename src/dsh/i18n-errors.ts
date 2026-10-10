@@ -1,5 +1,14 @@
 /** Stable protocol codes, with raw diagnostic details preserved separately. */
 export const errorEnglish: Record<string, string> = {
+  ACTION_LIMIT: 'The action exceeds the allowed UTF-8 budget. Shorten it and try again.',
+  SEMANTIC_LIMIT: 'Fixed semantics exceed the separate 4 KiB budget.',
+  ACTION_CONFLICT: 'Only one recurring rule is allowed per preference group.',
+  ACTION_REVISION_CONFLICT: 'An immutable action revision has conflicting content.',
+  RELEASE_CONFLICT: 'This release identity or version already identifies different content.',
+  PACK_NOT_FOUND: 'This exact scenario release was not found.',
+  DRAFT_FINALIZED: 'This release is saved and immutable. Create a new draft.',
+  MIGRATION_FAILED: 'Database migration failed. The previous database has been preserved.',
+
   SUGGESTION_INPUT_INVALID: 'Check the wording and selected model. Intent is required and can be up to 240 characters.',
   SUGGESTION_UNAVAILABLE: 'AI models are unavailable. Check the dsh model configuration.',
   SUGGESTION_BUSY: 'This chat is already generating a suggestion. Please wait.',

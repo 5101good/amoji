@@ -5,6 +5,7 @@ import { fail, nonempty, object } from '../shared-contract.js';
 import { PACK_LIMITS } from '../packs.js';
 import type { HostPort } from './contracts.js';
 const schemas: Record<string, string[]> = {
+  createScenarioDraft:['refs'],listScenarioDrafts:[],getScenarioDraft:['draft_id'],saveScenarioDraft:['draft_id','version','manifest'],previewScenarioDraft:['draft_id','version'],confirmScenarioDraft:['draft_id','version'],listScenarioPacks:[],getScenarioPack:['release_id'],
   listEntries: [], listDrafts: [], createDraft: [], getSettings: [], listRevisions: ['asset_id'],
   startRevisionDraft: ['ref', 'version'], selectRevision: ['ref', 'version'], setArchived: ['asset_id', 'version', 'archived'],
   updateSettings: ['version', 'preferences'], getDraft: ['draft_id'], saveDraft: ['draft_id', 'version', 'fields', 'upload'],
@@ -23,6 +24,12 @@ export async function management(runtime: AdapterRuntime, method: string, raw: u
     return { primary: await data(value.visual.primary), poster: value.visual.poster ? await data(value.visual.poster) : null };
   };
   switch (method) {
+    case 'createScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');if(!Array.isArray(args.refs))fail('INVALID_ARGUMENT','需要版本列表');return runtime.scenarios.createScenarioDraft(args.refs.map(expressionRef));
+    case 'listScenarioDrafts':case 'listScenarioPacks':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');return runtime.scenarios[method]();
+    case 'getScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');return runtime.scenarios.getScenarioDraft(id());
+    case 'getScenarioPack':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');return runtime.scenarios.getScenarioPack(nonempty(args.release_id));
+    case 'saveScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');return runtime.scenarios.saveScenarioDraft(id(),version(),args.manifest as import('../packs.js').ScenarioPack);
+    case 'previewScenarioDraft':case 'confirmScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');return runtime.scenarios[method](id(),version());
     case 'listEntries': return m.listEntries();
     case 'listRevisions': return m.listRevisions(nonempty(args.asset_id));
     case 'getSettings': return m.getSettings();
@@ -49,12 +56,18 @@ export async function readBounded(request: Request, limit: number): Promise<Uint
 }
 export function installPackRoutes(ctx: HostPort, runtime: AdapterRuntime, check: (sessionId: string, signal: AbortSignal) => Promise<unknown>): Array<() => Promise<void>> {
   const releases: Array<() => Promise<void>> = [];
-  try { for (const action of ['import', 'export']) releases.push(ctx.connection.fetch.register({ path: `/api/amoji/pack-${action}`, methods: ['POST'], requestBody: 'streaming', fetch: async request => {
+  try { for (const action of ['import', 'export', 'scenario-export']) releases.push(ctx.connection.fetch.register({ path: `/api/amoji/pack-${action}`, methods: ['POST'], requestBody: 'streaming', fetch: async request => {
     try {
       const sessionId = nonempty(new URL(request.url).searchParams.get('sessionId')); await check(sessionId, request.signal);
       if (!runtime.packs) fail('CAPABILITY_UNAVAILABLE', '完整包能力不可用');
       const bytes = await readBounded(request, action === 'import' ? PACK_LIMITS.archive : 128 * 1024);
       if (action === 'import') return Response.json({ result: await runtime.packs.importPack(bytes) });
+      if(action==='scenario-export'){
+       if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','场景包能力不可用');
+       const args=object(JSON.parse(new TextDecoder().decode(bytes)),['release_id','expressions_only']);if(typeof args.expressions_only!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
+       const result=await runtime.scenarios.exportScenarioPack(nonempty(args.release_id),args.expressions_only);
+       return new Response(new Uint8Array(result),{headers:{'Content-Type':'application/zip','Content-Length':String(result.length),'Cache-Control':'no-store'}});
+      }
       const args = object(JSON.parse(new TextDecoder().decode(bytes)), ['refs', 'name']);
       if (!Array.isArray(args.refs)) fail('INVALID_ARGUMENT', '请选择导出版本');
       const result = await runtime.packs.exportPack(args.refs.map(expressionRef), nonempty(args.name));

@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
+import { PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -11,6 +11,7 @@ export interface AdapterRuntime {
   connectionSignal?: AbortSignal;
   reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
+  scenarios?: Pick<SharedClient,'createScenarioDraft'|'listScenarioDrafts'|'getScenarioDraft'|'saveScenarioDraft'|'previewScenarioDraft'|'confirmScenarioDraft'|'listScenarioPacks'|'getScenarioPack'|'exportScenarioPack'>;
   packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
   management?: Pick<SharedClient, 'listRevisions' | 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
   suggestions?: Pick<SharedClient, 'suggestText'>;
@@ -35,7 +36,9 @@ export class ConnectedRuntime implements AdapterRuntime {
   readonly suggestions;
   readonly management;
   readonly packs;
+  readonly scenarios;
   constructor(private readonly client: SharedClient) {
+    this.scenarios=client.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)?client:undefined;
     this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;
     this.management = client.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY) ? client : undefined;
     this.creation = client.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY) ? client : undefined;

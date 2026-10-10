@@ -1,9 +1,11 @@
+import type { ScenarioDraft } from './scenario-drafts.js';
+import type { ScenarioPack } from './packs.js';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
@@ -137,6 +139,19 @@ export class SharedClient {
   }
   async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
     return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
+  }
+  private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');return this.call(method,params,60000);}
+  createScenarioDraft(refs:ExpressionRef[]):Promise<ScenarioDraft>{return this.scenarioCall('createScenarioDraft',{refs});}
+  listScenarioDrafts():Promise<ScenarioDraft[]>{return this.scenarioCall('listScenarioDrafts',{});}
+  getScenarioDraft(id:string):Promise<ScenarioDraft>{return this.scenarioCall('getScenarioDraft',{draft_id:id});}
+  saveScenarioDraft(id:string,version:number,manifest:ScenarioPack):Promise<ScenarioDraft>{return this.scenarioCall('saveScenarioDraft',{draft_id:id,version,manifest});}
+  previewScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('previewScenarioDraft',{draft_id:id,version});}
+  confirmScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('confirmScenarioDraft',{draft_id:id,version});}
+  listScenarioPacks():Promise<ScenarioPack[]>{return this.scenarioCall('listScenarioPacks',{});}
+  getScenarioPack(releaseId:string):Promise<ScenarioPack>{return this.scenarioCall('getScenarioPack',{release_id:releaseId});}
+  async exportScenarioPack(releaseId:string,expressionsOnly=false):Promise<Buffer>{
+    if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');
+    return Buffer.from(await (await this.packRequest('scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}),'application/json')).arrayBuffer());
   }
   selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry> {
     if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持包版本选择');

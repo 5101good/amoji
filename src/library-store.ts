@@ -1,5 +1,7 @@
 import { createReadStream } from 'node:fs';
-import { withValidatedPack, exportPack, type PackInput, type ValidatedPack, type ImportResult } from './packs.js';
+import { withValidatedPack, exportPack, exportManifest, validatePackManifest, type ScenarioPack, type PackInput, type ValidatedPack, type ImportResult } from './packs.js';
+import { migrateLibrary } from './library-migration.js';
+import type { ScenarioDraft } from './scenario-drafts.js';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile, rename, access, rm } from 'node:fs/promises';
@@ -32,7 +34,8 @@ export class LibraryStore {
       const version = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
       if (version > DATABASE_VERSION) fail('DATABASE_INCOMPATIBLE', '数据库版本过新，请升级服务；不会降级');
       await chmod(database, 0o600);
-      db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS revisions (asset_id TEXT, revision_id TEXT, data TEXT NOT NULL, PRIMARY KEY(asset_id,revision_id));
+      db.exec('PRAGMA journal_mode=WAL');
+      await migrateLibrary(db,directory,version,`CREATE TABLE IF NOT EXISTS revisions (asset_id TEXT, revision_id TEXT, data TEXT NOT NULL, PRIMARY KEY(asset_id,revision_id));
         CREATE TABLE IF NOT EXISTS library_entries (asset_id TEXT PRIMARY KEY, revision_id TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions (session_key TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS selections (token TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -40,7 +43,7 @@ export class LibraryStore {
         CREATE TABLE IF NOT EXISTS drafts (draft_id TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS entry_state (asset_id TEXT PRIMARY KEY, version INTEGER NOT NULL, archived INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS imported_packs (digest TEXT PRIMARY KEY, pack_id TEXT NOT NULL, manifest TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS expression_origins (asset_id TEXT PRIMARY KEY, origin TEXT NOT NULL); PRAGMA user_version=${DATABASE_VERSION};`);
+        CREATE TABLE IF NOT EXISTS expression_origins (asset_id TEXT PRIMARY KEY, origin TEXT NOT NULL);`);
       await store.initialize(seed);
       store.pruneSelections();
       return store;
@@ -185,6 +188,7 @@ export class LibraryStore {
       finally { await rm(temporary, { force: true }); }
     }
     return this.transaction(() => {
+      if(pack.manifest.schema_version==='0.2')this.persistScenarioPack(pack.manifest);
       let added = 0;
       for (const e of pack.manifest.expressions) {
         const prior = this.getRevision(e);
@@ -200,9 +204,37 @@ export class LibraryStore {
       }
       const manifest = JSON.stringify(pack.manifest);
       this.db.prepare('INSERT OR IGNORE INTO imported_packs VALUES (?,?,?)').run(createHash('sha256').update(manifest).digest('hex'), pack.manifest.pack_id, manifest);
-      return { pack_id: pack.manifest.pack_id, added, existing: pack.manifest.expressions.length - added, defaults: pack.manifest.defaults };
+      return { pack_id: pack.manifest.pack_id, added, existing: pack.manifest.expressions.length - added, defaults: pack.manifest.defaults, ...(pack.manifest.schema_version==='0.2'?{actions:pack.manifest.actions.map(a=>({ref:{action_id:a.action_id,action_revision_id:a.action_revision_id},enabled:false as const,reason:'当前宿主尚未提供已验证的动作运行能力 / Action runtime is not yet supported by this host'}))}:{}) };
     });
   }
+  private persistScenarioPack(pack:ScenarioPack):void {
+    const previous=this.db.prepare('SELECT manifest FROM pack_releases WHERE release_id=? OR (pack_id=? AND version=?)').all(pack.release_id,pack.pack_id,pack.version) as Array<{manifest:string}>;
+    if(previous.some(p=>!isDeepStrictEqual(JSON.parse(p.manifest),pack)))fail('RELEASE_CONFLICT','发布身份或版本已绑定其他内容');
+    if(!previous.length){const latest=this.db.prepare('SELECT max(version) AS version FROM pack_releases WHERE pack_id=?').get(pack.pack_id) as {version:number|null};if(latest.version!==null&&pack.version<=latest.version)fail('RELEASE_CONFLICT','新发布版本必须递增');}
+    for(const a of pack.actions){const prior=this.db.prepare('SELECT data FROM action_definitions WHERE action_id=? AND action_revision_id=?').get(a.action_id,a.action_revision_id) as {data:string}|undefined;if(prior&&!isDeepStrictEqual(JSON.parse(prior.data),a))fail('ACTION_REVISION_CONFLICT','动作版本不可变');}
+    for(const a of pack.actions)this.db.prepare('INSERT OR IGNORE INTO action_definitions VALUES (?,?,?)').run(a.action_id,a.action_revision_id,JSON.stringify(a));
+    this.db.prepare('INSERT OR IGNORE INTO pack_releases VALUES (?,?,?,?)').run(pack.release_id,pack.pack_id,pack.version,JSON.stringify(pack));
+  }
+  listScenarioPacks():ScenarioPack[]{return (this.db.prepare('SELECT manifest FROM pack_releases ORDER BY rowid DESC').all() as Array<{manifest:string}>).map(r=>JSON.parse(r.manifest));}
+  getScenarioPack(releaseId:string):ScenarioPack {const row=this.db.prepare('SELECT manifest FROM pack_releases WHERE release_id=?').get(releaseId) as {manifest:string}|undefined;return row?JSON.parse(row.manifest):fail('PACK_NOT_FOUND','没有此精确发布版本');}
+  createScenarioDraft(refs:ExpressionRef[]):ScenarioDraft {
+    if(!Array.isArray(refs)||!refs.length||refs.length>200)fail('INVALID_ARGUMENT','请选择 1–200 个已确认版本');
+    const expressions=refs.map(ref=>this.resolve(ref));const defaults=new Map<string,ExpressionRef>();for(const e of expressions)if(!defaults.has(e.asset_id))defaults.set(e.asset_id,{asset_id:e.asset_id,revision_id:e.revision_id});
+    const manifest=validatePackManifest({kind:'amoji.pack',schema_version:'0.2',pack_id:randomUUID(),release_id:randomUUID(),version:1,name:'我的场景包',created_at:new Date().toISOString(),scenario:['协作'],expressions,defaults:[...defaults.values()],actions:[],bindings:[],rights:{license:'仅供个人使用'}}) as ScenarioPack;
+    const draft:ScenarioDraft={draft_id:randomUUID(),version:1,manifest};this.db.prepare('INSERT INTO scenario_drafts VALUES (?,?)').run(draft.draft_id,JSON.stringify(draft));return draft;
+  }
+  listScenarioDrafts():ScenarioDraft[]{return (this.db.prepare('SELECT data FROM scenario_drafts ORDER BY rowid DESC').all() as Array<{data:string}>).map(r=>JSON.parse(r.data));}
+  getScenarioDraft(id:string):ScenarioDraft {const row=this.db.prepare('SELECT data FROM scenario_drafts WHERE draft_id=?').get(id) as {data:string}|undefined;return row?JSON.parse(row.data):fail('DRAFT_NOT_FOUND','场景包草稿不存在');}
+  private scenarioDraft(id:string,version:number):ScenarioDraft {const d=this.getScenarioDraft(id);if(d.version!==version)fail('DRAFT_CONFLICT','草稿已变更，请保留输入并重新读取',d);return d;}
+  saveScenarioDraft(id:string,version:number,value:unknown):ScenarioDraft {
+    return this.transaction(()=>{const current=this.scenarioDraft(id,version);if(current.saved)fail('DRAFT_FINALIZED','已保存发布不可改写，请新建草稿');const manifest=validatePackManifest(value);if(manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','场景包需要 0.2');
+      for(const field of ['pack_id','release_id','created_at','version'] as const)if(manifest[field]!==current.manifest[field])fail('INVALID_ARGUMENT','草稿身份不可更改');
+      for(const e of manifest.expressions)if(!isDeepStrictEqual(this.resolve(e),e))fail('REVISION_CONFLICT','只能使用本地已确认的精确版本');
+      const draft:ScenarioDraft={...current,version:version+1,manifest};this.db.prepare('UPDATE scenario_drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft),id);return draft;});
+  }
+  async previewScenarioDraft(id:string,version:number):Promise<ScenarioPack>{const d=this.scenarioDraft(id,version);validatePackManifest(d.manifest);for(const e of d.manifest.expressions)await validateExpressionMedia(e,async blob=>{await this.verifyBlob(blob);return readFile(join(this.directory,'blobs',blob.sha256));});this.scenarioDraft(id,version);return d.manifest;}
+  async confirmScenarioDraft(id:string,version:number):Promise<ScenarioPack>{await this.previewScenarioDraft(id,version);return this.transaction(()=>{const d=this.scenarioDraft(id,version);this.persistScenarioPack(d.manifest);this.db.prepare('UPDATE scenario_drafts SET data=? WHERE draft_id=?').run(JSON.stringify({...d,saved:true}),id);return d.manifest;});}
+  async exportScenarioPack(releaseId:string,expressionsOnly=false):Promise<Buffer>{const pack=this.getScenarioPack(releaseId);return expressionsOnly?this.exportPack(pack.expressions.map(e=>({asset_id:e.asset_id,revision_id:e.revision_id})),pack.name):exportManifest(pack,async blob=>{await this.verifyBlob(blob);return readFile(join(this.directory,'blobs',blob.sha256));});}
   selectRevision(ref: ExpressionRef, version: number): LibraryEntry {
     return this.transaction(() => {
       const current = this.currentEntry(ref.asset_id, version);

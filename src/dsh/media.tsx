@@ -47,6 +47,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
         throw rpcError({ code: 'PACK_OUTCOME_UNKNOWN', message: '导入结果尚待核对。请保留原文件，核对库或重试同一包。' });
       }
     },
+    exportScenarioPack:async(sessionId,releaseId,expressionsOnly=false)=>(await binary(sessionId,'scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}))).blob(),
     exportPack: async (sessionId, refs, name) => (await binary(sessionId, 'export', JSON.stringify({ refs: refs.map(narrowRef), name }))).blob(),
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),

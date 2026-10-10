@@ -1,9 +1,19 @@
+import type {ScenarioDraft} from '../scenario-drafts.js';
+import type {ScenarioPack} from '../packs.js';
 import type { Draft, DraftFields } from '../drafts.js';
 import type { Expression, ExpressionRef } from '../sample-catalog.js';
 import type { LibraryEntry, PersonalPreferences, PersonalSettings } from '../library-management.js';
 import type { TextSuggestion } from '../suggestions.js';
 import type { ImportResult } from '../packs.js';
 export interface ManagementMethods {
+  createScenarioDraft:[{refs:ExpressionRef[]},ScenarioDraft];
+  listScenarioDrafts:[Record<string,never>,ScenarioDraft[]];
+  getScenarioDraft:[{draft_id:string},ScenarioDraft];
+  saveScenarioDraft:[{draft_id:string;version:number;manifest:ScenarioPack},ScenarioDraft];
+  previewScenarioDraft:[{draft_id:string;version:number},ScenarioPack];
+  confirmScenarioDraft:[{draft_id:string;version:number},ScenarioPack];
+  listScenarioPacks:[Record<string,never>,ScenarioPack[]];
+  getScenarioPack:[{release_id:string},ScenarioPack];
   listSuggestionModels: [Record<string, never>, import('./ai-suggestions.js').SuggestionModels];
   suggestAiText: [{ intent: string; provider: string; model: string }, import('./ai-suggestions.js').AiTextSuggestion];
   listEntries: [Record<string, never>, LibraryEntry[]];
@@ -25,6 +35,7 @@ export interface ManagementMethods {
 export interface ManagementRpc {
   management<K extends keyof ManagementMethods>(sessionId: string, method: K, args: ManagementMethods[K][0], signal?: AbortSignal): Promise<ManagementMethods[K][1]>;
   importPack(sessionId: string, file: File): Promise<ImportResult>;
+  exportScenarioPack?(sessionId:string,releaseId:string,expressionsOnly?:boolean):Promise<Blob>;
   exportPack(sessionId: string, refs: ExpressionRef[], name: string): Promise<Blob>;
 }
 export function rpcError(raw: { code?: string; message?: string; details?: { current?: unknown } }): Error & { code?: string; current?: unknown } {

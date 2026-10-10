@@ -11,27 +11,33 @@ import { ZipFile } from 'yazl';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { fullFormats } from 'ajv-formats/dist/formats.js';
 import schema from '../docs/specs/amoji-v0.1.schema.json' with { type: 'json' };
+import schema02 from '../docs/specs/amoji-v0.2.schema.json' with { type: 'json' };
+import { validateAction, actionKey, type ActionDefinition, type ActionRef } from './actions.js';
 import type { Expression, ExpressionRef, BlobRef } from './sample-catalog.js';
 import { validateExpressionDefinition } from './drafts.js';
 import { MEDIA_LIMITS, validateExpressionMedia } from './media.js';
 import { fail, ServiceError } from './shared-contract.js';
 
 export const PACK_LIMITS = Object.freeze({ expressions: 200, entries: 1000, expanded: 250 * 1024 * 1024, manifest: 2 * 1024 * 1024, archive: 260 * 1024 * 1024 });
-export interface Pack { kind: 'amoji.pack'; schema_version: '0.1'; pack_id: string; name: string; created_at: string; expressions: Expression[]; defaults: ExpressionRef[] }
-export interface ImportResult { pack_id: string; added: number; existing: number; defaults: ExpressionRef[] }
+export interface LegacyPack { kind: 'amoji.pack'; schema_version: '0.1'; pack_id: string; name: string; created_at: string; expressions: Expression[]; defaults: ExpressionRef[] }
+export interface ScenarioPack extends Omit<LegacyPack, 'schema_version'> { schema_version:'0.2'; release_id:string; version:number; scenario:string[]; actions:ActionDefinition[]; bindings:Array<{expression:ExpressionRef;actions:ActionRef[]}>; rights:Expression['rights']; description?:string; styles?:string[]; examples?:string[]; requires?:string[]; derived_from?:{pack_id:string;release_id:string} }
+export type Pack = LegacyPack | ScenarioPack;
+export interface ImportResult { pack_id: string; added: number; existing: number; defaults: ExpressionRef[]; actions?: Array<{ref:ActionRef;enabled:false;reason:string}> }
 export type PackInput = Uint8Array | AsyncIterable<Uint8Array>;
 export interface ValidatedPack { manifest: Pack; readBlob(blob: BlobRef): Promise<Buffer> }
 const ajv = new Ajv2020({ strict: false, formats: fullFormats });
 const validate = ajv.compile({ $defs: schema.$defs, $ref: '#/$defs/pack' });
+const validate02 = ajv.compile(schema02);
 const key = (ref: ExpressionRef) => `${ref.asset_id}:${ref.revision_id}`;
 function limit(condition: boolean, message: string): void { if (condition) fail('PACK_LIMIT_EXCEEDED', message); }
 
 export function validatePackManifest(value: unknown): Pack {
-  if (value && typeof value === 'object' && 'schema_version' in value && value.schema_version !== '0.1') fail('UNSUPPORTED_SCHEMA', '不支持此包协议版本');
+  if (value && typeof value === 'object' && 'schema_version' in value && !['0.1','0.2'].includes(String(value.schema_version))) fail('UNSUPPORTED_SCHEMA', '不支持此包协议版本');
   if (value && typeof value === 'object' && 'expressions' in value && Array.isArray(value.expressions)) {
     for (const entry of value.expressions) if (entry && typeof entry === 'object' && 'schema_version' in entry && entry.schema_version !== '0.1') fail('UNSUPPORTED_SCHEMA', '不支持包中资产协议版本');
   }
-  if (!validate(value)) fail('INVALID_SCHEMA', ajv.errorsText(validate.errors));
+  const validator = (value as {schema_version?:string})?.schema_version === '0.2' ? validate02 : validate;
+  if (!validator(value)) fail('INVALID_SCHEMA', ajv.errorsText(validator.errors));
   const pack = value as Pack;
   const refs = new Set<string>(); const assets = new Set<string>(); const defaults = new Set<string>();
   for (const e of pack.expressions) {
@@ -44,6 +50,13 @@ export function validatePackManifest(value: unknown): Pack {
     defaults.add(ref.asset_id);
   }
   if (defaults.size !== assets.size) fail('PACK_REFERENCE_INVALID', '每个表情必须有且仅有一个默认引用');
+  if(pack.schema_version==='0.2') {
+    const actions=new Set<string>();
+    for(const action of pack.actions){validateAction(action);if(actions.has(actionKey(action)))fail('PACK_REFERENCE_INVALID','动作版本引用重复');actions.add(actionKey(action));}
+    const bound=new Set<string>();
+    for(const binding of pack.bindings){if(!refs.has(key(binding.expression))||bound.has(key(binding.expression)))fail('PACK_REFERENCE_INVALID','绑定表达不存在或重复');bound.add(key(binding.expression));for(const ref of binding.actions)if(!actions.has(actionKey(ref)))fail('PACK_REFERENCE_INVALID','绑定动作不在包内');}
+    for(const text of [pack.description,...(pack.examples??[])])if(text!==undefined&&Buffer.byteLength(text)>4096)fail('PACK_LIMIT_EXCEEDED','说明最多 4 KiB UTF-8');
+  }
   return pack;
 }
 
@@ -111,6 +124,10 @@ export async function withValidatedPack<T>(input: PackInput, consume: (pack: Val
 /** Finish a private temporary ZIP before exposing bytes; validate all selected immutable media. */
 export async function exportPack(expressions: Expression[], defaults: ExpressionRef[], name: string, readBlob: (blob: BlobRef) => Promise<Buffer>): Promise<Buffer> {
   const manifest = validatePackManifest({ kind: 'amoji.pack', schema_version: '0.1', pack_id: randomUUID(), name, created_at: new Date().toISOString(), expressions, defaults });
+  return exportManifest(manifest, readBlob);
+}
+export async function exportManifest(value: Pack, readBlob: (blob: BlobRef) => Promise<Buffer>): Promise<Buffer> {
+  const manifest=validatePackManifest(value); const expressions=manifest.expressions;
   const raw = Buffer.from(JSON.stringify(manifest)); limit(raw.length > PACK_LIMITS.manifest, '清单超过 2 MiB');
   const directory = await mkdtemp(join(tmpdir(), 'amoji-export-'));
   try {

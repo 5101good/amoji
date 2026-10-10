@@ -2,7 +2,8 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
 export const API_VERSION = 2;
-export const DATABASE_VERSION = 4;
+export const DATABASE_VERSION = 5;
+export const VERSIONED_PACKS_CAPABILITY = 'versioned-packs-v1';
 export const PACKS_CAPABILITY = 'packs-v1';
 export const LIBRARY_MANAGEMENT_CAPABILITY = 'library-management-v1';
 export const CREATE_DRAFT_CAPABILITY = 'create-drafts-v1';

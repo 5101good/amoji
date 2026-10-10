@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -26,7 +26,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -87,11 +87,15 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       res.write(`${JSON.stringify({ connectionId: id })}\n`);
       res.once('close', () => disconnect(id)); return;
     }
-    if (req.method === 'POST' && ['/packs/import', '/packs/export'].includes(url.pathname)) {
+    if (req.method === 'POST' && ['/packs/import', '/packs/export', '/packs/scenario-export'].includes(url.pathname)) {
       if (!connections.has(String(req.headers['x-amoji-connection'] ?? ''))) fail('CONNECTION_CLOSED', '适配器连接已失效');
       if (url.pathname === '/packs/import') {
         if (req.headers['content-type'] !== 'application/zip') fail('INVALID_ARGUMENT', '需要 ZIP 文件');
         json(res, 200, { result: await store.importPack(req) });
+      } else if(url.pathname==='/packs/scenario-export'){
+        const args=object(await readJson(req),['release_id','expressions_only']);if(typeof args.expressions_only!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
+        const bytes=await store.exportScenarioPack(nonempty(args.release_id),args.expressions_only);
+        res.writeHead(200,{'Content-Type':'application/zip','Content-Length':bytes.length,'Cache-Control':'no-store'});res.end(bytes);
       } else {
         const args = object(await readJson(req), ['refs', 'name']);
         if (!Array.isArray(args.refs) || args.refs.length > 200) fail('INVALID_ARGUMENT', '需要有界确定版本列表');
@@ -126,6 +130,14 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
+      case 'createScenarioDraft':{const args=object(value,['refs']);if(!Array.isArray(args.refs))fail('INVALID_ARGUMENT','需要版本列表');result=store.createScenarioDraft(args.refs.map(expressionRef));break;}
+      case 'listScenarioDrafts':object(value,[]);result=store.listScenarioDrafts();break;
+      case 'listScenarioPacks':object(value,[]);result=store.listScenarioPacks();break;
+      case 'getScenarioPack':{const args=object(value,['release_id']);result=store.getScenarioPack(nonempty(args.release_id));break;}
+      case 'getScenarioDraft':{const args=object(value,['draft_id']);result=store.getScenarioDraft(nonempty(args.draft_id));break;}
+      case 'saveScenarioDraft':{const args=object(value,['draft_id','version','manifest']);result=store.saveScenarioDraft(nonempty(args.draft_id),draftVersion(args.version),args.manifest);break;}
+      case 'previewScenarioDraft':
+      case 'confirmScenarioDraft':{const args=object(value,['draft_id','version']);result=await store[method](nonempty(args.draft_id),draftVersion(args.version));break;}
       case 'listRevisions': { const args = object(value, ['asset_id']); result = store.listRevisions(nonempty(args.asset_id)); break; }
       case 'listEntries': object(value, []); result = store.listEntries(); break;
       case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }

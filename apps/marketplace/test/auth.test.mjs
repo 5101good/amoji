@@ -287,3 +287,76 @@ test("real workerd signup, password login, secure session and immediate revocati
     await mf.dispose();
   }
 });
+test("HTTP slow control body cannot hold the shared runtime queue", async () => {
+  const mf = new Miniflare(
+    convertV4MiniflareOptions({
+      workers: [
+        {
+          name: "slow-body",
+          modules: true,
+          script: await readFile(
+            new URL("../dist/worker.js", import.meta.url),
+            "utf8",
+          ),
+          compatibilityDate: "2026-09-21",
+          compatibilityFlags: ["nodejs_compat"],
+          d1Databases: { DB: "slow-body" },
+          bindings: {
+            APP_ORIGIN: "http://localhost",
+            LOCAL_TEST: "true",
+            BETTER_AUTH_SECRET: "synthetic-secret-at-least-32-characters",
+          },
+        },
+      ],
+    }),
+  );
+  let close = () => {};
+  try {
+    const db = await mf.getD1Database("DB");
+    for (const sql of (
+      await readFile(
+        new URL("../migrations/0001-auth.sql", import.meta.url),
+        "utf8",
+      )
+    )
+      .split(";")
+      .filter((s) => s.trim()))
+      await db.prepare(sql).run();
+    const { csrf } = await (
+      await mf.dispatchFetch("http://localhost/v1/auth/csrf")
+    ).json();
+    const pending = mf.dispatchFetch("http://localhost/v1/auth/login", {
+      method: "POST",
+      duplex: "half",
+      body: new ReadableStream({
+        start(c) {
+          close = () => {
+            try {
+              c.close();
+            } catch {}
+          };
+          c.enqueue(new TextEncoder().encode("{"));
+        },
+      }),
+      headers: {
+        origin: "http://localhost",
+        "content-type": "application/json",
+        "x-csrf-token": csrf,
+      },
+    });
+    pending.catch(() => {});
+    await new Promise((r) => setTimeout(r, 100));
+    const quick = await Promise.race([
+      mf.dispatchFetch("http://localhost/v1/auth/csrf"),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(Error("slow body blocked csrf")), 1000),
+      ),
+    ]);
+    assert.equal(quick.status, 200);
+    assert.equal((await pending).status, 408);
+    assert.equal((await mf.dispatchFetch("http://localhost/v1/auth/csrf")).status,200);
+  } finally {
+    close();
+    await mf.dispose();
+  }
+});

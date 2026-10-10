@@ -1,17 +1,13 @@
 import marketApi from "./market-api";
+import type { Env } from "./worker";
 import { DurableObject } from "cloudflare:workers";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { validateArchive } from "./market-validator";
 import { cleanupUploads } from "./uploads";
-import {
-  digest,
-  readBytes,
-  type Upload,
-  type UploadEnv,
-} from "./upload-shared";
+import { digest, failure, readBytes, type Upload } from "./upload-shared";
 /** One SQLite DO serializes all heavy jobs, including cleanup, within this application. */
-export class FreeRuntime extends DurableObject<UploadEnv> {
-  constructor(ctx: DurableObjectState, env: UploadEnv) {
+export class FreeRuntime extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS budget(day INTEGER NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(day,kind))",
@@ -31,7 +27,28 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
   }
   private tail: Promise<unknown> = Promise.resolve();
   private queued = 0;
-  fetch(request: Request): Promise<Response> {
+  private reading = 0;
+  async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname.startsWith("/v1/") && request.body) {
+      if (this.reading >= 8) return failure("RUNTIME_BUSY", 429);
+      this.reading++;
+      try {
+        request = new Request(request, {
+          body: await this.controlBody(request.body),
+        });
+      } catch (error) {
+        return failure(
+          error instanceof Error && error.message === "BODY_TIMEOUT"
+            ? "BODY_TIMEOUT"
+            : "BODY_TOO_LARGE",
+          error instanceof Error && error.message === "BODY_TIMEOUT"
+            ? 408
+            : 413,
+        );
+      } finally {
+        this.reading--;
+      }
+    }
     if (this.queued >= 8)
       return Promise.resolve(new Response(null, { status: 429 }));
     this.queued++;
@@ -42,6 +59,40 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
       });
     this.tail = work.catch(() => {});
     return work;
+  }
+  private async controlBody(stream: ReadableStream<Uint8Array>) {
+    const reader = stream.getReader();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const read = async () => {
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        length += value.length;
+        if (length > 8192) throw Error("BODY_TOO_LARGE");
+        chunks.push(value);
+      }
+      const bytes = new Uint8Array(length);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return bytes;
+    };
+    try {
+      return await Promise.race([
+        read(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(Error("BODY_TIMEOUT")), 5000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      void reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
   }
   private async handle(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;

@@ -1,3 +1,5 @@
+import { compiledRule, type RuleChoice, type RuleSnapshot, type RuleChange } from './conversation-rules.js';
+import { collaborationEnvelope } from './conversation-envelope.js';
 import { actionSelection, type ActionSelection, type ActionChoice, type ActionIntent } from './collaboration.js';
 import { createReadStream } from 'node:fs';
 import { withValidatedPack, exportPack, exportManifest, validatePackManifest, type ScenarioPack, type PackInput, type ValidatedPack, type ImportResult } from './packs.js';
@@ -499,6 +501,57 @@ export class LibraryStore {
       if(installed && installed.state!=='installed')return [];
       if(this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
       return pack.actions.flatMap(action=>action.kind==='instruction' && binding.actions.some(a=>a.action_id===action.action_id&&a.action_revision_id===action.action_revision_id)?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:installed?.origin??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
+    });
+  }
+  ruleChoices(context: BindingContext): RuleChoice[] {
+    if(context.host!=='dsh')fail('CAPABILITY_UNAVAILABLE','规则仅支持 dsh');
+    const packs=this.listScenarioPacks();
+    return packs.flatMap(pack=>{
+      const install=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
+      if((install && install.state!=='installed') || this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
+      // A new release never carries forward consent to a changed action revision.
+      if(packs.some(p=>p.pack_id===pack.pack_id && p.version>pack.version))return [];
+      return pack.actions.flatMap(action=>action.kind==='hook'?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:install?.origin??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
+    });
+  }
+  rules(context:BindingContext):RuleSnapshot {
+    const row=this.db.prepare("SELECT data FROM rule_activations WHERE session_key=? AND conflict_group='@session'").get(sessionKey(context)) as {data:string}|undefined;
+    const state:RuleSnapshot=row?JSON.parse(row.data):{generation:0,rules:[]};
+    const choices=this.ruleChoices(context);
+    let changed=false;
+    for(const rule of state.rules)if(rule.enabled && !choices.some(c=>isDeepStrictEqual(c.selection,rule.selection))){rule.enabled=false;rule.status='disabled';rule.reason='source-unavailable';changed=true;}
+    if(changed){state.generation++;for(const rule of state.rules)rule.generation=state.generation;this.writeRules(context,state);}
+    return state;
+  }
+  private writeRules(context:BindingContext,state:RuleSnapshot):void {
+    this.db.prepare("INSERT INTO rule_activations VALUES (?,'@session',?,?) ON CONFLICT(session_key,conflict_group) DO UPDATE SET generation=excluded.generation,data=excluded.data").run(sessionKey(context),state.generation,JSON.stringify(state));
+  }
+  changeRules(context:BindingContext,change:RuleChange):RuleSnapshot {
+    return this.transaction(()=>{
+      const state=this.rules(context);
+      if(!Number.isSafeInteger(change.generation)||state.generation!==change.generation)fail('RULE_STALE','规则已变更，请刷新后重试');
+      if(change.kind==='enable'){
+        const choice=this.ruleChoices(context).find(c=>isDeepStrictEqual(c.selection,change.selection))??fail('ACTION_UNAVAILABLE','此精确规则版本当前不可启用');
+        const active=state.rules.find(r=>r.enabled&&r.action.conflict_group===choice.action.conflict_group);
+        if(active&&!isDeepStrictEqual(active.selection,change.replace))fail('RULE_CONFLICT','同组规则已启用，请明确选择替换');
+        if(!active&&change.replace)fail('RULE_STALE','待替换规则已变化');
+        state.rules=state.rules.filter(r=>r.action.conflict_group!==choice.action.conflict_group);
+        state.rules.push({...choice,actor:'user',enabled:true,generation:state.generation+1,status:'configured'});
+      }else for(const rule of state.rules)if(change.kind==='disableAll'||isDeepStrictEqual(rule.selection,change.selection)){rule.enabled=false;rule.status='disabled';}
+      const active=state.rules.filter(r=>r.enabled);
+      if(active.length>2)fail('ACTION_LIMIT','最多两条持续规则');
+      try{collaborationEnvelope(context.hostInstanceId!,context.sessionId,Number.MAX_SAFE_INTEGER,active.map(compiledRule));}catch{fail('ACTION_LIMIT','完整动作上下文超过 8 KiB，不截断');}
+      state.generation++;state.checkpoint=change.checkpoint;
+      for(const rule of state.rules)rule.generation=state.generation;
+      this.writeRules(context,state);return state;
+    });
+  }
+  removeScenarioPack(releaseId:string):void {
+    this.transaction(()=>{
+      this.getScenarioPack(releaseId);
+      this.db.prepare("INSERT INTO local_installs VALUES (?,'local','','removed','[]') ON CONFLICT(release_id) DO UPDATE SET state='removed'").run(releaseId);
+      const rows=this.db.prepare("SELECT session_key,data FROM rule_activations WHERE conflict_group='@session'").all() as {session_key:string;data:string}[];
+      for(const row of rows){const state:RuleSnapshot=JSON.parse(row.data);let changed=false;for(const rule of state.rules)if(rule.enabled&&rule.source.release_id===releaseId){rule.enabled=false;rule.status='disabled';rule.reason='source-unavailable';changed=true;}if(changed){state.generation++;this.db.prepare("UPDATE rule_activations SET generation=?,data=? WHERE session_key=? AND conflict_group='@session'").run(state.generation,JSON.stringify(state),row.session_key);}}
     });
   }
   saveActionIntent(context: BindingContext, messageId: string, update: Pick<ActionIntent,'status'|'checkpoint'|'receipt'>): void {

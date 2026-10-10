@@ -1,4 +1,17 @@
 export const english = {
+"当前会话规则":"Conversation rules",
+"仅用于当前会话":"Applies only to this conversation",
+"规则是输入时文字指导，不是后台检查或完成认证。停用不删除历史，也不保证模型忘记。":"Rules provide input-time guidance, not background checks or certification. Disabling preserves history and cannot guarantee forgetting.",
+"会话身份待恢复，请先全部停用，再显式启用。":"Conversation identity awaits restoration. Disable all, then explicitly enable rules.",
+"当前宿主不支持会话规则":"This host does not support conversation rules",
+"刷新规则状态":"Refresh rule status",
+"全部停用":"Disable all",
+"停用此规则":"Disable this rule",
+"启用此规则":"Enable this rule",
+"替换同组规则":"Replace the conflicting rule",
+"确认替换":"Confirm replacement",
+"取消替换":"Cancel replacement",
+
 "协作回执暂不可用，请重新核对。":"Action receipts are unavailable; check again.",
 "协作动作记录":"Collaboration action history",
 "核对协作记录":"Check action receipts",

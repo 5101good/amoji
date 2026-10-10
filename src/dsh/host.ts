@@ -113,7 +113,7 @@ export class DshAdapter {
     const reconnect = endpoint === 'amoji/reconnect';
     signal = AbortSignal.any([signal, this.lifecycle, ...(!reconnect && this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.capabilities':['sessionId'], 'collaboration.receipts':['sessionId'], visual: ['sessionId', 'ref', 'messageId'], actions: ['sessionId','ref'], submit: ['sessionId', 'ref', 'requestId'], submitWithAction: ['sessionId','ref','actionRef','releaseRef','requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.rules':['sessionId'], 'collaboration.enable':['sessionId','selection','generation','replace'], 'collaboration.disable':['sessionId','selection','generation'], 'collaboration.disableAll':['sessionId','generation'], 'collaboration.capabilities':['sessionId'], 'collaboration.receipts':['sessionId'], visual: ['sessionId', 'ref', 'messageId'], actions: ['sessionId','ref'], submit: ['sessionId', 'ref', 'requestId'], submitWithAction: ['sessionId','ref','actionRef','releaseRef','requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'submit' ? ['sessionId','ref','requestId'] : method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
@@ -143,7 +143,14 @@ export class DshAdapter {
       if (this.ctx.sessions.get(sessionId) !== session) fail('DSH_CONTEXT_CHANGED', '创建面板的会话已变化');
       return { url: panel.url(context) };
     }
-    if(method==='collaboration.capabilities')return {supported:!!this.collaboration&&!!this.runtime.collaboration,scopes:['turn'],reason:this.collaboration&&this.runtime.collaboration?null:'host-context-unavailable'};
+    if(['collaboration.rules','collaboration.enable','collaboration.disable','collaboration.disableAll'].includes(method)){
+      if(!this.collaboration) return method==='collaboration.rules'?{generation:0,rules:[],choices:[],identity:'pending'}:fail('CAPABILITY_UNAVAILABLE','当前宿主身份待恢复');
+      await this.session(sessionId,signal);
+      if(method==='collaboration.rules')return this.collaboration.rules(sessionId);
+      if(!Number.isSafeInteger(args.generation)||Number(args.generation)<0)fail('INVALID_ARGUMENT','无效规则 generation');
+      return this.collaboration.change(sessionId,{kind:method.slice('collaboration.'.length) as 'enable'|'disable'|'disableAll',generation:Number(args.generation),...(args.selection?{selection:actionSelection(args.selection)}:{}),...(args.replace?{replace:actionSelection(args.replace)}:{replace:null})});
+    }
+    if(method==='collaboration.capabilities')return {supported:!!this.collaboration&&!!this.runtime.collaboration,scopes:['turn','conversation'],reason:this.collaboration&&this.runtime.collaboration?null:'host-context-unavailable'};
     if(method==='collaboration.receipts')return (await this.rows(sessionId,events)).filter(row=>row.action);
     if (method === 'actions') {
       if(!this.runtime.collaboration || !this.collaboration)fail('CAPABILITY_UNAVAILABLE','当前宿主不支持协作动作，可明确选择仅发送');
@@ -206,7 +213,7 @@ export class DshAdapter {
     // Read-only preflight happens before creating the atomic message/intent pair.
     if(action){
       const previous=(await this.runtime.messages(context)).find(m=>m.action_intent?.requestId===requestId);
-      if(!previous){const choice=(await this.runtime.collaboration!.choices(context,ref)).find(c=>JSON.stringify(c.selection)===JSON.stringify(action));if(!choice)fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情');this.collaboration!.validate(sessionId,choice,ref);}
+      if(!previous){await this.collaboration!.rules(sessionId);const choice=(await this.runtime.collaboration!.choices(context,ref)).find(c=>JSON.stringify(c.selection)===JSON.stringify(action));if(!choice)fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情');this.collaboration!.validate(sessionId,choice,ref);}
     }
     const message = await this.runtime.receive(context, ref, requestId, action); signal.throwIfAborted();
     const existing = (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
@@ -242,7 +249,7 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
       releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
-      for (const method of ['reconnect', 'catalog', 'search', 'history', 'visual', 'collaboration.capabilities', 'collaboration.receipts', 'actions', 'submit', 'submitWithAction', 'display', 'manage', 'management']) {
+      for (const method of ['reconnect', 'catalog', 'search', 'history', 'visual', 'collaboration.rules', 'collaboration.enable', 'collaboration.disable', 'collaboration.disableAll', 'collaboration.capabilities', 'collaboration.receipts', 'actions', 'submit', 'submitWithAction', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });

@@ -192,6 +192,10 @@ export class SharedClient {
   search(binding: string, query: string, limit?: number): Promise<{ candidates: Candidate[]; policy: string }> { return this.call('search', { binding, query, ...(limit === undefined ? {} : { limit }) }); }
   emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
   receive(binding: string, ref: ExpressionRef, requestId: string, action?: ActionSelection): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId, ...(action?{action}:{}) }); }
+  ruleChoices(binding:string):Promise<import('./conversation-rules.js').RuleChoice[]>{return this.call('ruleChoices',{binding});}
+  rules(binding:string):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('rules',{binding});}
+  changeRules(binding:string,change:import('./conversation-rules.js').RuleChange):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('changeRules',{binding,change});}
+  removeScenarioPack(releaseId:string):Promise<void>{return this.call('removeScenarioPack',{release_id:releaseId});}
   collaborationChoices(binding:string,ref:ExpressionRef):Promise<ActionChoice[]>{return this.call('collaborationChoices',{binding,ref});}
   saveActionIntent(binding:string,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void>{return this.call('saveActionIntent',{binding,message_id:messageId,update});}
   history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }

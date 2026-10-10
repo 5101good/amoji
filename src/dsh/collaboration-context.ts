@@ -1,3 +1,5 @@
+import { collaborationEnvelope, type CollaborationRule, type CollaborationInstruction } from '../conversation-envelope.js';
+export { collaborationEnvelope, type CollaborationRule, type CollaborationInstruction } from '../conversation-envelope.js';
 import { createHash } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
@@ -7,11 +9,6 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session';
 
 export const COLLABORATION_CONTEXT = 'amoji:collaboration';
 const VARIABLE = 'amoji_collaboration_text';
-export type CollaborationRule = { id: string; revision: string } & (
-  { template: 'response-organization@1'; config: { layout: 'answer-first' | 'concise' | 'example-first' } } |
-  { template: 'completion-self-check@1'; config: { evidence: 'required'; unknowns: 'explicit' } }
-);
-export interface CollaborationInstruction { id: string; revision: string; instruction: string; conflictGroup: 'explanation' | 'response-organization' | 'completion-report' | 'handoff'; source?: {pack_id:string;release_id:string;version:number;origin:string}; expression?: {asset_id:string;revision_id:string} }
 export interface CollaborationReceipt { status: 'prepared' | 'dispatched' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
 interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number }
 export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
@@ -29,23 +26,16 @@ function section(event: SessionEvent): string | undefined {
   if (source.kind !== 'plugin' || !('sections' in source)) return;
   return source.sections?.find(s => s.name === COLLABORATION_CONTEXT)?.text;
 }
-export function collaborationEnvelope(profile: string, session: string, turn: number, rules: CollaborationRule[], intent?: CollaborationInstruction): string {
-  const active = rules.filter(r => !intent || (r.template === 'response-organization@1' ? 'response-organization' : 'completion-report') !== intent.conflictGroup);
-  const content = active.map(rule => ({ ...rule, guidance: rule.template === 'response-organization@1'
-    ? ({ 'answer-first': '先回答结论，再给依据。Answer first, then give supporting detail.', concise: '简洁作答，保留必要信息。Be concise without omitting necessary information.', 'example-first': '先给具体示例，再解释。Give a concrete example before explanation.' }[rule.config.layout])
-    : '完成前检查已有证据；明确未验证和未知项。Before reporting completion, inspect available evidence and state unverified or unknown items.' }));
-  const text = JSON.stringify({ schema: 'amoji.collaboration/1', scope: { profile, session, turnStartSeq: turn }, priority: '用户明确文本和宿主更高优先级规则优先。这些是用户约定而非强制执行。Explicit user instructions and higher-priority host rules prevail; these are guidance, not enforcement.', rules: content, instruction: intent ?? null, ...(content.length || intent ? {} : { state: '此前 Amoji 约定已停用。Previous Amoji conventions are disabled.' }) });
-  if (Buffer.byteLength(text) > 8192) throw new Error('Collaboration context exceeds 8 KiB');
-  return text;
-}
 
 /** A non-driving adapter: only native inbox claims and admitted snapshots establish attachment. */
 export class CollaborationContext {
+  private readonly claimed = new WeakSet<Agent>();
   private readonly states = new WeakMap<Agent, State>();
   private readonly disposers: (() => unknown)[] = [];
-  constructor(private readonly ctx: Context, readonly hostInstanceId: string) {
+  constructor(private readonly ctx: Context, readonly hostInstanceId: string, private readonly loadRules?: (agent:Agent)=>Promise<void>) {
     this.disposers.push(ctx.on('agent/session-start', ({ agent, source }) => { if (source === 'clear') this.forget(agent); }));
     this.disposers.push(ctx.on('agent/inbox/claimed', ({ agent, message }) => {
+      this.claimed.add(agent);
       const state = this.valid(agent); if (!state) return;
       state.claimed = true;
       if (message.source.kind !== 'user' || !('rpcId' in message.source)) return;
@@ -63,8 +53,10 @@ export class CollaborationContext {
       const assembly = await next();
       const agent = context.agent;
       if (!agent || context.scope !== agent || context.signal?.aborted) return assembly;
+      try { await this.loadRules?.(agent); } catch { const current=this.valid(agent);if(current)current.failure='rule-store-unavailable';return assembly; }
       const state = this.valid(agent); const turn = openTurn(agent);
       if (!state || turn === undefined) return assembly;
+      if(this.claimed.delete(agent))state.claimed=true;
       if (assembly.contexts.some(c => c.name === COLLABORATION_CONTEXT) || Object.hasOwn(assembly.variables, VARIABLE)) {
         state.failure = 'context-name-collision'; return assembly;
       }
@@ -118,9 +110,31 @@ export class CollaborationContext {
   /** Called only after the host has established an exact profile/session identity, or explicit new user opt-in. */
   authorize(agent: Agent): void {
     if (this.ctx.agents.get(agent.id) !== agent) throw new Error('Unknown live session');
-    if (!this.states.has(agent)) this.states.set(agent, { rules: [], intents: new Map(), claimed: false, generation: 0 });
+    if (!this.states.has(agent)) {
+      // Reuse only the exact current conversation's last native envelope as a
+      // supersession baseline. This never recovers consent or active rules.
+      const prior=agent.session.snapshotEvents().map(section).findLast(text=>{
+        if(!text)return false;try{const value=JSON.parse(text);return value.schema==='amoji.collaboration/1'&&value.scope?.profile===this.hostInstanceId&&value.scope.session===agent.id;}catch{return false;}
+      });
+      this.states.set(agent, { rules: [], intents: new Map(), claimed: false, generation: 0, ...(prior?{text:prior}:{}) });
+    }
   }
   forget(agent: Agent): void { this.states.delete(agent); }
+  matchesIdentity(agent:Agent,saved:CollaborationCheckpoint):boolean {
+    if(saved.version!==1 || saved.profile!==this.hostInstanceId || saved.session!==agent.id || saved.createdAt!==agent.session.header.createdAt || agent.session.header.parentSession || agent.session.header.isSeeded || this.ctx.agents.get(agent.id)!==agent)return false;
+    const anchor=saved.anchor&&agent.session.snapshotEvents().find(e=>e.seq===saved.anchor!.seq);
+    return !saved.anchor || !!anchor&&hash(JSON.stringify(anchor))===saved.anchor.digest;
+  }
+  ruleStatus(agent:Agent,rule:CollaborationRule):{status:'configured'|'attached'|'failed'|'unsupported';reason?:string} {
+    const state=this.valid(agent);if(!state)return{status:'unsupported',reason:'identity-not-restored'};
+    if(state.failure)return{status:'failed',reason:state.failure};
+    const events=agent.session.snapshotEvents();const turn=events.findLast(e=>e.type==='turn/start');
+    if(!turn || state.turn!==turn.seq)return{status:'configured'};
+    const snapshot=events.findLast(e=>{const text=section(e);if(!text || e.seq<turn.seq)return false;try{const v=JSON.parse(text);return v.scope.profile===this.hostInstanceId&&v.scope.session===agent.id&&v.scope.turnStartSeq===turn.seq&&v.rules.some((r:CollaborationRule)=>r.id===rule.id&&r.revision===rule.revision&&r.generation===rule.generation);}catch{return false;}});
+    if(snapshot)return{status:'attached'};
+    if(events.some(e=>e.seq>turn.seq&&e.type==='turn/end'))return{status:'unsupported',reason:'no-admitted-matching-snapshot'};
+    return{status:'configured'};
+  }
   setRules(agent: Agent, rules: readonly CollaborationRule[]): void {
     const state = this.valid(agent); if (!state) throw new Error('Session identity is not authorized');
     if (rules.length > 2 || new Set(rules.map(r => r.template)).size !== rules.length) throw new Error('At most one rule per template');
@@ -180,13 +194,13 @@ export class CollaborationContext {
     return structuredClone({ version: 1, ...(anchor ? { anchor: { seq: anchor.seq, digest: hash(JSON.stringify(anchor)) } } : {}), profile: this.hostInstanceId, session: agent.id, createdAt: agent.session.header.createdAt, rules: state.rules, intents: [...state.intents] });
   }
   /** Only exact native cold-resume identity may recover rules; histories are never authorization. */
-  restore(agent: Agent, saved: CollaborationCheckpoint): boolean {
+  restore(agent: Agent, saved: CollaborationCheckpoint, restoreRules=true): boolean {
     if (saved.version !== 1 || saved.profile !== this.hostInstanceId || saved.session !== agent.id || saved.createdAt !== agent.session.header.createdAt || agent.session.header.parentSession || this.ctx.agents.get(agent.id) !== agent) return false;
     const anchor = saved.anchor && agent.session.snapshotEvents().find(e => e.seq === saved.anchor!.seq);
     if (saved.anchor && (!anchor || hash(JSON.stringify(anchor)) !== saved.anchor.digest)) return false;
     if (!saved.anchor && !agent.session.snapshotEvents().some(e => e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && saved.intents.some(([rpcId]) => 'rpcId' in e.data.source && e.data.source.rpcId === rpcId))) return false;
     this.authorize(agent);
-    try { if(!this.valid(agent)!.intents.size)this.setRules(agent, saved.rules); }
+    try { if(restoreRules&&!this.valid(agent)!.intents.size)this.setRules(agent, saved.rules); }
     catch { this.forget(agent); return false; }
     const state = this.valid(agent)!;
     for (const [rpcId, intent] of structuredClone(saved.intents)) {

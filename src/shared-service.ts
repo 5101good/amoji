@@ -164,6 +164,12 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
         const args = object(value, ['binding', 'ref', 'send_request_id', 'action'], ['binding','ref','send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
         result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id), args.action === undefined ? undefined : actionSelection(args.action)); break;
       }
+      case 'ruleChoices': case 'rules': {const args=object(value,['binding']);result=store[method](context(args));break;}
+      case 'changeRules': {const args=object(value,['binding','change']);const change=object(args.change,['kind','generation','selection','replace','checkpoint'],['kind','generation','checkpoint']);
+        if(!['enable','disable','disableAll'].includes(String(change.kind)))fail('INVALID_ARGUMENT','无效规则操作');
+        if(change.selection)change.selection=actionSelection(change.selection);if(change.replace)change.replace=actionSelection(change.replace);
+        result=store.changeRules(context(args),change as unknown as import('./conversation-rules.js').RuleChange);break;}
+      case 'removeScenarioPack': {const args=object(value,['release_id']);store.removeScenarioPack(nonempty(args.release_id));result=null;break;}
       case 'collaborationChoices': { const args=object(value,['binding','ref']); result=store.collaborationChoices(context(args),expressionRef(args.ref)); break; }
       case 'saveActionIntent': { const args=object(value,['binding','message_id','update']); const update=object(args.update,['status','checkpoint','receipt'],['status']);
         if(!['prepared','dispatched','bound','attached','failed','cancelled','unknown'].includes(String(update.status)))fail('INVALID_ARGUMENT','无效动作状态');

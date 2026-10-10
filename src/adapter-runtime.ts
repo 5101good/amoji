@@ -10,6 +10,7 @@ type Awaitable<T> = T | Promise<T>;
 /** Host presentation boundary; supports the ticket-01 fixtures and the shared client. */
 export interface AdapterRuntime {
   collaboration?: { choices(context:HostContext,ref:ExpressionRef):Promise<ActionChoice[]>; save(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void> };
+  rules?: { choices(context:HostContext):Promise<import('./conversation-rules.js').RuleChoice[]>; read(context:HostContext):Promise<import('./conversation-rules.js').RuleSnapshot>; change(context:HostContext,change:import('./conversation-rules.js').RuleChange):Promise<import('./conversation-rules.js').RuleSnapshot> };
   connectionSignal?: AbortSignal;
   reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
@@ -40,7 +41,9 @@ export class ConnectedRuntime implements AdapterRuntime {
   readonly packs;
   readonly scenarios;
   readonly collaboration;
+  readonly rules;
   constructor(private readonly client: SharedClient) {
+    this.rules=client.identity.capabilities?.includes(COLLABORATION_CAPABILITY)?{choices:(c:HostContext)=>this.withBinding(c,b=>client.ruleChoices(b)),read:(c:HostContext)=>this.withBinding(c,b=>client.rules(b)),change:(c:HostContext,v:import('./conversation-rules.js').RuleChange)=>this.withBinding(c,b=>client.changeRules(b,v))}:undefined;
     this.collaboration=client.identity.capabilities?.includes(COLLABORATION_CAPABILITY)?{choices:(context:HostContext,ref:ExpressionRef)=>this.withBinding(context,b=>client.collaborationChoices(b,ref)),save:(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>)=>this.withBinding(context,b=>client.saveActionIntent(b,messageId,update))}:undefined;
     this.scenarios=client.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)?client:undefined;
     this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;

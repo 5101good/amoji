@@ -39,6 +39,11 @@ export type VisualMeta = {
 export interface HistoryEntry { action?: import('./collaboration-context.js').CollaborationReceipt; message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc extends ManagementRpc {
+  rules?(sessionId:string):Promise<import('../conversation-rules.js').RuleView>;
+  enableRule?(sessionId:string,selection:import('../collaboration.js').ActionSelection,generation:number,replace:import('../collaboration.js').ActionSelection|null):Promise<import('../conversation-rules.js').RuleView>;
+  disableRule?(sessionId:string,selection:import('../collaboration.js').ActionSelection,generation:number):Promise<import('../conversation-rules.js').RuleView>;
+  disableAllRules?(sessionId:string,generation:number):Promise<import('../conversation-rules.js').RuleView>;
+
   reconnect?(sessionId: string, signal?: AbortSignal): Promise<void>;
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;

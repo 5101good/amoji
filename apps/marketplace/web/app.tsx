@@ -1,3 +1,4 @@
+import { UploadPanel } from "./upload";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 const words = {
@@ -55,7 +56,7 @@ const words = {
     role: "Creator",
   },
 };
-type Account = { name: string; email: string; role: string };
+type Account = { id: string; name: string; email: string; role: string };
 function App() {
   const [locale, setLocale] = useState<"zh" | "en">("zh");
   const t = words[locale];
@@ -142,6 +143,7 @@ function App() {
               <p className="welcome">{account.name}</p>
               <p>{account.email}</p>
               <p className="note">{t.unverified}</p>
+              <UploadPanel locale={locale} accountId={account.id} />
               <button disabled={busy} onClick={() => operation("logout", {})}>
                 {busy ? t.busy : t.logout}
               </button>

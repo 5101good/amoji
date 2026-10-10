@@ -3,6 +3,7 @@ export function authOptions(env: {
   DB: D1Database;
   APP_ORIGIN: string;
   BETTER_AUTH_SECRET: string;
+  FREE_RUNTIME?: DurableObjectNamespace;
 }) {
   return {
     database: env.DB,
@@ -16,6 +17,16 @@ export function authOptions(env: {
       autoSignIn: true,
       minPasswordLength: 12,
       maxPasswordLength: 128,
+      password: {
+        hash: (password: string) =>
+          passwordOperation(env, { mode: "hash", password }) as Promise<string>,
+        verify: ({ hash, password }: { hash: string; password: string }) =>
+          passwordOperation(env, {
+            mode: "verify",
+            hash,
+            password,
+          }) as Promise<boolean>,
+      },
     },
     emailVerification: { sendOnSignUp: false, sendOnSignIn: false },
     user: { modelName: "auth_user" },
@@ -67,4 +78,17 @@ export function createAuth(
       },
     },
   });
+}
+
+async function passwordOperation(
+  env: { FREE_RUNTIME?: DurableObjectNamespace },
+  data: object,
+): Promise<string | boolean> {
+  if (!env.FREE_RUNTIME) throw Error("PASSWORD_RUNTIME_UNAVAILABLE");
+  const response = await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
+    "https://runtime/password",
+    { method: "POST", body: JSON.stringify(data) },
+  );
+  if (!response.ok) throw Error("PASSWORD_RUNTIME_UNAVAILABLE");
+  return ((await response.json()) as { value: string | boolean }).value;
 }

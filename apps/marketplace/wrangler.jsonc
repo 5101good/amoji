@@ -1,7 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "amoji-marketplace",
-  "main": "src/worker.ts",
+  "main": "dist/worker.js",
+  "no_bundle": true,
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
+  ],
+  "find_additional_modules": true,
+  "durable_objects": {
+    "bindings": [{ "name": "FREE_RUNTIME", "class_name": "FreeRuntime" }],
+  },
+  "migrations": [
+    { "tag": "free-runtime-v1", "new_sqlite_classes": ["FreeRuntime"] },
+  ],
+  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "amoji-uploads-v0" }],
   "triggers": { "crons": ["*/15 * * * *"] },
   "compatibility_date": "2026-09-21",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,7 +22,11 @@
     "binding": "ASSETS",
     "run_worker_first": ["/v1/*"],
   },
-  "vars": { "APP_ORIGIN": "http://localhost:8787", "LOCAL_TEST": "true" },
+  "vars": {
+    "APP_ORIGIN": "http://localhost:8787",
+    "LOCAL_TEST": "true",
+    "UPLOAD_ENABLED": "false",
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -19,10 +35,23 @@
       "migrations_dir": "migrations",
     },
   ],
-  "observability": { "enabled": true, "traces": { "enabled": true } },
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "traces": { "enabled": true },
+  },
   "env": {
     "production": {
-      "vars": { "APP_ORIGIN": "https://amoji.ai-web.ai" },
+      "vars": {
+        "APP_ORIGIN": "https://amoji.ai-web.ai",
+        "UPLOAD_ENABLED": "false",
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "FREE_RUNTIME", "class_name": "FreeRuntime" }],
+      },
+      "r2_buckets": [
+        { "binding": "UPLOADS", "bucket_name": "amoji-uploads-v0" },
+      ],
       "d1_databases": [
         {
           "binding": "DB",

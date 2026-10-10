@@ -1,4 +1,6 @@
 import { createAuth } from "./auth";
+import { uploadRoute } from "./uploads";
+export { FreeRuntime } from "./free-runtime";
 export type Env = Omit<
   CloudflareBindings,
   "APP_ORIGIN" | "LOCAL_TEST" | "ASSETS"
@@ -7,6 +9,13 @@ export type Env = Omit<
   BETTER_AUTH_SECRET: string;
   LOCAL_TEST?: string;
   ASSETS?: Fetcher;
+  UPLOADS?: R2Bucket;
+  FREE_RUNTIME?: DurableObjectNamespace;
+  UPLOAD_ENABLED?: string;
+  R2_ACCOUNT_ID?: string;
+  R2_BUCKET?: string;
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
 };
 const encoder = new TextEncoder();
 function json(data: object, status = 200, extra?: HeadersInit) {
@@ -131,6 +140,11 @@ async function account(env: Env, user: { id: string; name: string }) {
 }
 export default {
   async scheduled(_event: ScheduledController, env: Env) {
+    if (env.FREE_RUNTIME)
+      await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
+        "https://runtime/cleanup",
+        { method: "POST" },
+      );
     await env.DB.prepare("DELETE FROM auth_rate_limit WHERE bucket < ?")
       .bind(Math.floor(Date.now() / 900000) - 1)
       .run();
@@ -171,6 +185,43 @@ export default {
           },
           expires_at: session.session.expiresAt,
         });
+      }
+      if (path === "/v1/uploads" || path.startsWith("/v1/uploads/")) {
+        if (
+          !["GET", "POST"].includes(request.method) ||
+          !/^\/v1\/uploads(?:\/[0-9a-f-]{36}(?:\/(authorize|complete))?)?$/.test(
+            path,
+          )
+        )
+          return error("NOT_FOUND", 404);
+        const session = await createAuth(env).api.getSession({
+          headers: request.headers,
+          query: { disableCookieCache: true, disableRefresh: true },
+        });
+        if (!session) return error("UNAUTHENTICATED", 401);
+        const domain = await account(env, session.user);
+        if (!domain || domain.disabled) return error("ACCOUNT_DISABLED", 403);
+        if (request.method === "POST") {
+          if (
+            request.headers.get("origin") !== env.APP_ORIGIN ||
+            request.headers.get("sec-fetch-site") === "cross-site"
+          )
+            return error("ORIGIN", 403);
+          const parts = (request.headers.get("x-csrf-token") ?? "").split("."),
+            stamp = parts.slice(0, 2).join("."),
+            issued = Number(parts[0]);
+          if (
+            parts.length !== 3 ||
+            !Number.isFinite(issued) ||
+            issued > Date.now() ||
+            Date.now() - issued > 300000 ||
+            !(await validCsrf(request, env, stamp, parts[2] ?? ""))
+          )
+            return error("CSRF", 403);
+          if (!(await limit(env, `upload:${domain.id}`, 30)))
+            return error("RATE_LIMITED", 429);
+        }
+        return uploadRoute(request, env, domain.id);
       }
       if (
         request.method !== "POST" ||

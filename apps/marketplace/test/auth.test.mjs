@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import { Miniflare } from "miniflare";
+import { convertV4MiniflareOptions } from "./runtime-fixture.mjs";
 test("HTTP account access requires authentication and rejects cross-origin writes", async () => {
   const mf = new Miniflare(
     convertV4MiniflareOptions({

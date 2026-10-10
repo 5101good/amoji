@@ -593,3 +593,48 @@ test("HTTP state mutation requires the expected row version", async (t) => {
   ).json();
   assert.equal(state.upload.state, "reserved");
 });
+test("HTTP stale versions take precedence over competing operation keys", async (t) => {
+  const f = await fixture(t),
+    u = await f.reserve(),
+    { bytes } = await archive(u);
+  const authorization = await f.authorize(u, bytes);
+  const { csrf } = await (
+    await f.mf.dispatchFetch("http://localhost/v1/auth/csrf", {
+      headers: { cookie: f.cookie },
+    })
+  ).json();
+  const r = await f.mf.dispatchFetch(
+    `http://localhost/v1/uploads/${u.id}/authorize`,
+    {
+      method: "POST",
+      headers: {
+        cookie: f.cookie,
+        origin: "http://localhost",
+        "content-type": "application/json",
+        "x-csrf-token": csrf,
+        "idempotency-key": crypto.randomUUID(),
+        "if-match": `"${u.row_version}"`,
+      },
+      body: JSON.stringify({ length: bytes.length, sha256: hash(bytes) }),
+    },
+  );
+  assert.equal(r.status, 412, await r.clone().text());
+  await f.put(authorization, bytes);
+  const competing = await Promise.all(
+    [1, 2].map(() =>
+      f.mf.dispatchFetch(`http://localhost/v1/uploads/${u.id}/complete`, {
+        method: "POST",
+        headers: {
+          cookie: f.cookie,
+          origin: "http://localhost",
+          "content-type": "application/json",
+          "x-csrf-token": csrf,
+          "idempotency-key": crypto.randomUUID(),
+          "if-match": `"${u.row_version + 1}"`,
+        },
+        body: "{}",
+      }),
+    ),
+  );
+  assert.deepEqual(competing.map((r) => r.status).sort(), [200, 412]);
+});

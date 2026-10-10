@@ -135,6 +135,12 @@ export async function uploadRoute(
     const operation = request.headers.get("idempotency-key") ?? "";
     if (!uuid.test(operation)) return failure("IDEMPOTENCY_KEY", 400);
     const data = await body(request);
+    const expectedVersion = row.row_version;
+    const replay =
+      (match[2] === "authorize" ? row.authorize_key : row.complete_key) ===
+      operation;
+    if (!replay && request.headers.get("if-match") !== `"${expectedVersion}"`)
+      return failure("ROW_VERSION", 412);
     if (match[2] === "authorize") {
       if (
         Object.keys(data).some((k) => !["length", "sha256"].includes(k)) ||
@@ -153,11 +159,6 @@ export async function uploadRoute(
           row.sha256 !== data.sha256)
       )
         return failure("IDEMPOTENCY_CONFLICT", 409);
-      if (
-        !row.authorize_key &&
-        request.headers.get("if-match") !== `"${row.row_version}"`
-      )
-        return failure("ROW_VERSION", 412);
       if (!(await budget(env, "signatures", 256)))
         return failure("UPLOAD_QUOTA", 429);
       await env.DB.prepare(
@@ -174,6 +175,11 @@ export async function uploadRoute(
         )
         .run();
       row = (await owned(env, row.id, owner))!;
+      if (
+        row.authorize_key !== operation &&
+        row.row_version !== expectedVersion
+      )
+        return failure("ROW_VERSION", 412);
       if (!row.authorize_key) return failure("UPLOAD_QUOTA", 429);
       if (
         row.authorize_key !== operation ||
@@ -190,11 +196,6 @@ export async function uploadRoute(
     if (!row.authorize_key) return failure("UPLOAD_NOT_AUTHORIZED", 409);
     if (row.complete_key && row.complete_key !== operation)
       return failure("IDEMPOTENCY_CONFLICT", 409);
-    if (
-      !row.complete_key &&
-      request.headers.get("if-match") !== `"${row.row_version}"`
-    )
-      return failure("ROW_VERSION", 412);
     await env.DB.prepare(
       "UPDATE market_direct_upload SET complete_key=?,row_version=row_version+1 WHERE id=? AND row_version=? AND complete_key IS NULL AND state='reserved' AND expires_at>?",
     )
@@ -202,7 +203,12 @@ export async function uploadRoute(
       .run();
     row = (await owned(env, row.id, owner))!;
     if (row.complete_key !== operation)
-      return failure("IDEMPOTENCY_CONFLICT", 409);
+      return failure(
+        row.row_version !== expectedVersion
+          ? "ROW_VERSION"
+          : "IDEMPOTENCY_CONFLICT",
+        row.row_version !== expectedVersion ? 412 : 409,
+      );
     if (!["valid", "invalid"].includes(row.state)) {
       const response = await env.FREE_RUNTIME.getByName(
         "free-runtime-v1",

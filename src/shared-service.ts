@@ -1,10 +1,11 @@
+import { actionSelection } from './collaboration.js';
 import { createServer, type ServerResponse, type IncomingMessage } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { COLLABORATION_CAPABILITY, API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -26,7 +27,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -160,9 +161,13 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'emit': { const args = object(value, ['binding', 'selection_token']); result = store.emit(context(args), nonempty(args.selection_token)); break; }
       case 'history': { const args = object(value, ['binding']); result = store.history(context(args)); break; }
       case 'receive': {
-        const args = object(value, ['binding', 'ref', 'send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
-        result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id)); break;
+        const args = object(value, ['binding', 'ref', 'send_request_id', 'action'], ['binding','ref','send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
+        result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id), args.action === undefined ? undefined : actionSelection(args.action)); break;
       }
+      case 'collaborationChoices': { const args=object(value,['binding','ref']); result=store.collaborationChoices(context(args),expressionRef(args.ref)); break; }
+      case 'saveActionIntent': { const args=object(value,['binding','message_id','update']); const update=object(args.update,['status','checkpoint','receipt'],['status']);
+        if(!['prepared','dispatched','bound','attached','failed','cancelled','unknown'].includes(String(update.status)))fail('INVALID_ARGUMENT','无效动作状态');
+        store.saveActionIntent(context(args),nonempty(args.message_id),update as unknown as import('./collaboration.js').ActionIntent);result=null;break; }
       case 'dshAttempted': {
         const args = object(value, ['binding', 'message_id']);
         result = store.dshAttempted(context(args), nonempty(args.message_id)); break;

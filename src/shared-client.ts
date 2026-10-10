@@ -1,3 +1,4 @@
+import type { ActionSelection, ActionChoice, ActionIntent } from './collaboration.js';
 import type { ScenarioDraft } from './scenario-drafts.js';
 import type { ScenarioPack } from './packs.js';
 import { spawn } from 'node:child_process';
@@ -190,7 +191,9 @@ export class SharedClient {
   blobPath(digest: string): Promise<string> { return this.call('blobPath', { digest }); }
   search(binding: string, query: string, limit?: number): Promise<{ candidates: Candidate[]; policy: string }> { return this.call('search', { binding, query, ...(limit === undefined ? {} : { limit }) }); }
   emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
-  receive(binding: string, ref: ExpressionRef, requestId: string): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId }); }
+  receive(binding: string, ref: ExpressionRef, requestId: string, action?: ActionSelection): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId, ...(action?{action}:{}) }); }
+  collaborationChoices(binding:string,ref:ExpressionRef):Promise<ActionChoice[]>{return this.call('collaborationChoices',{binding,ref});}
+  saveActionIntent(binding:string,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void>{return this.call('saveActionIntent',{binding,message_id:messageId,update});}
   history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }
   dshAttempted(binding: string, messageId: string): Promise<boolean> { return this.call('dshAttempted', { binding, message_id: messageId }); }
   dshAccepted(binding: string, messageId: string): Promise<void> { return this.call('dshAccepted', { binding, message_id: messageId }); }

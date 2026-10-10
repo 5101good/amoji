@@ -36,14 +36,15 @@ export interface HostPort {
 export type VisualMeta = {
   kind: 'amoji'; messageId: string; ref: { asset_id: string; revision_id: string }; visualHash: string; posterHash: string | null; alt: string;
 }
-export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
+export interface HistoryEntry { action?: import('./collaboration-context.js').CollaborationReceipt; message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc extends ManagementRpc {
   reconnect?(sessionId: string, signal?: AbortSignal): Promise<void>;
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
   search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;
-  submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal): Promise<HistoryEntry>;
+  submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal, action?: import('../collaboration.js').ActionSelection): Promise<HistoryEntry>;
+  actions?(sessionId:string,ref:ExpressionRef,signal?:AbortSignal):Promise<import('../collaboration.js').ActionChoice[]>;
   history(sessionId: string, signal?: AbortSignal): Promise<HistoryEntry[]>;
   visual(sessionId: string, ref: ExpressionRef, messageId?: string, signal?: AbortSignal): Promise<VisualData>;
   display(sessionId: string, messageId: string, hash: string, state: 'rendered' | 'fallback' | 'failed', signal?: AbortSignal): Promise<void>;

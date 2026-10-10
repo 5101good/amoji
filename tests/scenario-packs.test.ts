@@ -9,7 +9,7 @@ import {withValidatedPack,exportManifest} from '../src/packs.js';
 import type {ScenarioPack} from '../src/packs.js';
 async function client(t:any){const directory=await mkdtemp(join(tmpdir(),'amoji-scenario-'));const c=await SharedClient.connect({directory});t.after(async()=>{await c.close();await stopSharedService(directory,c.identity.serviceId);await rm(directory,{recursive:true,force:true});});return c;}
 test('公开API：可恢复草稿、预览、保存、0.2完整往返及0.1显式导出，固定语义不变',async t=>{
- const c=await client(t);assert.equal(c.identity.apiVersion,2);assert.equal(c.identity.databaseVersion,5);assert.ok(c.identity.capabilities?.includes('versioned-packs-v1'));assert.ok(!c.identity.capabilities?.includes('collaboration-v1'));assert.ok(!c.identity.capabilities?.includes('marketplace-v1'));
+ const c=await client(t);assert.equal(c.identity.apiVersion,2);assert.equal(c.identity.databaseVersion,5);assert.ok(c.identity.capabilities?.includes('versioned-packs-v1'));assert.ok(c.identity.capabilities?.includes('collaboration-v1'));assert.ok(!c.identity.capabilities?.includes('marketplace-v1'));
  const e=(await c.list())[0]!;const ref={asset_id:e.asset_id,revision_id:e.revision_id};
  let d=await c.createScenarioDraft([ref]);const a={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'hook' as const,scope:'conversation' as const,locale:'zh-CN',effect_summary:'先说答案',conflict_group:'response-organization' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},rights:{license:'CC0-1.0'}};
  d=await c.saveScenarioDraft(d.draft_id,d.version,{...d.manifest,name:'解释场景',actions:[a],bindings:[{expression:ref,actions:[{action_id:a.action_id,action_revision_id:a.action_revision_id}]}]});

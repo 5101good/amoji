@@ -11,8 +11,8 @@ export type CollaborationRule = { id: string; revision: string } & (
   { template: 'response-organization@1'; config: { layout: 'answer-first' | 'concise' | 'example-first' } } |
   { template: 'completion-self-check@1'; config: { evidence: 'required'; unknowns: 'explicit' } }
 );
-export interface CollaborationInstruction { id: string; revision: string; instruction: string; conflictGroup: 'explanation' | 'response-organization' | 'completion-report' | 'handoff' }
-export interface CollaborationReceipt { status: 'prepared' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
+export interface CollaborationInstruction { id: string; revision: string; instruction: string; conflictGroup: 'explanation' | 'response-organization' | 'completion-report' | 'handoff'; source?: {pack_id:string;release_id:string;version:number;origin:string}; expression?: {asset_id:string;revision_id:string} }
+export interface CollaborationReceipt { status: 'prepared' | 'dispatched' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
 interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number }
 export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
 interface State { rules: CollaborationRule[]; intents: Map<string, Intent>; claimed: boolean; turn?: number; text?: string; generation: number; failure?: string }
@@ -29,7 +29,7 @@ function section(event: SessionEvent): string | undefined {
   if (source.kind !== 'plugin' || !('sections' in source)) return;
   return source.sections?.find(s => s.name === COLLABORATION_CONTEXT)?.text;
 }
-function envelope(profile: string, session: string, turn: number, rules: CollaborationRule[], intent?: CollaborationInstruction): string {
+export function collaborationEnvelope(profile: string, session: string, turn: number, rules: CollaborationRule[], intent?: CollaborationInstruction): string {
   const active = rules.filter(r => !intent || (r.template === 'response-organization@1' ? 'response-organization' : 'completion-report') !== intent.conflictGroup);
   const content = active.map(rule => ({ ...rule, guidance: rule.template === 'response-organization@1'
     ? ({ 'answer-first': '先回答结论，再给依据。Answer first, then give supporting detail.', concise: '简洁作答，保留必要信息。Be concise without omitting necessary information.', 'example-first': '先给具体示例，再解释。Give a concrete example before explanation.' }[rule.config.layout])
@@ -50,14 +50,14 @@ export class CollaborationContext {
       state.claimed = true;
       if (message.source.kind !== 'user' || !('rpcId' in message.source)) return;
       const intent = state.intents.get(String(message.source.rpcId));
-      if (!intent || intent.status !== 'prepared') return;
+      if (!intent || !['prepared','dispatched'].includes(intent.status)) return;
       const turn = openTurn(agent); if (turn === undefined) return;
       intent.status = 'bound'; intent.turn = turn;
     }));
     this.disposers.push(ctx.on('agent/inbox/discarded', ({ agent, message }) => {
       if (message.source.kind !== 'user' || !('rpcId' in message.source)) return;
       const intent = this.valid(agent)?.intents.get(String(message.source.rpcId));
-      if (intent && intent.status === 'prepared') intent.status = 'cancelled';
+      if (intent && ['prepared','dispatched'].includes(intent.status)) intent.status = 'cancelled';
     }));
     this.disposers.push(ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
       const assembly = await next();
@@ -76,7 +76,7 @@ export class CollaborationContext {
       if (hasWork) {
         const intent = [...state.intents.values()].find(i => i.turn === turn && (i.status === 'bound' || i.status === 'attached'));
         if (state.rules.length || intent || state.text) {
-          try { state.text = envelope(this.hostInstanceId, agent.id, turn, state.rules, intent?.action); state.failure = undefined; }
+          try { state.text = collaborationEnvelope(this.hostInstanceId, agent.id, turn, state.rules, intent?.action); state.failure = undefined; }
           catch { state.failure = 'context-budget'; return assembly; }
         }
         state.turn = turn;
@@ -101,7 +101,7 @@ export class CollaborationContext {
       for (const [, intent] of missing) intent.status = 'failed';
       const previous = state.text;
       const remaining = entries.find(([rpcId]) => users.some(m => 'rpcId' in m.source && m.source.rpcId === rpcId))?.[1].action;
-      state.text = users.length && (state.rules.length || remaining) ? envelope(this.hostInstanceId, agent.id, turn, state.rules, remaining) : undefined;
+      state.text = users.length && (state.rules.length || remaining) ? collaborationEnvelope(this.hostInstanceId, agent.id, turn, state.rules, remaining) : undefined;
       const messages: UserMessage[] = [];
       for (const message of decision.messages) {
         const source = message.source;
@@ -114,7 +114,7 @@ export class CollaborationContext {
       return { ...decision, messages };
     }, { prepend: true }));
   }
-  private valid(agent: Agent): State | undefined { return this.ctx.agents.get(agent.id) === agent ? this.states.get(agent) : undefined; }
+  private valid(agent: Agent): State | undefined { return this.ctx.agents.get(agent.id) === agent && this.ctx.sessions.get(agent.id) === agent.session ? this.states.get(agent) : undefined; }
   /** Called only after the host has established an exact profile/session identity, or explicit new user opt-in. */
   authorize(agent: Agent): void {
     if (this.ctx.agents.get(agent.id) !== agent) throw new Error('Unknown live session');
@@ -128,23 +128,25 @@ export class CollaborationContext {
       if (rule.template === 'response-organization@1') { if (!['answer-first', 'concise', 'example-first'].includes(rule.config.layout)) throw new Error('Invalid layout'); }
       else if (rule.template !== 'completion-self-check@1' || rule.config.evidence !== 'required' || rule.config.unknowns !== 'explicit') throw new Error('Unsupported template');
     }
-    envelope(this.hostInstanceId, agent.id, openTurn(agent) ?? 0, [...rules]);
+    collaborationEnvelope(this.hostInstanceId, agent.id, openTurn(agent) ?? 0, [...rules]);
     state.rules = structuredClone([...rules]); state.generation++;
   }
   prepare(agent: Agent, rpcId: string, action: CollaborationInstruction): void {
     const state = this.valid(agent); if (!state) throw new Error('Session identity is not authorized');
     if (!rpcId || Buffer.byteLength(action.instruction) > 2048) throw new Error('Invalid instruction');
-    envelope(this.hostInstanceId, agent.id, openTurn(agent) ?? 0, state.rules, action);
+    collaborationEnvelope(this.hostInstanceId, agent.id, openTurn(agent) ?? 0, state.rules, action);
     const previous = state.intents.get(rpcId);
     if (previous) { if (JSON.stringify(previous.action) !== JSON.stringify(action)) throw new Error('Request identity conflict'); return; }
     state.intents.set(rpcId, { action: structuredClone(action), status: 'prepared' });
   }
+  has(agent: Agent, rpcId: string): boolean { return !!this.valid(agent)?.intents.has(rpcId); }
+  uncertain(agent: Agent, rpcId: string): void { const intent=this.valid(agent)?.intents.get(rpcId); if(intent && ['prepared','dispatched'].includes(intent.status))intent.status='unknown'; }
+  dispatched(agent: Agent, rpcId: string): void { const intent=this.valid(agent)?.intents.get(rpcId); if(intent?.status==='prepared')intent.status='dispatched'; }
   /** Read only: uncertain delivery is never retried and replay cannot activate an intent. */
   receipt(agent: Agent, rpcId: string): CollaborationReceipt {
     const state = this.valid(agent); if (!state) return { status: 'unsupported', reason: 'identity-not-restored' };
     const intent = state.intents.get(rpcId); if (!intent) return { status: 'unknown', reason: 'original-request-not-known' };
     if (intent.status === 'cancelled' || intent.status === 'failed') return { status: intent.status };
-    if (state.failure) return { status: 'failed', reason: state.failure };
     const events = agent.session.snapshotEvents();
     let turn = intent.turn;
     // A crash may have persisted the intent before its native claim was recorded locally.
@@ -166,6 +168,7 @@ export class CollaborationContext {
       } catch { return false; }
     });
     if (user && snapshot) return { status: 'attached', turnStartSeq: turn, snapshotSeq: snapshot.seq, digest: hash(section(snapshot)!) };
+    if (state.failure) return { status: 'failed', reason: state.failure };
     if (end?.type === 'turn/end' && end.data.reason.kind === 'aborted') return { status: 'cancelled', turnStartSeq: turn };
     if (intent.status === 'unknown') return { status: 'unknown', turnStartSeq: turn, reason: 'original-request-not-proven' };
     if (end) return { status: 'failed', turnStartSeq: turn, reason: 'no-admitted-matching-snapshot' };
@@ -183,11 +186,12 @@ export class CollaborationContext {
     if (saved.anchor && (!anchor || hash(JSON.stringify(anchor)) !== saved.anchor.digest)) return false;
     if (!saved.anchor && !agent.session.snapshotEvents().some(e => e.type === 'user/message' && e.data.source.kind === 'user' && 'rpcId' in e.data.source && saved.intents.some(([rpcId]) => 'rpcId' in e.data.source && e.data.source.rpcId === rpcId))) return false;
     this.authorize(agent);
-    try { this.setRules(agent, saved.rules); }
+    try { if(!this.valid(agent)!.intents.size)this.setRules(agent, saved.rules); }
     catch { this.forget(agent); return false; }
     const state = this.valid(agent)!;
     for (const [rpcId, intent] of structuredClone(saved.intents)) {
       // An unobserved request stays uncertain. Never rebind it when old inbox items replay.
+      if(state.intents.has(rpcId))continue;
       state.intents.set(rpcId, { ...intent, status: intent.status === 'cancelled' || intent.status === 'failed' ? intent.status : 'unknown' });
     }
     return true;

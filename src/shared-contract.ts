@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
+export const COLLABORATION_CAPABILITY = 'collaboration-v1';
 export const API_VERSION = 2;
 export const DATABASE_VERSION = 5;
 export const VERSIONED_PACKS_CAPABILITY = 'versioned-packs-v1';

@@ -1,3 +1,4 @@
+import { actionSelection, type ActionSelection, type ActionChoice, type ActionIntent } from './collaboration.js';
 import { createReadStream } from 'node:fs';
 import { withValidatedPack, exportPack, exportManifest, validatePackManifest, type ScenarioPack, type PackInput, type ValidatedPack, type ImportResult } from './packs.js';
 import { migrateLibrary } from './library-migration.js';
@@ -471,19 +472,44 @@ export class LibraryStore {
       return message;
     });
   }
-  receive(context: BindingContext, ref: ExpressionRef, requestId: string): SampleMessage {
+  receive(context: BindingContext, ref: ExpressionRef, requestId: string, selected?: ActionSelection): SampleMessage {
+    const selection = selected === undefined ? undefined : actionSelection(selected);
     return this.transaction(() => {
       const session = this.session(context);
       const previous = new Map(session.received).get(requestId);
       if (previous) {
         const message = session.messages.find(m => m.message_id === previous)!;
-        if (message.revision.asset_id !== ref.asset_id || message.revision.revision_id !== ref.revision_id) fail('REQUEST_CONFLICT', '该请求已用于其他表情');
+        if (!isDeepStrictEqual(message.action_intent?.selection, selection) || message.revision.asset_id !== ref.asset_id || message.revision.revision_id !== ref.revision_id) fail('REQUEST_CONFLICT', '该请求已用于其他表情');
         return message;
       }
       this.resolve(ref);
       if (!this.availableEntries().some(e => e.expression.asset_id === ref.asset_id && e.expression.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
+      const choice = selection ? this.collaborationChoices(context, ref).find(c => isDeepStrictEqual(c.selection,selection)) ?? fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情') : undefined;
       const message = this.message(session, ref, 'human_to_ai');
+      if(choice){message.action_intent={...choice,operation_id:randomUUID(),requestId,status:'prepared'};this.db.prepare('INSERT INTO action_intents VALUES (?,?,?,?)').run(message.action_intent.operation_id,sessionKey(context),requestId,JSON.stringify(message.action_intent));}
       session.received.push([requestId, message.message_id]); this.save(context, session); return message;
+    });
+  }
+  collaborationChoices(context: BindingContext, ref: ExpressionRef): ActionChoice[] {
+    if(context.host !== 'dsh') fail('CAPABILITY_UNAVAILABLE','动作仅支持 dsh');
+    return this.listScenarioPacks().flatMap(pack => {
+      const binding=pack.bindings.find(b=>b.expression.asset_id===ref.asset_id && b.expression.revision_id===ref.revision_id);
+      if(!binding)return [];
+      const installed=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
+      if(installed && installed.state!=='installed')return [];
+      if(this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
+      return pack.actions.flatMap(action=>action.kind==='instruction' && binding.actions.some(a=>a.action_id===action.action_id&&a.action_revision_id===action.action_revision_id)?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:installed?.origin??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
+    });
+  }
+  saveActionIntent(context: BindingContext, messageId: string, update: Pick<ActionIntent,'status'|'checkpoint'|'receipt'>): void {
+    if(context.host!=='dsh')fail('BINDING_MISMATCH','动作仅支持 dsh');
+    this.transaction(()=>{
+      const session=this.session(context); const message=session.messages.find(m=>m.message_id===messageId);
+      if(!message?.action_intent)fail('BINDING_MISMATCH','动作不属于此会话消息');
+      message.action_intent={...message.action_intent,...update};
+      this.db.prepare('UPDATE action_intents SET data=? WHERE operation_id=? AND session_key=?').run(JSON.stringify(message.action_intent),message.action_intent.operation_id,sessionKey(context));
+      if(update.receipt)this.db.prepare('INSERT INTO action_receipts VALUES (?,?,?) ON CONFLICT(receipt_id) DO UPDATE SET data=excluded.data').run(message.action_intent.operation_id,sessionKey(context),JSON.stringify(update.receipt));
+      this.save(context,session);
     });
   }
   dshAttempted(context: BindingContext, messageId: string): boolean {

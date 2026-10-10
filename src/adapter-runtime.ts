@@ -1,6 +1,7 @@
+import type { ActionSelection, ActionChoice, ActionIntent } from './collaboration.js';
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
+import { COLLABORATION_CAPABILITY, PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -8,6 +9,7 @@ import type { SharedClient } from './shared-client.js';
 type Awaitable<T> = T | Promise<T>;
 /** Host presentation boundary; supports the ticket-01 fixtures and the shared client. */
 export interface AdapterRuntime {
+  collaboration?: { choices(context:HostContext,ref:ExpressionRef):Promise<ActionChoice[]>; save(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void> };
   connectionSignal?: AbortSignal;
   reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
@@ -19,7 +21,7 @@ export interface AdapterRuntime {
   search(context: HostContext, query: string, limit?: number): Awaitable<{ candidates: Candidate[]; policy: string }>;
   emit(context: HostContext, token: string): Awaitable<SampleMessage>;
   messages(context: HostContext): Awaitable<SampleMessage[]>;
-  receive(context: HostContext, ref: ExpressionRef, requestId: string): Awaitable<SampleMessage>;
+  receive(context: HostContext, ref: ExpressionRef, requestId: string, action?: ActionSelection): Awaitable<SampleMessage>;
   dshAttempted?(context: HostContext, messageId: string): Awaitable<boolean>;
   dshAccepted?(context: HostContext, messageId: string): Awaitable<void>;
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback'): Awaitable<void>;
@@ -37,7 +39,9 @@ export class ConnectedRuntime implements AdapterRuntime {
   readonly management;
   readonly packs;
   readonly scenarios;
+  readonly collaboration;
   constructor(private readonly client: SharedClient) {
+    this.collaboration=client.identity.capabilities?.includes(COLLABORATION_CAPABILITY)?{choices:(context:HostContext,ref:ExpressionRef)=>this.withBinding(context,b=>client.collaborationChoices(b,ref)),save:(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>)=>this.withBinding(context,b=>client.saveActionIntent(b,messageId,update))}:undefined;
     this.scenarios=client.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)?client:undefined;
     this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;
     this.management = client.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY) ? client : undefined;
@@ -53,7 +57,7 @@ export class ConnectedRuntime implements AdapterRuntime {
   search(context: HostContext, query: string, limit?: number) { return this.withBinding(context, binding => this.client.search(binding, query, limit)); }
   emit(context: HostContext, token: string) { return this.withBinding(context, binding => this.client.emit(binding, token)); }
   messages(context: HostContext) { return this.withBinding(context, binding => this.client.history(binding)); }
-  receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId)); }
+  receive(context: HostContext, ref: ExpressionRef, requestId: string, action?: ActionSelection) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId, action)); }
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.withBinding(context, binding => this.client.presentation(binding, messageId, state)); }
   dshAttempted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAttempted(binding, messageId)); }
   dshAccepted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAccepted(binding, messageId)); }

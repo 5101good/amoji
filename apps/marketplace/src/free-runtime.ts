@@ -123,7 +123,7 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
         if (bytes.length !== row.length || (await digest(bytes)) !== row.sha256)
           return this.reject(row, "ARCHIVE_INTEGRITY");
         await this.env.DB.prepare(
-          "UPDATE market_direct_upload SET state='uploaded' WHERE id=? AND state='reserved'",
+          "UPDATE market_direct_upload SET state='uploaded',row_version=row_version+1 WHERE id=? AND state='reserved'",
         )
           .bind(row.id)
           .run();
@@ -140,7 +140,7 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
       if (bytes.length !== row.length || (await digest(bytes)) !== row.sha256)
         return this.reject(row, "SEALED_INTEGRITY");
       await this.env.DB.prepare(
-        "UPDATE market_direct_upload SET state='validating' WHERE id=? AND state IN ('reserved','uploaded','validating')",
+        "UPDATE market_direct_upload SET state='validating',row_version=row_version+1 WHERE id=? AND state IN ('reserved','uploaded','validating')",
       )
         .bind(row.id)
         .run();
@@ -156,7 +156,7 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
         );
       }
       const updated = await this.env.DB.prepare(
-        "UPDATE market_direct_upload SET state='valid',manifest_sha256=?,validation_error=NULL WHERE id=? AND state='validating' AND expires_at>?",
+        "UPDATE market_direct_upload SET state='valid',row_version=row_version+1,manifest_sha256=?,validation_error=NULL WHERE id=? AND state='validating' AND expires_at>?",
       )
         .bind(result.manifest_sha256, row.id, Date.now())
         .run();
@@ -176,7 +176,7 @@ export class FreeRuntime extends DurableObject<UploadEnv> {
   }
   private async reject(row: Upload, code: string) {
     await this.env.DB.prepare(
-      "UPDATE market_direct_upload SET state='invalid',validation_error=? WHERE id=? AND state IN ('reserved','uploaded','validating')",
+      "UPDATE market_direct_upload SET state='invalid',row_version=row_version+1,validation_error=? WHERE id=? AND state IN ('reserved','uploaded','validating')",
     )
       .bind(code, row.id)
       .run();

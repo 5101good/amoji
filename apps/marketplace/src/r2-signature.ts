@@ -35,13 +35,19 @@ export async function authorizePut(env: UploadEnv, row: Upload) {
     day = stamp.slice(0, 8),
     scope = `${day}/auto/s3/aws4_request`,
     host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+  // A late retry must expire before cleanup can remove its reservation.
+  const seconds = Math.min(
+    MARKET_LIMITS.signatureSeconds,
+    Math.floor((row.expires_at - now.getTime()) / 1000),
+  );
+  if (seconds < 1) throw Error("UPLOAD_EXPIRED");
   const path =
     "/" + [env.R2_BUCKET, ...row.object_key.split("/")].map(encode).join("/");
   const params: Record<string, string> = {
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": `${env.R2_ACCESS_KEY_ID}/${scope}`,
     "X-Amz-Date": stamp,
-    "X-Amz-Expires": String(MARKET_LIMITS.signatureSeconds),
+    "X-Amz-Expires": String(seconds),
     "X-Amz-SignedHeaders": "content-length;content-type;host",
   };
   const query = Object.entries(params)
@@ -64,6 +70,6 @@ export async function authorizePut(env: UploadEnv, row: Upload) {
     url: `https://${host}${path}?${query}&X-Amz-Signature=${signature}`,
     headers: { "content-type": "application/zip" },
     length: row.length,
-    expires_at: now.getTime() + MARKET_LIMITS.signatureSeconds * 1000,
+    expires_at: now.getTime() + seconds * 1000,
   };
 }

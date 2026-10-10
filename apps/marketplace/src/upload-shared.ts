@@ -16,6 +16,7 @@ export type Upload = {
   pack_id: string;
   release_id: string;
   version: number;
+  row_version: number;
   length: number | null;
   sha256: string | null;
   object_key: string;
@@ -72,6 +73,7 @@ export function view(u: Upload) {
     pack_id: u.pack_id,
     release_id: u.release_id,
     version: u.version,
+    row_version: u.row_version,
     state: u.state,
     length: u.length,
     sha256: u.sha256,

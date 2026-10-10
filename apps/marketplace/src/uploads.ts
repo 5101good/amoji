@@ -19,7 +19,7 @@ const owned = (env: UploadEnv, id: string, owner: string) =>
 export async function cleanupUploads(env: UploadEnv, now = Date.now()) {
   if (!env.UPLOADS) return;
   await env.DB.prepare(
-    "UPDATE market_direct_upload SET state='expired' WHERE expires_at<=? AND state!='expired' AND NOT EXISTS(SELECT 1 FROM market_direct_upload_reference WHERE upload_id=market_direct_upload.id)",
+    "UPDATE market_direct_upload SET state='expired',row_version=row_version+1 WHERE expires_at<=? AND state!='expired' AND NOT EXISTS(SELECT 1 FROM market_direct_upload_reference WHERE upload_id=market_direct_upload.id)",
   )
     .bind(now)
     .run();
@@ -92,7 +92,7 @@ export async function uploadRoute(
           "INSERT INTO market_upload_pack(id,owner) VALUES(?,?) ON CONFLICT(id) DO NOTHING",
         ).bind(packId, owner),
         env.DB.prepare(
-          "INSERT INTO market_direct_upload(id,owner,operation,request_hash,pack_id,release_id,version,object_key,sealed_key,created_at,expires_at) SELECT ?,?,?,?,?,?,coalesce((SELECT max(version)+1 FROM market_direct_upload WHERE pack_id=?),1),?,?,?,? WHERE EXISTS(SELECT 1 FROM market_upload_pack WHERE id=? AND owner=?) AND (SELECT count(*) FROM market_direct_upload WHERE owner=? AND cleaned=0 AND state NOT IN ('valid','expired','invalid'))<3 AND (SELECT count(*) FROM market_direct_upload WHERE cleaned=0)<100 ON CONFLICT(owner,operation) DO NOTHING",
+          "INSERT INTO market_direct_upload(id,owner,operation,request_hash,pack_id,release_id,version,object_key,sealed_key,created_at,expires_at) SELECT ?,?,?,?,?,?,coalesce((SELECT max(version)+1 FROM market_direct_upload WHERE pack_id=?),1),?,?,?,? WHERE EXISTS(SELECT 1 FROM market_upload_pack WHERE id=? AND owner=?) AND (SELECT count(*) FROM market_direct_upload WHERE owner=? AND cleaned=0 AND state NOT IN ('valid','expired','invalid') AND expires_at>?)<3 AND (SELECT count(*) FROM market_direct_upload WHERE cleaned=0)<100 ON CONFLICT(owner,operation) DO NOTHING",
         ).bind(
           id,
           owner,
@@ -108,6 +108,7 @@ export async function uploadRoute(
           packId,
           owner,
           owner,
+          now,
         ),
       ]);
       row = await env.DB.prepare(
@@ -152,16 +153,22 @@ export async function uploadRoute(
           row.sha256 !== data.sha256)
       )
         return failure("IDEMPOTENCY_CONFLICT", 409);
+      if (
+        !row.authorize_key &&
+        request.headers.get("if-match") !== `"${row.row_version}"`
+      )
+        return failure("ROW_VERSION", 412);
       if (!(await budget(env, "signatures", 256)))
         return failure("UPLOAD_QUOTA", 429);
       await env.DB.prepare(
-        "UPDATE market_direct_upload SET length=?,sha256=?,authorize_key=? WHERE id=? AND authorize_key IS NULL AND state='reserved' AND complete_key IS NULL AND (SELECT coalesce(sum(length),0) FROM market_direct_upload WHERE cleaned=0)+?<=?",
+        "UPDATE market_direct_upload SET length=?,sha256=?,authorize_key=?,row_version=row_version+1 WHERE id=? AND row_version=? AND authorize_key IS NULL AND state='reserved' AND complete_key IS NULL AND (SELECT coalesce(sum(length),0) FROM market_direct_upload WHERE cleaned=0)+?<=?",
       )
         .bind(
           data.length,
           data.sha256,
           operation,
           row.id,
+          row.row_version,
           data.length,
           MARKET_LIMITS.storage,
         )
@@ -183,10 +190,15 @@ export async function uploadRoute(
     if (!row.authorize_key) return failure("UPLOAD_NOT_AUTHORIZED", 409);
     if (row.complete_key && row.complete_key !== operation)
       return failure("IDEMPOTENCY_CONFLICT", 409);
-    await env.DB.prepare(
-      "UPDATE market_direct_upload SET complete_key=? WHERE id=? AND complete_key IS NULL AND state='reserved' AND expires_at>?",
+    if (
+      !row.complete_key &&
+      request.headers.get("if-match") !== `"${row.row_version}"`
     )
-      .bind(operation, row.id, Date.now())
+      return failure("ROW_VERSION", 412);
+    await env.DB.prepare(
+      "UPDATE market_direct_upload SET complete_key=?,row_version=row_version+1 WHERE id=? AND row_version=? AND complete_key IS NULL AND state='reserved' AND expires_at>?",
+    )
+      .bind(operation, row.id, row.row_version, Date.now())
       .run();
     row = (await owned(env, row.id, owner))!;
     if (row.complete_key !== operation)
@@ -219,16 +231,15 @@ export async function uploadRoute(
         )
       : reply({ upload: view(row) }, row.state === "valid" ? 200 : 202);
   } catch (e) {
-    return failure(
-      e instanceof Error &&
-        ["BODY_TOO_LARGE", "INVALID_BODY"].includes(e.message)
-        ? e.message
-        : "UPLOAD_UNAVAILABLE",
-      e instanceof SyntaxError
-        ? 400
-        : e instanceof Error && e.message === "BODY_TOO_LARGE"
-          ? 413
-          : 503,
-    );
+    if (
+      e instanceof SyntaxError ||
+      (e instanceof Error && e.message === "INVALID_BODY")
+    )
+      return failure("INVALID_BODY", 400);
+    if (e instanceof Error && e.message === "BODY_TOO_LARGE")
+      return failure("BODY_TOO_LARGE", 413);
+    if (e instanceof Error && e.message === "UPLOAD_EXPIRED")
+      return failure("UPLOAD_EXPIRED", 410);
+    return failure("UPLOAD_UNAVAILABLE", 503);
   }
 }

@@ -41,4 +41,12 @@ export async function migrateUploads(db) {
   );
   for (const statement of sql.split(/;\n(?=CREATE|--)/).filter((s) => s.trim()))
     await db.prepare(statement).run();
+  await db
+    .prepare(
+      readFileSync(
+        new URL("../migrations/0004-upload-row-version.sql", import.meta.url),
+        "utf8",
+      ),
+    )
+    .run();
 }

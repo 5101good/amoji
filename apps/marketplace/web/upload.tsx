@@ -5,6 +5,8 @@ type Reservation = {
   pack_id: string;
   release_id: string;
   version: number;
+  row_version: number;
+  expires_at: number;
   state: string;
 };
 /** Only operation IDs live in browser storage; never credentials or signed URLs. */
@@ -19,7 +21,51 @@ export function UploadPanel({
     [busy, setBusy] = useState(false),
     [status, setStatus] = useState("");
   const storageKey = `amoji-upload:${accountId}`;
-  async function post(path: string, data: object, key: string) {
+  function explanation(error: unknown) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "UPLOAD_EXPIRED")
+      return zh
+        ? "上次上传已过期，请重新选择原文件。"
+        : "The previous upload expired. Select the original file again.";
+    if (code === "ROW_VERSION")
+      return zh
+        ? "上传状态已更新，请恢复校验或重新选择文件。"
+        : "The upload status changed. Resume validation or select the file again.";
+    if (code === "DIRECT_UPLOAD_FAILED")
+      return zh
+        ? "文件尚未传完，请重新选择原文件重试。"
+        : "The file was not fully uploaded. Select the original file to retry.";
+    if (code === "PACK_LICENSE_REQUIRED")
+      return zh
+        ? "请先确认场景包的整体许可，再重新导出。"
+        : "Confirm a license for the complete pack before exporting again.";
+    if (
+      code === "UPLOAD_QUOTA" ||
+      code === "RATE_LIMITED" ||
+      code === "RUNTIME_QUOTA"
+    )
+      return zh
+        ? "已达到当前上传额度，请稍后重试。"
+        : "The current upload allowance has been reached. Try again later.";
+    if (
+      /ARCHIVE|MEDIA|BLOB|MANIFEST|ZIP|SCHEMA|LIMIT|REFERENCE|INTEGRITY|METADATA|MISMATCH/.test(
+        code,
+      )
+    )
+      return zh
+        ? "文件未通过完整校验，请检查格式、素材和市场大小限制。"
+        : "The archive did not pass validation. Check its format, media and market size limits.";
+    return zh
+      ? "上传服务暂时不可用，请稍后重试。"
+      : "The upload service is temporarily unavailable. Try again later.";
+  }
+
+  async function post(
+    path: string,
+    data: object,
+    key: string,
+    version?: number,
+  ) {
     const c = await fetch("/v1/auth/csrf");
     if (!c.ok) throw Error("AUTH");
     const { csrf } = (await c.json()) as { csrf: string };
@@ -29,6 +75,7 @@ export function UploadPanel({
         "content-type": "application/json",
         "x-csrf-token": csrf,
         "idempotency-key": key,
+        ...(version === undefined ? {} : { "if-match": `"${version}"` }),
       },
       body: JSON.stringify(data),
     });
@@ -46,10 +93,14 @@ export function UploadPanel({
     setBusy(true);
     try {
       const saved = JSON.parse(raw);
+      const state = await fetch(`/v1/uploads/${saved.id}`);
+      if (!state.ok) throw Error("UPLOAD_STATUS");
+      const current = ((await state.json()) as { upload: Reservation }).upload;
       const result = await post(
         `/v1/uploads/${saved.id}/complete`,
         {},
         saved.complete,
+        current.row_version,
       );
       setStatus(
         result.upload.state === "valid"
@@ -62,8 +113,7 @@ export function UploadPanel({
       setStatus(
         (zh
           ? "尚未完成，可重新选择原文件重试："
-          : "Incomplete. Select the original file to retry: ") +
-          (e instanceof Error ? e.message : ""),
+          : "Incomplete. Select the original file to retry: ") + explanation(e),
       );
     } finally {
       setBusy(false);
@@ -114,11 +164,21 @@ export function UploadPanel({
         };
         localStorage.setItem(storageKey, JSON.stringify(saved));
       }
-      const { upload: r }: { upload: Reservation } = await post(
+      let { upload: r }: { upload: Reservation } = await post(
         "/v1/uploads",
         {},
         saved.reserve,
       );
+      if (r.state === "expired" || r.expires_at <= Date.now()) {
+        saved = {
+          fileHash,
+          reserve: crypto.randomUUID(),
+          authorize: crypto.randomUUID(),
+          complete: crypto.randomUUID(),
+        };
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+        r = (await post("/v1/uploads", {}, saved.reserve)).upload;
+      }
       saved.id = r.id;
       localStorage.setItem(storageKey, JSON.stringify(saved));
       if (r.state === "valid") {
@@ -170,10 +230,11 @@ export function UploadPanel({
       )
         .map((x) => x.toString(16).padStart(2, "0"))
         .join("");
-      const { authorization } = await post(
+      const { authorization, upload: authorized } = await post(
         `/v1/uploads/${r.id}/authorize`,
         { length: bytes.length, sha256 },
         saved.authorize,
+        r.row_version,
       );
       setStatus(zh ? "正在直传文件…" : "Uploading directly…");
       const put = await fetch(authorization.url, {
@@ -188,6 +249,7 @@ export function UploadPanel({
         `/v1/uploads/${r.id}/complete`,
         {},
         saved.complete,
+        authorized.row_version,
       );
       setStatus(
         result.upload.state === "valid"
@@ -197,10 +259,7 @@ export function UploadPanel({
           : result.upload.state,
       );
     } catch (e) {
-      setStatus(
-        (zh ? "上传未完成：" : "Upload incomplete: ") +
-          (e instanceof Error ? e.message : "UPLOAD_FAILED"),
-      );
+      setStatus((zh ? "上传未完成：" : "Upload incomplete: ") + explanation(e));
     } finally {
       setBusy(false);
     }
@@ -221,6 +280,7 @@ export function UploadPanel({
           disabled={busy}
           onChange={(e) => {
             const file = e.target.files?.[0];
+            e.currentTarget.value = "";
             if (file) void upload(file);
           }}
         />

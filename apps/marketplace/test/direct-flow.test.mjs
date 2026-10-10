@@ -50,6 +50,16 @@ async function fixture(t) {
         headers: { cookie },
       })
     ).json();
+    let rowHeaders = {};
+    if (/\/(authorize|complete)$/.test(path)) {
+      const current = await (
+        await mf.dispatchFetch(
+          "http://localhost" + path.replace(/\/(authorize|complete)$/, ""),
+          { headers: { cookie } },
+        )
+      ).json();
+      rowHeaders = { "if-match": `"${current.upload?.row_version}"` };
+    }
     return mf.dispatchFetch("http://localhost" + path, {
       method: "POST",
       headers: {
@@ -58,6 +68,7 @@ async function fixture(t) {
         "content-type": "application/json",
         "x-csrf-token": csrf.csrf,
         "idempotency-key": operation,
+        ...rowHeaders,
       },
       body: JSON.stringify(data),
     });
@@ -531,4 +542,54 @@ test("HTTP animation pixel and duration budgets and animated WebP are fully deco
     const r = await f.post(`/v1/uploads/${u.id}/complete`, {}, f.cookie);
     assert.equal(r.status, expected, await r.clone().text());
   }
+});
+test("HTTP late authorization never outlives upload retention or permits post-cleanup replay", async (t) => {
+  const f = await fixture(t),
+    u = await f.reserve(),
+    { bytes } = await archive(u),
+    deadline = Date.now() + 5000;
+  await f.db
+    .prepare("UPDATE market_direct_upload SET expires_at=? WHERE id=?")
+    .bind(deadline, u.id)
+    .run();
+  const a = await f.authorize(u, bytes);
+  assert.ok(
+    a.expires_at <= deadline,
+    `authorization outlives record by ${a.expires_at - deadline}ms`,
+  );
+  assert.ok(Number(new URL(a.url).searchParams.get("X-Amz-Expires")) <= 5);
+});
+test("HTTP state mutation requires the expected row version", async (t) => {
+  const f = await fixture(t),
+    u = await f.reserve(),
+    { bytes } = await archive(u),
+    a = await f.authorize(u, bytes);
+  await f.put(a, bytes);
+  const csrf = await (
+    await f.mf.dispatchFetch("http://localhost/v1/auth/csrf", {
+      headers: { cookie: f.cookie },
+    })
+  ).json();
+  const r = await f.mf.dispatchFetch(
+    `http://localhost/v1/uploads/${u.id}/complete`,
+    {
+      method: "POST",
+      headers: {
+        cookie: f.cookie,
+        origin: "http://localhost",
+        "content-type": "application/json",
+        "x-csrf-token": csrf.csrf,
+        "idempotency-key": crypto.randomUUID(),
+        "if-match": '"0"',
+      },
+      body: "{}",
+    },
+  );
+  assert.equal(r.status, 412, await r.clone().text());
+  const state = await (
+    await f.mf.dispatchFetch(`http://localhost/v1/uploads/${u.id}`, {
+      headers: { cookie: f.cookie },
+    })
+  ).json();
+  assert.equal(state.upload.state, "reserved");
 });

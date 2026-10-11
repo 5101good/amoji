@@ -12,13 +12,16 @@ import { executeBridge } from "./bridge.js";
 
 let client: SharedClient | undefined;
 try {
-  let input = "";
+  const chunks: Buffer[] = [];
+  let bytes = 0;
   for await (const chunk of process.stdin) {
-    input += chunk.toString();
-    if (Buffer.byteLength(input) > 128 * 1024)
+    bytes += chunk.length;
+    if (bytes > 128 * 1024)
       throw new ServiceError("INVALID_ARGUMENT", "请求过大");
+    chunks.push(chunk);
   }
-  const request = JSON.parse(input);
+  // A pipe chunk can end inside a Chinese character. Decode only the whole input.
+  const request = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   client = await SharedClient.connect({
     requiredCapabilities: [
       SESSION_BINDINGS_CAPABILITY,

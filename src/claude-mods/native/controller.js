@@ -39,6 +39,15 @@ export async function perform($, s, action) {
   try {
     await action();
   } catch (error) {
+    if (
+      /^DRAFT_(CONFLICT|CONFIRMED)$/.test(String(error?.message)) &&
+      s.tab === "create" && s.draft
+    ) {
+      s.draftConflict = true;
+      s.conflictLatest = null;
+      s.reviewed = false;
+      s.preview = null;
+    }
     s.error = errorText(s, error);
   } finally {
     s.busy = false;
@@ -147,8 +156,12 @@ export async function save($, s, preview = false) {
     version,
     fields,
     ...(s.imagePath.trim() ? { imagePath: s.imagePath.trim() } : {}),
+    ...(!s.imagePath.trim() && s.copyImageHash
+      ? { imageHash: s.copyImageHash }
+      : {}),
   });
   s.imagePath = "";
+  s.copyImageHash = null;
   if (preview) {
     s.preview = await bridge($, s.context, "previewDraft", {
       id: s.draft.draft_id,
@@ -157,6 +170,26 @@ export async function save($, s, preview = false) {
     s.reviewed = false;
     s.step = "review";
   } else s.notice = L(s, "草稿已保存", "Draft saved");
+}
+export async function forkLocalDraft($, s) {
+  const fields = JSON.parse(JSON.stringify(s.draft.fields));
+  const imageHash = s.copyImageHash || s.draft.visual?.primary.sha256;
+  const fresh = await bridge($, s.context, "createDraft");
+  // Keep the new identity immediately: a later save failure must retry this draft,
+  // never overwrite the conflicting original or silently create another copy.
+  s.draft = { ...fresh, fields };
+  s.copyImageHash = imageHash;
+  s.draftConflict = false;
+  s.conflictLatest = null;
+  s.step = "edit";
+  s.preview = null;
+  s.reviewed = false;
+  await save($, s);
+  s.notice = L(
+    s,
+    "已另存为新草稿，原草稿未修改",
+    "Saved as a new draft; the original is unchanged",
+  );
 }
 export async function suggest($, s) {
   if (s.generating || s.busy) return;

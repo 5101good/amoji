@@ -44,6 +44,8 @@ Uses your local Amoji library, including dsh’s library, with messages isolated
 
 For an older shared service, close windows still using the older Amoji and retry. After an unknown outcome, inspect the conversation or library before repeating an action. Errors retain your input; use Save draft to persist it.
 
+If concurrent edits conflict, view the latest saved draft before explicitly adopting it, or save your own text and image as a separate draft. Saving separately leaves the original draft unchanged.
+
 The Node bridge accesses the shared service, creates thumbnails and reads files you explicitly select. Suggestions use Claude’s configured credentials and the chosen model, incurring normal text-inference costs. Expression images are not uploaded to that model.
 
 ## Develop

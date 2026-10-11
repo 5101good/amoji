@@ -7,6 +7,7 @@ import {
   changePreference,
   edit,
   save,
+  forkLocalDraft,
   suggest,
   call,
   invalidate,
@@ -15,7 +16,7 @@ import {
 export function pane($, e, s, makePicture) {
   const { Box, Text, Button, Input, Select, Link, Svg } = $.ui.resolve(e);
   const t = (value, dim = false) =>
-    Text({ children: [value], ...(dim ? { dimColor: true } : {}) });
+    Text({ children: [value], wrap: "wrap", ...(dim ? { dimColor: true } : {}) });
   const row = (children) =>
     Box({
       flexDirection: "row",
@@ -179,7 +180,41 @@ export function pane($, e, s, makePicture) {
       edit(s, () => {
         d.fields.semantics[key] = value;
       });
-    if (s.drafts)
+    if (s.draftConflict) {
+      const latest = s.conflictLatest;
+      body = col([
+        t(L(s, "你的输入", "Your input")),
+        t(d.fields.name),
+        t(d.fields.semantics.meaning),
+        s.imagePath && t(L(s, "新图片：", "New image: ") + s.imagePath, true),
+        t(L(s, "另存会保留你的文字和图片。", "Save separately to keep your text and image."), true),
+        t(L(s, "原草稿不会被覆盖。", "The original draft will not be overwritten."), true),
+        button("conflict-fork", L(s, "另存我的草稿", "Save my draft separately"), () => forkLocalDraft($, s), true),
+        button("conflict-latest", L(s, "查看最新草稿", "View latest draft"), async () => {
+          s.conflictLatest = await call($, s.context, "getDraft", { id: d.draft_id });
+        }),
+        ...(latest ? [
+          t(L(s, "已保存的最新内容", "Latest saved content")),
+          latest.preview && picture(latest.preview, latest.fields.name),
+          t(latest.fields.name),
+          t(latest.fields.semantics.meaning),
+          t(latest.fields.semantics.fallback, true),
+          t(L(s, "许可：", "License: ") + latest.fields.rights.license, true),
+          latest.confirmed
+            ? t(L(s, "此草稿已确认。如需保留你的修改，请另存。", "This draft is already confirmed. Save separately to keep your changes."), true)
+            : button("conflict-adopt", L(s, "采用最新，放弃本地修改", "Use latest and discard my edits"), async () => {
+                s.draft = latest;
+                s.imagePath = "";
+                s.copyImageHash = null;
+                s.draftConflict = false;
+                s.conflictLatest = null;
+                s.step = "edit";
+                s.preview = null;
+                s.reviewed = false;
+              }),
+        ] : []),
+      ]);
+    } else if (s.drafts)
       body = col([
         t(L(s, "未完成的草稿", "Unfinished drafts")),
         ...s.drafts
@@ -196,6 +231,9 @@ export function pane($, e, s, makePicture) {
                 s.step = "edit";
                 s.preview = null;
                 s.imagePath = "";
+                s.copyImageHash = null;
+                s.draftConflict = false;
+                s.conflictLatest = null;
               },
             ),
           ),
@@ -458,6 +496,7 @@ export function pane($, e, s, makePicture) {
             ),
             true,
           ),
+        s.copyImageHash && !s.imagePath && t(L(s, "待保存时沿用原草稿图片。", "The original draft image will be kept when saved."), true),
         input("field:name", L(s, "名称", "Name"), d.fields.name, (value) =>
           editField("name", value),
         ),
@@ -700,6 +739,9 @@ export function pane($, e, s, makePicture) {
             s.step = "edit";
             s.preview = null;
             s.imagePath = "";
+            s.copyImageHash = null;
+            s.draftConflict = false;
+            s.conflictLatest = null;
             await navigate($, s, "create");
           },
         ),

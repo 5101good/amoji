@@ -138,19 +138,33 @@ export async function executeBridge(
       return app.library.createDraft();
     case "listDrafts":
       return (await app.library.listDrafts()).filter((d) => !d.confirmed);
-    case "getDraft":
-      return app.library.getDraft(nonempty(args.id));
-    case "saveDraft":
+    case "getDraft": {
+      const draft = await app.library.getDraft(nonempty(args.id));
+      return { ...draft, preview: await preview(draft.visual) };
+    }
+    case "saveDraft": {
+      if (
+        args.imageHash !== undefined &&
+        (typeof args.imageHash !== "string" ||
+          !/^[a-f0-9]{64}$/.test(args.imageHash) ||
+          args.imagePath)
+      )
+        fail("INVALID_ARGUMENT", "需要一个已保存的图片摘要或一个新图片路径");
+      const imagePath = args.imagePath ||
+        (args.imageHash
+          ? await client.blobPath(args.imageHash as string)
+          : undefined);
       return app.library.saveDraft(
         nonempty(args.id),
         draftVersion(args.version),
         draftFields(args.fields),
-        args.imagePath
+        imagePath
           ? (
-              await readBoundedFile(args.imagePath, MEDIA_LIMITS.bytes)
+              await readBoundedFile(imagePath, MEDIA_LIMITS.bytes)
             ).toString("base64")
           : undefined,
       );
+    }
     case "previewDraft": {
       const draft = await app.library.previewDraft(
         nonempty(args.id),

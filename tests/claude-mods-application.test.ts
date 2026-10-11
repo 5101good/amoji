@@ -1,5 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -336,4 +338,46 @@ test("文件失败返回可显示的稳定错误，不泄露本地路径或误�
     ),
     { code: "FILE_WRITE_FAILED" },
   );
+});
+
+
+test("真实 stdin 跨 UTF-8 字符分块不改变中文意图", async (t) => {
+  const { directory, context } = await setup(t);
+  const bytes = Buffer.from(JSON.stringify({ command: "suggestionRequest", context, args: { intent: "感谢搭档🌱" } }));
+  const boundary = bytes.indexOf(Buffer.from("感")) + 1;
+  const child = spawn(process.execPath, ["--import", "tsx", "src/claude-mods/main.ts"], {
+    env: { ...process.env, AMOJI_DATA_DIR: directory }, stdio: ["pipe", "pipe", "pipe"],
+  });
+  t.after(() => child.kill());
+  let output = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", chunk => { output += chunk; });
+  const exited = new Promise<void>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("exit", code => code === 0 ? resolve() : reject(new Error(`Bridge exit ${code}`)));
+  });
+  child.stdin.write(bytes.subarray(0, boundary));
+  await delay(500); // Separate actual OS pipe reads, including the incomplete UTF-8 code point.
+  child.stdin.end(bytes.subarray(boundary));
+  await exited;
+  const reply = JSON.parse(output);
+  assert.equal(reply.ok, true);
+  assert.deepEqual(JSON.parse(reply.result.prompt), { intent: "感谢搭档🌱" });
+});
+
+test("冲突另存可沿用原图片摘要，远端草稿与本地文字互不覆盖", async (t) => {
+  const { app, client, context } = await setup(t);
+  const run = (command: string, args: unknown = {}) => executeBridge(app, client, { command, context, args }) as Promise<any>;
+  const expression = (await client.list())[0]!;
+  const original = await run("createDraft");
+  const fields = { name: "我的本地修改", semantics: {locale:"zh-CN",meaning:"感谢搭档",fallback:"谢谢"},rights:{license:"MIT"} };
+  const remote = await run("saveDraft", { id: original.draft_id, version: original.version, fields: {...fields,name:"另一会话的修改"} });
+  await assert.rejects(run("saveDraft", {id:original.draft_id,version:original.version,fields}), /DRAFT_CONFLICT/);
+  const fork = await run("createDraft");
+  const saved = await run("saveDraft", { id: fork.draft_id, version: fork.version, fields, imageHash: expression.visual.primary.sha256 });
+  assert.equal(saved.fields.name, fields.name);
+  assert.deepEqual(saved.visual, expression.visual);
+  assert.equal((await client.getDraft(original.draft_id)).version, remote.version);
+  assert.equal((await client.getDraft(original.draft_id)).fields.name, "另一会话的修改");
+  await assert.rejects(run("saveDraft", {id:saved.draft_id,version:saved.version,fields,imageHash:"../../private"}), /INVALID_ARGUMENT/);
 });

@@ -115,7 +115,9 @@ function backend(
       value: {
         exitCode: 0,
         stdout: JSON.stringify(
-          failSend && request.command === "receive"
+          result?.bridgeError
+            ? { ok: false, error: { code: result.bridgeError } }
+            : failSend && request.command === "receive"
             ? { ok: false, error: { code: "SERVICE_OUTCOME_UNKNOWN" } }
             : { ok: true, result },
         ),
@@ -474,5 +476,71 @@ test("个人库导入和导出只在明确点击确认后调用文件命令", as
   expect(calls.find((c) => c.command === "importPack").args.path).toBe(
     "/tmp/incoming.amoji",
   );
+  await ui.unmount();
+});
+
+
+for (const imagePath of ["", "/tmp/我的新图片.png"]) {
+  test(`草稿冲突保留输入并另存独立草稿（${imagePath ? "新图" : "原图"}）`, async ($, on) => {
+    const calls: any[] = [];
+    let created = 0;
+    const oldHash = "a".repeat(64);
+    backend(on, calls, false, () => "haiku", (request, result) => {
+      if (request.command === "createDraft") return { ...result, draft_id: `draft-${++created}`, visual: {primary:{sha256:oldHash}} };
+      if (request.command === "saveDraft") return request.args.id === "draft-1"
+        ? { bridgeError: "DRAFT_CONFLICT" }
+        : { draft_id: request.args.id, version: 2, fields: request.args.fields };
+      if (request.command === "getDraft") return {
+        draft_id: "draft-1", version: 2,
+        fields: {name:"远端内容",semantics:{locale:"zh-CN",meaning:"远端意思",fallback:"远端"},rights:{license:"MIT"}},
+      };
+      return result;
+    });
+    const ui = await $.ui.mount(pane);
+    await ui.press({key:"tab:create"});
+    await ui.press({key:"manual-edit"});
+    await ui.input({key:"field:name",text:"保留我的输入"});
+    if (imagePath) await ui.input({key:"image-path",text:imagePath});
+    await ui.press({key:"save-draft"});
+    expect(await ui.find({key:"conflict-latest"})).toBeDefined();
+    await ui.press({key:"conflict-latest"});
+    expect(await ui.find({type:"Text",text:/远端内容/})).toBeDefined();
+    await ui.press({key:"conflict-fork"});
+    const saved = calls.filter(c=>c.command === "saveDraft");
+    expect(saved.length).toBe(2);
+    expect(saved[1].args.id).toBe("draft-2");
+    expect(saved[1].args.fields.name).toBe("保留我的输入");
+    if (imagePath) expect(saved[1].args.imagePath).toBe(imagePath);
+    else expect(saved[1].args.imageHash).toBe(oldHash);
+    expect(await ui.find({key:"field:name"})).toBeDefined();
+    await ui.unmount();
+  });
+}
+
+test("冲突只有显式采用最新内容才丢弃本地编辑，后续保存使用远端版本", async ($, on) => {
+  const calls: any[] = [];
+  backend(on, calls, false, () => "haiku", (request, result) => {
+    if (request.command === "saveDraft") return request.args.version === 1
+      ? { bridgeError: "DRAFT_CONFLICT" }
+      : { draft_id: "draft-1", version: 3, fields: request.args.fields };
+    if (request.command === "getDraft") return {
+      draft_id: "draft-1", version: 2,
+      fields: {name:"远端草稿",semantics:{locale:"zh-CN",meaning:"最新意思",fallback:"最新"},rights:{license:"MIT"}},
+    };
+    return result;
+  });
+  const ui = await $.ui.mount(pane);
+  await ui.press({key:"tab:create"});
+  await ui.press({key:"manual-edit"});
+  await ui.input({key:"field:name",text:"本地输入"});
+  await ui.press({key:"save-draft"});
+  expect(await ui.find({key:"conflict-adopt"})).toBeUndefined();
+  await ui.press({key:"conflict-latest"});
+  expect(calls.filter(c=>c.command === "saveDraft").length).toBe(1);
+  await ui.press({key:"conflict-adopt"});
+  await ui.press({key:"save-draft"});
+  const saved = calls.filter(c=>c.command === "saveDraft");
+  expect(saved[1].args.version).toBe(2);
+  expect(saved[1].args.fields.name).toBe("远端草稿");
   await ui.unmount();
 });

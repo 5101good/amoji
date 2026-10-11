@@ -28,6 +28,12 @@ export const refOf = (expression) => ({
 export const L = (s, zh, en) => (s.language === "en" ? en : zh);
 export function errorText(s, error) {
   const code = String(error?.message || error);
+  if (/^DRAFT_(CONFLICT|CONFIRMED)$/.test(code))
+    return L(
+      s,
+      "这个草稿已在另一处更新。你的输入已保留，请选择如何继续。",
+      "This draft changed elsewhere. Your input is preserved; choose how to continue.",
+    );
   if (/OUTCOME_UNKNOWN/.test(code))
     return L(
       s,

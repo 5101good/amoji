@@ -49,6 +49,7 @@ On 2026-10-11, an isolated local project and Amoji library in Claude Desktop 2.3
 - Composer entry, two-column thumbnails and named-button sending; human messages display images and the model responds to fixed text semantics.
 - Real `search` → `emit` calls produce a short reply with an expression. Both human and assistant images still render after plugin reload.
 - Creation defaults to the current conversation model. One intent generates a suggestion, explicitly adopted before editing; drafts save and resume, then image/meaning review gates confirmation into the library.
+- Concurrent-write conflict recovery: inspect the latest content, save local text and the original image separately, and verify the other writer’s draft remains unchanged.
 - Search, `.amoji` export, readable file errors and corrected retry, duplicate import without duplicate revisions, archive and restore.
 - Office appearance applies to the picker while existing classic messages keep their original images. Code’s Chinese/English setting switches the interface.
 

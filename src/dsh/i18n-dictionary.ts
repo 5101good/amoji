@@ -1,4 +1,5 @@
 export const english = {
+  "正在处理…": "Working…",
 "先给例子，再解释。": "Give an example before explaining.",
 "简明回答，保留必要依据。": "Be concise and retain necessary evidence.",
 "先给答案，再说明依据。": "Answer first, then evidence.",

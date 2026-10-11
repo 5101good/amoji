@@ -85,7 +85,7 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
       );
       const rows = (
         await env.DB.prepare(
-          `SELECT r.*,p.updated_at FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.updated_at DESC,p.pack_id DESC LIMIT ?`,
+          `SELECT r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.updated_at DESC,p.pack_id DESC LIMIT ?`,
         )
           .bind(...values)
           .all<PublicRelease>()

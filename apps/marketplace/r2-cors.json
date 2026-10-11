@@ -1,7 +1,7 @@
 {
   "rules": [{
     "allowed": {
-      "origins": ["https://amoji-auth-v0.5101good.workers.dev"],
+      "origins": ["https://amoji.ai-web.ai"],
       "methods": ["PUT"],
       "headers": ["content-type", "content-length"]
     },

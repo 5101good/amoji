@@ -81,3 +81,7 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 ## 初始内容发布
 
 [三套正式内容包](../../assets/scenario-packs/README.md)在仓库中提供完整0.2和纯表达0.1。使用独立、持久保留的创作者账号逐包投稿，由另一审核账号决定；不要删除正式内容作者，否则公开内容会下架。仓库构建不等于云端发布。动作不是强制控制，用户关闭后停止后续应用但历史保留。部署后分别记录匿名获取、真实dsh安装/发送、动作事件和模型完整回合，不能用一层证据替代另一层。
+
+## 正式部署与恢复
+
+正式来源为 `https://amoji.ai-web.ai`；production 已绑定现有 `amoji-auth-v0` Worker/D1。部署前核对实际资源，保留现有 secrets 和迁移记录。只读目录 metadata 有独立的 64 并发上限，不占用 8 个重计算排队名额；每 IP 请求限额继续生效。备份使用独立 DO 和私有 R2，由定时任务调用官方 D1 export，需专用 D1 Read token。完整的停写、健康检查、备份恢复、费用与回退流程见[运营说明](../../docs/marketplace-operations.md)。

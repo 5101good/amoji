@@ -2,17 +2,17 @@
 
 [English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-面向人和 AI 的原生表情：人看图，模型读固定语义。1.0.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
+面向人和 AI 的原生表情：人看图，模型读固定语义。1.1.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.0.0.tgz`，在文件所在目录执行：
+从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.1.0.tgz`，在文件所在目录执行：
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -42,7 +42,7 @@ direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具
 
 在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装场景包或独立收藏单张表情。安装不会启用动作。检查更新会列出语义和动作差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
 
-Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认当前验证环境 `https://amoji-auth-v0.5101good.workers.dev`，不代表正式公开域名上线）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
+Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认正式市场 `https://amoji.ai-web.ai`）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
 
 断网仍可发送已安装或独立收藏的表情。缓存显示上次核对时间；失败安装保留原库，未知结果通过「核对原安装操作」读取原 operation，不能改用新请求盲目重试。
 

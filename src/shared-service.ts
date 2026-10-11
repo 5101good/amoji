@@ -28,7 +28,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji-auth-v0.5101good.workers.dev');
+  const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji.ai-web.ai');
   void marketplace.refreshRevocations({});
   const revocationTimer=setInterval(()=>void marketplace.refreshRevocations({}),15*60*1000);revocationTimer.unref();
   const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: ['marketplace-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };

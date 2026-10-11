@@ -43,8 +43,12 @@
   },
   "env": {
     "production": {
+      "name": "amoji-auth-v0",
+      "routes": [{ "pattern": "amoji.ai-web.ai", "custom_domain": true }],
       "vars": {
         "APP_ORIGIN": "https://amoji.ai-web.ai",
+        "BACKUP_ACCOUNT_ID": "5e76b121867f4d57af8fb17fd0afbcfb",
+        "BACKUP_DATABASE_ID": "be637e12-8314-4926-8354-de444558b7b2",
         "UPLOAD_ENABLED": "false",
       },
       "durable_objects": {
@@ -56,8 +60,8 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "amoji-marketplace",
-          "database_id": "REPLACE_WITH_PROVISIONED_DATABASE_ID",
+          "database_name": "amoji-auth-v0",
+          "database_id": "be637e12-8314-4926-8354-de444558b7b2",
           "migrations_dir": "migrations",
         },
       ],

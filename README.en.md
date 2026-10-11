@@ -1,6 +1,6 @@
 # Amoji
 
-[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.0](https://github.com/5101good/amoji/releases/tag/v1.0.0)
+[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.1](https://github.com/5101good/amoji/releases/tag/v1.1.0)
 
 **Working with AI needs room for expression.**
 
@@ -11,6 +11,10 @@ AI-native expressions: people see the artwork; AI reads its fixed meaning. A sha
   <img src="assets/samples/source/wry.png" alt="A sheepish smile" width="140" />
   <img src="assets/samples/encourage-poster.png" alt="Cheering you on" width="140" />
 </p>
+
+## Scenario marketplace
+
+Version 1.1 adds the [reviewed marketplace](https://amoji.ai-web.ai), three scenario packs, optional turn instructions and two conversation rule templates. Install from Expressions → Marketplace in dsh; installation never activates actions. See [operations and recovery](docs/marketplace-operations.en.md).
 
 ## Why we are building this
 
@@ -77,20 +81,20 @@ Our vision is an expression system that can travel across models and clients. **
 If you already use dsh’s `web` profile, install the public Release package directly and restart that profile:
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 For a separate profile and checksum verification:
 
 1. Use **Node.js 24 or newer**. The verified baseline is **dsh 0.1.5-rc.2 on macOS arm64**.
-2. Download `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
+2. Download `amoji-dsh-1.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
 3. Install into your dsh profile, restart that profile, select a workspace, and open Expressions in the composer.
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 

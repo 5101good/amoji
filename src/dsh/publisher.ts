@@ -4,7 +4,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import type {AdapterRuntime} from '../adapter-runtime.js';
 import {exportManifest,withValidatedPack,type ScenarioPack} from '../packs.js';
 import {fail,object,nonempty} from '../shared-contract.js';
-export const MARKET_ORIGIN='https://amoji-auth-v0.5101good.workers.dev';
+export const MARKET_ORIGIN='https://amoji.ai-web.ai';
 type Tokens={access_token:string;refresh_token:string;account_id:string;device_id:string;expires_at:number;refreshing?:boolean};
 type Pair={id:string;device_secret:string;user_code:string;device_name:string;expires_at:number;verification_uri:string;next_poll:number};
 type Credentials={origin:string;tokens?:Tokens;pair?:Pair};

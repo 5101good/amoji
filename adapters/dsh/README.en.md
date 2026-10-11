@@ -2,17 +2,17 @@
 
 [中文](README.md) · [Project and documentation](https://github.com/5101good/amoji)
 
-Native expressions for people and AI: people see artwork, models read fixed meaning. Version 1.0.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**, and has live host evidence on macOS arm64.
+Native expressions for people and AI: people see artwork, models read fixed meaning. Version 1.1.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**, and has live host evidence on macOS arm64.
 
 ## Install and use
 
-Download and verify `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
+Download and verify `amoji-dsh-1.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -42,7 +42,7 @@ Full [installation/recovery](https://github.com/5101good/amoji/blob/main/docs/ds
 
 Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables actions. Updates show semantic and action differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
 
-The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (currently defaulting to the verification environment `https://amoji-auth-v0.5101good.workers.dev`, not a claim of public-domain launch). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
+The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (defaulting to the public marketplace `https://amoji.ai-web.ai`). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
 
 Installed and collected expressions remain usable offline. Cached results disclose their last check time. Failed installs preserve the library; reconcile uncertain outcomes with “Check original operation” instead of blindly issuing a new operation.
 

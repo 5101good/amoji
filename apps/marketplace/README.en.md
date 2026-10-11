@@ -26,7 +26,7 @@ Local tests do not establish cloud free-tier CPU, memory or latency feasibility.
 
 ## Deployment
 
-Set your provisioned D1 database ID and production origin, set a random secret with `wrangler secret put BETTER_AUTH_SECRET --env production`, and apply migrations to the explicitly selected database before `npm run deploy`. Placeholder IDs intentionally prevent accidental deployment. Production does not inherit the local-test switch. Stop on insufficient permissions or quotas; never activate paid upgrades automatically. Do not enable read replicas for auth data.
+Set your provisioned D1 database ID and production origin, set a random secret with `wrangler secret put BETTER_AUTH_SECRET --env production`, and apply migrations to the explicitly selected database before `npm run deploy`. The production ID is explicit; verify it before any remote command. Production does not inherit the local-test switch. Stop on insufficient permissions or quotas; never activate paid upgrades automatically. Do not enable read replicas for auth data.
 
 Authentication exposes only `/v1/auth/csrf`, `register`, `login`, `logout` and `/v1/me`. No script-readable session tokens or administrator signup endpoints. Cookies expire after at most 12 hours without refresh. Five-minute CSRF tokens accompany an exact Origin check.
 
@@ -81,3 +81,7 @@ Device authorization adds migration `0007-device-authorizations.sql`; apply it b
 ## Publishing initial content
 
 [Three official content packs](../../assets/scenario-packs/README.en.md) provide full 0.2 and expression-only 0.1 artifacts. Submit each from an independent, retained creator account and have another reviewer decide; deleting the creator unpublishes the content. Repository builds do not establish cloud publication. Actions are guidance, not enforcement; disabling stops future application while preserving history. Record anonymous acquisition, native dsh installation/sending, action events and complete model turns separately after deployment.
+
+## Production and recovery
+
+The formal origin is `https://amoji.ai-web.ai`; production selects the existing `amoji-auth-v0` Worker/D1. Verify actual resources before deploying and preserve existing secrets/migration records. Read-only catalog metadata has a separate 64-reader bound and does not consume the eight heavy-job queue slots; per-IP limits remain enforced. A separate backup DO and private R2 use scheduled official D1 exports with a dedicated D1 Read token. See [operations](../../docs/marketplace-operations.en.md) for upload cutoff, health, backup/restore, cost and rollback procedures.

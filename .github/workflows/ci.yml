@@ -36,6 +36,13 @@ jobs:
         run: npm test
       - name: Build plugin and test published dsh contracts
         run: npm run test:dsh
+      - name: Verify marketplace runtime and web application
+        working-directory: apps/marketplace
+        run: |
+          npm ci --registry=https://registry.npmjs.org
+          npm run typecheck
+          npm test
+          npm run build
       - name: Release validation regression tests
         run: node --test scripts/release-artifacts.test.mjs
       - name: Verify package, licenses, content and checksums

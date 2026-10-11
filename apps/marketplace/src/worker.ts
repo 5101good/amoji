@@ -1,3 +1,4 @@
+import { backupHealth } from "./backup";
 import { failure } from "./upload-shared";
 export { FreeRuntime } from "./free-runtime";
 export type Env = Omit<
@@ -5,6 +6,9 @@ export type Env = Omit<
   "APP_ORIGIN" | "LOCAL_TEST" | "ASSETS"
 > & {
   APP_ORIGIN: string;
+  BACKUP_ACCOUNT_ID?: string;
+  BACKUP_DATABASE_ID?: string;
+  D1_BACKUP_API_TOKEN?: string;
   BETTER_AUTH_SECRET: string;
   LOCAL_TEST?: string;
   ASSETS?: Fetcher;
@@ -25,9 +29,15 @@ export default {
       { method: "POST" },
     );
     if (!response.ok) throw Error("CLEANUP_RETRY");
+    const backup = await env.FREE_RUNTIME.getByName("backup-v1").fetch("https://runtime/backup", { method: "POST" });
+    if (!backup.ok) throw Error("BACKUP_RETRY");
   },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/v1/health" && request.method === "GET") {
+      const backup = await backupHealth(env);
+      return Response.json({ service: "amoji-marketplace", backup }, { status: backup.status === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } });
+    }
     if (!url.pathname.startsWith("/v1/"))
       return env.ASSETS
         ? env.ASSETS.fetch(request)
@@ -43,9 +53,13 @@ export default {
         : null;
     if (ip) headers.set("x-amoji-edge-ip", ip);
     try {
-      return await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
+      const start = performance.now();
+      const response = await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
         new Request(request, { headers }),
       );
+      const result = new Response(response.body, response);
+      result.headers.set("server-timing", `amoji;dur=${(performance.now() - start).toFixed(2)}`);
+      return result;
     } catch {
       return failure("RUNTIME_UNAVAILABLE", 503);
     }

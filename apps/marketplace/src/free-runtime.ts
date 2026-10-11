@@ -1,3 +1,4 @@
+import { runBackup } from "./backup";
 import { cleanupLifecycle } from "./retention";
 import marketApi from "./market-api";
 import type { Env } from "./worker";
@@ -29,7 +30,16 @@ export class FreeRuntime extends DurableObject<Env> {
   private tail: Promise<unknown> = Promise.resolve();
   private queued = 0;
   private reading = 0;
+  private metadataReading = 0;
   async fetch(request: Request): Promise<Response> {
+    const path = new URL(request.url).pathname;
+    // Metadata does not run archive decoding/password hashing. Its atomic D1
+    // rate limit still applies, while slow mutations retain the bounded queue.
+    if (request.method === "GET" && /^\/v1\/packs(?:\/[0-9a-f-]{36}(?:\/releases\/[0-9a-f-]{36})?)?$/.test(path)) {
+      if (this.metadataReading >= 64) return failure("RUNTIME_BUSY", 429);
+      this.metadataReading++;
+      try { return await this.handle(request); } finally { this.metadataReading--; }
+    }
     if (new URL(request.url).pathname.startsWith("/v1/") && request.body) {
       if (this.reading >= 8) return failure("RUNTIME_BUSY", 429);
       this.reading++;
@@ -109,6 +119,10 @@ export class FreeRuntime extends DurableObject<Env> {
     }
     if (request.method !== "POST") return new Response(null, { status: 404 });
     try {
+      if (path === "/backup") {
+        await runBackup(this.env);
+        return Response.json({ ok: true });
+      }
       if (path === "/cleanup") {
         await cleanupLifecycle(this.env);
         await cleanupUploads(this.env);

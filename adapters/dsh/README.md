@@ -37,3 +37,11 @@ direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具
 代码 MIT；基础素材 CC0-1.0；第三方依赖保留各自许可。参见包内 `LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/` 和 `assets/base-library/`。
 
 完整[安装恢复](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)、[使用](https://github.com/5101good/amoji/blob/main/docs/usage.md)和[已知限制](https://github.com/5101good/amoji/blob/main/docs/release.md)见源码仓库。
+
+### 表情市场
+
+在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装场景包或独立收藏单张表情。安装不会启用动作。检查更新会列出语义和动作差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
+
+Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认当前验证环境 `https://amoji-auth-v0.5101good.workers.dev`，不代表正式公开域名上线）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
+
+断网仍可发送已安装或独立收藏的表情。缓存显示上次核对时间；失败安装保留原库，未知结果通过「核对原安装操作」读取原 operation，不能改用新请求盲目重试。

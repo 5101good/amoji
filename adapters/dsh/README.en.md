@@ -37,3 +37,11 @@ Includes Host/Client, shared core, assets, build information, and license invent
 Code is MIT; built-in assets are CC0-1.0; dependencies retain their own licenses. See packaged `LICENSE`, `NOTICE`, `THIRD_PARTY.json`, `THIRD_PARTY_LICENSES/`, and `assets/base-library/`.
 
 Full [installation/recovery](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.en.md), [usage](https://github.com/5101good/amoji/blob/main/docs/usage.en.md), and [limitations](https://github.com/5101good/amoji/blob/main/docs/release.en.md) are in the source repository.
+
+### Expression marketplace
+
+Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables actions. Updates show semantic and action differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
+
+The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (currently defaulting to the verification environment `https://amoji-auth-v0.5101good.workers.dev`, not a claim of public-domain launch). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
+
+Installed and collected expressions remain usable offline. Cached results disclose their last check time. Failed installs preserve the library; reconcile uncertain outcomes with “Check original operation” instead of blindly issuing a new operation.

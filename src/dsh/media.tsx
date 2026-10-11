@@ -32,6 +32,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
     } return response;
   };
   return {
+    marketplace:(sessionId,method,args)=>call('marketplace.'+method,{sessionId,args}),
     reconnect: (sessionId, signal) => call('reconnect', { sessionId }, signal),
     management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal, method),
     importPack: async (sessionId, file) => {

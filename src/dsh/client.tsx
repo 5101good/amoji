@@ -42,10 +42,10 @@ export function createComponents(rpc: DshRpc) {
   // cannot tell us whether the host already accepted the original submission.
   const pendingSelections = new Map<string, {selected: Expression; requestId: string; action?:ActionSelection; sent?: HistoryEntry}>();
   function Picker({ sessionId }: SessionProps) {
-    const [reopen,setReopen]=useState(0); const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
-    return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onManage={()=>{setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
+    const [managerTab,setManagerTab]=useState('library'); const [reopen,setReopen]=useState(0); const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
+    return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onMarket={()=>{setManagerTab('market');setManagerSession(v=>v??sessionId);setManagerOpen(true);}} onManage={()=>{setManagerTab('library');setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager initialTab={managerTab} rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
   }
-  function PickerSession({ sessionId, onManage, refresh, reopen }: SessionProps & {onManage:()=>void;refresh:number;reopen:number}) {
+  function PickerSession({ sessionId, onManage, onMarket, refresh, reopen }: SessionProps & {onManage:()=>void;onMarket:()=>void;refresh:number;reopen:number}) {
  const t=useText();
     const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
@@ -189,7 +189,7 @@ export function createComponents(rpc: DshRpc) {
         setQuery(''); setCategory('全部'); setSelected(undefined);
       }}><SmileIcon/><span>{t("表情")}</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
-        <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={()=>dismiss()}><CloseIcon/></button></div></header>
+        <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onMarket();}}>{t("表情市场")}</button><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={()=>dismiss()}><CloseIcon/></button></div></header>
         <div className="amoji-appearance" aria-label={t("表情画风")}><span className="muted">{t("画风")}</span>{([['classic',t("经典")],['office',t("办公")]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy||uncertain} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">{t("点击即发送")}</span></div>
         <form className="amoji-picker-search" aria-label={t("搜索 Amoji")} onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
           <input aria-label={t("搜索表情")} value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder={t("想表达什么？")} />

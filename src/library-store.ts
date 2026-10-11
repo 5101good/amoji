@@ -174,7 +174,7 @@ export class LibraryStore {
   async importPack(input: PackInput): Promise<ImportResult> {
     return withValidatedPack(input, pack => this.importValidatedPack(pack, 'imported'));
   }
-  private async importValidatedPack(pack: ValidatedPack, origin: 'imported' | 'builtin'): Promise<ImportResult> {
+  private async importValidatedPack(pack: ValidatedPack, origin: 'imported' | 'builtin', acquisition?: { defaults?:ExpressionRef[]; beforeCommit():Promise<void>; commit():void }): Promise<ImportResult> {
     // Stage only fully validated content. No metadata becomes visible until every blob is written.
     for (const e of pack.manifest.expressions) {
       const prior = this.getRevision(e);
@@ -190,6 +190,7 @@ export class LibraryStore {
       try { await writeFile(temporary, await pack.readBlob(blob), { flag: 'wx', mode: 0o600 }); await rename(temporary, destination); }
       finally { await rm(temporary, { force: true }); }
     }
+    await acquisition?.beforeCommit();
     return this.transaction(() => {
       if(pack.manifest.schema_version==='0.2')this.persistScenarioPack(pack.manifest);
       let added = 0;
@@ -198,17 +199,57 @@ export class LibraryStore {
         if (prior && !isDeepStrictEqual(prior, e)) fail('REVISION_CONFLICT', '同一版本不能改变已确认定义');
         if (!prior) { this.db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(e.asset_id, e.revision_id, JSON.stringify(e)); added++; }
       }
-      for (const ref of pack.manifest.defaults) {
+      for (const ref of acquisition?.defaults ?? pack.manifest.defaults) {
+        if(!acquisition)this.marketWrite(`owned:${ref.asset_id}`,false);
         const present = this.db.prepare('SELECT asset_id FROM library_entries WHERE asset_id=?').get(ref.asset_id);
         if (present) continue; // Import is never an implicit current-version switch.
+        if(acquisition)this.marketWrite(`owned:${ref.asset_id}`,true);
         this.db.prepare('INSERT INTO library_entries VALUES (?,?)').run(ref.asset_id, ref.revision_id);
         this.db.prepare('INSERT INTO expression_origins VALUES (?,?)').run(ref.asset_id, origin);
         this.db.prepare('INSERT INTO entry_state VALUES (?,1,0)').run(ref.asset_id);
       }
       const manifest = JSON.stringify(pack.manifest);
-      this.db.prepare('INSERT OR IGNORE INTO imported_packs VALUES (?,?,?)').run(createHash('sha256').update(manifest).digest('hex'), pack.manifest.pack_id, manifest);
+      if (!acquisition) this.db.prepare('INSERT OR IGNORE INTO imported_packs VALUES (?,?,?)').run(createHash('sha256').update(manifest).digest('hex'), pack.manifest.pack_id, manifest);
+      acquisition?.commit();
       return { pack_id: pack.manifest.pack_id, added, existing: pack.manifest.expressions.length - added, defaults: pack.manifest.defaults, ...(pack.manifest.schema_version==='0.2'?{actions:pack.manifest.actions.map(a=>({ref:{action_id:a.action_id,action_revision_id:a.action_revision_id},enabled:false as const,reason:'当前宿主尚未提供已验证的动作运行能力 / Action runtime is not yet supported by this host'}))}:{}) };
     });
+  }
+  marketRead<T>(key:string):T|undefined { const row=this.db.prepare('SELECT value FROM metadata WHERE key=?').get(`market:${key}`) as {value:string}|undefined; return row?JSON.parse(row.value):undefined; }
+  marketWrite(key:string,value:unknown):void { this.db.prepare('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(`market:${key}`,JSON.stringify(value)); }
+  marketInstalls():Array<{release_id:string;origin:string;digest:string;state:string;refs:ExpressionRef[]}> {return (this.db.prepare('SELECT * FROM local_installs').all() as Array<any>).map(r=>({...r,refs:JSON.parse(r.refs)}));}
+  marketCollections():Array<{ref:ExpressionRef;source:unknown}> {return (this.db.prepare('SELECT * FROM collection_refs').all() as Array<{asset_id:string;revision_id:string;origin:string}>).map(r=>({ref:{asset_id:r.asset_id,revision_id:r.revision_id},source:JSON.parse(r.origin)}));}
+  async marketCommit(pack:ValidatedPack,source:{origin:string;digest:string;operation_id:string;ref?:ExpressionRef},beforeCommit:()=>Promise<void>):Promise<void> {
+    if(pack.manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','市场需要场景包');
+    const manifest=pack.manifest;
+    if(source.ref&&!manifest.expressions.some(e=>e.asset_id===source.ref!.asset_id&&e.revision_id===source.ref!.revision_id))fail('REVISION_NOT_FOUND','收藏版本不在包内');
+    const selected=source.ref?[source.ref]:manifest.defaults;
+    await this.importValidatedPack(pack,'imported',{defaults:selected,
+      beforeCommit,
+      commit:()=>{
+        // Only acquisition-owned entries can disappear with their last reference.
+        if(source.ref)this.db.prepare('INSERT INTO collection_refs VALUES (?,?,?) ON CONFLICT(asset_id,revision_id) DO UPDATE SET origin=excluded.origin').run(source.ref.asset_id,source.ref.revision_id,JSON.stringify({origin:source.origin,release_id:manifest.release_id,pack_id:manifest.pack_id,rights:manifest.rights}));
+        else {
+          for(const old of this.marketInstalls())if(old.state==='installed'&&this.getScenarioPack(old.release_id).pack_id===manifest.pack_id&&old.release_id!==manifest.release_id)this.removeScenarioPackRecords(old.release_id);
+          this.db.prepare('INSERT INTO local_installs VALUES (?,?,?,?,?) ON CONFLICT(release_id) DO UPDATE SET state=excluded.state,refs=excluded.refs').run(manifest.release_id,source.origin,source.digest,'installed',JSON.stringify(selected));
+          for(const ref of selected)if(this.marketRead(`owned:${ref.asset_id}`)){this.db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(ref.revision_id,ref.asset_id);this.db.prepare('UPDATE entry_state SET version=version+1 WHERE asset_id=?').run(ref.asset_id);}
+        }
+        this.marketPrune();
+        const op=this.marketRead<Record<string,unknown>>(`operation:${source.operation_id}`)!;
+        this.marketWrite(`operation:${source.operation_id}`,{...op,status:'committed',last_checked_at:new Date().toISOString()});
+      }
+    });
+  }
+  marketRemove(packId:string):void {this.transaction(()=>{for(const i of this.marketInstalls())if(this.getScenarioPack(i.release_id).pack_id===packId)this.removeScenarioPackRecords(i.release_id);this.marketPrune();});}
+  marketUncollect(ref:ExpressionRef):void {this.transaction(()=>{this.db.prepare('DELETE FROM collection_refs WHERE asset_id=? AND revision_id=?').run(ref.asset_id,ref.revision_id);this.marketPrune();});}
+  private marketPrune():void {
+    const retained=[...this.marketInstalls().filter(i=>i.state==='installed').flatMap(i=>i.refs),...this.marketCollections().map(c=>c.ref)];
+    for(const entry of this.listEntries()){
+      const id=entry.expression.asset_id;
+      if(entry.origin==='local'||!this.marketRead(`owned:${id}`))continue;
+      const ref=retained.find(r=>r.asset_id===id&&r.revision_id===entry.expression.revision_id)??retained.find(r=>r.asset_id===id);
+      if(ref){this.db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(ref.revision_id,id);continue;}
+      this.db.prepare('DELETE FROM library_entries WHERE asset_id=?').run(id);this.db.prepare('DELETE FROM entry_state WHERE asset_id=?').run(id);this.db.prepare('DELETE FROM expression_origins WHERE asset_id=?').run(id);
+    }
   }
   private persistScenarioPack(pack:ScenarioPack):void {
     const previous=this.db.prepare('SELECT manifest FROM pack_releases WHERE release_id=? OR (pack_id=? AND version=?)').all(pack.release_id,pack.pack_id,pack.version) as Array<{manifest:string}>;
@@ -269,7 +310,7 @@ export class LibraryStore {
   list(): Expression[] {
     const appearance = this.getSettings().appearance;
     const seen = new Set<string>();
-    return this.availableEntries().filter(entry => {
+    const selected=this.availableEntries().filter(entry => {
       if (entry.origin !== 'builtin') return true;
       const tagged = expressionAppearance(entry.expression);
       if (tagged && tagged !== appearance) return false;
@@ -278,6 +319,8 @@ export class LibraryStore {
       if (seen.has(family)) return false;
       seen.add(family); return true;
     }).map(entry => entry.expression);
+    for(const {ref} of this.marketCollections())if(this.availableEntries().some(e=>e.expression.asset_id===ref.asset_id)&&!selected.some(e=>e.asset_id===ref.asset_id&&e.revision_id===ref.revision_id))selected.push(this.resolve(ref));
+    return selected;
   }
 
   getEntry(assetId: string): LibraryEntry {
@@ -462,7 +505,7 @@ export class LibraryStore {
       if (settings.paused) fail('AI_PAUSED', 'AI 主动表情已暂停，仍可手动发送');
       const ordinal = this.observeTurn(context, session);
       if (session.emittedTurns.includes(turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
-      if (!this.availableEntries().some(e => e.expression.asset_id === selection.ref.asset_id && e.expression.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
+      if (!this.list().some(e => e.asset_id === selection.ref.asset_id && e.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
       if (session.lastEmission?.assetId === selection.ref.asset_id) fail('REPEAT_LIMIT', '不能连续重复同一表情');
       if (settings.frequency === 'restrained' && session.lastEmission && ordinal - session.lastEmission.ordinal < 2) fail('FREQUENCY_LIMIT', '克制模式需冷却一个完整回合');
       const message = this.message(session, selection.ref, 'ai_to_human');
@@ -485,7 +528,7 @@ export class LibraryStore {
         return message;
       }
       this.resolve(ref);
-      if (!this.availableEntries().some(e => e.expression.asset_id === ref.asset_id && e.expression.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
+      if (!this.list().some(e => e.asset_id === ref.asset_id && e.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
       const choice = selection ? this.collaborationChoices(context, ref).find(c => isDeepStrictEqual(c.selection,selection)) ?? fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情') : undefined;
       const message = this.message(session, ref, 'human_to_ai');
       if(choice){message.action_intent={...choice,operation_id:randomUUID(),requestId,status:'prepared'};this.db.prepare('INSERT INTO action_intents VALUES (?,?,?,?)').run(message.action_intent.operation_id,sessionKey(context),requestId,JSON.stringify(message.action_intent));}
@@ -547,12 +590,13 @@ export class LibraryStore {
     });
   }
   removeScenarioPack(releaseId:string):void {
-    this.transaction(()=>{
+    this.transaction(()=>this.removeScenarioPackRecords(releaseId));
+  }
+  private removeScenarioPackRecords(releaseId:string):void {
       this.getScenarioPack(releaseId);
       this.db.prepare("INSERT INTO local_installs VALUES (?,'local','','removed','[]') ON CONFLICT(release_id) DO UPDATE SET state='removed'").run(releaseId);
       const rows=this.db.prepare("SELECT session_key,data FROM rule_activations WHERE conflict_group='@session'").all() as {session_key:string;data:string}[];
       for(const row of rows){const state:RuleSnapshot=JSON.parse(row.data);let changed=false;for(const rule of state.rules)if(rule.enabled&&rule.source.release_id===releaseId){rule.enabled=false;rule.status='disabled';rule.reason='source-unavailable';changed=true;}if(changed){state.generation++;this.db.prepare("UPDATE rule_activations SET generation=?,data=? WHERE session_key=? AND conflict_group='@session'").run(state.generation,JSON.stringify(state),row.session_key);}}
-    });
   }
   saveActionIntent(context: BindingContext, messageId: string, update: Pick<ActionIntent,'status'|'checkpoint'|'receipt'>): void {
     if(context.host!=='dsh')fail('BINDING_MISMATCH','动作仅支持 dsh');

@@ -104,3 +104,9 @@ test('发布网络与授权错误按当前英文locale显示，原始诊断单�
   assert.doesNotMatch(f.dom.window.document.querySelector('[role="alert"]')!.querySelector('p')!.textContent!,/发布诊断/);
  }
 });
+test('上传响应丢失后立即重读持久草稿并呈现恢复原上传',async t=>{
+ const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
+ const manifest={name:'selected',release_id:'local',rights:{license:'CC0-1.0'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:3,state:'draft',source_release_id:'local',manifest};
+ const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string)=>{if(method==='loginStatus')return{state:'authenticated'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1};return d;}if(method==='upload'){d={...d,state:'uploading',version:d.version+1};throw Object.assign(Error('断网'),{code:'PUBLISHER_OFFLINE'});}throw Error(method);}} as unknown as DshRpc;
+ await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));await act(async()=>f.button('恢复发布草稿').click());await act(async()=>f.button('上传并校验所选内容').click());assert.ok(f.button('恢复原上传'));assert.equal(f.button('上传并校验所选内容'),undefined);
+});

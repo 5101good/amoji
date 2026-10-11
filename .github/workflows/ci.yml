@@ -28,6 +28,9 @@ jobs:
           package-manager-cache: false
       - name: Install locked dependencies
         run: npm ci --registry=https://registry.npmjs.org
+      - name: Install marketplace locked dependencies
+        working-directory: apps/marketplace
+        run: npm ci --registry=https://registry.npmjs.org
       - name: Typecheck
         run: npm run typecheck
       - name: Audit locked dependencies
@@ -39,7 +42,6 @@ jobs:
       - name: Verify marketplace runtime and web application
         working-directory: apps/marketplace
         run: |
-          npm ci --registry=https://registry.npmjs.org
           npm run typecheck
           npm test
           npm run build

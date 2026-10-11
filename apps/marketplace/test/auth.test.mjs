@@ -36,6 +36,7 @@ test("HTTP account access requires authentication and rejects cross-origin write
       .split(";")
       .filter((s) => s.trim()))
       await db.prepare(sql).run();
+    for (const sql of (await readFile(new URL("../migrations/0007-device-authorizations.sql", import.meta.url),"utf8")).split(";").filter(s=>s.trim())) await db.prepare(sql).run();
     const r = await mf.dispatchFetch("https://amoji.test/v1/me");
     assert.equal(r.status, 401);
     const bad = await mf.dispatchFetch("https://amoji.test/v1/auth/register", {
@@ -105,6 +106,7 @@ test("real workerd signup, password login, secure session and immediate revocati
       .split(";")
       .filter((s) => s.trim()))
       await db.prepare(sql).run();
+    for (const sql of (await readFile(new URL("../migrations/0007-device-authorizations.sql", import.meta.url),"utf8")).split(";").filter(s=>s.trim())) await db.prepare(sql).run();
     const one = await mf.getWorker("one"),
       two = await mf.getWorker("two");
     async function post(route, body, cookie = "", worker = one, extra = {}) {
@@ -339,6 +341,7 @@ test("HTTP slow control body cannot hold the shared runtime queue", async () => 
       .split(";")
       .filter((s) => s.trim()))
       await db.prepare(sql).run();
+    for (const sql of (await readFile(new URL("../migrations/0007-device-authorizations.sql", import.meta.url),"utf8")).split(";").filter(s=>s.trim())) await db.prepare(sql).run();
     const { csrf } = await (
       await mf.dispatchFetch("http://localhost/v1/auth/csrf")
     ).json();

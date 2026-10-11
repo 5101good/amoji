@@ -75,3 +75,5 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 `test/reviews.test.mjs` 通过真实本地 workerd D1/R2 binding 覆盖四actor、退回修订、CAS/回滚/幂等、私有隔离及摘要一致。云端四actor浏览器、实际R2 S3和云D1故障证据需单独实测，不能由本地测试推定。
 
 匿名公开读取统一按受信边缘 IP 限制每分钟120次，429附Retry-After；分享详情由 Static Assets 的 single-page-application fallback 支持直接访问。
+
+设备授权使用新增迁移 `0007-device-authorizations.sql`，部署时先迁移再更新 Worker。dsh 配对由已登录网页显式确认；网页不接收设备 access/refresh token。Host 创建和领取接口拒绝浏览器 Origin/Cookie，审核接口拒绝设备 token。只存 SHA-256 凭据摘要；5 分钟配对、15 分钟 access、30 天旋转 refresh，重用 refresh 撤销 family。网页注销撤销本人全部设备与未领取授权。使用相同私有 D1、SQLite DO 和既有 R2 直传链路。

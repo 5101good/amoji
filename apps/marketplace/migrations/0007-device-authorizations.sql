@@ -1,0 +1,4 @@
+CREATE TABLE market_device_authorization (id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL UNIQUE, user_code TEXT NOT NULL, device_name TEXT NOT NULL, expires_at INTEGER NOT NULL, polled_at INTEGER NOT NULL DEFAULT 0, owner TEXT REFERENCES market_account(id), state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','approved','redeemed','cancelled')));
+CREATE TABLE market_device_family (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES market_account(id), device_name TEXT NOT NULL, access_hash TEXT NOT NULL UNIQUE, access_expires INTEGER NOT NULL, refresh_hash TEXT NOT NULL UNIQUE, refresh_expires INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0 CHECK(revoked IN (0,1)));
+CREATE TABLE market_device_refresh (hash TEXT PRIMARY KEY, family TEXT NOT NULL REFERENCES market_device_family(id), used INTEGER NOT NULL DEFAULT 0 CHECK(used IN (0,1)));
+CREATE INDEX market_device_owner ON market_device_family(owner);

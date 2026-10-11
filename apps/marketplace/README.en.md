@@ -75,3 +75,5 @@ The anonymous catalog supports Chinese substring keywords, scenario, semantic la
 `test/reviews.test.mjs` exercises real local workerd D1/R2 bindings for four actors, revision loops, CAS/rollback/idempotency, private separation and digest identity. Cloud browser, actual S3 and cloud D1 fault evidence require separate live execution; local tests cannot establish them.
 
 All public reads share a trusted edge-IP limit of 120 per minute, with 429 and Retry-After. Static Assets single-page-application fallback supports direct shared-detail links.
+
+Device authorization adds migration `0007-device-authorizations.sql`; apply it before updating the Worker. Signed-in browser users explicitly approve dsh pairing, without receiving device access or refresh tokens. Host creation and redemption reject browser Origin/Cookie headers; review routes reject device tokens. Only SHA-256 credential digests are stored. Pairing lasts five minutes, access fifteen minutes, and rotating refresh thirty days; refresh reuse revokes the family. Web logout revokes all owned devices and unclaimed approvals. The existing private D1, SQLite DO and direct R2 upload pipeline are reused.

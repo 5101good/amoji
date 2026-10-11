@@ -1,3 +1,4 @@
+import {DeviceApproval} from "./device";
 import { Catalog, Reviews } from "./market";
 import { UploadPanel } from "./upload";
 import React, { useEffect, useState } from "react";
@@ -142,7 +143,7 @@ function App() {
           </h2>
           {account ? (
             <>
-              <p className="welcome">{account.name}</p>
+              <DeviceApproval locale={locale}/><p className="welcome">{account.name}</p>
               <p>{account.email}</p>
               <p className="note">{t.unverified}</p>
               {["reviewer", "admin"].includes(account.role) && (

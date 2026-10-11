@@ -111,11 +111,12 @@ export class FreeRuntime extends DurableObject<Env> {
       if (path === "/cleanup") {
         await cleanupUploads(this.env);
         await this.env.DB.prepare(
-          "DELETE FROM auth_rate_limit WHERE (key NOT LIKE 'public:%' AND bucket < ?) OR (key LIKE 'public:%' AND bucket < ?)",
+          "DELETE FROM auth_rate_limit WHERE (key NOT LIKE 'public:%' AND key NOT LIKE 'device:%' AND bucket < ?) OR (key LIKE 'public:%' AND bucket < ?) OR (key LIKE 'device:%' AND bucket < ?)",
         )
           .bind(
             Math.floor(Date.now() / 900000) - 1,
             Math.floor(Date.now() / 60000) - 2,
+            Math.floor(Date.now() / 3600000) - 1,
           )
           .run();
         return Response.json({ ok: true });

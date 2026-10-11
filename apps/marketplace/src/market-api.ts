@@ -1,3 +1,4 @@
+import {deviceRoute,deviceActor,revokeDevices} from "./devices";
 import { reviewRoute } from "./reviews";
 import { catalogRoute } from "./catalog";
 import { createAuth } from "./auth";
@@ -158,6 +159,23 @@ export default {
         const stamp = `${Date.now()}.${crypto.randomUUID()}`;
         return json({ csrf: `${stamp}.${await csrf(request, env, stamp)}` });
       }
+      if (path.startsWith('/v1/device-authorizations') || path.startsWith('/v1/device-tokens/')) {
+        const browser = request.method === 'GET' || path.endsWith('/approve');
+        if (!browser) {
+          if (request.headers.has('origin') || request.headers.has('cookie') || request.headers.has('sec-fetch-site')) return error('HOST_ONLY',403);
+          return deviceRoute(request,env);
+        }
+        const session = await createAuth(env).api.getSession({headers:request.headers,query:{disableCookieCache:true,disableRefresh:true}});
+        if(!session)return error('UNAUTHENTICATED',401);
+        const domain=await account(env,session.user);if(!domain||domain.disabled)return error('ACCOUNT_DISABLED',403);
+        if(request.method==='POST') {
+          if(request.headers.get('origin')!==env.APP_ORIGIN || request.headers.get('sec-fetch-site')==='cross-site')return error('ORIGIN',403);
+          const parts=(request.headers.get('x-csrf-token')??'').split('.'), stamp=parts.slice(0,2).join('.'),issued=Number(parts[0]);
+          if(parts.length!==3||!Number.isFinite(issued)||issued>Date.now()||Date.now()-issued>300000||!await validCsrf(request,env,stamp,parts[2]??''))return error('CSRF',403);
+          if(!await limit(env,'device-approval:'+domain.id,30))return error('RATE_LIMITED',429);
+        }
+        return deviceRoute(request,env,domain.id);
+      }
       if (path === "/v1/me" && request.method === "GET") {
         const session = await createAuth(env).api.getSession({
           headers: request.headers,
@@ -191,14 +209,14 @@ export default {
           );
         if (!["GET", "POST"].includes(request.method))
           return error("NOT_FOUND", 404);
-        const session = await createAuth(env).api.getSession({
-          headers: request.headers,
-          query: { disableCookieCache: true, disableRefresh: true },
-        });
-        if (!session) return error("UNAUTHENTICATED", 401);
-        const domain = await account(env, session.user);
-        if (!domain || domain.disabled) return error("ACCOUNT_DISABLED", 403);
+        const device = request.headers.has('authorization');
+        if(device && path.startsWith('/v1/review/'))return error('DEVICE_SCOPE',403);
+        const session = device ? null : await createAuth(env).api.getSession({headers:request.headers,query:{disableCookieCache:true,disableRefresh:true}});
+        const domain = device ? await deviceActor(request,env) : session ? await account(env,session.user) : null;
+        if(!domain)return error('UNAUTHENTICATED',401);
+        if('disabled' in domain && domain.disabled)return error('ACCOUNT_DISABLED',403);
         if (request.method === "POST") {
+          if(!device) {
           if (
             request.headers.get("origin") !== env.APP_ORIGIN ||
             request.headers.get("sec-fetch-site") === "cross-site"
@@ -215,6 +233,7 @@ export default {
             !(await validCsrf(request, env, stamp, parts[2] ?? ""))
           )
             return error("CSRF", 403);
+          }
           if (
             !(await limit(
               env,
@@ -301,12 +320,11 @@ export default {
         createdUserId = id;
       });
       let response: Response;
-      if (path.endsWith("logout"))
-        response = await auth.api.signOut({
-          headers: request.headers,
-          asResponse: true,
-        });
-      else {
+      if (path.endsWith("logout")) {
+        const session=await auth.api.getSession({headers:request.headers,query:{disableCookieCache:true,disableRefresh:true}});
+        if(session){const domain=await account(env,session.user);if(domain)await revokeDevices(env,domain.id);}
+        response = await auth.api.signOut({headers:request.headers,asResponse:true});
+      } else {
         if (
           typeof body.email !== "string" ||
           body.email.length > 254 ||

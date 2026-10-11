@@ -45,3 +45,9 @@ Open the marketplace from the picker to anonymously search, preview exact releas
 The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (currently defaulting to the verification environment `https://amoji-auth-v0.5101good.workers.dev`, not a claim of public-domain launch). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
 
 Installed and collected expressions remain usable offline. Cached results disclose their last check time. Failed installs preserve the library; reconcile uncertain outcomes with “Check original operation” instead of blindly issuing a new operation.
+
+### Publish from dsh
+
+Confirm a local scenario pack under Import and export, then open Publish to marketplace. Save description, licensing and optional actions in the wizard; visual packs need no actions. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
+
+Review the complete content before upload, validation and explicit submission. If the outcome is unknown, check the original operation and review status instead of creating another submission. Returned feedback remains with the draft; select the revised local pack and create a new version for review. Saved drafts survive disconnection. Credentials stay in the private `plugins/amoji/publisher` directory of this dsh profile, outside browser storage, packages, model input and the shared library. Do not share that directory. Signing out the device revokes its authorization.

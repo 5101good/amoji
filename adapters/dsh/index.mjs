@@ -1,3 +1,4 @@
+import {DshPublisher,MARKET_ORIGIN} from './runtime/src/dsh/publisher.js';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import { loadProfileIdentity } from './runtime/src/dsh/profile-identity.js';
 import { DshCollaboration } from './runtime/src/dsh/collaboration.js';
@@ -21,5 +22,6 @@ export async function apply(ctx) {
       ctx.effect(() => () => collaboration.dispose(), 'amoji: collaboration lifecycle');
     } catch { /* Identity unavailable: preserve expressions; actions fail explicitly. */ }
   }
-  installDsh(ctx, runtime, hostInstanceId, defineTool, collaboration);
+  const publisher=new DshPublisher(dshHomePath('plugins','amoji','publisher'),runtime,process.env.AMOJI_MARKET_ORIGIN||MARKET_ORIGIN);
+  installDsh(ctx, runtime, hostInstanceId, defineTool, collaboration,publisher);
 }

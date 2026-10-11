@@ -1,3 +1,4 @@
+import type {DshPublisher} from './publisher.js';
 import { actionSelection, type ActionSelection } from '../collaboration.js';
 import type { DshCollaboration } from './collaboration.js';
 import { AiSuggestions, conversationModel } from './ai-suggestions.js';
@@ -31,7 +32,7 @@ export class DshAdapter {
   private panel?: Promise<PanelServer>;
   private readonly pending = new Map<string, { ref: ExpressionRef; action?: ActionSelection; work: Promise<HistoryEntry> }>();
   private readonly lifecycle: AbortSignal;
-  constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string, private readonly collaboration?: DshCollaboration) {
+  constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string, private readonly collaboration?: DshCollaboration, private readonly publisher?: DshPublisher) {
     nonempty(hostInstanceId);
     this.aiSuggestions = new AiSuggestions(ctx.llm);
     const disposed = new AbortController();
@@ -114,10 +115,11 @@ export class DshAdapter {
     signal = AbortSignal.any([signal, this.lifecycle, ...(!reconnect && this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
     signal.throwIfAborted();
     const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.rules':['sessionId'], 'collaboration.enable':['sessionId','selection','generation','replace'], 'collaboration.disable':['sessionId','selection','generation'], 'collaboration.disableAll':['sessionId','generation'], 'collaboration.capabilities':['sessionId'], 'collaboration.receipts':['sessionId'], visual: ['sessionId', 'ref', 'messageId'], actions: ['sessionId','ref'], submit: ['sessionId', 'ref', 'requestId'], submitWithAction: ['sessionId','ref','actionRef','releaseRef','requestId'], display: ['sessionId', 'messageId', 'hash', 'state'] };
-    const method = endpoint.replace(/^amoji\//, ''); if(method.startsWith('marketplace.'))allowed[method]=['sessionId','args']; const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
+    const method = endpoint.replace(/^amoji\//, ''); if(method.startsWith('marketplace.')||method.startsWith('publisher.'))allowed[method]=['sessionId','args']; const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'submit' ? ['sessionId','ref','requestId'] : method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
     const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
+    if(method.startsWith('publisher.')){await this.session(sessionId,signal);if(!this.publisher)fail('CAPABILITY_UNAVAILABLE','发布能力不可用');return this.publisher.call(method.slice(10),args.args);}
     if(method.startsWith('marketplace.')){await this.session(sessionId,signal);if(!this.runtime.marketplace)fail('CAPABILITY_UNAVAILABLE','市场能力不可用');return this.runtime.marketplace.marketplace(method.slice(12),args.args);}
     if (method === 'reconnect') {
       if (!this.runtime.reconnect) fail('CAPABILITY_UNAVAILABLE', '当前连接不支持恢复，请升级插件');
@@ -242,15 +244,15 @@ export class DshAdapter {
     }
   }
 }
-export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown, collaboration?: DshCollaboration): DshAdapter {
-  const adapter = new DshAdapter(ctx, runtime, hostInstanceId, collaboration);
+export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceId: string, defineTool: (options: ToolOptions) => unknown, collaboration?: DshCollaboration, publisher?: DshPublisher): DshAdapter {
+  const adapter = new DshAdapter(ctx, runtime, hostInstanceId, collaboration, publisher);
   for (const name of ['amoji_search', 'amoji_resolve', 'amoji_emit'] as const) ctx.tools.register(defineTool(adapter.tool(name)));
   ctx.effect(() => {
     const releases: Array<() => Promise<void>> = [];
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
       releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
-      for (const method of [...['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual'].map(m=>'marketplace.'+m),'reconnect', 'catalog', 'search', 'history', 'visual', 'collaboration.rules', 'collaboration.enable', 'collaboration.disable', 'collaboration.disableAll', 'collaboration.capabilities', 'collaboration.receipts', 'actions', 'submit', 'submitWithAction', 'display', 'manage', 'management']) {
+      for (const method of [...['beginLogin','loginStatus','cancelLogin','logout','drafts','create','save','upload','submit','reconcile','submissions','withdraw'].map(m=>'publisher.'+m),...['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual'].map(m=>'marketplace.'+m),'reconnect', 'catalog', 'search', 'history', 'visual', 'collaboration.rules', 'collaboration.enable', 'collaboration.disable', 'collaboration.disableAll', 'collaboration.capabilities', 'collaboration.receipts', 'actions', 'submit', 'submitWithAction', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });

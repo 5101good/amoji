@@ -39,6 +39,7 @@ export type VisualMeta = {
 export interface HistoryEntry { action?: import('./collaboration-context.js').CollaborationReceipt; message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc extends ManagementRpc {
+  publisher?(sessionId:string,method:string,args:unknown):Promise<any>;
   marketplace?(sessionId:string,method:string,args:unknown):Promise<any>;
   rules?(sessionId:string):Promise<import('../conversation-rules.js').RuleView>;
   enableRule?(sessionId:string,selection:import('../collaboration.js').ActionSelection,generation:number,replace:import('../collaboration.js').ActionSelection|null):Promise<import('../conversation-rules.js').RuleView>;

@@ -12,7 +12,7 @@ await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
 for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'local-acquisition', 'library-management', 'expression-appearance', 'packs', 'actions', 'collaboration', 'conversation-rules', 'conversation-envelope', 'library-migration', 'scenario-drafts', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
 await cp(`${root}/web`, `${out}/web`, { recursive: true });
-for (const name of ['host', 'host-management', 'expression-message', 'ai-suggestions', 'collaboration', 'collaboration-context', 'profile-identity']) await cp(`${root}/dist/src/dsh/${name}.js`, `${out}/runtime/src/dsh/${name}.js`);
+for (const name of ['host', 'host-management', 'expression-message', 'ai-suggestions', 'collaboration', 'collaboration-context', 'profile-identity', 'publisher']) await cp(`${root}/dist/src/dsh/${name}.js`, `${out}/runtime/src/dsh/${name}.js`);
 await mkdir(`${out}/runtime/docs/specs`, { recursive: true });
 for(const version of ['0.1','0.2'])await cp(`${root}/dist/docs/specs/amoji-v${version}.schema.json`, `${out}/runtime/docs/specs/amoji-v${version}.schema.json`);
 await cp(`${root}/assets/base-library`, `${out}/assets/base-library`, { recursive: true });

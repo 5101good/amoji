@@ -11,6 +11,7 @@ CREATE TRIGGER market_review_audit_no_update BEFORE UPDATE ON market_review_audi
 CREATE TRIGGER market_review_audit_no_delete BEFORE DELETE ON market_review_audit BEGIN SELECT RAISE(ABORT,'AUDIT_APPEND_ONLY'); END;
 CREATE TABLE market_role_bootstrap (id TEXT PRIMARY KEY CHECK(id='initial'), account_id TEXT NOT NULL REFERENCES market_account(id), operator TEXT NOT NULL, reason TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE TRIGGER market_role_bootstrap_guard BEFORE INSERT ON market_role_bootstrap WHEN EXISTS(SELECT 1 FROM market_account WHERE role IN ('admin','reviewer')) BEGIN SELECT RAISE(ABORT,'ALREADY_INITIALIZED'); END;
-CREATE TRIGGER market_role_bootstrap_apply AFTER INSERT ON market_role_bootstrap BEGIN UPDATE market_account SET role='admin' WHERE id=NEW.account_id AND disabled=0; SELECT CASE WHEN changes()!=1 THEN RAISE(ABORT,'ACCOUNT_UNAVAILABLE') END; END;
+CREATE TRIGGER market_role_bootstrap_account_guard BEFORE INSERT ON market_role_bootstrap WHEN NOT EXISTS(SELECT 1 FROM market_account WHERE id=NEW.account_id AND disabled=0) BEGIN SELECT RAISE(ABORT,'ACCOUNT_UNAVAILABLE'); END;
+CREATE TRIGGER market_role_bootstrap_apply AFTER INSERT ON market_role_bootstrap BEGIN UPDATE market_account SET role='admin' WHERE id=NEW.account_id; END;
 CREATE TRIGGER market_role_bootstrap_no_update BEFORE UPDATE ON market_role_bootstrap BEGIN SELECT RAISE(ABORT,'AUDIT_APPEND_ONLY'); END;
 CREATE TRIGGER market_role_bootstrap_no_delete BEFORE DELETE ON market_role_bootstrap BEGIN SELECT RAISE(ABORT,'AUDIT_APPEND_ONLY'); END;

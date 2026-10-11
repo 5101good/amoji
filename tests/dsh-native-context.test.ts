@@ -259,3 +259,16 @@ test('actual process exit after assembly cold-resumes native JSONL without admis
     assert.ok(!JSON.stringify(host.provider.requests).includes('NEVER RESEND'));
   } finally { if (host) await host.close(); await rm(profile, { recursive: true, force: true }); }
 });
+
+test('known safety removal replaces prior hook and instruction snapshot with disabled state without extra inference',async()=>{
+ const host=await nativeHost();try{
+  const adapter=new CollaborationContext(host.ctx,'safety-profile');const {agent}=await host.create('safety-session');adapter.authorize(agent);
+  adapter.setRules(agent,[{id:'hook',revision:'v1',template:'response-organization@1',config:{layout:'answer-first'}}]);
+  adapter.prepare(agent,'unsafe-once',{id:'instruction',revision:'v1',instruction:'UNSAFE_OLD_INSTRUCTION',conflictGroup:'explanation'});
+  agent.followup(input('unsafe-once'));await agent.whenIdle();assert.equal(adapter.receipt(agent,'unsafe-once').status,'attached');
+  adapter.revoke(agent,'unsafe-once');adapter.setRules(agent,[]);assert.equal(host.provider.requests.length,1);
+  agent.followup(input('after-revocation'));await agent.whenIdle();assert.equal(host.provider.requests.length,2);
+  const snapshots=agent.session.snapshotEvents().flatMap((e:any)=>e.type==='user/message'&&e.data.source.kind==='plugin'?(e.data.source.sections??[]).filter((s:any)=>s.name==='amoji:collaboration').map((s:any)=>JSON.parse(s.text)):[]);
+  const current=snapshots.at(-1);assert.equal(current.instruction,null);assert.deepEqual(current.rules,[]);assert.match(current.state,/已停用/);
+ }finally{await host.close();}
+});

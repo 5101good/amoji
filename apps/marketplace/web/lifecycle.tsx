@@ -122,6 +122,8 @@ export function Lifecycle({
   const zh = locale === "zh",
     [accounts, setAccounts] = useState<any[]>([]),
     [reports, setReports] = useState<any[]>([]),
+    [accountsCursor,setAccountsCursor]=useState<string|null>(null),
+    [reportsCursor,setReportsCursor]=useState<string|null>(null),
     [reason, setReason] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
@@ -144,9 +146,10 @@ export function Lifecycle({
     }
   };
   const refresh = async () => {
-    if (admin) setAccounts((await api("/v1/admin/accounts")).accounts);
-    if (moderator) setReports((await api("/v1/review/reports")).reports);
+    if (admin) {const value=await api('/v1/admin/accounts');setAccounts(value.accounts);setAccountsCursor(value.cursor);}
+    if (moderator) {const value=await api('/v1/review/reports');setReports(value.reports);setReportsCursor(value.cursor);}
   };
+  const more=async(kind:'accounts'|'reports')=>{const cursor=kind==='accounts'?accountsCursor:reportsCursor;if(!cursor)return;const value=await api((kind==='accounts'?'/v1/admin/accounts':'/v1/review/reports')+'?cursor='+encodeURIComponent(cursor));if(kind==='accounts'){setAccounts(old=>[...old,...value.accounts]);setAccountsCursor(value.cursor);}else{setReports(old=>[...old,...value.reports]);setReportsCursor(value.cursor);}};
   useEffect(() => {
     void run(async () => {
       await refresh();
@@ -220,7 +223,7 @@ export function Lifecycle({
       </form>
       {moderator && (
         <section>
-          <h4>{zh ? "举报处理" : "Reports"}</h4>
+          <h4>{zh ? "举报处理" : "Reports"}</h4>{reportsCursor&&<button disabled={busy} onClick={()=>void run(()=>more('reports'))}>{zh?'加载更多举报':'More reports'}</button>}
           <button disabled={busy} onClick={() => void run(refresh)}>
             {zh ? "刷新" : "Refresh"}
           </button>
@@ -254,7 +257,7 @@ export function Lifecycle({
       )}
       {admin && (
         <section>
-          <h4>{zh ? "角色管理" : "Account roles"}</h4>
+          <h4>{zh ? "角色管理" : "Account roles"}</h4>{accountsCursor&&<button disabled={busy} onClick={()=>void run(()=>more('accounts'))}>{zh?'加载更多账号':'More accounts'}</button>}
           {accounts.map((a) => (
             <label key={a.id}>
               {a.display_name} · {a.id}

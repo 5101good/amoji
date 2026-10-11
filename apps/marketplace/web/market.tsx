@@ -148,6 +148,7 @@ export function Catalog({ locale }: { locale: Locale }) {
   const t = words[locale],
     [rows, setRows] = useState<any[]>([]),
     [detail, setDetail] = useState<any>(null),
+    [tombstone, setTombstone] = useState<any>(null),
     [busy, setBusy] = useState(false),
     [failed, setFailed] = useState(false),
     [cursor, setCursor] = useState<string | null>(null),
@@ -161,7 +162,8 @@ export function Catalog({ locale }: { locale: Locale }) {
     setFailed(false);
     try {
       if (exact) {
-        setDetail(await json("/v1" + location.pathname));
+        const response=await fetch('/v1'+location.pathname);const value:any=await response.json();
+        if(response.status===410&&value.tombstone){setTombstone(value.tombstone);setDetail(null);}else{if(!response.ok)throw Error('UNAVAILABLE');setTombstone(null);setDetail(value);}
       } else {
         const d = await json(
           "/v1/packs?" +
@@ -221,6 +223,7 @@ export function Catalog({ locale }: { locale: Locale }) {
               ? t.empty
               : ""}
       </p>
+      {tombstone&&<article role="status"><h3>{locale==='zh'?'此版本已下架':'This release has been removed'}</h3><p>{tombstone.state==='safety_removed'?(locale==='zh'?'安全下架：此版本的协作动作不可再启用。':'Safety removal: collaboration actions in this release must stay disabled.'):(locale==='zh'?'作者或账号生命周期已停止此版本的分发。':'Distribution of this release has ended.')}</p><p>{locale==='zh'?'已开始下载或保存的副本无法远程收回。':'In-flight downloads and saved copies cannot be remotely recalled.'}</p><small>{tombstone.release_id}</small></article>}
       {failed && <button onClick={() => load()}>{t.retry}</button>}
       {detail && (
         <>

@@ -1,3 +1,4 @@
+import { backupHealth } from "./backup";
 import { lifecycleRoute } from "./lifecycle";
 import {deviceRoute,deviceActor,revokeDevices} from "./devices";
 import { reviewRoute } from "./reviews";
@@ -142,6 +143,13 @@ export default {
       if (url.origin !== env.APP_ORIGIN) return error("ORIGIN", 403);
       if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32)
         return error("CONFIGURATION", 503);
+      if (path === '/v1/health' && request.method === 'GET') {
+        const ip = request.headers.get('x-amoji-edge-ip');
+        if (!ip) return error('UNTRUSTED_PROXY', 403);
+        if (!await limit(env, 'public:' + await mac(env.BETTER_AUTH_SECRET, ip), 120, 60000)) return error('RATE_LIMITED', 429);
+        const backup = await backupHealth(env);
+        return json({ service: 'amoji-marketplace', backup }, backup.status === 'ok' ? 200 : 503);
+      }
       const lifecycle=/^\/v1\/me\/submissions\/[0-9a-f-]{36}\/delete$/.test(path)||path.startsWith('/v1/reports')||path==='/v1/revocations'||path.startsWith('/v1/review/reports')||path.startsWith('/v1/admin/')||path==='/v1/me/delete'||path==='/v1/me/deletion-policy'||/^\/v1\/packs\/[^/]+\/unpublish$/.test(path);
       if(lifecycle){
         const publicRoute=path.startsWith('/v1/reports')||path==='/v1/revocations';

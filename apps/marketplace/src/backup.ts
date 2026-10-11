@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import type { Env } from './worker';
 const STATUS = 'backups/status.json';
 const PENDING = 'backups/pending.json';
 const DAY = 86_400_000;
-const MAX_BYTES = 32 * 1024 * 1024;
-type BackupStatus = { key?: string; sha256?: string; bytes?: number; snapshot_at?: number; completed_at?: number; failed?: boolean };
+const MAX_BYTES = 256 * 1024 * 1024;
+const TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
+type BackupStatus = { key?: string; sha256?: string; bytes?: number; snapshot_at?: number; completed_at?: number; failed?: boolean; retention_failed?: boolean };
 type Pending = { started_at: number; bookmark?: string };
 async function read<T>(env: Env, key: string): Promise<T | null> {
   const object = await env.UPLOADS?.get(key);
@@ -14,7 +16,7 @@ export async function backupHealth(env: Env, now = Date.now()) {
   try {
     const state = await read<BackupStatus>(env, STATUS);
     const last = state?.snapshot_at ?? null;
-    return { status: state?.failed ? 'failed' : last === null ? 'missing' : now - last > DAY ? 'stale' : 'ok', last_success_at: last };
+    return { status: state?.failed || state?.retention_failed ? 'failed' : last === null ? 'missing' : now - last > DAY ? 'stale' : 'ok', last_success_at: last };
   } catch { return { status: 'unavailable', last_success_at: null }; }
 }
 /** One bounded export/poll per cron. Start twice daily to leave retry margin for the 24h RPO. */
@@ -22,7 +24,21 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
   if (!env.UPLOADS) return;
   let previous: BackupStatus | null;
   try { previous = await read<BackupStatus>(env, STATUS); } catch { console.error("BACKUP_STATE_UNAVAILABLE"); return; }
-  if (previous?.snapshot_at && now - previous.snapshot_at < DAY / 2 && !previous.failed) return;
+  let retentionFailed = false;
+  // Privacy retention progresses even when credentials/export/download fail.
+  try {
+    const old = await env.UPLOADS.list({ prefix: 'backups/d1/', limit: 1000 });
+    for (const object of old.objects) {
+      if (object.uploaded.getTime() > now - 30 * DAY) continue;
+      await env.UPLOADS.delete(object.key);
+      if (previous?.key === object.key) { previous = null; await env.UPLOADS.put(STATUS, JSON.stringify({ failed: true })); }
+    }
+    if (old.truncated) throw Error('BACKUP_RETENTION_PAGE');
+  } catch { retentionFailed = true; console.error('BACKUP_RETENTION_RETRY'); }
+  if (previous?.snapshot_at && now - previous.snapshot_at < DAY / 2 && !previous.failed) {
+    if (retentionFailed !== !!previous.retention_failed) await env.UPLOADS.put(STATUS, JSON.stringify({ ...previous, retention_failed: retentionFailed }));
+    return;
+  }
   try {
     if (!/^[a-f0-9]{32}$/.test(env.BACKUP_ACCOUNT_ID ?? '') || !/^[a-f0-9-]{36}$/.test(env.BACKUP_DATABASE_ID ?? '') || !env.D1_BACKUP_API_TOKEN) throw Error('BACKUP_CONFIGURATION');
     let pending = await read<Pending>(env, PENDING);
@@ -44,25 +60,45 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
     if (url.protocol !== 'https:' || url.username || url.password || url.port || !(url.hostname === '1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com')) throw Error('BACKUP_URL');
     const response = await network(url.href, { redirect: 'error', signal: AbortSignal.timeout(60_000) });
     if (!response.ok || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) throw Error('BACKUP_DOWNLOAD');
-    const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let length = 0;
+    const length = Number(response.headers.get('content-length'));
+    if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_BYTES) throw Error('BACKUP_SIZE');
+    const inventory = await env.UPLOADS.list({ prefix: 'backups/d1/', limit: 1000 });
+    if (inventory.truncated) throw Error('BACKUP_STORAGE_BUDGET');
+    let total = inventory.objects.reduce((sum, object) => sum + object.size, 0);
+    for (const object of inventory.objects.sort((a, b) => a.uploaded.getTime() - b.uploaded.getTime())) {
+      if (total + length <= TOTAL_BYTES) break;
+      if (object.key === previous?.key) continue;
+      await env.UPLOADS.delete(object.key); total -= object.size;
+    }
+    if (total + length > TOTAL_BYTES) throw Error('BACKUP_STORAGE_BUDGET');
+    const key = `backups/d1/${new Date(pending.started_at).toISOString().replaceAll(':', '-')}-${crypto.randomUUID()}.sql`;
+    const stream = new FixedLengthStream(length);
+    const reader = response.body.getReader(), writer = stream.writable.getWriter();
+    const hash = createHash('sha256'); let received = 0;
+    const stored = env.UPLOADS.put(key, stream.readable, { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: 'application/sql' }, customMetadata: { snapshot_at: String(pending.started_at) } });
+    const pumping = (async () => {
+      while (true) {
+        const { value, done } = await reader.read(); if (done) break;
+        received += value.length; if (received > length) throw Error('BACKUP_SIZE');
+        hash.update(value); await writer.write(value);
+      }
+      if (received !== length) throw Error('BACKUP_SIZE');
+      await writer.close();
+    })();
     try {
-      while (true) { const { value, done } = await reader.read(); if (done) break; length += value.length; if (length > MAX_BYTES) throw Error('BACKUP_SIZE'); chunks.push(value); }
-    } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
-    if (!length) throw Error('BACKUP_EMPTY');
-    const bytes = new Uint8Array(length); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(v => v.toString(16).padStart(2, '0')).join('');
-    const key = `backups/d1/${new Date(pending.started_at).toISOString().replaceAll(':', '-')}-${sha256}.sql`;
-    await env.UPLOADS.put(key, bytes, { httpMetadata: { contentType: 'application/sql' }, customMetadata: { sha256, snapshot_at: String(pending.started_at) } });
+      const [object] = await Promise.all([stored, pumping]);
+      if (object === null) throw Error('BACKUP_OBJECT_CONFLICT');
+    } catch {
+      await Promise.allSettled([reader.cancel(), writer.abort()]);
+      await Promise.allSettled([stored, pumping]);
+      throw Error('BACKUP_DOWNLOAD');
+    } finally { reader.releaseLock(); writer.releaseLock(); }
+    const sha256 = hash.digest('hex');
     // Publish the pointer only after the complete SQL object is durable.
-    await env.UPLOADS.put(STATUS, JSON.stringify({ key, sha256, bytes: length, snapshot_at: pending.started_at, completed_at: now, failed: false }));
-    try {
-    await env.UPLOADS.delete(PENDING);
-    // Only backup SQL is eligible: never touch sealed content or other applications.
-    const old = await env.UPLOADS.list({ prefix: 'backups/d1/', limit: 1000 });
-    for (const object of old.objects) if (object.key !== key && object.uploaded.getTime() < now - 30 * DAY) await env.UPLOADS.delete(object.key);
-    } catch { console.error("BACKUP_RETENTION_RETRY"); }
+    await env.UPLOADS.put(STATUS, JSON.stringify({ key, sha256, bytes: length, snapshot_at: pending.started_at, completed_at: now, failed: false, retention_failed: retentionFailed }));
+    try { await env.UPLOADS.delete(PENDING); } catch { console.error('BACKUP_BOOKMARK_CLEANUP_RETRY'); }
   } catch {
     console.error("BACKUP_FAILED");
-    await env.UPLOADS.put(STATUS, JSON.stringify({ ...previous, failed: true }));
+    await env.UPLOADS.put(STATUS, JSON.stringify({ ...previous, failed: true, retention_failed: retentionFailed }));
   }
 }

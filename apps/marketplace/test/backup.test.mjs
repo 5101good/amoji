@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 await build({entryPoints:['src/backup.ts'],outfile:'dist/backup-test.mjs',platform:'node',format:'esm',bundle:true});
+globalThis.FixedLengthStream=class extends TransformStream { constructor(expected) { let size=0;super({transform(chunk,controller){size+=chunk.length;controller.enqueue(chunk);},flush(){assert.equal(size,expected);}}); } };
 const { runBackup, backupHealth } = await import('../dist/backup-test.mjs');
 function fixture() {
   const objects=new Map(); const calls=[];
-  const bucket={async get(key){const v=objects.get(key);return v?{json:async()=>JSON.parse(v),text:async()=>v}:null;},async put(key,body){objects.set(key,typeof body==='string'?body:new TextDecoder().decode(body));},async list(){return {objects:[],truncated:false};},async delete(key){objects.delete(key);}};
+  const bucket={async get(key){const v=objects.get(key);return v?{json:async()=>JSON.parse(v),text:async()=>v}:null;},async put(key,body){objects.set(key,typeof body==='string'?body:body instanceof ReadableStream?await new Response(body).text():new TextDecoder().decode(body));},async list(){return {objects:[],truncated:false};},async delete(key){objects.delete(key);}};
   const env={UPLOADS:bucket,BACKUP_ACCOUNT_ID:'a'.repeat(32),BACKUP_DATABASE_ID:'11111111-1111-4111-8111-111111111111',D1_BACKUP_API_TOKEN:'synthetic-only'};
   const now=Date.parse('2026-10-11T03:00:00Z');
-  const network=async(url,init)=>{calls.push({url,init});return String(url).startsWith('https://api.cloudflare.com/')?Response.json({success:true,result:{status:'complete',result:{filename:'db.sql',signed_url:'https://1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com/db.sql?signature=synthetic'}}}):new Response('CREATE TABLE example(id TEXT);');};
+  const network=async(url,init)=>{calls.push({url,init});return String(url).startsWith('https://api.cloudflare.com/')?Response.json({success:true,result:{status:'complete',result:{filename:'db.sql',signed_url:'https://1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com/db.sql?signature=synthetic'}}}):new Response('CREATE TABLE example(id TEXT);',{headers:{'content-length':String(Buffer.byteLength('CREATE TABLE example(id TEXT);'))}});};
   return {objects,calls,env,now,network};
 }
 test('daily export saves SQL and digest privately; repeat cron does not export again',async()=>{
@@ -34,6 +35,28 @@ test('untrusted export URL or oversize SQL never becomes a successful backup',as
   const f=fixture();let calls=0;await runBackup(f.env,f.now,async()=>{calls++;return Response.json({success:true,result:{status:'complete',result:{signed_url:url}}});});
   assert.equal(calls,1);assert.equal((await backupHealth(f.env,f.now)).status,'failed');
  }
- const f=fixture();await runBackup(f.env,f.now,async(url,init)=>String(url).startsWith('https://api.cloudflare.com/')?f.network(url,init):new Response('small',{headers:{'content-length':String(32*1024*1024+1)}}));
+ const f=fixture();await runBackup(f.env,f.now,async(url,init)=>String(url).startsWith('https://api.cloudflare.com/')?f.network(url,init):new Response('small',{headers:{'content-length':String(256*1024*1024+1)}}));
  assert.equal((await backupHealth(f.env,f.now)).status,'failed');
+});
+test('export failure still expires private SQL, including the last successful object after retention',async()=>{
+ const f=fixture();await runBackup(f.env,f.now,f.network);const old=JSON.parse(f.objects.get('backups/status.json'));
+ f.env.UPLOADS.list=async()=>({objects:[{key:old.key,uploaded:new Date(f.now)}],truncated:false});
+ await runBackup(f.env,f.now+31*86400000,async()=>new Response(null,{status:403}));
+ assert.equal(f.objects.has(old.key),false);assert.equal((await backupHealth(f.env,f.now+31*86400000)).status,'failed');
+ assert.ok(!JSON.parse(f.objects.get('backups/status.json')).key);
+});
+
+test('streams a 140 MiB export without requiring an in-memory SQL buffer',async()=>{
+ const f=fixture();const chunk=new Uint8Array(1024*1024).fill(65);const expected=createHash('sha256');for(let i=0;i<140;i++)expected.update(chunk);
+ const originalPut=f.env.UPLOADS.put;let stored=0;
+ f.env.UPLOADS.put=async(key,body)=>{if(body instanceof ReadableStream){const reader=body.getReader();while(true){const {value,done}=await reader.read();if(done)break;stored+=value.length;}}else await originalPut(key,body);};
+ await runBackup(f.env,f.now,async(url,init)=>String(url).startsWith('https://api.cloudflare.com/')?f.network(url,init):new Response(new ReadableStream({start(controller){for(let i=0;i<140;i++)controller.enqueue(chunk);controller.close();}}),{headers:{'content-length':String(140*1024*1024)}}));
+ assert.equal(stored,140*1024*1024);assert.equal(JSON.parse(f.objects.get('backups/status.json')).sha256,expected.digest('hex'));
+});
+test('2 GiB shared backup budget retires oldest SQL while retaining the last good snapshot',async()=>{
+ const f=fixture();await runBackup(f.env,f.now,f.network);const last=JSON.parse(f.objects.get('backups/status.json'));
+ f.objects.set('backups/d1/older.sql','private old SQL');
+ f.env.UPLOADS.list=async()=>({objects:[{key:'backups/d1/older.sql',uploaded:new Date(f.now-86400000),size:1536*1024*1024},{key:last.key,uploaded:new Date(f.now),size:1024*1024*1024}],truncated:false});
+ await runBackup(f.env,f.now+43200000,f.network);
+ assert.equal(f.objects.has('backups/d1/older.sql'),false);assert.equal(f.objects.has(last.key),true);assert.equal((await backupHealth(f.env,f.now+43200000)).status,'ok');
 });

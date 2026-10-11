@@ -1,4 +1,4 @@
-import { backupHealth } from "./backup";
+import { scheduledMaintenance } from "./maintenance";
 import { failure } from "./upload-shared";
 export { FreeRuntime } from "./free-runtime";
 export type Env = Omit<
@@ -23,21 +23,10 @@ export type Env = Omit<
 /** Public Worker performs no authentication, signature or archive computation. */
 export default {
   async scheduled(_event: ScheduledController, env: Env) {
-    if (!env.FREE_RUNTIME) throw Error("RUNTIME_UNAVAILABLE");
-    const response = await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
-      "https://runtime/cleanup",
-      { method: "POST" },
-    );
-    if (!response.ok) throw Error("CLEANUP_RETRY");
-    const backup = await env.FREE_RUNTIME.getByName("backup-v1").fetch("https://runtime/backup", { method: "POST" });
-    if (!backup.ok) throw Error("BACKUP_RETRY");
+    await scheduledMaintenance(env);
   },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/v1/health" && request.method === "GET") {
-      const backup = await backupHealth(env);
-      return Response.json({ service: "amoji-marketplace", backup }, { status: backup.status === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } });
-    }
     if (!url.pathname.startsWith("/v1/"))
       return env.ASSETS
         ? env.ASSETS.fetch(request)

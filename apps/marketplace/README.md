@@ -26,7 +26,7 @@ npm run dev
 
 ## 部署
 
-部署前提供自己的 D1 database ID、production origin，使用 `wrangler secret put BETTER_AUTH_SECRET --env production` 设置随机秘密，先向明确选定的数据库应用迁移，再执行 `npm run deploy`。配置中的占位 ID 刻意不能部署。production 不继承本地测试开关。服务商权限或额度不足时停止，不自动升级付费。D1 认证读写不启用 read replicas。
+部署前提供自己的 D1 database ID、production origin，使用 `wrangler secret put BETTER_AUTH_SECRET --env production` 设置随机秘密，先向明确选定的数据库应用迁移，再执行 `npm run deploy`。production 已配置真实资源 ID，每次远程操作前核对目标，并保留既有 secrets。production 不继承本地测试开关。服务商权限或额度不足时停止，不自动升级付费。D1 认证读写不启用 read replicas。
 
 认证仅暴露 `/v1/auth/csrf`、`register`、`login`、`logout` 与 `/v1/me`。浏览器不接收脚本可读 session token；没有管理员注册端点。cookie 最长 12 小时、不自动刷新。CSRF token 有效 5 分钟，同时检查精确 Origin。
 

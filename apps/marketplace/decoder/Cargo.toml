@@ -1,0 +1,16 @@
+[package]
+name = "amoji-decoder-probe"
+version = "0.0.0"
+edition = "2021"
+[lib]
+crate-type = ["cdylib"]
+[dependencies]
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+zune-jpeg = "=0.5.15"
+zune-core = "=0.5.3"
+crc32fast = "=1.5.2"
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true

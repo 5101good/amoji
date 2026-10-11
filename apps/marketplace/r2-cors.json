@@ -1,0 +1,11 @@
+{
+  "rules": [{
+    "allowed": {
+      "origins": ["https://amoji-auth-v0.5101good.workers.dev"],
+      "methods": ["PUT"],
+      "headers": ["content-type", "content-length"]
+    },
+    "exposeHeaders": ["ETag"],
+    "maxAgeSeconds": 300
+  }]
+}

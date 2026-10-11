@@ -10,7 +10,10 @@
     "deploy": "npm run build && wrangler deploy --env production"
   },
   "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "better-auth": "1.7.5",
+    "fflate": "0.8.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

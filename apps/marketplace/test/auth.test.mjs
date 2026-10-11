@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import { Miniflare } from "miniflare";
+import { convertV4MiniflareOptions } from "./runtime-fixture.mjs";
 test("HTTP account access requires authentication and rejects cross-origin writes", async () => {
   const mf = new Miniflare(
     convertV4MiniflareOptions({
@@ -46,6 +47,25 @@ test("HTTP account access requires authentication and rejects cross-origin write
       body: "{}",
     });
     assert.equal(bad.status, 403);
+    const forged = await mf.dispatchFetch("https://amoji.test/v1/auth/login", {
+      method: "POST",
+      headers: {
+        origin: "https://amoji.test",
+        "content-type": "application/json",
+        "x-amoji-edge-ip": "192.0.2.1",
+      },
+      body: "{}",
+    });
+    assert.equal(forged.status, 403);
+    assert.equal(
+      (
+        await mf.dispatchFetch("https://amoji.test/password", {
+          method: "POST",
+          body: "{}",
+        })
+      ).status,
+      404,
+    );
   } finally {
     await mf.dispose();
   }
@@ -132,6 +152,23 @@ test("real workerd signup, password login, secure session and immediate revocati
       "request_id",
     ]);
     const cookie = cookies[0].split(";")[0];
+    const burst = await Promise.all(
+      Array.from({ length: 48 }, () =>
+        one.fetch("http://localhost/v1/me", { headers: { cookie } }),
+      ),
+    );
+    const throttled = burst.filter((r) => r.status === 429);
+    assert.ok(
+      throttled.length > 0,
+      "real shared runtime queue should apply backpressure",
+    );
+    for (const response of throttled) {
+      assert.equal(response.headers.get("retry-after"), "900");
+      const body = await response.json();
+      assert.equal(body.error.code, "RUNTIME_BUSY");
+      assert.equal(typeof body.request_id, "string");
+    }
+
     const me = await two.fetch("http://localhost/v1/me", {
       headers: { cookie },
     });
@@ -205,21 +242,35 @@ test("real workerd signup, password login, secure session and immediate revocati
       );
       assert.equal(emailLimit.status, n < 10 ? 401 : 429);
       if (n === 10)
-        assert.equal(emailLimit.headers.get("retry-after"), "900",
-          "email rate limits advertise retry time");
+        assert.equal(
+          emailLimit.headers.get("retry-after"),
+          "900",
+          "email rate limits advertise retry time",
+        );
     }
     await db.prepare("DELETE FROM auth_rate_limit").run();
-    await db.prepare(
-      "CREATE TRIGGER deny_credential BEFORE INSERT ON auth_account BEGIN SELECT RAISE(ABORT,'fixture credential failure'); END",
-    ).run();
+    await db
+      .prepare(
+        "CREATE TRIGGER deny_credential BEFORE INSERT ON auth_account BEGIN SELECT RAISE(ABORT,'fixture credential failure'); END",
+      )
+      .run();
     const credentialRetry = { ...body, email: "credential-retry@example.test" };
     assert.equal((await post("register", credentialRetry)).status, 503);
     await db.prepare("DROP TRIGGER deny_credential").run();
-    assert.equal((await post("register", credentialRetry)).status, 200,
-      "a failed credential insert must not reserve the email");
-    assert.equal((await post("login", {
-      email: credentialRetry.email, password: credentialRetry.password,
-    })).status, 200);
+    assert.equal(
+      (await post("register", credentialRetry)).status,
+      200,
+      "a failed credential insert must not reserve the email",
+    );
+    assert.equal(
+      (
+        await post("login", {
+          email: credentialRetry.email,
+          password: credentialRetry.password,
+        })
+      ).status,
+      200,
+    );
     await db.prepare("DELETE FROM auth_rate_limit").run();
     await db
       .prepare(
@@ -251,5 +302,122 @@ test("real workerd signup, password login, secure session and immediate revocati
     );
   } finally {
     await mf.dispose();
+  }
+});
+test("HTTP slow control body cannot hold the shared runtime queue", async () => {
+  const mf = new Miniflare(
+    convertV4MiniflareOptions({
+      workers: [
+        {
+          name: "slow-body",
+          modules: true,
+          script: await readFile(
+            new URL("../dist/worker.js", import.meta.url),
+            "utf8",
+          ),
+          compatibilityDate: "2026-09-21",
+          compatibilityFlags: ["nodejs_compat"],
+          d1Databases: { DB: "slow-body" },
+          bindings: {
+            APP_ORIGIN: "http://localhost",
+            LOCAL_TEST: "true",
+            BETTER_AUTH_SECRET: "synthetic-secret-at-least-32-characters",
+          },
+        },
+      ],
+    }),
+  );
+  let close = () => {};
+  try {
+    const db = await mf.getD1Database("DB");
+    for (const sql of (
+      await readFile(
+        new URL("../migrations/0001-auth.sql", import.meta.url),
+        "utf8",
+      )
+    )
+      .split(";")
+      .filter((s) => s.trim()))
+      await db.prepare(sql).run();
+    const { csrf } = await (
+      await mf.dispatchFetch("http://localhost/v1/auth/csrf")
+    ).json();
+    const pending = mf.dispatchFetch("http://localhost/v1/auth/login", {
+      method: "POST",
+      duplex: "half",
+      body: new ReadableStream({
+        start(c) {
+          close = () => {
+            try {
+              c.close();
+            } catch {}
+          };
+          c.enqueue(new TextEncoder().encode("{"));
+        },
+      }),
+      headers: {
+        origin: "http://localhost",
+        "content-type": "application/json",
+        "x-csrf-token": csrf,
+      },
+    });
+    pending.catch(() => {});
+    await new Promise((r) => setTimeout(r, 100));
+    const quick = await Promise.race([
+      mf.dispatchFetch("http://localhost/v1/auth/csrf"),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(Error("slow body blocked csrf")), 1000),
+      ),
+    ]);
+    assert.equal(quick.status, 200);
+    assert.equal((await pending).status, 408);
+    assert.equal(
+      (await mf.dispatchFetch("http://localhost/v1/auth/csrf")).status,
+      200,
+    );
+  } finally {
+    close();
+    await mf.dispose();
+  }
+});
+test("HTTP unavailable runtime returns a structured retryable error", async () => {
+  for (const unavailable of ["missing", "failed"]) {
+    const script =
+      (await readFile(new URL("../dist/worker.js", import.meta.url), "utf8")) +
+      "\nexport class RuntimeOffline { fetch() { throw Error('synthetic RPC failure'); } }";
+    const mf = new Miniflare(
+      convertV4MiniflareOptions({
+        workers: [
+          {
+            name: "unavailable-" + unavailable,
+            modules: true,
+            script,
+            compatibilityDate: "2026-09-21",
+            compatibilityFlags: ["nodejs_compat"],
+            durableObjects:
+              unavailable === "missing"
+                ? {}
+                : {
+                    FREE_RUNTIME: {
+                      className: "RuntimeOffline",
+                      useSQLite: true,
+                    },
+                  },
+            bindings: { APP_ORIGIN: "http://localhost" },
+          },
+        ],
+      }),
+    );
+    try {
+      const response = await mf.dispatchFetch("http://localhost/v1/auth/csrf");
+      assert.equal(response.status, 503);
+      const body = await response.json();
+      assert.equal(body.error.code, "RUNTIME_UNAVAILABLE");
+      assert.equal(body.error.retryable, true);
+      assert.equal(typeof body.error.message, "string");
+      assert.equal(typeof body.request_id, "string");
+    } finally {
+      await mf.dispose();
+    }
   }
 });

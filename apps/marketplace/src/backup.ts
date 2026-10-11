@@ -54,6 +54,7 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
     if (data.result.status !== 'complete') {
       if (!data.result.at_bookmark || data.result.at_bookmark.length > 512) throw Error('BACKUP_EXPORT');
       await env.UPLOADS.put(PENDING, JSON.stringify({ ...pending, bookmark: data.result.at_bookmark }));
+      await env.UPLOADS.put(STATUS, JSON.stringify({ ...previous, retention_failed: retentionFailed }));
       return;
     }
     const url = new URL(data.result.result?.signed_url ?? '');

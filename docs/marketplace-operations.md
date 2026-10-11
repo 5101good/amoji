@@ -38,3 +38,5 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 `apps/marketplace/scripts/catalog-load-fixture.mjs PRIVATE_OUTPUT.sql` 生成合成 10000 包数据，**只能写隔离性能数据库**，禁止导入正式目录。使用相同迁移/Worker 版本和真实 D1，记录 fixture 数量。运行 `measure-catalog.mjs HTTPS_ORIGIN NETWORK_LABEL PRIVATE_OUTPUT.json` 以 20 并发执行 100 次目录读取；验收服务端 metadata p95 ≤500ms、首屏 p95 ≤2s，明确客户端网络和地区。工具 HTTP 计时不替代浏览器首屏渲染证据，须另行核对实际页面。
 
 真实用户与创作者研究需知情参与者，未完成时单独标记未验证，不用自动化代替。
+
+隔离读取性能演练可用 `catalog-load-fixture.mjs OUTPUT.sql --metadata-only --start=1 --count=100` 先校准，再按明确的 `--start` / `--count` 分批加载。该模式保留生产目录表的全部列、主键、唯一索引和排序索引，只省略发布写入的外键依赖；每包仍保存完整正式样本 manifest。它验证目录读取，不代表真实发布 10000 次。必须先读取账号当日 D1 实际共享用量，每批检查 `rows_written` / `rows_read`，为生产至少预留 20000 次写入和 1000000 次读取；余量不明或不足立即停止。完整生产 SQL 的隔离云恢复另外验证，不得以这个夹具代替。

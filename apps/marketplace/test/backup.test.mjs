@@ -60,3 +60,14 @@ test('2 GiB shared backup budget retires oldest SQL while retaining the last goo
  await runBackup(f.env,f.now+43200000,f.network);
  assert.equal(f.objects.has('backups/d1/older.sql'),false);assert.equal(f.objects.has(last.key),true);assert.equal((await backupHealth(f.env,f.now+43200000)).status,'ok');
 });
+test('pending export preserves retention failure in public health until cleanup recovers',async()=>{
+ const f=fixture();await runBackup(f.env,f.now,f.network);
+ const expired='backups/d1/expired.sql';f.objects.set(expired,'private SQL');
+ f.env.UPLOADS.list=async()=>({objects:[{key:expired,uploaded:new Date(f.now-31*86400000),size:11}],truncated:false});
+ const remove=f.env.UPLOADS.delete;f.env.UPLOADS.delete=async()=>{throw Error('synthetic failure');};
+ const poll=async()=>Response.json({success:true,result:{status:'active',at_bookmark:'opaque'}});
+ await runBackup(f.env,f.now+13*3600000,poll);
+ assert.equal((await backupHealth(f.env,f.now+13*3600000)).status,'failed');
+ f.env.UPLOADS.delete=remove;await runBackup(f.env,f.now+14*3600000,poll);
+ assert.equal((await backupHealth(f.env,f.now+14*3600000)).status,'ok');
+});

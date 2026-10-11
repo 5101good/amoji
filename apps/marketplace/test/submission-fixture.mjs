@@ -58,6 +58,10 @@ export async function fixture(t) {
     .split(/;\n(?=CREATE)/)
     .filter((s) => s.trim()))
     await db.prepare(statement).run();
+  for (const name of ['0007-device-authorizations.sql','0008-moderation-lifecycle.sql']) {
+    const migration=await readFile(new URL('../migrations/'+name,import.meta.url),'utf8');
+    for(const statement of migration.split(/;\n(?=CREATE|ALTER|DROP)/).filter(s=>s.trim())) await db.prepare(statement).run();
+  }
   async function post(
     path,
     data,

@@ -29,6 +29,8 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
   const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji-auth-v0.5101good.workers.dev');
+  void marketplace.refreshRevocations({});
+  const revocationTimer=setInterval(()=>void marketplace.refreshRevocations({}),15*60*1000);revocationTimer.unref();
   const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: ['marketplace-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
@@ -55,6 +57,8 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     closing = (async () => {
       clearTimeout(timer);
       clearInterval(selectionCleanup);
+      clearInterval(revocationTimer);
+      await marketplace.stop();
       for (const id of connections.keys()) disconnect(id);
       http.closeAllConnections();
       await new Promise<void>(resolve => http.close(() => resolve()));
@@ -124,7 +128,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     const context = (args: Record<string, unknown>): BindingContext => connection.bindings.get(nonempty(args.binding)) ?? fail('BINDING_UNAVAILABLE', '当前连接没有此绑定');
     let result: unknown;
     switch (method) {
-      case 'marketplace': {const a=object(value,['method','args']);const method=nonempty(a.method);if(!['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual'].includes(method))fail('INVALID_ARGUMENT','未知市场操作');result=await marketplace[method as 'search'](a.args);break;}
+      case 'marketplace': {const a=object(value,['method','args']);const method=nonempty(a.method);if(!['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual','refreshRevocations'].includes(method))fail('INVALID_ARGUMENT','未知市场操作');result=await marketplace[method as 'search'](a.args);break;}
       case 'issueClaudeTicket': result = claudeTickets.issue(value); break;
       case 'redeemClaudeTicket': result = claudeTickets.redeem(value); break;
       case 'close': object(value, []); json(res, 200, { result: null }); disconnect(connectionId); return;
@@ -165,12 +169,14 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'history': { const args = object(value, ['binding']); result = store.history(context(args)); break; }
       case 'receive': {
         const args = object(value, ['binding', 'ref', 'send_request_id', 'action'], ['binding','ref','send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
+        if(args.action!==undefined)await marketplace.refreshRevocations({});
         result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id), args.action === undefined ? undefined : actionSelection(args.action)); break;
       }
       case 'ruleChoices': case 'rules': {const args=object(value,['binding']);result=store[method](context(args));break;}
       case 'changeRules': {const args=object(value,['binding','change']);const change=object(args.change,['kind','generation','selection','replace','checkpoint'],['kind','generation','checkpoint']);
         if(!['enable','disable','disableAll'].includes(String(change.kind)))fail('INVALID_ARGUMENT','无效规则操作');
         if(change.selection)change.selection=actionSelection(change.selection);if(change.replace)change.replace=actionSelection(change.replace);
+        if(change.kind==='enable')await marketplace.refreshRevocations({});
         result=store.changeRules(context(args),change as unknown as import('./conversation-rules.js').RuleChange);break;}
       case 'removeScenarioPack': {const args=object(value,['release_id']);store.removeScenarioPack(nonempty(args.release_id));result=null;break;}
       case 'collaborationChoices': { const args=object(value,['binding','ref']); result=store.collaborationChoices(context(args),expressionRef(args.ref)); break; }

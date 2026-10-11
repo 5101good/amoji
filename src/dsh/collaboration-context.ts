@@ -157,6 +157,7 @@ export class CollaborationContext {
     state.intents.set(rpcId, { action: structuredClone(action), status: 'prepared' });
   }
   has(agent: Agent, rpcId: string): boolean { return !!this.valid(agent)?.intents.has(rpcId); }
+  revoke(agent:Agent,rpcId:string):void {const state=this.valid(agent),intent=state?.intents.get(rpcId);if(intent){intent.status='failed';if(state){state.text='';state.claimed=true;}}}
   uncertain(agent: Agent, rpcId: string): void { const intent=this.valid(agent)?.intents.get(rpcId); if(intent && ['prepared','dispatched'].includes(intent.status))intent.status='unknown'; }
   dispatched(agent: Agent, rpcId: string): void { const intent=this.valid(agent)?.intents.get(rpcId); if(intent?.status==='prepared')intent.status='dispatched'; }
   /** Read only: uncertain delivery is never retried and replay cannot activate an intent. */

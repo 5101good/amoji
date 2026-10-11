@@ -1,3 +1,4 @@
+import { cleanupLifecycle } from "./retention";
 import marketApi from "./market-api";
 import type { Env } from "./worker";
 import { DurableObject } from "cloudflare:workers";
@@ -109,9 +110,10 @@ export class FreeRuntime extends DurableObject<Env> {
     if (request.method !== "POST") return new Response(null, { status: 404 });
     try {
       if (path === "/cleanup") {
+        await cleanupLifecycle(this.env);
         await cleanupUploads(this.env);
         await this.env.DB.prepare(
-          "DELETE FROM auth_rate_limit WHERE (key NOT LIKE 'public:%' AND key NOT LIKE 'device:%' AND bucket < ?) OR (key LIKE 'public:%' AND bucket < ?) OR (key LIKE 'device:%' AND bucket < ?)",
+          "DELETE FROM auth_rate_limit WHERE (key NOT LIKE 'public:%' AND key NOT LIKE 'device:%' AND key NOT LIKE 'report:%' AND bucket < ?) OR (key LIKE 'public:%' AND bucket < ?) OR ((key LIKE 'device:%' OR key LIKE 'report:%') AND bucket < ?)",
         )
           .bind(
             Math.floor(Date.now() / 900000) - 1,

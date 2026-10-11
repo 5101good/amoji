@@ -17,6 +17,7 @@ type PublicRelease = {
   published_at: number;
   state: string;
   updated_at: number;
+  row_version: number;
 };
 const project = (r: PublicRelease) => ({
   pack_id: r.pack_id,
@@ -26,6 +27,7 @@ const project = (r: PublicRelease) => ({
   manifest_sha256: r.manifest_sha256,
   author: r.author,
   published_at: r.published_at,
+  row_version: r.row_version,
 });
 export async function catalogRoute(request: Request, env: UploadEnv) {
   try {
@@ -119,7 +121,7 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
           ).bind(match[1])
     ).first<PublicRelease>();
     if (!r) return failure("NOT_FOUND", 404);
-    if (r.state !== "published") return failure("RELEASE_REMOVED", 410);
+    if (r.state !== "published") return reply({error:{code:'RELEASE_REMOVED',message:'RELEASE_REMOVED',retryable:false},tombstone:{pack_id:r.pack_id,release_id:r.release_id,archive_sha256:r.archive_sha256,state:r.state,row_version:r.row_version}},410);
     if (!match[3])
       return reply({
         ...project(r),

@@ -72,6 +72,20 @@ test('market installation enforces smaller media profile while local pack compat
 test('market filters reach public catalog and offline caches remain query-specific',async t=>{
  const root=await mkdtemp(join(tmpdir(),'amoji-market-filter-'));const store=await LibraryStore.open(root,seed);t.after(async()=>{store.close();await rm(root,{recursive:true,force:true});});
  let offline=false;const seen:string[]=[];const m=new LocalAcquisition(store,'https://market.test',async url=>{if(offline)throw Error('offline');seen.push(String(url));return Response.json({packs:[]});});
- const filter={query:'hello',scenario:'work',locale:'zh-CN',style:'classic',actions:'true'};await m.search(filter);const parsed=new URL(seen[0]!);assert.equal(parsed.searchParams.get('scenario'),'work');assert.equal(parsed.searchParams.get('locale'),'zh-CN');assert.equal(parsed.searchParams.get('style'),'classic');assert.equal(parsed.searchParams.get('actions'),'true');
+ const filter={query:'hello',scenario:'work',locale:'zh-CN',style:'classic',actions:'true'};await m.search(filter);const parsed=new URL(seen.find(x=>x.includes('/v1/packs?'))!);assert.equal(parsed.searchParams.get('scenario'),'work');assert.equal(parsed.searchParams.get('locale'),'zh-CN');assert.equal(parsed.searchParams.get('style'),'classic');assert.equal(parsed.searchParams.get('actions'),'true');
  offline=true;assert.equal((await m.search(filter) as any).stale,true);await assert.rejects(m.search({...filter,actions:'false'}),/MARKET_UNAVAILABLE/);await assert.rejects(m.search({...filter,actions:'invalid'}),/INVALID_ARGUMENT/);
+});
+test('safety revocation atomically disables rules and blocks identity replay while preserving expression history',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'amoji-revocation-'));const store=await LibraryStore.open(root,seed);t.after(async()=>{store.close();await rm(root,{recursive:true,force:true});});
+ const e=store.list()[0]!;const action={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'hook' as const,scope:'conversation' as const,locale:'zh-CN',effect_summary:'安全测试',conflict_group:'response-organization' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},rights:{license:'CC0-1.0'}};
+ const p:ScenarioPack={kind:'amoji.pack',schema_version:'0.2',pack_id:randomUUID(),release_id:randomUUID(),version:1,name:'安全测试',created_at:new Date().toISOString(),scenario:['测试'],expressions:[e],defaults:[{asset_id:e.asset_id,revision_id:e.revision_id}],actions:[action],bindings:[],rights:{license:'CC0-1.0'}};
+ const bytes=await exportManifest(p,b=>readFile(join(root,'blobs',b.sha256)));await store.importPack(bytes);
+ const context={host:'dsh' as const,hostInstanceId:'test',sessionId:'test'},choice=store.ruleChoices(context)[0]!;
+ store.changeRules(context,{kind:'enable',generation:0,selection:choice.selection,checkpoint:{version:1,profile:'test',session:'test',createdAt:1,rules:[],intents:[]}});
+ let online=true;const fetcher:typeof fetch=async()=>{if(!online)throw Error('offline');return Response.json({revocations:[{pack_id:p.pack_id,release_id:p.release_id,archive_sha256:createHash('sha256').update(bytes).digest('hex'),state:'safety_removed',reason_code:'safety'}],cursor:'cursor',has_more:false});};
+ const market=new LocalAcquisition(store,'https://market.test',fetcher);const state=await market.refreshRevocations({});assert.equal(state.stale,false);assert.ok(state.last_checked_at);
+ assert.equal(store.rules(context).rules[0]!.enabled,false);assert.equal(store.ruleChoices(context).length,0);assert.deepEqual(store.resolve(e),e);
+ await assert.rejects(store.importPack(bytes),/SAFETY_REMOVED/);
+ const replay={...p,release_id:randomUUID(),version:2};await assert.rejects(store.importPack(await exportManifest(replay,b=>readFile(join(root,'blobs',b.sha256)))),/SAFETY_REMOVED/);
+ online=false;const offline=await market.refreshRevocations({});assert.equal(offline.stale,true);assert.equal(offline.last_checked_at,state.last_checked_at);
 });

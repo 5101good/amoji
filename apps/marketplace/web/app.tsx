@@ -1,3 +1,4 @@
+import {Lifecycle} from "./lifecycle";
 import {DeviceApproval} from "./device";
 import { Catalog, Reviews } from "./market";
 import { UploadPanel } from "./upload";
@@ -153,6 +154,7 @@ function App() {
                   accountId={account.id}
                 />
               )}
+              <Lifecycle account={account} locale={locale} onDeleted={()=>setAccount(null)}/>
               <UploadPanel
                 key={account.id}
                 locale={locale}

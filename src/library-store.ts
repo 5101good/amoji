@@ -172,7 +172,9 @@ export class LibraryStore {
   }
 
   async importPack(input: PackInput): Promise<ImportResult> {
-    return withValidatedPack(input, pack => this.importValidatedPack(pack, 'imported'));
+    const hash=createHash('sha256');
+    async function* observed(){if(input instanceof Uint8Array){hash.update(input);yield input;}else for await(const chunk of input){hash.update(chunk);yield chunk;}}
+    return withValidatedPack(observed(),pack=>{const digest=hash.digest('hex');if(this.unsafePack(pack.manifest,digest))fail('SAFETY_REMOVED','已知安全下架内容不能重导入动作');return this.importValidatedPack(pack,'imported');});
   }
   private async importValidatedPack(pack: ValidatedPack, origin: 'imported' | 'builtin', acquisition?: { defaults?:ExpressionRef[]; beforeCommit():Promise<void>; commit():void }): Promise<ImportResult> {
     // Stage only fully validated content. No metadata becomes visible until every blob is written.
@@ -192,6 +194,7 @@ export class LibraryStore {
     }
     await acquisition?.beforeCommit();
     return this.transaction(() => {
+      if(this.unsafePack(pack.manifest))fail('SAFETY_REMOVED','已知安全下架动作不可安装');
       if(pack.manifest.schema_version==='0.2')this.persistScenarioPack(pack.manifest);
       let added = 0;
       for (const e of pack.manifest.expressions) {
@@ -212,6 +215,33 @@ export class LibraryStore {
       if (!acquisition) this.db.prepare('INSERT OR IGNORE INTO imported_packs VALUES (?,?,?)').run(createHash('sha256').update(manifest).digest('hex'), pack.manifest.pack_id, manifest);
       acquisition?.commit();
       return { pack_id: pack.manifest.pack_id, added, existing: pack.manifest.expressions.length - added, defaults: pack.manifest.defaults, ...(pack.manifest.schema_version==='0.2'?{actions:pack.manifest.actions.map(a=>({ref:{action_id:a.action_id,action_revision_id:a.action_revision_id},enabled:false as const,reason:'当前宿主尚未提供已验证的动作运行能力 / Action runtime is not yet supported by this host'}))}:{}) };
+    });
+  }
+  private unsafePack(pack:import('./packs.js').Pack,digest?:string):boolean {
+    const rows=this.db.prepare('SELECT release_id,data FROM revocations').all() as {release_id:string;data:string}[];
+    return rows.some(row=>{const r=JSON.parse(row.data);return r.state==='safety_removed'&&((digest&&r.archive_sha256===digest)||(pack.schema_version==='0.2'&&(row.release_id===pack.release_id||pack.actions.some(a=>(r.actions??[]).some((b:any)=>a.action_id===b.action_id&&a.action_revision_id===b.action_revision_id)))));});
+  }
+  applyRevocations(origin:string,entries:Array<{pack_id:string;release_id:string;archive_sha256:string;state:string;reason_code:string}>,cursor:string,checked:string):void {
+    this.transaction(()=>{
+      for(const entry of entries){
+        if(entry.state!=='safety_removed')continue;
+        const pack=this.listScenarioPacks().find(p=>p.release_id===entry.release_id);
+        const old=this.db.prepare('SELECT data FROM revocations WHERE origin=? AND release_id=?').get(origin,entry.release_id) as {data:string}|undefined;
+        const data={...entry,actions:pack?.actions.map(a=>({action_id:a.action_id,action_revision_id:a.action_revision_id}))??(old?JSON.parse(old.data).actions:[])};
+        this.db.prepare('INSERT INTO revocations VALUES(?,?,?) ON CONFLICT(origin,release_id) DO UPDATE SET data=excluded.data').run(origin,entry.release_id,JSON.stringify(data));
+      }
+      const unsafe=new Set(this.listScenarioPacks().filter(p=>this.unsafePack(p)).map(p=>p.release_id));
+      for(const row of this.db.prepare("SELECT session_key,data FROM rule_activations WHERE conflict_group='@session'").all() as {session_key:string;data:string}[]){
+        const state:RuleSnapshot=JSON.parse(row.data);let changed=false;
+        for(const rule of state.rules)if(rule.enabled&&unsafe.has(rule.source.release_id)){rule.enabled=false;rule.status='disabled';rule.reason='safety_removed';changed=true;}
+        if(changed){state.generation++;for(const rule of state.rules)rule.generation=state.generation;this.db.prepare("UPDATE rule_activations SET generation=?,data=? WHERE session_key=? AND conflict_group='@session'").run(state.generation,JSON.stringify(state),row.session_key);}
+      }
+      for(const row of this.db.prepare('SELECT session_key,data FROM sessions').all() as {session_key:string;data:string}[]){
+        const session:Session=JSON.parse(row.data);let changed=false;
+        for(const message of session.messages){const intent=message.action_intent;if(intent&&unsafe.has(intent.source.release_id)){intent.status='failed';intent.receipt={status:'failed',reason:'safety_removed'};this.db.prepare('UPDATE action_intents SET data=? WHERE operation_id=?').run(JSON.stringify(intent),intent.operation_id);changed=true;}}
+        if(changed)this.db.prepare('UPDATE sessions SET data=? WHERE session_key=?').run(JSON.stringify(session),row.session_key);
+      }
+      this.marketWrite('revocation:'+origin,{cursor,last_checked_at:checked,stale:false});
     });
   }
   marketRead<T>(key:string):T|undefined { const row=this.db.prepare('SELECT value FROM metadata WHERE key=?').get(`market:${key}`) as {value:string}|undefined; return row?JSON.parse(row.value):undefined; }
@@ -548,7 +578,7 @@ export class LibraryStore {
       if(!binding)return [];
       const installed=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
       if(installed && !['installed','collected'].includes(installed.state))return [];
-      if(this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
+      if(this.unsafePack(pack))return [];
       return pack.actions.flatMap(action=>action.kind==='instruction' && binding.actions.some(a=>a.action_id===action.action_id&&a.action_revision_id===action.action_revision_id)?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:installed?.origin??this.marketRead<string>(`release-source:${pack.release_id}`)??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
     });
   }
@@ -557,7 +587,7 @@ export class LibraryStore {
     const packs=this.listScenarioPacks();
     return packs.flatMap(pack=>{
       const install=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
-      if((install && !['installed','collected'].includes(install.state)) || this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
+      if((install && !['installed','collected'].includes(install.state)) || this.unsafePack(pack))return [];
       // A new release never carries forward consent to a changed action revision.
       if(packs.some(p=>p.pack_id===pack.pack_id && p.version>pack.version))return [];
       return pack.actions.flatMap(action=>action.kind==='hook'?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:install?.origin??this.marketRead<string>(`release-source:${pack.release_id}`)??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
@@ -609,6 +639,7 @@ export class LibraryStore {
     this.transaction(()=>{
       const session=this.session(context); const message=session.messages.find(m=>m.message_id===messageId);
       if(!message?.action_intent)fail('BINDING_MISMATCH','动作不属于此会话消息');
+      if(message.action_intent.receipt?.reason==='safety_removed')return;
       message.action_intent={...message.action_intent,...update};
       this.db.prepare('UPDATE action_intents SET data=? WHERE operation_id=? AND session_key=?').run(JSON.stringify(message.action_intent),message.action_intent.operation_id,sessionKey(context));
       if(update.receipt)this.db.prepare('INSERT INTO action_receipts VALUES (?,?,?) ON CONFLICT(receipt_id) DO UPDATE SET data=excluded.data').run(message.action_intent.operation_id,sessionKey(context),JSON.stringify(update.receipt));

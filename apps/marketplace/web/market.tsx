@@ -1,3 +1,4 @@
+import {Report} from "./lifecycle";
 import React, { useEffect, useRef, useState } from "react";
 import { Preview, previewWords } from "./upload";
 type Locale = "zh" | "en";
@@ -240,6 +241,7 @@ export function Catalog({ locale }: { locale: Locale }) {
           >
             {t.download}
           </a>
+          <Report pack={detail} locale={locale}/>
         </>
       )}
       {rows.map((r) => (

@@ -29,6 +29,8 @@ export class DshCollaboration {
   private readonly invalidated=new WeakSet<Agent>();
   private async load(agent:Agent):Promise<void>{
     if(!this.runtime.rules)return;
+    const messages=await this.runtime.messages(this.binding(agent.id));
+    for(const message of messages)if(message.action_intent?.receipt?.reason==='safety_removed')this.context.revoke(agent,`amoji:${message.message_id}`);
     const snapshot=await this.runtime.rules.read(this.binding(agent.id));
     if(!snapshot.checkpoint || this.invalidated.has(agent) || !this.context.matchesIdentity(agent,snapshot.checkpoint))return;
     this.context.authorize(agent);

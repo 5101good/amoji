@@ -1,10 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {fixture} from './submission-fixture.mjs';
 test('device pairing is explicitly approved, single-use, scoped, rotated and revoked',async t=>{
  const f=await fixture(t); const {mf,db,post}=f;
- for(const sql of (await readFile(new URL("../migrations/0007-device-authorizations.sql",import.meta.url),"utf8")).split(";").filter(s=>s.trim()))await db.prepare(sql).run();
+
  const send=(path,data,token)=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},body:JSON.stringify(data)});
  const created=await send('device-authorizations',{device_name:'Isolated dsh'});
  assert.equal(created.status,201);
@@ -27,7 +26,7 @@ test('device pairing is explicitly approved, single-use, scoped, rotated and rev
  assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+next.access_token}})).status,401);
 });
 test('device boundaries reject browser redemption, expiry, cancellation, cross-account approval reuse and logout',async t=>{
- const {mf,db,post,cookie,register}=await fixture(t);for(const sql of (await readFile(new URL('../migrations/0007-device-authorizations.sql',import.meta.url),'utf8')).split(';').filter(s=>s.trim()))await db.prepare(sql).run();
+ const {mf,db,post,cookie,register}=await fixture(t);
  const send=(path,data,headers={})=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(data)});
  const create=async()=>{const r=await send('device-authorizations',{device_name:'Private dsh'});assert.equal(r.status,201);return r.json();};
  let p=await create();
@@ -42,7 +41,7 @@ test('device boundaries reject browser redemption, expiry, cancellation, cross-a
  assert.equal((await post('/v1/auth/logout',{},cookie)).status,200);assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+next.access_token}})).status,401);assert.equal((await send('device-tokens/refresh',{refresh_token:next.refresh_token})).status,401);
 });
 test('device own-content authorization, disable, explicit revoke and concurrent refresh reuse fail closed',async t=>{
- const {mf,db,post,cookie,register}=await fixture(t);for(const sql of (await readFile(new URL('../migrations/0007-device-authorizations.sql',import.meta.url),'utf8')).split(';').filter(s=>s.trim()))await db.prepare(sql).run();
+ const {mf,db,post,cookie,register}=await fixture(t);
  const send=(path,data,token,extra={})=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{}),...extra},body:JSON.stringify(data)});
  const pair=async cookie=>{const p=await(await send('device-authorizations',{device_name:'Isolated security device'})).json();assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{approved:true,user_code:p.user_code},cookie)).status,200);const r=await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret});assert.equal(r.status,200);return r.json();};
  const token=await pair(cookie),second=await pair(await register('other-device@example.test'));

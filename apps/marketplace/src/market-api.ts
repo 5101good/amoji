@@ -1,3 +1,4 @@
+import { lifecycleRoute } from "./lifecycle";
 import {deviceRoute,deviceActor,revokeDevices} from "./devices";
 import { reviewRoute } from "./reviews";
 import { catalogRoute } from "./catalog";
@@ -141,6 +142,25 @@ export default {
       if (url.origin !== env.APP_ORIGIN) return error("ORIGIN", 403);
       if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32)
         return error("CONFIGURATION", 503);
+      const lifecycle=/^\/v1\/me\/submissions\/[0-9a-f-]{36}\/delete$/.test(path)||path.startsWith('/v1/reports')||path==='/v1/revocations'||path.startsWith('/v1/review/reports')||path.startsWith('/v1/admin/')||path==='/v1/me/delete'||path==='/v1/me/deletion-policy'||/^\/v1\/packs\/[^/]+\/unpublish$/.test(path);
+      if(lifecycle){
+        const publicRoute=path.startsWith('/v1/reports')||path==='/v1/revocations';
+        const ip=request.headers.get('x-amoji-edge-ip');if(!ip)return error('UNTRUSTED_PROXY',403);
+        const anonymous='anonymous:'+await mac(env.BETTER_AUTH_SECRET,ip);
+        if(request.method==='GET'&&!await limit(env,'public:'+await mac(env.BETTER_AUTH_SECRET,ip),120,60000))return error('RATE_LIMITED',429);
+        if(path==='/v1/reports'&&request.method==='POST'&&!await limit(env,'report:'+anonymous,5,3600000))return json({error:{code:'RATE_LIMITED',message:'RATE_LIMITED',retryable:true}},429,{'retry-after':'3600'});
+        if(publicRoute)return lifecycleRoute(request,env,null,anonymous);
+        if(request.headers.has('authorization'))return error('DEVICE_SCOPE',403);
+        const session=await createAuth(env).api.getSession({headers:request.headers,query:{disableCookieCache:true,disableRefresh:true}});
+        if(!session)return error('UNAUTHENTICATED',401);
+        const domain=await account(env,session.user);if(!domain||domain.disabled)return error('ACCOUNT_DISABLED',403);
+        if(request.method==='POST'){
+          if(request.headers.get('origin')!==env.APP_ORIGIN||request.headers.get('sec-fetch-site')==='cross-site')return error('ORIGIN',403);
+          const parts=(request.headers.get('x-csrf-token')??'').split('.'),stamp=parts.slice(0,2).join('.'),issued=Number(parts[0]);
+          if(parts.length!==3||!Number.isFinite(issued)||issued>Date.now()||Date.now()-issued>300000||!await validCsrf(request,env,stamp,parts[2]??''))return error('CSRF',403);
+        }
+        return lifecycleRoute(request,env,domain.id,anonymous);
+      }
       if (path === "/v1/packs" || path.startsWith("/v1/packs/")) {
         const ip = request.headers.get("x-amoji-edge-ip");
         if (!ip) return error("UNTRUSTED_PROXY", 403);

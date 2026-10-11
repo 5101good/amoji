@@ -30,6 +30,7 @@ export function Marketplace({rpc,sessionId,onChanged}:{rpc:DshRpc;sessionId:stri
  return <section aria-label={t('表情市场')} aria-busy={busy}>
  <h3>{t('表情市场')}</h3><p>{t('匿名获取，安装后离线可用。动作需另行启用。')}</p>
  <form onSubmit={e=>{e.preventDefault();void run(search);}}><label>{t('搜索市场')}<input value={query} onChange={e=>setQuery(e.target.value)}/></label>{(['scenario','locale','style'] as const).map((key,i)=><label key={key}>{t(['场景','语义语言','画风'][i]!)}<input aria-label={t(['场景','语义语言','画风'][i]!)} value={filters[key]} onChange={e=>setFilters({...filters,[key]:e.target.value})}/></label>)}<label>{t('动作筛选')}<select aria-label={t('动作筛选')} value={filters.actions} onChange={e=>setFilters({...filters,actions:e.target.value})}><option value="">{t('全部')}</option><option value="true">{t('包含动作')}</option><option value="false">{t('仅表达')}</option></select></label><button disabled={busy} type="submit">{t('搜索')}</button></form>
+ {local.revocations&&<p>{t('安全状态上次核对')} {local.revocations.last_checked_at??t('尚未核对')} {local.revocations.stale&&t('离线缓存，发布状态可能滞后')}</p>}
  {checked&&<p className="muted">{t('上次核对')} {checked} {stale&&t('离线缓存，发布状态可能滞后')}</p>}
  <p role="status" aria-live="polite">{t(status)}</p>{sendPending&&<button type="button" disabled={busy} onClick={()=>void run(checkSend)}>{t('核对投递状态')}</button>}{pending&&<button disabled={busy} type="button" onClick={()=>void run(async()=>settle(await call('installStatus',{operation_id:pending})))}>{t('核对原安装操作')}</button>}
  {checked&&!rows.length&&<p>{t('没有匹配的公开场景包')}</p>}

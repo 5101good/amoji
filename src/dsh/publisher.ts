@@ -8,7 +8,7 @@ export const MARKET_ORIGIN='https://amoji-auth-v0.5101good.workers.dev';
 type Tokens={access_token:string;refresh_token:string;account_id:string;device_id:string;expires_at:number;refreshing?:boolean};
 type Pair={id:string;device_secret:string;user_code:string;device_name:string;expires_at:number;verification_uri:string;next_poll:number};
 type Credentials={origin:string;tokens?:Tokens;pair?:Pair};
-export type PublisherDraft={id:string;version:number;step:number;source_release_id:string;manifest:ScenarioPack;account_id?:string;pack_id?:string;state:'draft'|'uploading'|'uploaded'|'unknown'|'submitted';reserve_operation:string;authorize_operation:string;complete_operation:string;submit_operation:string;upload?:{id:string;pack_id:string;release_id:string;version:number;row_version:number;state:string};submission?:{id:string;pack_id:string;release_id:string;version:number;state:string;reason:string|null;row_version:number}};
+export type PublisherDraft={id:string;version:number;step:number;source_release_id:string;manifest:ScenarioPack;account_id?:string;pack_id?:string;state:'draft'|'uploading'|'uploaded'|'unknown'|'submitted';unknown_absent?:boolean;reserve_operation:string;authorize_operation:string;complete_operation:string;submit_operation:string;upload?:{id:string;pack_id:string;release_id:string;version:number;row_version:number;state:string};submission?:{id:string;pack_id:string;release_id:string;version:number;state:string;reason:string|null;row_version:number}};
 /** Host-owned credentials and drafts never cross the browser RPC boundary. All mutations serialize. */
 export class DshPublisher{
  private tail:Promise<unknown>=Promise.resolve();
@@ -30,7 +30,7 @@ export class DshPublisher{
  }
  private tokens(value:any):Tokens{if(!/^[a-f0-9]{64}$/.test(value.access_token)||!/^[a-f0-9]{64}$/.test(value.refresh_token)||typeof value.account_id!=='string'||typeof value.device_id!=='string'||value.expires_in!==900)fail('PUBLISHER_LOGIN','授权响应无效');return{access_token:value.access_token,refresh_token:value.refresh_token,account_id:value.account_id,device_id:value.device_id,expires_at:this.now()+900000};}
  private async execute(method:string,raw:unknown):Promise<any>{
-  await this.init();const schemas:Record<string,string[]>={beginLogin:['device_name'],loginStatus:[],cancelLogin:[],logout:[],drafts:[],create:['release_id','revise_id'],save:['id','version','step','name','description','license','creator','source','actions'],upload:['id'],submit:['id','rights_confirmed'],reconcile:['id'],submissions:[],withdraw:['id']};
+  await this.init();const schemas:Record<string,string[]>={beginLogin:['device_name'],loginStatus:[],cancelLogin:[],logout:[],drafts:[],create:['release_id','revise_id'],save:['id','version','step','name','description','license','creator','source','actions'],upload:['id'],submit:['id','rights_confirmed'],retrySubmit:['id','rights_confirmed'],reconcile:['id'],submissions:[],withdraw:['id']};
   if(!schemas[method])fail('INVALID_ARGUMENT','未知发布操作');const a=object(raw,schemas[method]!,[]);
   if(method==='beginLogin'){
    const c=await this.credentials();if(c.pair)await this.request(`device-authorizations/${c.pair.id}/cancel`,{device_secret:c.pair.device_secret});
@@ -77,6 +77,7 @@ export class DshPublisher{
    if(['unknown','submitted'].includes(d.state))return this.reconcile(d,token,save);
    if(d.state==='uploaded')return d;
    if(!this.runtime.readBlob)fail('BLOB_UNAVAILABLE','素材不可用');
+   if(d.state==='draft'){const preview=await exportManifest(d.manifest,b=>this.runtime.readBlob!(b.sha256));await withValidatedPack(preview,async()=>{},'market');}
    d.state='uploading';await save(d);
    if(!d.upload){const r=await this.request('uploads',d.pack_id?{pack_id:d.pack_id}:{},token.access_token,{'idempotency-key':d.reserve_operation});d.upload=r.upload;await save(d);}
    const u=d.upload!;const path=join(this.directory,d.id+'.amoji');let bytes:Buffer;
@@ -93,7 +94,12 @@ export class DshPublisher{
    if(d.upload?.state!=='valid')fail('PUBLISHER_VALIDATING','内容仍在校验，请核对原上传');d.state='uploaded';return save(d);
   }
   if(method==='reconcile')return this.reconcile(d,token,save);
-  if(method==='submit'){
+  if(method==='retrySubmit'){
+   if(d.state!=='unknown'||!d.unknown_absent||a.rights_confirmed!==true)fail('PUBLISHER_CONFIRM','请先核对原操作并确认重试');
+   const reconciled=await this.reconcile(d,token,save);if(reconciled.state==='submitted')return reconciled;
+   d.state='uploaded';delete d.unknown_absent;await save(d);
+  }
+  if(method==='submit'||method==='retrySubmit'){
    if(d.state==='unknown'||d.state==='submitted')return this.reconcile(d,token,save);
    if(d.state!=='uploaded'||!d.upload||a.rights_confirmed!==true)fail('PUBLISHER_CONFIRM','请完整预览并确认再投稿');
    d.state='unknown';await save(d);
@@ -108,7 +114,7 @@ export class DshPublisher{
  }
  private pairView(p:Pair){return{state:'pending',id:p.id,user_code:p.user_code,device_name:p.device_name,expires_at:p.expires_at,verification_uri:p.verification_uri};}
  private async reconcile(d:PublisherDraft,token:Tokens,save:(d:PublisherDraft)=>Promise<PublisherDraft>){
-  if(d.state==='unknown'){try{const op=await this.request('operations/'+d.submit_operation,undefined,token.access_token);if(op.result?.submission){d.submission=op.result.submission;d.state='submitted';await save(d);}}catch(e){if((e as {code?:string}).code!=='NOT_FOUND')throw e;return d;}}
+  if(d.state==='unknown'){try{const op=await this.request('operations/'+d.submit_operation,undefined,token.access_token);if(op.result?.submission){d.submission=op.result.submission;d.state='submitted';await save(d);}}catch(e){if((e as {code?:string}).code!=='NOT_FOUND')throw e;d.unknown_absent=true;await save(d);return d;}}
   if(d.submission){d.submission=(await this.request('me/submissions/'+d.submission.id,undefined,token.access_token)).submission;await save(d);}return d;
  }
 }

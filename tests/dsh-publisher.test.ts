@@ -35,8 +35,8 @@ test('publishing persists steps, sends selected bytes only, reconciles unknown o
   if(u.pathname.endsWith('/authorize')){upload={...upload,row_version:2};return Response.json({upload,authorization:{url:'https://account.r2.cloudflarestorage.com/bucket/selected',headers:{'content-type':'application/zip'}}});}
   if(u.pathname.endsWith('/complete')){upload={...upload,row_version:4,state:'valid'};return Response.json({upload});}
   if(u.pathname.startsWith('/v1/uploads/'))return Response.json({upload});
-  if(u.pathname==='/v1/submissions'){submitCount++;operation=(init?.headers as Record<string,string>)['idempotency-key']!;submission={id:randomUUID(),pack_id:upload.pack_id,release_id:upload.release_id,version:upload.version,state:'pending',reason:null,row_version:1};throw Error('synthetic lost response');}
-  if(u.pathname.startsWith('/v1/operations/')){assert.equal(u.pathname,'/v1/operations/'+operation);return Response.json({status:201,result:{submission}});}
+  if(u.pathname==='/v1/submissions'){submitCount++;const nextOperation=(init?.headers as Record<string,string>)['idempotency-key']!;if(operation)assert.equal(nextOperation,operation);operation=nextOperation;if(submitCount===1)throw Error('request never arrived');submission={id:randomUUID(),pack_id:upload.pack_id,release_id:upload.release_id,version:upload.version,state:'pending',reason:null,row_version:1};throw Error('synthetic lost response');}
+  if(u.pathname.startsWith('/v1/operations/')){assert.equal(u.pathname,'/v1/operations/'+operation);if(!submission)return Response.json({error:{code:'NOT_FOUND'}},{status:404});return Response.json({status:201,result:{submission}});}
   if(u.pathname.startsWith('/v1/me/submissions/'))return Response.json({submission:{...submission,state:review,reason:review==='changes_requested'?'补充说明':null}});
   throw Error('Unexpected route '+u.pathname);
  };
@@ -46,6 +46,12 @@ test('publishing persists steps, sends selected bytes only, reconciles unknown o
  const restored=new DshPublisher(dir,new ConnectedRuntime(c),'https://market.test',transport,()=>now);assert.equal((await restored.call('drafts',{}))[0].step,3);
  draft=await restored.call('upload',{id:draft.id});assert.equal(draft.state,'uploaded');assert.ok(uploaded);await withValidatedPack(uploaded!,async pack=>{assert.equal(pack.manifest.expressions.length,1);assert.equal(pack.manifest.expressions[0]!.revision_id,selected.revision_id);assert.equal('credentials' in pack.manifest,false);},'market');
  await assert.rejects(restored.call('submit',{id:draft.id,rights_confirmed:true}),/网络中断/);assert.equal((await restored.call('drafts',{}))[0].state,'unknown');
- draft=await restored.call('submit',{id:draft.id,rights_confirmed:true});assert.equal(draft.state,'submitted');assert.equal(submitCount,1);
+ draft=await restored.call('submit',{id:draft.id,rights_confirmed:true});assert.equal(draft.state,'unknown');assert.equal(draft.unknown_absent,true);assert.equal(submitCount,1);await assert.rejects(restored.call('retrySubmit',{id:draft.id,rights_confirmed:true}));draft=await restored.call('reconcile',{id:draft.id});assert.equal(draft.state,'submitted');assert.equal(submitCount,2);
  review='changes_requested';draft=await restored.call('reconcile',{id:draft.id});assert.equal(draft.submission.reason,'补充说明');const revision=await restored.call('create',{release_id:source.release_id,revise_id:draft.id});assert.equal(revision.pack_id,draft.submission.pack_id);assert.notEqual(revision.submit_operation,draft.submit_operation);assert.equal(revision.state,'draft');
+});
+test('a locally invalid publishing snapshot remains editable before reserving an upload',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'amoji-invalid-publish-'));t.after(()=>rm(root,{recursive:true,force:true}));const source:any={release_id:randomUUID(),name:'broken',actions:[],rights:{license:'CC0-1.0'},bindings:[]};
+ const runtime={scenarios:{getScenarioPack:async()=>source},readBlob:async()=>Buffer.alloc(0)} as unknown as AdapterRuntime;const transport:typeof fetch=async(input)=>{if(String(input).endsWith('/uploads'))throw Error('must not reserve invalid local content');throw Error('unexpected');};
+ await import('node:fs/promises').then(fs=>fs.writeFile(join(root,'credentials.json'),JSON.stringify({origin:'https://market.test',tokens:{access_token:'a'.repeat(64),refresh_token:'b'.repeat(64),account_id:'owner',device_id:'device',expires_at:Date.now()+900000}}),{mode:0o600}));
+ const p=new DshPublisher(root,runtime,'https://market.test',transport);const d=await p.call('create',{release_id:source.release_id});await assert.rejects(p.call('upload',{id:d.id}));assert.equal((await p.call('drafts',{}))[0].state,'draft');
 });

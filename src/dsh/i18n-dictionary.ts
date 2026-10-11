@@ -462,4 +462,5 @@ export const english = {
 "changes_requested": "Changes requested",
 "published": "Published",
 "withdrawn": "Withdrawn",
+"明确重试同一投稿操作": "Explicitly retry the same submission operation",
 } as const;

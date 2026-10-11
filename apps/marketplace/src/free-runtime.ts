@@ -14,6 +14,31 @@ export class FreeRuntime extends DurableObject<Env> {
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS budget(day INTEGER NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(day,kind))",
     );
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS public_rate_limit(key TEXT NOT NULL,bucket INTEGER NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(key,bucket))",
+    );
+    ctx.storage.sql.exec(
+      "CREATE INDEX IF NOT EXISTS public_rate_limit_bucket ON public_rate_limit(bucket)",
+    );
+  }
+  private publicRateLimit(key: string, bucket: number, max: number) {
+    return this.ctx.storage.transactionSync(() => {
+      // Bound cleanup work even after a long idle period. Only HMAC identities
+      // are stored, and rejected requests do not keep incrementing a full bucket.
+      this.ctx.storage.sql.exec(
+        "DELETE FROM public_rate_limit WHERE rowid IN (SELECT rowid FROM public_rate_limit WHERE bucket<? ORDER BY bucket LIMIT 128)",
+        bucket,
+      );
+      const previous = [...this.ctx.storage.sql.exec<{ count: number }>(
+        "SELECT count FROM public_rate_limit WHERE key=? AND bucket=?", key, bucket,
+      )][0];
+      if (previous && previous.count >= max) return false;
+      this.ctx.storage.sql.exec(
+        "INSERT INTO public_rate_limit(key,bucket,count) VALUES(?,?,1) ON CONFLICT(key,bucket) DO UPDATE SET count=count+1",
+        key, bucket,
+      );
+      return true;
+    });
   }
   private permitted(kind: string, max: number) {
     const day = Math.floor(Date.now() / 86400000);
@@ -33,7 +58,7 @@ export class FreeRuntime extends DurableObject<Env> {
   private metadataReading = 0;
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
-    // Metadata does not run archive decoding/password hashing. Its atomic D1
+    // Metadata does not run archive decoding/password hashing. Its atomic local
     // rate limit still applies, while slow mutations retain the bounded queue.
     if (request.method === "GET" && /^\/v1\/packs(?:\/[0-9a-f-]{36}(?:\/releases\/[0-9a-f-]{36})?)?$/.test(path)) {
       if (this.metadataReading >= 64) return failure("RUNTIME_BUSY", 429);
@@ -115,7 +140,11 @@ export class FreeRuntime extends DurableObject<Env> {
             this.handle(new Request(input, init)),
         }),
       } as unknown as DurableObjectNamespace;
-      return marketApi.fetch(request, { ...this.env, FREE_RUNTIME: runtime });
+      return marketApi.fetch(request, {
+        ...this.env,
+        FREE_RUNTIME: runtime,
+        publicRateLimit: (key, bucket, max) => this.publicRateLimit(key, bucket, max),
+      });
     }
     if (request.method !== "POST") return new Response(null, { status: 404 });
     try {

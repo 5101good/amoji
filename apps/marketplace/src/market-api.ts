@@ -7,6 +7,11 @@ import { createAuth } from "./auth";
 import { submissionRoute } from "./submissions";
 import { uploadRoute } from "./uploads";
 import type { Env } from "./worker";
+// Supplied only by the owning runtime, after the public ingress has overwritten
+// its forwarding marker. Request headers cannot select a limiter or skip it.
+type ApiEnv = Env & {
+  publicRateLimit?: (key: string, bucket: number, max: number) => boolean;
+};
 const encoder = new TextEncoder();
 function json(data: object, status = 200, extra?: HeadersInit) {
   const h = new Headers(extra);
@@ -102,8 +107,10 @@ async function limitedBody(request: Request) {
   }
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-async function limit(env: Env, key: string, max: number, window = 900000) {
+async function limit(env: ApiEnv, key: string, max: number, window = 900000) {
   const bucket = Math.floor(Date.now() / window);
+  if (key.startsWith("public:") && env.publicRateLimit)
+    return env.publicRateLimit(key, bucket, max);
   const result = await env.DB.prepare(
     "INSERT INTO auth_rate_limit (key,bucket,count) VALUES (?, ?, 1) ON CONFLICT(key,bucket) DO UPDATE SET count=count+1 RETURNING count",
   )
@@ -129,7 +136,7 @@ async function account(env: Env, user: { id: string; name: string }) {
     }>();
 }
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: ApiEnv): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
     if (!path.startsWith("/v1/"))

@@ -320,3 +320,49 @@ test("private reads fail closed at shared free allowance, including preview, med
     0,
   );
 });
+
+// This is controlled route-level interleaving with real D1 statements, not a
+// claim that workerd's serialized test HTTP dispatcher naturally races here.
+test("withdraw catches a real same-key D1 uniqueness race and replays the winner", async (t) => {
+  const { build } = await import("esbuild");
+  await build({
+    entryPoints: ["src/submissions.ts"], bundle: true, platform: "node",
+    format: "esm", outfile: "dist/submission-race-test.mjs",
+    plugins: [{ name: "withdraw-only", setup(b) {
+      b.onResolve({ filter: /market-validator$/ }, () => ({ path: "unused-validator", namespace: "test" }));
+      b.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: "export function unpack(){throw Error('Unexpected archive read in withdrawal test')}" }));
+    } }],
+  });
+  const { submissionRoute } = await import("../dist/submission-race-test.mjs");
+  const f = await fixture(t), v = await valid(f);
+  const created = await f.post("/v1/submissions", { upload_id: v.upload.id, rights_confirmed: true }, f.cookie, crypto.randomUUID(), { "if-match": `"${v.upload.row_version}"` });
+  assert.equal(created.status, 201);
+  const s = (await created.json()).submission;
+  const { owner } = await f.db.prepare("SELECT owner FROM market_submission WHERE id=?").bind(s.id).first();
+  const path = `/v1/submissions/${s.id}/withdraw`, key = crypto.randomUUID();
+  let winner, uniqueError, batches = 0;
+  const env = { DB: {
+    prepare: (sql) => f.db.prepare(sql),
+    batch: async (statements) => {
+      batches++;
+      // The losing request has passed its initial replay/state reads. Commit
+      // the competing request now, then run the loser's unchanged SQL batch.
+      const r = await f.post(path, {}, f.cookie, key, { "if-match": '"1"' });
+      assert.equal(r.status, 200);
+      winner = await r.json();
+      try { return await f.db.batch(statements); }
+      catch (error) { uniqueError = String(error); throw error; }
+    },
+  } };
+  const loser = await submissionRoute(new Request("http://localhost" + path, {
+    method: "POST", headers: { "content-type": "application/json", "idempotency-key": key, "if-match": '"1"' }, body: "{}",
+  }), env, owner);
+  assert.equal(batches, 1);
+  assert.match(uniqueError, /UNIQUE constraint failed: market_submission_operation/);
+  assert.equal(loser.status, 200);
+  assert.deepEqual((await loser.json()).submission, winner.submission);
+  const row = await f.db.prepare("SELECT state,row_version FROM market_submission WHERE id=?").bind(s.id).first();
+  assert.deepEqual(row, { state: "withdrawn", row_version: 2 });
+  const count = await f.db.prepare("SELECT count(*) n FROM market_submission_operation WHERE owner=? AND operation=?").bind(owner, key).first();
+  assert.equal(count.n, 1);
+});

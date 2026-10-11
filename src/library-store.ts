@@ -223,9 +223,12 @@ export class LibraryStore {
     const manifest=pack.manifest;
     if(source.ref&&!manifest.expressions.some(e=>e.asset_id===source.ref!.asset_id&&e.revision_id===source.ref!.revision_id))fail('REVISION_NOT_FOUND','收藏版本不在包内');
     const selected=source.ref?[source.ref]:manifest.defaults;
+    const previouslyLocal=!!this.db.prepare('SELECT 1 FROM pack_releases WHERE release_id=?').get(manifest.release_id)&&!this.marketRead(`release-source:${manifest.release_id}`);
     await this.importValidatedPack(pack,'imported',{defaults:selected,
       beforeCommit,
       commit:()=>{
+        if(!previouslyLocal)this.marketWrite(`release-source:${manifest.release_id}`,source.origin);
+        if(source.ref)this.db.prepare("UPDATE local_installs SET state='collected',origin=? WHERE release_id=? AND state='removed'").run(source.origin,manifest.release_id);
         // Only acquisition-owned entries can disappear with their last reference.
         if(source.ref)this.db.prepare('INSERT INTO collection_refs VALUES (?,?,?) ON CONFLICT(asset_id,revision_id) DO UPDATE SET origin=excluded.origin').run(source.ref.asset_id,source.ref.revision_id,JSON.stringify({origin:source.origin,release_id:manifest.release_id,pack_id:manifest.pack_id,rights:manifest.rights}));
         else {
@@ -240,7 +243,12 @@ export class LibraryStore {
     });
   }
   marketRemove(packId:string):void {this.transaction(()=>{for(const i of this.marketInstalls())if(this.getScenarioPack(i.release_id).pack_id===packId)this.removeScenarioPackRecords(i.release_id);this.marketPrune();});}
-  marketUncollect(ref:ExpressionRef):void {this.transaction(()=>{this.db.prepare('DELETE FROM collection_refs WHERE asset_id=? AND revision_id=?').run(ref.asset_id,ref.revision_id);this.marketPrune();});}
+  marketUncollect(ref:ExpressionRef):void {this.transaction(()=>{
+    const source=this.marketCollections().find(c=>c.ref.asset_id===ref.asset_id&&c.ref.revision_id===ref.revision_id)?.source as {release_id:string}|undefined;
+    this.db.prepare('DELETE FROM collection_refs WHERE asset_id=? AND revision_id=?').run(ref.asset_id,ref.revision_id);
+    if(source&&this.marketRead(`release-source:${source.release_id}`)&&!this.marketInstalls().some(i=>i.release_id===source.release_id&&i.state==='installed')&&!this.marketCollections().some(c=>(c.source as {release_id:string}).release_id===source.release_id)&&!this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(source.release_id))this.removeScenarioPackRecords(source.release_id);
+    this.marketPrune();
+  });}
   private marketPrune():void {
     const retained=[...this.marketInstalls().filter(i=>i.state==='installed').flatMap(i=>i.refs),...this.marketCollections().map(c=>c.ref)];
     for(const entry of this.listEntries()){
@@ -541,9 +549,9 @@ export class LibraryStore {
       const binding=pack.bindings.find(b=>b.expression.asset_id===ref.asset_id && b.expression.revision_id===ref.revision_id);
       if(!binding)return [];
       const installed=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
-      if(installed && installed.state!=='installed')return [];
+      if(installed && !['installed','collected'].includes(installed.state))return [];
       if(this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
-      return pack.actions.flatMap(action=>action.kind==='instruction' && binding.actions.some(a=>a.action_id===action.action_id&&a.action_revision_id===action.action_revision_id)?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:installed?.origin??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
+      return pack.actions.flatMap(action=>action.kind==='instruction' && binding.actions.some(a=>a.action_id===action.action_id&&a.action_revision_id===action.action_revision_id)?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:installed?.origin??this.marketRead<string>(`release-source:${pack.release_id}`)??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
     });
   }
   ruleChoices(context: BindingContext): RuleChoice[] {
@@ -551,10 +559,10 @@ export class LibraryStore {
     const packs=this.listScenarioPacks();
     return packs.flatMap(pack=>{
       const install=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;
-      if((install && install.state!=='installed') || this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
+      if((install && !['installed','collected'].includes(install.state)) || this.db.prepare('SELECT 1 FROM revocations WHERE release_id=?').get(pack.release_id))return [];
       // A new release never carries forward consent to a changed action revision.
       if(packs.some(p=>p.pack_id===pack.pack_id && p.version>pack.version))return [];
-      return pack.actions.flatMap(action=>action.kind==='hook'?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:install?.origin??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
+      return pack.actions.flatMap(action=>action.kind==='hook'?[{selection:{release_id:pack.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id},action,source:{pack_id:pack.pack_id,release_id:pack.release_id,version:pack.version,origin:install?.origin??this.marketRead<string>(`release-source:${pack.release_id}`)??(this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id)?'imported-file':'local')}}]:[]);
     });
   }
   rules(context:BindingContext):RuleSnapshot {

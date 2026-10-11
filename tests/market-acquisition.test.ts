@@ -34,6 +34,8 @@ test('LocalAcquisition: atomic updates preserve old selections on faults and dis
  await collection.collect({pack_id:one.pack_id,release_id:one.release_id,ref:onlyRef,operation_id:randomUUID()});
  const collectionContext={host:'dsh' as const,hostInstanceId:'collection-host',sessionId:'collection-session'};
  store.changeRules(collectionContext,{kind:'enable',generation:0,selection:store.ruleChoices(collectionContext)[0]!.selection,replace:null,checkpoint:{version:1,profile:'collection-host',session:'collection-session',createdAt:1,rules:[],intents:[]}});
+ const twin={...one,pack_id:randomUUID(),release_id:randomUUID()};packs.set(twin.release_id,await exportManifest(twin,b=>readFile(join(root,'blobs',b.sha256))));current=twin;
+ await collection.collect({pack_id:twin.pack_id,release_id:twin.release_id,ref:onlyRef,operation_id:randomUUID()});assert.equal(store.rules(collectionContext).rules[0]!.enabled,false,'replacing last collection source disables the prior release');current=one;
  await collection.uncollect({ref:onlyRef});assert.equal(store.rules(collectionContext).rules[0]!.enabled,false,'last collection removal disables rules');assert.equal(store.ruleChoices(collectionContext).length,0,'removed collection cannot reactivate rules');
  await collection.collect({pack_id:one.pack_id,release_id:one.release_id,ref:onlyRef,operation_id:randomUUID()});assert.equal(store.ruleChoices(collectionContext).length,1);
  const m=new LocalAcquisition(store,'https://market.test',fetcher);await m.install({pack_id:one.pack_id,release_id:one.release_id,operation_id:randomUUID()});const context={host:'dsh' as const,hostInstanceId:'test-host',sessionId:'test-session'};const choices=store.ruleChoices(context);assert.equal(choices.length,1);

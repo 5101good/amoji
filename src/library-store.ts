@@ -243,13 +243,11 @@ export class LibraryStore {
     });
   }
   marketRemove(packId:string):void {this.transaction(()=>{for(const i of this.marketInstalls())if(this.getScenarioPack(i.release_id).pack_id===packId)this.removeScenarioPackRecords(i.release_id);this.marketPrune();});}
-  marketUncollect(ref:ExpressionRef):void {this.transaction(()=>{
-    const source=this.marketCollections().find(c=>c.ref.asset_id===ref.asset_id&&c.ref.revision_id===ref.revision_id)?.source as {release_id:string}|undefined;
-    this.db.prepare('DELETE FROM collection_refs WHERE asset_id=? AND revision_id=?').run(ref.asset_id,ref.revision_id);
-    if(source&&this.marketRead(`release-source:${source.release_id}`)&&!this.marketInstalls().some(i=>i.release_id===source.release_id&&i.state==='installed')&&!this.marketCollections().some(c=>(c.source as {release_id:string}).release_id===source.release_id)&&!this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(source.release_id))this.removeScenarioPackRecords(source.release_id);
-    this.marketPrune();
-  });}
+  marketUncollect(ref:ExpressionRef):void {this.transaction(()=>{this.db.prepare('DELETE FROM collection_refs WHERE asset_id=? AND revision_id=?').run(ref.asset_id,ref.revision_id);this.marketPrune();});}
   private marketPrune():void {
+    // Replacing a collection's source can orphan its previous release too.
+    const activeReleases=new Set([...this.marketInstalls().filter(i=>i.state==='installed').map(i=>i.release_id),...this.marketCollections().map(c=>(c.source as {release_id:string}).release_id)]);
+    for(const pack of this.listScenarioPacks())if(this.marketRead(`release-source:${pack.release_id}`)&&!activeReleases.has(pack.release_id)&&!this.db.prepare("SELECT 1 FROM imported_packs WHERE json_extract(manifest,'$.release_id')=?").get(pack.release_id))this.removeScenarioPackRecords(pack.release_id);
     const retained=[...this.marketInstalls().filter(i=>i.state==='installed').flatMap(i=>i.refs),...this.marketCollections().map(c=>c.ref)];
     for(const entry of this.listEntries()){
       const id=entry.expression.asset_id;

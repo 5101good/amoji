@@ -35,6 +35,9 @@ jobs:
         run: npm run typecheck
       - name: Audit locked dependencies
         run: npm audit --audit-level=low --registry=https://registry.npmjs.org
+      - name: Audit marketplace locked dependencies
+        working-directory: apps/marketplace
+        run: npm audit --audit-level=low --registry=https://registry.npmjs.org
       - name: Core tests
         run: npm test
       - name: Build plugin and test published dsh contracts

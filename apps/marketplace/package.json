@@ -13,7 +13,7 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "better-auth": "1.7.5",
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -25,5 +25,11 @@
     "miniflare": "5.20260921.0-alpha",
     "typescript": "7.0.2",
     "wrangler": "4.136.2"
+  },
+  "overrides": {
+    "miniflare": {
+      "sharp": "0.35.5",
+      "undici": "7.29.1"
+    }
   }
 }

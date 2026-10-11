@@ -1,3 +1,4 @@
+import { catalogPage, type CatalogPage } from "../src/catalog-page";
 import {Lifecycle} from "./lifecycle";
 import {DeviceApproval} from "./device";
 import { Catalog, Reviews } from "./market";
@@ -60,7 +61,14 @@ const words = {
   },
 };
 type Account = { id: string; name: string; email: string; role: string };
-function App() {
+const initialCatalog = (() => {
+  const node = document.getElementById("catalog-bootstrap");
+  try {
+    return location.pathname === "/" && node ? catalogPage(JSON.parse(node.textContent ?? "")) : undefined;
+  } catch { return undefined; }
+  finally { node?.remove(); }
+})();
+function App({ initial }: { initial?: CatalogPage }) {
   const [locale, setLocale] = useState<"zh" | "en">("zh");
   const t = words[locale];
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -69,6 +77,7 @@ function App() {
   const [message, setMessage] = useState("");
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+    document.documentElement.dataset.appReady = "true";
   }, [locale]);
   async function me() {
     const r = await fetch("/v1/me");
@@ -130,7 +139,7 @@ function App() {
         </button>
       </header>
       <main className="creator-page">
-        <Catalog locale={locale} />
+        <Catalog locale={locale} initial={initial} />
         <section className="intro">
           <div className="expression" aria-hidden="true">
             ( ◡‿◡ )
@@ -251,4 +260,4 @@ function App() {
     </>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<App initial={initialCatalog} />);

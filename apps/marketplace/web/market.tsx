@@ -1,3 +1,4 @@
+import type { CatalogPage } from "../src/catalog-page";
 import {Report} from "./lifecycle";
 import React, { useEffect, useRef, useState } from "react";
 import { Preview, previewWords } from "./upload";
@@ -144,14 +145,14 @@ export function ReleaseView({
     </article>
   );
 }
-export function Catalog({ locale }: { locale: Locale }) {
+export function Catalog({ locale, initial }: { locale: Locale; initial?: CatalogPage }) {
   const t = words[locale],
-    [rows, setRows] = useState<any[]>([]),
+    [rows, setRows] = useState<any[]>(initial?.packs ?? []),
     [detail, setDetail] = useState<any>(null),
     [tombstone, setTombstone] = useState<any>(null),
     [busy, setBusy] = useState(false),
     [failed, setFailed] = useState(false),
-    [cursor, setCursor] = useState<string | null>(null),
+    [cursor, setCursor] = useState<string | null>(initial?.cursor ?? null),
     [query, setQuery] = useState("");
   const exact =
     /^\/packs\/([0-9a-f-]{36})(?:\/releases\/([0-9a-f-]{36}))?$/.test(
@@ -180,7 +181,7 @@ export function Catalog({ locale }: { locale: Locale }) {
     }
   }
   useEffect(() => {
-    void load();
+    if (!initial) void load();
   }, []);
   return (
     <section className="creator catalog">

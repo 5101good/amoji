@@ -1,3 +1,4 @@
+import { homepage } from "./homepage";
 import { scheduledMaintenance } from "./maintenance";
 import { failure } from "./upload-shared";
 export { FreeRuntime } from "./free-runtime";
@@ -27,7 +28,8 @@ export default {
   },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith("/v1/"))
+    const firstPage = url.pathname === "/" && request.method === "GET";
+    if (!firstPage && !url.pathname.startsWith("/v1/"))
       return env.ASSETS
         ? env.ASSETS.fetch(request)
         : new Response("Not found", { status: 404 });
@@ -43,9 +45,19 @@ export default {
     if (ip) headers.set("x-amoji-edge-ip", ip);
     try {
       const start = performance.now();
-      const response = await env.FREE_RUNTIME.getByName("free-runtime-v1").fetch(
-        new Request(request, { headers }),
-      );
+      const runtime = env.FREE_RUNTIME.getByName("free-runtime-v1");
+      let response: Response;
+      if (firstPage) {
+        if (!env.ASSETS) return failure("RUNTIME_UNAVAILABLE", 503);
+        const catalogURL = new URL("/v1/packs", url);
+        const [template, catalog] = await Promise.all([
+          env.ASSETS.fetch(new Request(new URL("/", url), { method: "GET" })),
+          runtime.fetch(new Request(catalogURL, { method: "GET", headers })),
+        ]);
+        response = await homepage(template, catalog);
+      } else {
+        response = await runtime.fetch(new Request(request, { headers }));
+      }
       const result = new Response(response.body, response);
       result.headers.set("server-timing", `amoji;dur=${(performance.now() - start).toFixed(2)}`);
       return result;

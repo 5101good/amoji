@@ -44,6 +44,14 @@ Mods exposes no file chooser, so file input uses local paths. UI language follow
 
 ## Current acceptance status
 
-In local sessions on Claude Desktop 2.31226.1 with embedded Claude Code 2.1.295, native observation confirmed the prompt entry, two-column thumbnails, direct submission from named buttons, human-message image rendering, and a real Haiku 5.5 response to fixed text semantics. Previously sent messages still rendered after plugin reload.
+On 2026-10-11, an isolated local project and Amoji library in Claude Desktop 2.31226.1 / embedded Claude Code 2.1.295 were tested with Haiku 5.5 at low effort:
 
-Native end-to-end acceptance of AI expression replies, real AI drafting, and library management is still pending; automated coverage does not replace these observations. Sending currently uses clearly named native buttons. Direct image hit testing has not been established in the real app, so it is disabled rather than claimed from simulated clicks.
+- Composer entry, two-column thumbnails and named-button sending; human messages display images and the model responds to fixed text semantics.
+- Real `search` → `emit` calls produce a short reply with an expression. Both human and assistant images still render after plugin reload.
+- Creation defaults to the current conversation model. One intent generates a suggestion, explicitly adopted before editing; drafts save and resume, then image/meaning review gates confirmation into the library.
+- Search, `.amoji` export, readable file errors and corrected retry, duplicate import without duplicate revisions, archive and restore.
+- Office appearance applies to the picker while existing classic messages keep their original images. Code’s Chinese/English setting switches the interface.
+
+The test transcript confirms human expression input contains text and zero image blocks. AI expression replies also use text tool results and markers. Claude Code still sends its own system context; this is not a fixed token or cost promise for the whole conversation. AI drafting sends only the intent and fixed system prompt.
+
+Sending uses named buttons, with keyboard support. This Mods version permits text-only `Button` children, has no `Svg` click callback, and excludes `Svg` from `Client` elements. Overlay experiments hit part of an image but introduced truncated text, so they are not enabled in the product. Direct image clicking, a native file picker and animation playback are outside the current supported scope. Simulated control tests do not establish native rendering or hit testing.

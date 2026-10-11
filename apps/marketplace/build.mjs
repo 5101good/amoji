@@ -19,6 +19,21 @@ const schemas = standalone(ajv, {
   validate01: "legacy",
   validate02: "scenario",
 });
+const schemaPlugins = [
+  {
+    name: "static-schema",
+    setup(b) {
+      b.onResolve({ filter: /^amoji-schema$/ }, () => ({
+        path: "schema",
+        namespace: "schema",
+      }));
+      b.onLoad({ filter: /.*/, namespace: "schema" }, () => ({
+        contents: schemas,
+        resolveDir: process.cwd(),
+      }));
+    },
+  },
+];
 await copyFile("src/decoder.wasm", "dist/decoder.wasm").catch(async () => {
   await mkdir("dist", { recursive: true });
   await copyFile("src/decoder.wasm", "dist/decoder.wasm");
@@ -31,26 +46,13 @@ await build({
   platform: "neutral",
   conditions: ["workerd", "worker", "browser"],
   external: ["node:*", "cloudflare:*", "./decoder.wasm"],
-  plugins: [
-    {
-      name: "static-schema",
-      setup(b) {
-        b.onResolve({ filter: /^amoji-schema$/ }, () => ({
-          path: "schema",
-          namespace: "schema",
-        }));
-        b.onLoad({ filter: /.*/, namespace: "schema" }, () => ({
-          contents: schemas,
-          resolveDir: process.cwd(),
-        }));
-      },
-    },
-  ],
+  plugins: schemaPlugins,
   outfile: "dist/worker.js",
 });
 if (process.argv.includes("--worker-only")) process.exit();
 await build({
   entryPoints: ["web/app.tsx"],
+  plugins: schemaPlugins,
   bundle: true,
   format: "esm",
   minify: true,

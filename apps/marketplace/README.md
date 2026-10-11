@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-Cloudflare Workers / Static Assets + D1，内嵌 Better Auth。此包提供首期账号页面与 API；完整市场仍由后续模块提供。
+Cloudflare Workers / Static Assets + D1，内嵌 Better Auth。此包提供账号、可信上传和创作者投稿页面与 API；公开发现与审核由独立模块提供。
 
 ## 本地运行
 
@@ -28,7 +28,7 @@ npm run dev
 
 部署前提供自己的 D1 database ID、production origin，使用 `wrangler secret put BETTER_AUTH_SECRET --env production` 设置随机秘密，先向明确选定的数据库应用迁移，再执行 `npm run deploy`。配置中的占位 ID 刻意不能部署。production 不继承本地测试开关。服务商权限或额度不足时停止，不自动升级付费。D1 认证读写不启用 read replicas。
 
-对外只暴露 `/v1/auth/csrf`、`register`、`login`、`logout` 与 `/v1/me`。浏览器不接收脚本可读 session token；没有管理员注册端点。cookie 最长 12 小时、不自动刷新。CSRF token 有效 5 分钟，同时检查精确 Origin。
+认证仅暴露 `/v1/auth/csrf`、`register`、`login`、`logout` 与 `/v1/me`。浏览器不接收脚本可读 session token；没有管理员注册端点。cookie 最长 12 小时、不自动刷新。CSRF token 有效 5 分钟，同时检查精确 Origin。
 
 D1 原子限流：注册每 IP 5 次 / 15 分钟、登录每 IP 20 次 / 15 分钟、同一邮箱每操作 10 次 / 15 分钟；使用服务器 HMAC 保护标识，定时删除过期计数。生产只信任 Cloudflare 提供的 `CF-Connecting-IP`，拒绝缺失边缘来源上下文的认证写请求。请求体最大 8 KiB。
 
@@ -45,3 +45,19 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 部署前运行根依赖安装及本目录 `npm ci`、`npm test`、`npm run typecheck`、`npm run build`。`wrangler.jsonc` 用SQLite迁移，不启用Paid/Containers，上传默认 `UPLOAD_ENABLED=false`。需真实账户Free确认、共享用量检查、bucket限定R2 S3 Object Read & Write凭据、私有桶和实际Origin CORS后才启用。服务端配置 `R2_ACCOUNT_ID`、`R2_BUCKET`；`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`须secret bindings。不要将secret、预签名URL或密码打印日志。`r2-cors.json` 针对当前验收站点；Origin改变须同步精确替换，不能用 `*`；`web/_headers` 的 CSP connect-src 同样需精确指向自己的 R2 account endpoint。
 
 真实部署必须分别验证旧账号、DO计量、实际S3的签名长度/类型/篡改/过期/竞态/回收、最大包和真实浏览器上传。本地workerd与R2 binding fixture不证明S3签名或浏览器CORS，也不证明当前套餐与整isolate内存。禁止因S3凭据未配置或validator不可用而声称上传完成。清理临时验收对象，保留正式资源。
+
+## 创作者投稿
+
+登录后选择一个包，在设备本地确认说明、各项许可和可选动作，再上传到 R2。默认中文，可切换英文。所有图文、原始语义语言、完整动作/config、示例和来源均能预览；完整 manifest 可展开核对。上传校验通过后，显式确认分发权才进入待审，审核公开由独立审核流程完成。
+
+草稿的所选文件、编辑内容和操作 ID 以账号分区保存在本机 IndexedDB；不保存密码、会话或上传签名。恢复按钮先核对 operation/上传状态；过期上传需返回编辑并重新上传。仅上传所选包，不读取 dsh 会话或整库。编辑表达/动作许可会产生新 identity 并保留来源；未修改内容保留精确版本。旧本地 AI 建议及模型选择不受影响。
+
+当前投稿支持 `CC0-1.0`、`CC-BY-4.0`、`CC-BY-SA-4.0`，每项需要创作者署名，衍生包需要来源声明。未知或不支持公开分发的许可拒绝，不自动改成 CC0。声明与审核不能替代真实权利人授权。
+
+- `GET /v1/uploads/:id/preview`、`/media/:sha256`：仅当前 owner，读取可信冻结对象并核对摘要；素材返回正确 MIME、no-store、nosniff。
+- `POST /v1/submissions {upload_id,rights_confirmed:true}`：需要上传的 `If-Match`，原子写入不可变内容、引用和幂等结果。
+- `GET /v1/me/submissions`、`/:id`：本人状态/理由；默认20条、最多50条，使用响应的游标继续。
+- `POST /v1/submissions/:id/withdraw {}`：仅 owner 的 pending，携带投稿 `If-Match`。
+- `GET /v1/operations/:operation`：本人投稿/撤回结果对账。操作 UUID 保留至少7天（目前不自动删除），重放无额外队列副作用，同键异内容409，过期版本412。
+
+每账号最多10待审，每UTC日10新投稿；撤回不恢复当日额度。投稿与上传控制分别限制30写请求/15分钟。D1 trigger在事务中复核上传有效性、账号停用、归属和额度；内容identity冲突回滚整个提交。withdraw不删除已提交快照，后续修订重新预留release和递增版本。部署须按顺序应用新增0005迁移，然后更新Worker和静态资源。

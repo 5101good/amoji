@@ -126,7 +126,7 @@ function App() {
           {locale === "zh" ? "English" : "中文"}
         </button>
       </header>
-      <main>
+      <main className={account ? "creator-page" : undefined}>
         <section className="intro">
           <div className="expression" aria-hidden="true">
             ( ◡‿◡ )
@@ -143,7 +143,11 @@ function App() {
               <p className="welcome">{account.name}</p>
               <p>{account.email}</p>
               <p className="note">{t.unverified}</p>
-              <UploadPanel locale={locale} accountId={account.id} />
+              <UploadPanel
+                key={account.id}
+                locale={locale}
+                accountId={account.id}
+              />
               <button disabled={busy} onClick={() => operation("logout", {})}>
                 {busy ? t.busy : t.logout}
               </button>

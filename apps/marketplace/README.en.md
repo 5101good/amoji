@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-Cloudflare Workers / Static Assets + D1 with embedded Better Auth. This package provides the initial account UI/API; later modules supply the full marketplace.
+Cloudflare Workers / Static Assets + D1 with embedded Better Auth. This package provides account, trusted upload and creator submission UI/API; separate modules supply public discovery and moderation.
 
 ## Local development
 
@@ -28,7 +28,7 @@ Local tests do not establish cloud free-tier CPU, memory or latency feasibility.
 
 Set your provisioned D1 database ID and production origin, set a random secret with `wrangler secret put BETTER_AUTH_SECRET --env production`, and apply migrations to the explicitly selected database before `npm run deploy`. Placeholder IDs intentionally prevent accidental deployment. Production does not inherit the local-test switch. Stop on insufficient permissions or quotas; never activate paid upgrades automatically. Do not enable read replicas for auth data.
 
-Only `/v1/auth/csrf`, `register`, `login`, `logout` and `/v1/me` are exposed. No script-readable session tokens or administrator signup endpoints. Cookies expire after at most 12 hours without refresh. Five-minute CSRF tokens accompany an exact Origin check.
+Authentication exposes only `/v1/auth/csrf`, `register`, `login`, `logout` and `/v1/me`. No script-readable session tokens or administrator signup endpoints. Cookies expire after at most 12 hours without refresh. Five-minute CSRF tokens accompany an exact Origin check.
 
 Atomic D1 limits: 5 registrations per IP / 15 minutes, 20 logins per IP / 15 minutes, 10 attempts per email and operation / 15 minutes. HMAC protects identifiers; scheduled cleanup removes expired counters. Production trusts only edge-provided `CF-Connecting-IP` and rejects auth writes without edge context. Bodies are limited to 8 KiB.
 
@@ -45,3 +45,19 @@ Server-only `sealed/` objects use conditional writes and verified SHA-256. Revie
 Install root dependencies and run `npm ci`, `npm test`, `npm run typecheck`, `npm run build` here. The Wrangler configuration uses SQLite migrations, enables no Paid/Containers resources, and defaults uploads to `UPLOAD_ENABLED=false`. Enable only after confirming the actual free plan, shared usage, bucket-scoped S3 credentials, private bucket and exact-origin CORS. Configure `R2_ACCOUNT_ID` and `R2_BUCKET`; store `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` as secrets. Never log passwords, secrets or signed URLs. The sample CORS configuration targets the current acceptance site; replace its exact Origin when deployment changes, never use `*`. Also update the exact R2 account endpoint in `web/_headers` CSP connect-src when deploying to another account.
 
 Production acceptance must separately establish existing-account compatibility, DO telemetry, actual S3 length/type/tamper/expiry/race/cleanup behavior, boundary packages and browser uploads. Local workerd/R2 fixtures prove neither S3 signing nor browser CORS, account tier or whole-isolate memory. Missing credentials or an unavailable validator cannot be reported as completed uploads. Remove temporary acceptance objects while preserving formal resources.
+
+## Creator submissions
+
+After signing in, choose one pack and review its details, individual licenses and optional actions on this device before uploading to R2. The default language is Chinese, with English available. Preview every image/text, original semantic language, complete action/config, example and source; expand the full manifest for exact metadata. Only a trusted valid upload plus explicit distribution-rights confirmation can enter pending review. Publication belongs to the separate review workflow.
+
+IndexedDB retains selected files, edits and operation IDs under an account-specific key. It stores no password, session or signed upload URL. Reconciliation checks operation/upload status first; expired uploads require returning to editing and uploading again. Only selected content is uploaded, without reading dsh conversations or the entire library. Editing expression/action licenses creates new identities with provenance; unchanged content keeps exact revisions. Existing local AI suggestions and model selection remain unchanged.
+
+Supported submission licenses are `CC0-1.0`, `CC-BY-4.0` and `CC-BY-SA-4.0`. Every item requires creator attribution; derivative packs require provenance. Unknown or redistribution-incompatible licenses are refused, never silently converted to CC0. Declarations and moderation do not replace authorization from actual rightsholders.
+
+- `GET /v1/uploads/:id/preview` and `/media/:sha256`: current owner only, trusted sealed bytes with digest verification; media uses correct MIME, no-store and nosniff.
+- `POST /v1/submissions {upload_id,rights_confirmed:true}`: requires the upload's `If-Match`; atomically stores immutable content, retention references and operation results.
+- `GET /v1/me/submissions` and `/:id`: own statuses/reasons; default 20, maximum 50, with opaque continuation cursors.
+- `POST /v1/submissions/:id/withdraw {}`: owner-only pending transition using the submission's `If-Match`.
+- `GET /v1/operations/:operation`: own submission/withdrawal reconciliation. UUIDs are retained for at least seven days (currently indefinitely). Replays add no queue entries; changed payloads return 409 and stale versions 412.
+
+Each account may have ten pending submissions and ten new submissions per UTC day; withdrawal does not restore the daily quota. Submission and upload control routes each allow 30 writes per 15 minutes. D1 triggers recheck trusted upload state, account disablement, ownership and quotas inside the transaction; identity conflicts roll back the entire submission. Withdrawal retains immutable snapshots. Revisions reserve a new release and increasing version. Apply migration 0005 before deploying the Worker and assets.

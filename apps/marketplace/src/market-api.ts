@@ -1,4 +1,5 @@
 import { createAuth } from "./auth";
+import { submissionRoute } from "./submissions";
 import { uploadRoute } from "./uploads";
 import type { Env } from "./worker";
 const encoder = new TextEncoder();
@@ -160,13 +161,18 @@ export default {
           expires_at: session.session.expiresAt,
         });
       }
-      if (path === "/v1/uploads" || path.startsWith("/v1/uploads/")) {
-        if (
-          !["GET", "POST"].includes(request.method) ||
+      if (
+        path === "/v1/uploads" ||
+        path.startsWith("/v1/uploads/") ||
+        path.startsWith("/v1/submissions") ||
+        path.startsWith("/v1/me/submissions") ||
+        path.startsWith("/v1/operations/")
+      ) {
+        const creatorRoute =
           !/^\/v1\/uploads(?:\/[0-9a-f-]{36}(?:\/(authorize|complete))?)?$/.test(
             path,
-          )
-        )
+          );
+        if (!["GET", "POST"].includes(request.method))
           return error("NOT_FOUND", 404);
         const session = await createAuth(env).api.getSession({
           headers: request.headers,
@@ -192,10 +198,18 @@ export default {
             !(await validCsrf(request, env, stamp, parts[2] ?? ""))
           )
             return error("CSRF", 403);
-          if (!(await limit(env, `upload:${domain.id}`, 30)))
+          if (
+            !(await limit(
+              env,
+              `${creatorRoute ? "submission" : "upload"}:${domain.id}`,
+              30,
+            ))
+          )
             return error("RATE_LIMITED", 429);
         }
-        return uploadRoute(request, env, domain.id);
+        return creatorRoute
+          ? submissionRoute(request, env, domain.id)
+          : uploadRoute(request, env, domain.id);
       }
       if (
         request.method !== "POST" ||

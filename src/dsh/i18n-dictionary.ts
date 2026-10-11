@@ -1,4 +1,10 @@
 export const english = {
+  "已停用": "Disabled",
+  "已配置，等待触发": "Configured, waiting for input",
+  "文字已附加，不代表模型遵从": "Text attached; model compliance is not guaranteed",
+  "应用失败": "Application failed",
+  "当前宿主不支持": "Unsupported by this host",
+
   "安全状态上次核对": "Safety status last checked",
   "尚未核对": "Not checked yet",
   "正在处理…": "Working…",
@@ -122,7 +128,7 @@ export const english = {
   "预览场景包": "Preview scenario pack",
   "场景包预览": "Scenario pack preview",
   "确认保存场景包": "Confirm and save scenario pack",
-  "当前宿主动作运行尚未验证；动作保持禁用，表情仍可独立使用。": "Action execution is not yet verified for this host. Actions stay disabled; expressions remain available.",
+  "导入不会启用动作；表情可独立使用，动作需明确选择。": "Importing never enables actions. Expressions work independently; actions require an explicit choice.",
   "个可选动作": "optional actions",
   "完整导出 0.2（保留动作）": "Export complete 0.2 (with actions)",
   "仅导出表情 0.1（不含动作）": "Export expressions only 0.1 (no actions)",

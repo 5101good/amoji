@@ -34,6 +34,9 @@ for(const timing of ['lost','inflight'] as const)test(`final I1 ${timing} Aâ†’Bâ
  const message={message_id:'original',direction:'human_to_ai',revision:e,presentation:'pending'} as any;
  const row={message,meta:visualMeta(message),host:{requestId:'amoji:original',status:'unknown'}};
  const rpc=createRpc({connection:{rpc:{call:async(_c:string,endpoint:string,p:any,signal:AbortSignal)=>{
+  // The public picker now checks optional actions before click-to-send. These
+  // fixtures are pure expressions; exercise delivery recovery after that read.
+  if(endpoint==='amoji/actions')return {ok:true,value:[]};
   if(endpoint==='amoji/submit'){submits.push(structuredClone(p));if(submits.length===1){if(timing==='inflight')await new Promise<void>((resolve,reject)=>{finish=resolve;signal.addEventListener('abort',()=>reject(signal.reason),{once:true});});throw new TypeError('lost');}return {ok:true,value:row};}
   if(endpoint==='amoji/reconnect'){recovered=true;return {ok:true,value:null};}
   if(endpoint==='amoji/history')return {ok:true,value:[{...row,host:{...row.host,status:observed?'observed':'unknown'}}]};

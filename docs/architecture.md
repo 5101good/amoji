@@ -26,9 +26,9 @@ flowchart LR
 | 对象 | 当前版本 | 依据 |
 | --- | --- | --- |
 | 产品 / dsh 包 | 1.0.0 | `package.json` / `adapters/dsh/package.json` |
-| 表情与包 Schema | `0.1` | [JSON Schema](specs/amoji-v0.1.schema.json) |
+| 表情 / 包 Schema | `0.1` / `0.1`、`0.2` | [JSON Schema](specs/amoji-v0.1.schema.json) |
 | 共享 API | `2` | `src/shared-contract.ts` |
-| 数据库 | `4` | `src/shared-contract.ts` |
+| 数据库 | `5` | `src/shared-contract.ts` |
 
 产品 1.0 不把存量 `schema_version` 改为 `1.0`。JSON Schema 是当前运行时校验输入；当前行为以代码、当前指南和发布验收为准；旧规格可通过 Git 历史追溯。
 

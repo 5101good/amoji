@@ -6,8 +6,8 @@ In Import and export, create a scenario draft from confirmed expressions, edit i
 
 - 完整导出 0.2 保留精确 release、表达、动作、绑定及许可；显式仅表情导出为 0.1，丢弃动作。未知 schema 拒绝，不静默降级。
 - Complete 0.2 exports retain the exact release, expressions, actions, bindings and licenses. Explicit expression-only exports use 0.1 without actions. Unknown schemas are rejected.
-- 安装不会启用任何动作。目前动作运行未作为完成能力公开；管理页明确提示动作禁用，表达仍可发送。
-- Installation never enables actions. Host action execution is not advertised yet; the manager shows that actions remain disabled and expressions remain usable.
+- 安装不会启用任何动作。dsh 提供“仅发送”和“发送并应用”，持续规则由用户在当前会话单独开启。关闭停止后续应用，不删除历史或保证模型忘记。动作是提示而非强制控制，不提升权限或追加独立推理。
+- Installation never enables actions. dsh offers Send only and Send and apply; conversation rules require explicit activation. Disabling stops future application without erasing history or guaranteeing forgetting. Guidance is not enforcement, privilege escalation or independent inference.
 
 机器合同：[JSON Schema](amoji-v0.2.schema.json)。表达继续符合 [0.1](amoji-v0.1.schema.json)。所有对象拒绝未知字段；引用须闭合，每资产一个默认版本。`bindings` 为 `{expression: {asset_id, revision_id}, actions: [{action_id, action_revision_id}]}`。`rights` 使用既有 `license`、可选 `creator/source`；顶层 `derived_from` 使用 `{pack_id, release_id}`。`scenario/styles` 为有界文字列表，`examples` 为有界说明列表，`requires` 只允许两个内建模板名。
 
@@ -17,9 +17,9 @@ The executable schema defines strict objects and closed references. Each asset h
 
 Limits are 200 expressions, 64 actions, three action refs per expression, 2 KiB instructions and 4 KiB descriptions. The pure compiler rejects overflow without truncation, uses a separate 4 KiB semantic budget, and bounds the entire action envelope to 8 KiB. It performs no inference or activation.
 
-API 仍为 2。`versioned-packs-v1` 表示本地场景草稿/预览/保存/完整导出能力；旧 `packs-v1` 行为保留。不会提前宣称 `marketplace-v1` 或 `collaboration-v1`。公开 `SharedClient` 提供 `createScenarioDraft/listScenarioDrafts/getScenarioDraft/saveScenarioDraft/previewScenarioDraft/confirmScenarioDraft/listScenarioPacks/getScenarioPack/exportScenarioPack`。写草稿用 version CAS；冲突保留输入，重读后明确重新保存。
+API 仍为 2。`versioned-packs-v1` 表示本地场景草稿/预览/保存/完整导出能力；旧 `packs-v1` 行为保留。`marketplace-v1` 和 `collaboration-v1` 分别声明本地获取及协作能力，不证明云服务部署或模型遵从。公开 `SharedClient` 提供 `createScenarioDraft/listScenarioDrafts/getScenarioDraft/saveScenarioDraft/previewScenarioDraft/confirmScenarioDraft/listScenarioPacks/getScenarioPack/exportScenarioPack`。写草稿用 version CAS；冲突保留输入，重读后明确重新保存。
 
-API remains 2. Negotiate `versioned-packs-v1` for scenario authoring and exact exports. Existing capabilities keep their meanings; marketplace and collaboration runtimes are separate future capabilities.
+API remains 2. Negotiate `versioned-packs-v1` for scenario authoring and exact exports. Existing capabilities keep their meanings; marketplace and collaboration capabilities do not prove cloud deployment or model compliance.
 
 ## 数据库升级与恢复 / Database upgrade and recovery
 

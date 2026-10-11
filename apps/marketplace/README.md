@@ -77,3 +77,7 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 匿名公开读取统一按受信边缘 IP 限制每分钟120次，429附Retry-After；分享详情由 Static Assets 的 single-page-application fallback 支持直接访问。
 
 设备授权使用新增迁移 `0007-device-authorizations.sql`，部署时先迁移再更新 Worker。dsh 配对由已登录网页显式确认；网页不接收设备 access/refresh token。Host 创建和领取接口拒绝浏览器 Origin/Cookie，审核接口拒绝设备 token。只存 SHA-256 凭据摘要；5 分钟配对、15 分钟 access、30 天旋转 refresh，重用 refresh 撤销 family。网页注销撤销本人全部设备与未领取授权。使用相同私有 D1、SQLite DO 和既有 R2 直传链路。
+
+## 初始内容发布
+
+[三套正式内容包](../../assets/scenario-packs/README.md)在仓库中提供完整0.2和纯表达0.1。使用独立、持久保留的创作者账号逐包投稿，由另一审核账号决定；不要删除正式内容作者，否则公开内容会下架。仓库构建不等于云端发布。动作不是强制控制，用户关闭后停止后续应用但历史保留。部署后分别记录匿名获取、真实dsh安装/发送、动作事件和模型完整回合，不能用一层证据替代另一层。

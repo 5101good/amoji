@@ -16,7 +16,7 @@ import { draftVersion } from './drafts.js';
 interface Connection { response: ServerResponse; bindings: Map<string, BindingContext>; heartbeat: NodeJS.Timeout }
 
 /** A kernel-held SQLite EXCLUSIVE lock elects the sole writer, including during startup. */
-export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void> }> {
+export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void>; closed: Promise<void> }> {
   if (!Number.isFinite(heartbeatMs) || heartbeatMs < 10 || heartbeatMs > 60000) fail('INVALID_ARGUMENT', '保活间隔必须在10–60000毫秒内');
   process.umask(0o077);
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -38,6 +38,8 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   selectionCleanup.unref();
   let timer: NodeJS.Timeout | undefined;
   let closing: Promise<void> | undefined;
+  let didClose!: () => void;
+  const closed = new Promise<void>(resolve => { didClose = resolve; });
   let shuttingDown = false;
   const http = createServer((req, res) => { void handle(req, res).catch(error => {
     json(res, error instanceof ServiceError ? 400 : 500, { code: error instanceof ServiceError ? error.code : 'SERVICE_ERROR', error: error instanceof Error ? error.message : '服务操作失败', ...(error instanceof ServiceError && error.current !== undefined ? { current: error.current } : {}) });
@@ -67,6 +69,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
         if (current.serviceId === descriptor.serviceId) await rm(join(directory, 'service.json'));
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       finally { store.close(); lock.close(); }
+      didClose();
     })();
     return closing;
   }
@@ -208,7 +211,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     const temporary = join(directory, `service-${descriptor.serviceId}.tmp`);
     await writeFile(temporary, JSON.stringify(descriptor), { mode: 0o600 });
     await rename(temporary, join(directory, 'service.json'));
-    armIdle(); return { close };
+    armIdle(); return { close, closed };
   } catch (error) { await close(); throw error; }
 }
 function json(res: ServerResponse, status: number, value: unknown): void {

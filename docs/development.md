@@ -51,3 +51,7 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 包应包含 Host/Client、核心 runtime、基础资产、`BUILD.json`、`LICENSE`、`NOTICE`、`THIRD_PARTY.json` 和 `THIRD_PARTY_LICENSES/`。不包含个人库、凭据、`node_modules` 或原生二进制。第三方清单反映构建机器实际解析结果，不保证其他平台安装依赖完全相同。
 
 见[贡献指南](../CONTRIBUTING.md)和[发布流程](release.md)。
+
+## 场景包内容贡献
+
+从[正式场景包](../assets/scenario-packs/README.md)和 `scripts/build-seed-scenarios.mjs` 开始。保留已确认语义和精确身份，复用许可明确的素材；说明原始语义语言、双向角色和示例性质。动作可选、不强制控制，关闭只停止后续应用而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。

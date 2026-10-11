@@ -96,6 +96,18 @@ export async function buildReleaseArtifacts() {
     for (const expression of pack.manifest.expressions) assert.equal(expression.rights.license, 'CC0-1.0', 'Built-in assets must retain their CC0 license');
   });
   await writeFile(resolve(destination, `amoji-base-library-${project.version}.amoji`), baseLibrary);
+  // Publish both explicit formats of the reviewed seed content alongside the
+  // plugin. They contain no profile state and must also meet market budgets.
+  for (const slug of ['make-it-clear', 'work-well-together', 'collaborate-comfortably']) {
+    for (const suffix of ['', '.expressions']) {
+      const bytes = await readFile(resolve(root, `assets/scenario-packs/${slug}${suffix}.amoji`));
+      await withValidatedPack(bytes, async pack => {
+        assert.equal(pack.manifest.schema_version, suffix ? '0.1' : '0.2');
+        for (const e of pack.manifest.expressions) assert.equal(e.rights.license, 'CC0-1.0');
+      }, 'market');
+      await writeFile(resolve(destination, `amoji-${slug}-${project.version}${suffix}.amoji`), bytes);
+    }
+  }
   for (const [source, name] of [['LICENSE', 'LICENSE'], ['NOTICE', 'NOTICE'], ['THIRD_PARTY.json', 'THIRD_PARTY.json'], ['assets/base-library/LICENSE', 'BASE_LIBRARY_LICENSE'], ['assets/base-library/provenance.json', 'BASE_LIBRARY_PROVENANCE.json']]) {
     await writeFile(resolve(destination, name), files.get(source));
   }

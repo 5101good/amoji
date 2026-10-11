@@ -26,9 +26,9 @@ The shared service listens on loopback and requires local capabilities, service 
 | Object | Current version | Authority |
 | --- | --- | --- |
 | Product / dsh package | 1.0.0 | `package.json` / `adapters/dsh/package.json` |
-| Expression and pack schema | `0.1` | [JSON Schema](specs/amoji-v0.1.schema.json) |
+| Expression / pack schema | `0.1` / `0.1`, `0.2` | [JSON Schema](specs/amoji-v0.1.schema.json) |
 | Shared API | `2` | `src/shared-contract.ts` |
-| Database | `4` | `src/shared-contract.ts` |
+| Database | `5` | `src/shared-contract.ts` |
 
 Product 1.0 does not rewrite stored `schema_version` values to `1.0`. The JSON Schema remains a runtime validation input. Current code, guides, and release acceptance define current behavior; older prose specifications remain available in Git history.
 

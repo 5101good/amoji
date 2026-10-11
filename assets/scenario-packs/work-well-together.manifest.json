@@ -1,0 +1,401 @@
+{
+  "kind": "amoji.pack",
+  "schema_version": "0.2",
+  "pack_id": "c9a707d1-afb6-4449-8f7c-4f0e4efb02cb",
+  "release_id": "b6a8c0c9-8d93-458b-8232-a12378da8ae3",
+  "version": 2,
+  "name": "一起把事做好 / Work well together",
+  "created_at": "2026-10-11T00:00:00Z",
+  "scenario": [
+    "进度",
+    "证据",
+    "交接",
+    "progress",
+    "evidence",
+    "handoff"
+  ],
+  "expressions": [
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "b6b8faa7-8382-4ee6-bd98-687e53bbfad3",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "卡在哪里",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我想知道目前具体卡在什么地方、缺少什么，以及我能提供什么帮助。",
+        "tone": "直接、愿意配合",
+        "fallback": "[卡在哪里]",
+        "use_when": [
+          "任务受阻时询问具体原因",
+          "需要明确下一步依赖"
+        ],
+        "avoid_when": [
+          "不要捏造阻碍",
+          "不要用它暗示用户已经授予额外权限"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "卡在哪里",
+        "人与AI协作",
+        "amoji:appearance:classic",
+        "amoji:family:blocked"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "abf8225f037f0c0b79664b9a95be5b0ade81d55cf2a38e9cb83d4620bc878546",
+          "mime": "image/png",
+          "bytes": 198814,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "ea67e12e-5818-4865-b0a8-c937074863cf"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "1671a692-0fb3-47ca-a529-4ceb995c07bf",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "正在核对",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我正在核对眼前的资料或结果，想把细节确认清楚。",
+        "tone": "认真、耐心",
+        "fallback": "[正在核对]",
+        "use_when": [
+          "AI此刻确实在检查资料、核对结果或验证细节"
+        ],
+        "avoid_when": [
+          "当前并未核对时",
+          "不代表验证已经通过，不承诺离线后台继续运行"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "正在核对",
+        "人与AI协作",
+        "AI回应",
+        "核对",
+        "检查",
+        "验证",
+        "整理",
+        "amoji:appearance:classic",
+        "amoji:family:checking"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "e4355769e9f3c04a22b604aee3fe79b4a0eb0532e5fef8a99966587a0ad044c2",
+          "mime": "image/png",
+          "bytes": 182628,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "f8be99c6-bd10-44bb-ab93-836930d63b38"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d81174ef-c95c-4f7a-bb6e-dac2a640a5ef",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "我来处理",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我已经理解你的要求，会接手当前明确且已授权的工作。",
+        "tone": "可靠、主动",
+        "fallback": "[我来处理]",
+        "use_when": [
+          "AI接手用户已授权的任务，说明眼前的下一步"
+        ],
+        "avoid_when": [
+          "尚未弄清任务或没有执行能力时",
+          "不能暗示后台持续工作，也不代表任务完成"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "我来处理",
+        "人与AI协作",
+        "AI回应",
+        "接手",
+        "收到",
+        "处理",
+        "开始",
+        "amoji:appearance:classic",
+        "amoji:family:handle"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "bf463c7a30562ed075f8fb8ee7614d0c10b920f04c370821584e6d4932ad6dd4",
+          "mime": "image/png",
+          "bytes": 157796,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "e27c450c-e699-4f7e-8a5f-b7c97d6fba81"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "68fc227d-3b7d-4cfa-8fa9-5cc780eb72b1",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "卡在哪里",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我想知道目前具体卡在什么地方、缺少什么，以及我能提供什么帮助。",
+        "tone": "直接、愿意配合",
+        "fallback": "[卡在哪里]",
+        "use_when": [
+          "任务受阻时询问具体原因",
+          "需要明确下一步依赖"
+        ],
+        "avoid_when": [
+          "不要捏造阻碍",
+          "不要用它暗示用户已经授予额外权限"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "卡在哪里",
+        "人与AI协作",
+        "amoji:appearance:office",
+        "amoji:family:blocked"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "f486992eb0c1089ce92bf2d94db72f675483485693089040f23fdb349108a74e",
+          "mime": "image/png",
+          "bytes": 115818,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "768500e7-5895-4fb4-9cff-68ee73bf6814"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "2aed2092-7ca5-4f3c-805e-d90f16084af7",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "正在核对",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我正在核对眼前的资料或结果，想把细节确认清楚。",
+        "tone": "认真、耐心",
+        "fallback": "[正在核对]",
+        "use_when": [
+          "AI此刻确实在检查资料、核对结果或验证细节"
+        ],
+        "avoid_when": [
+          "当前并未核对时",
+          "不代表验证已经通过，不承诺离线后台继续运行"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "正在核对",
+        "人与AI协作",
+        "AI回应",
+        "核对",
+        "检查",
+        "验证",
+        "整理",
+        "amoji:appearance:office",
+        "amoji:family:checking"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "2a529700c32e5806027ed6c4d3cf1679befed272579006f2bfeb432fa7cff351",
+          "mime": "image/png",
+          "bytes": 115279,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "448c6346-830d-4b00-8369-d8162db02c04"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "f0768e6b-1e54-482c-9a9a-834120c49a21",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "我来处理",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我已经理解你的要求，会接手当前明确且已授权的工作。",
+        "tone": "可靠、主动",
+        "fallback": "[我来处理]",
+        "use_when": [
+          "AI接手用户已授权的任务，说明眼前的下一步"
+        ],
+        "avoid_when": [
+          "尚未弄清任务或没有执行能力时",
+          "不能暗示后台持续工作，也不代表任务完成"
+        ]
+      },
+      "tags": [
+        "协作:进度",
+        "我来处理",
+        "人与AI协作",
+        "AI回应",
+        "接手",
+        "收到",
+        "处理",
+        "开始",
+        "amoji:appearance:office",
+        "amoji:family:handle"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "432e6c4046bfe256f7cb90cbf71a33c75c24b636549c1966aa359dc73d5e3699",
+          "mime": "image/png",
+          "bytes": 101030,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "10c230cf-7ec7-4f95-8f9c-77fa8a668d74"
+    }
+  ],
+  "defaults": [
+    {
+      "asset_id": "b6b8faa7-8382-4ee6-bd98-687e53bbfad3",
+      "revision_id": "ea67e12e-5818-4865-b0a8-c937074863cf"
+    },
+    {
+      "asset_id": "1671a692-0fb3-47ca-a529-4ceb995c07bf",
+      "revision_id": "f8be99c6-bd10-44bb-ab93-836930d63b38"
+    },
+    {
+      "asset_id": "d81174ef-c95c-4f7a-bb6e-dac2a640a5ef",
+      "revision_id": "e27c450c-e699-4f7e-8a5f-b7c97d6fba81"
+    },
+    {
+      "asset_id": "68fc227d-3b7d-4cfa-8fa9-5cc780eb72b1",
+      "revision_id": "768500e7-5895-4fb4-9cff-68ee73bf6814"
+    },
+    {
+      "asset_id": "2aed2092-7ca5-4f3c-805e-d90f16084af7",
+      "revision_id": "448c6346-830d-4b00-8369-d8162db02c04"
+    },
+    {
+      "asset_id": "f0768e6b-1e54-482c-9a9a-834120c49a21",
+      "revision_id": "10c230cf-7ec7-4f95-8f9c-77fa8a668d74"
+    }
+  ],
+  "actions": [
+    {
+      "action_id": "f3907920-5c96-470f-85da-ae28d34316d8",
+      "action_revision_id": "aacea09a-729b-414b-859d-045d8632129a",
+      "locale": "zh-CN",
+      "effect_summary": "说明证据与未知 / State evidence and unknowns",
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "assets/base-library/provenance.json; assets/scenario-packs/README.md"
+      },
+      "kind": "instruction",
+      "scope": "turn",
+      "conflict_group": "completion-report",
+      "instruction": "本回合区分已经核实的事实、尚未知的事项和可执行的下一步；没有实际验证时明确说未验证，不把计划当完成。 / For this turn, separate verified facts, unknowns and an actionable next step. Explicitly say unverified when no check was performed; a plan is not completion."
+    },
+    {
+      "action_id": "05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5",
+      "action_revision_id": "ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f",
+      "locale": "zh-CN",
+      "effect_summary": "当前会话完成时说明依据和未知 / Completion evidence and unknowns in this conversation",
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "assets/base-library/provenance.json; assets/scenario-packs/README.md"
+      },
+      "kind": "hook",
+      "scope": "conversation",
+      "conflict_group": "completion-report",
+      "template": "completion-self-check@1",
+      "config": {
+        "evidence": "required",
+        "unknowns": "explicit"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "expression": {
+        "asset_id": "b6b8faa7-8382-4ee6-bd98-687e53bbfad3",
+        "revision_id": "ea67e12e-5818-4865-b0a8-c937074863cf"
+      },
+      "actions": [
+        {
+          "action_id": "f3907920-5c96-470f-85da-ae28d34316d8",
+          "action_revision_id": "aacea09a-729b-414b-859d-045d8632129a"
+        }
+      ]
+    },
+    {
+      "expression": {
+        "asset_id": "68fc227d-3b7d-4cfa-8fa9-5cc780eb72b1",
+        "revision_id": "768500e7-5895-4fb4-9cff-68ee73bf6814"
+      },
+      "actions": [
+        {
+          "action_id": "f3907920-5c96-470f-85da-ae28d34316d8",
+          "action_revision_id": "aacea09a-729b-414b-859d-045d8632129a"
+        }
+      ]
+    }
+  ],
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "assets/base-library/provenance.json; assets/scenario-packs/README.md"
+  },
+  "styles": [
+    "classic",
+    "office"
+  ],
+  "description": "原始固定语义语言为中文；双语说明不改写语义。动作可选，仅是提示，不保证模型遵从。一次提示用于关联回合，会话规则可随时关闭；关闭不删除历史。新会话不继承规则，AI 发送表情不会启用绑定动作。 / Original fixed semantics are Chinese; bilingual descriptions do not rewrite them. Optional actions are guidance, not enforcement. One-time guidance applies to its linked turn; conversation rules can be disabled without erasing history. New conversations do not inherit rules; AI-sent expressions never activate bindings.",
+  "examples": [
+    "示例 / Example: 人→AI / Human→AI：「卡在哪里」询问阻碍，可选要求说明证据与未知。 “What is blocking progress?” asks about obstacles; evidence and unknowns are optional guidance.",
+    "示例 / Example: AI→人 / AI→Human：「正在核对」表示检查正在进行，不表示已经验证通过；「我来处理」只接手已授权工作。 “Checking” means work in progress, not a passed check; “I will handle it” covers only authorized work."
+  ]
+}

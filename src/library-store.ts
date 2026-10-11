@@ -343,6 +343,12 @@ export class LibraryStore {
   }
   resolve(ref: ExpressionRef): Expression { return this.getRevision(ref) ?? fail('REVISION_NOT_FOUND', '精确版本不存在'); }
   private availableEntries(): LibraryEntry[] { return this.listEntries().filter(entry => !entry.archived); }
+  // Appearance only filters discovery. A token or an explicit selection keeps
+  // its exact available revision when the person switches visual style.
+  private canSend(ref: ExpressionRef): boolean {
+    return this.availableEntries().some(({expression}) => expression.asset_id === ref.asset_id &&
+      (expression.revision_id === ref.revision_id || this.marketCollections().some(c => c.ref.asset_id === ref.asset_id && c.ref.revision_id === ref.revision_id)));
+  }
   list(): Expression[] {
     const appearance = this.getSettings().appearance;
     const seen = new Set<string>();
@@ -541,7 +547,7 @@ export class LibraryStore {
       if (settings.paused) fail('AI_PAUSED', 'AI 主动表情已暂停，仍可手动发送');
       const ordinal = this.observeTurn(context, session);
       if (session.emittedTurns.includes(turnId)) fail('TURN_LIMIT', '每回合最多发送一个 AI 表情');
-      if (!this.list().some(e => e.asset_id === selection.ref.asset_id && e.revision_id === selection.ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
+      if (!this.canSend(selection.ref)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发');
       if (session.lastEmission?.assetId === selection.ref.asset_id) fail('REPEAT_LIMIT', '不能连续重复同一表情');
       if (settings.frequency === 'restrained' && session.lastEmission && ordinal - session.lastEmission.ordinal < 2) fail('FREQUENCY_LIMIT', '克制模式需冷却一个完整回合');
       const message = this.message(session, selection.ref, 'ai_to_human');
@@ -564,7 +570,7 @@ export class LibraryStore {
         return message;
       }
       this.resolve(ref);
-      if (!this.list().some(e => e.asset_id === ref.asset_id && e.revision_id === ref.revision_id)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
+      if (!this.canSend(ref)) fail('SELECTION_UNAVAILABLE', '已选版本当前不可新发，请重新选择');
       const choice = selection ? this.collaborationChoices(context, ref).find(c => isDeepStrictEqual(c.selection,selection)) ?? fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情') : undefined;
       const message = this.message(session, ref, 'human_to_ai');
       if(choice){message.action_intent={...choice,operation_id:randomUUID(),requestId,status:'prepared'};this.db.prepare('INSERT INTO action_intents VALUES (?,?,?,?)').run(message.action_intent.operation_id,sessionKey(context),requestId,JSON.stringify(message.action_intent));}

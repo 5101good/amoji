@@ -77,3 +77,7 @@ The anonymous catalog supports Chinese substring keywords, scenario, semantic la
 All public reads share a trusted edge-IP limit of 120 per minute, with 429 and Retry-After. Static Assets single-page-application fallback supports direct shared-detail links.
 
 Device authorization adds migration `0007-device-authorizations.sql`; apply it before updating the Worker. Signed-in browser users explicitly approve dsh pairing, without receiving device access or refresh tokens. Host creation and redemption reject browser Origin/Cookie headers; review routes reject device tokens. Only SHA-256 credential digests are stored. Pairing lasts five minutes, access fifteen minutes, and rotating refresh thirty days; refresh reuse revokes the family. Web logout revokes all owned devices and unclaimed approvals. The existing private D1, SQLite DO and direct R2 upload pipeline are reused.
+
+## Publishing initial content
+
+[Three official content packs](../../assets/scenario-packs/README.en.md) provide full 0.2 and expression-only 0.1 artifacts. Submit each from an independent, retained creator account and have another reviewer decide; deleting the creator unpublishes the content. Repository builds do not establish cloud publication. Actions are guidance, not enforcement; disabling stops future application while preserving history. Record anonymous acquisition, native dsh installation/sending, action events and complete model turns separately after deployment.

@@ -76,7 +76,10 @@ test('首次候选真实退出75后重新竞选，临时写入锁释放即可完
   const connecting = adapter(t, directory, { AMOJI_TEST_ELECTION_FILE: marker, NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${preload}`].filter(Boolean).join(' ') });
   try {
     let observed = false;
-    for (let i = 0; i < 100; i++) {
+    // Includes two real Node/tsx process startups on shared CI runners; keep
+    // this observation bound below adapter()'s 10-second startup deadline.
+    const observationDeadline = performance.now() + 7000;
+    while (performance.now() < observationDeadline) {
       try { observed = (await readFile(marker, 'utf8')) === '75'; if (observed) break; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       await delay(20);

@@ -463,6 +463,7 @@ export function Reviews({
                 "scenario",
                 "styles",
                 "expressions",
+                "defaults",
                 "actions",
                 "bindings",
                 "rights",
@@ -479,12 +480,16 @@ export function Reviews({
                       {field} — {changed ? t.changed : t.same}
                     </summary>
                     {changed && (
-                      <>
-                        <h4>{t.before}</h4>
-                        <pre>{JSON.stringify(before ?? null, null, 2)}</pre>
-                        <h4>{t.after}</h4>
-                        <pre>{JSON.stringify(after ?? null, null, 2)}</pre>
-                      </>
+                      <div className="review-diff">
+                        <div>
+                          <h4>{t.before}</h4>
+                          <pre>{JSON.stringify(before ?? null, null, 2)}</pre>
+                        </div>
+                        <div>
+                          <h4>{t.after}</h4>
+                          <pre>{JSON.stringify(after ?? null, null, 2)}</pre>
+                        </div>
+                      </div>
                     )}
                   </details>
                 );

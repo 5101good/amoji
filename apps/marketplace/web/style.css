@@ -381,3 +381,14 @@ select {
   border: 1px solid #156762;
   border-radius: 9px;
 }
+
+.review-diff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+@media (max-width: 760px) {
+  .review-diff {
+    grid-template-columns: 1fr;
+  }
+}

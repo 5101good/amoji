@@ -1,6 +1,7 @@
 import { unpack } from "./market-validator";
 import {
   body,
+  budget,
   digest,
   failure,
   reply,
@@ -56,6 +57,12 @@ async function snapshot(env: UploadEnv, u: Upload) {
     .bind(u.id)
     .first();
   if (u.expires_at <= Date.now() && !ref) throw Error("UPLOAD_EXPIRED");
+  // Admission counters are shared in D1, including reads made while submitting.
+  if (
+    !(await budget(env, `sealed_reads:${u.owner}`, 1024)) ||
+    !(await budget(env, "sealed_reads", 4096))
+  )
+    throw Error("READ_QUOTA");
   const object = await env.UPLOADS?.get(u.sealed_key);
   if (!object) throw Error("CONTENT_UNAVAILABLE");
   const bytes = new Uint8Array(await object.arrayBuffer());
@@ -337,27 +344,34 @@ export async function submissionRoute(
         last_operation: key,
       }),
     };
-    await env.DB.batch([
-      env.DB.prepare(
-        "UPDATE market_submission SET state='withdrawn',row_version=row_version+1,updated_at=?,last_operation=? WHERE id=? AND owner=? AND row_version=? AND state='pending' AND EXISTS(SELECT 1 FROM market_account WHERE id=? AND disabled=0)",
-      ).bind(now, key, s.id, owner, s.row_version, owner),
-      env.DB.prepare(
-        "INSERT INTO market_submission_operation(owner,operation,route,request_hash,status,result,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM market_submission WHERE id=? AND last_operation=?)",
-      ).bind(
-        owner,
-        key,
-        path,
-        requestHash,
-        200,
-        JSON.stringify(result),
-        now,
-        s.id,
-        key,
-      ),
-    ]);
+    try {
+      await env.DB.batch([
+        env.DB.prepare(
+          "UPDATE market_submission SET state='withdrawn',row_version=row_version+1,updated_at=?,last_operation=? WHERE id=? AND owner=? AND row_version=? AND state='pending' AND EXISTS(SELECT 1 FROM market_account WHERE id=? AND disabled=0)",
+        ).bind(now, key, s.id, owner, s.row_version, owner),
+        env.DB.prepare(
+          "INSERT INTO market_submission_operation(owner,operation,route,request_hash,status,result,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM market_submission WHERE id=? AND last_operation=?)",
+        ).bind(
+          owner,
+          key,
+          path,
+          requestHash,
+          200,
+          JSON.stringify(result),
+          now,
+          s.id,
+          key,
+        ),
+      ]);
+    } catch (e) {
+      const result = await replay();
+      if (result) return result;
+      throw e;
+    }
     return (await replay()) ?? failure("ROW_VERSION", 412);
   } catch (e) {
     const message = String(e);
+    if (message.includes("READ_QUOTA")) return failure("READ_QUOTA", 429);
     for (const code of [
       "DISTRIBUTION_LICENSE",
       "ATTRIBUTION_REQUIRED",

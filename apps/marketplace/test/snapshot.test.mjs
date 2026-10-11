@@ -67,3 +67,29 @@ test("creator snapshot keeps unchanged semantics and forks only edited immutable
   assert.equal(result.actions[0].rights.license, "CC0-1.0");
   assert.deepEqual(manifest.expressions[0], expression);
 });
+test("forking default and non-default revisions retains one default per resulting asset", async () => {
+  const identity = {
+    pack_id: crypto.randomUUID(),
+    release_id: crypto.randomUUID(),
+    version: 1,
+  };
+  const { manifest } = await archive(identity);
+  const second = structuredClone(manifest.expressions[0]);
+  second.revision_id = crypto.randomUUID();
+  manifest.expressions.push(second);
+  for (const edited of [0, 1]) {
+    const draft = structuredClone(manifest);
+    draft.expressions[edited].rights.creator = "Edited creator";
+    const m = buildSnapshot(draft, manifest, identity);
+    const assets = new Set(m.expressions.map((e) => e.asset_id));
+    assert.equal(m.defaults.length, assets.size);
+    assert.equal(new Set(m.defaults.map((r) => r.asset_id)).size, assets.size);
+    for (const ref of m.defaults)
+      assert.ok(
+        m.expressions.some(
+          (e) =>
+            e.asset_id === ref.asset_id && e.revision_id === ref.revision_id,
+        ),
+      );
+  }
+});

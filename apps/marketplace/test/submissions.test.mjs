@@ -82,6 +82,14 @@ test("creator HTTP: complete exact preview, private media, immutable submission 
   );
   assert.equal(w.status, 200, await w.clone().text());
   assert.equal((await w.json()).submission.state, "withdrawn");
+  const sameKey = await Promise.all(
+    [1, 2].map(() =>
+      f.post(`/v1/submissions/${s.id}/withdraw`, {}, f.cookie, withdrawKey, {
+        "if-match": '"1"',
+      }),
+    ),
+  );
+  for (const response of sameKey) assert.equal(response.status, 200);
   assert.equal(
     (
       await f.post(
@@ -282,5 +290,33 @@ test("creator HTTP: an exact expression identity cannot publish different conten
   assert.equal(
     (await (await get(f, "/v1/me/submissions")).json()).submissions.length,
     1,
+  );
+});
+test("private reads fail closed at shared free allowance, including preview, media and submit snapshots", async (t) => {
+  const f = await fixture(t),
+    v = await valid(f);
+  await f.db
+    .prepare("INSERT INTO market_runtime_budget(day,kind,count) VALUES(?,?,?)")
+    .bind(Math.floor(Date.now() / 86400000), "sealed_reads", 4096)
+    .run();
+  for (const path of [
+    `/v1/uploads/${v.upload.id}/preview`,
+    `/v1/uploads/${v.upload.id}/media/${hash(v.image)}`,
+  ]) {
+    const r = await get(f, path);
+    assert.equal(r.status, 429);
+    assert.equal(r.headers.get("retry-after"), "900");
+  }
+  const r = await f.post(
+    "/v1/submissions",
+    { upload_id: v.upload.id, rights_confirmed: true },
+    f.cookie,
+    crypto.randomUUID(),
+    { "if-match": `"${v.upload.row_version}"` },
+  );
+  assert.equal(r.status, 429);
+  assert.equal(
+    (await (await get(f, "/v1/me/submissions")).json()).submissions.length,
+    0,
   );
 });

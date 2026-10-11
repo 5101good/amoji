@@ -237,7 +237,10 @@ function Preview({
               <span lang={e.semantics.locale}>{e.semantics.locale}</span>
             </p>
             <p lang={e.semantics.locale}>{e.semantics.meaning}</p>
-            <pre>{JSON.stringify(e.semantics, null, 2)}</pre>
+            <details>
+              <summary>{t.full}</summary>
+              <pre>{JSON.stringify(e.semantics, null, 2)}</pre>
+            </details>
             <p>
               {e.rights.license} · {e.rights.creator}
             </p>
@@ -252,14 +255,20 @@ function Preview({
             {a.kind} · {a.scope} · {a.locale}
           </p>
           <p>{a.effect_summary}</p>
-          <pre>
-            {a.instruction ??
-              JSON.stringify(
-                { template: a.template, config: a.config },
-                null,
-                2,
-              )}
-          </pre>
+          {a.instruction ? (
+            <p>{a.instruction}</p>
+          ) : (
+            <details>
+              <summary>{t.full}</summary>
+              <pre>
+                {JSON.stringify(
+                  { template: a.template, config: a.config },
+                  null,
+                  2,
+                )}
+              </pre>
+            </details>
+          )}
           <p>
             {a.rights.license} · {a.rights.creator}
           </p>
@@ -358,6 +367,10 @@ export function UploadPanel({
       return zh
         ? "状态已变化，请刷新后重新确认。"
         : "The state changed. Refresh and confirm again.";
+    if (c === "READ_QUOTA")
+      return zh
+        ? "预览读取额度已用完，请稍后重试。草稿仍保留在本机。"
+        : "The preview read allowance is exhausted. Try later; your draft remains on this device.";
     if (/QUOTA|RATE_LIMITED/.test(c))
       return zh
         ? "已达到当前额度，请稍后重试。每日最多 10 次新投稿，最多 10 份待审。"
@@ -720,9 +733,20 @@ export function UploadPanel({
                     draft.manifest.actions.map((a: any) => (
                       <article key={a.action_id}>
                         <h3>{a.effect_summary}</h3>
-                        <pre>
-                          {a.instruction ?? JSON.stringify(a.config, null, 2)}
-                        </pre>
+                        {a.instruction ? (
+                          <p>{a.instruction}</p>
+                        ) : (
+                          <details>
+                            <summary>{t.full}</summary>
+                            <pre>
+                              {JSON.stringify(
+                                { template: a.template, config: a.config },
+                                null,
+                                2,
+                              )}
+                            </pre>
+                          </details>
+                        )}
                         <button
                           disabled={busy}
                           onClick={() => {

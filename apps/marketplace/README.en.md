@@ -61,3 +61,5 @@ Supported submission licenses are `CC0-1.0`, `CC-BY-4.0` and `CC-BY-SA-4.0`. Eve
 - `GET /v1/operations/:operation`: own submission/withdrawal reconciliation. UUIDs are retained for at least seven days (currently indefinitely). Replays add no queue entries; changed payloads return 409 and stale versions 412.
 
 Each account may have ten pending submissions and ten new submissions per UTC day; withdrawal does not restore the daily quota. Submission and upload control routes each allow 30 writes per 15 minutes. D1 triggers recheck trusted upload state, account disablement, ownership and quotas inside the transaction; identity conflicts roll back the entire submission. Withdrawal retains immutable snapshots. Revisions reserve a new release and increasing version. Apply migration 0005 before deploying the Worker and assets.
+
+Private sealed-object reads (preview, media and submission snapshots) share D1 admission counters: 1024 per account/day and 4096 per application/day. Exhaustion returns 429 before R2 GET. These auditable application limits do not establish the account’s actual remaining allowance.

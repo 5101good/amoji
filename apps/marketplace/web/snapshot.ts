@@ -53,6 +53,16 @@ export function buildSnapshot(
   m.defaults = m.defaults.map(
     (r: any) => expressionRefs.get(r.asset_id + ":" + r.revision_id) ?? r,
   );
+  // Forking a non-default revision creates an asset that had no prior default;
+  // forking the default can leave unchanged revisions of the original asset.
+  const assets = new Set(m.expressions.map((e: any) => e.asset_id));
+  m.defaults = m.defaults.filter((r: any) => assets.has(r.asset_id));
+  const covered = new Set(m.defaults.map((r: any) => r.asset_id));
+  for (const e of m.expressions)
+    if (!covered.has(e.asset_id)) {
+      m.defaults.push({ asset_id: e.asset_id, revision_id: e.revision_id });
+      covered.add(e.asset_id);
+    }
   m.bindings = m.bindings.map((b: any) => ({
     expression:
       expressionRefs.get(

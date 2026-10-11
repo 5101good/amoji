@@ -52,3 +52,10 @@ test('device own-content authorization, disable, explicit revoke and concurrent 
  const fresh=await pair(cookie);const results=await Promise.all([send('device-tokens/refresh',{refresh_token:fresh.refresh_token}),send('device-tokens/refresh',{refresh_token:fresh.refresh_token})]);assert.deepEqual(results.map(r=>r.status).sort(),[200,401]);const winner=await results.find(r=>r.status===200).json();assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+winner.access_token}})).status,401);
  const expired=await pair(cookie);await db.prepare('UPDATE market_device_family SET refresh_expires=0 WHERE id=?').bind(expired.device_id).run();assert.equal((await send('device-tokens/refresh',{refresh_token:expired.refresh_token})).status,401);
 });
+
+test('device authorization creation enforces ten per hour with Retry-After',async t=>{
+ const {mf}=await fixture(t);
+ const create=()=>mf.dispatchFetch('http://localhost/v1/device-authorizations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({device_name:'Rate limit fixture'})});
+ for(let i=0;i<10;i++)assert.equal((await create()).status,201);
+ const denied=await create();assert.equal(denied.status,429);assert.ok(Number(denied.headers.get('retry-after'))>0);
+});

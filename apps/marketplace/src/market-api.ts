@@ -99,8 +99,8 @@ async function limitedBody(request: Request) {
   }
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-async function limit(env: Env, key: string, max: number) {
-  const bucket = Math.floor(Date.now() / 900000);
+async function limit(env: Env, key: string, max: number, window = 900000) {
+  const bucket = Math.floor(Date.now() / window);
   const result = await env.DB.prepare(
     "INSERT INTO auth_rate_limit (key,bucket,count) VALUES (?, ?, 1) ON CONFLICT(key,bucket) DO UPDATE SET count=count+1 RETURNING count",
   )
@@ -140,8 +140,20 @@ export default {
       if (url.origin !== env.APP_ORIGIN) return error("ORIGIN", 403);
       if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32)
         return error("CONFIGURATION", 503);
-      if (path === "/v1/packs" || path.startsWith("/v1/packs/"))
+      if (path === "/v1/packs" || path.startsWith("/v1/packs/")) {
+        const ip = request.headers.get("x-amoji-edge-ip");
+        if (!ip) return error("UNTRUSTED_PROXY", 403);
+        if (
+          !(await limit(
+            env,
+            `public:${await mac(env.BETTER_AUTH_SECRET, ip)}`,
+            120,
+            60000,
+          ))
+        )
+          return error("RATE_LIMITED", 429);
         return catalogRoute(request, env);
+      }
       if (path === "/v1/auth/csrf" && request.method === "GET") {
         const stamp = `${Date.now()}.${crypto.randomUUID()}`;
         return json({ csrf: `${stamp}.${await csrf(request, env, stamp)}` });

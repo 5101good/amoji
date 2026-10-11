@@ -73,3 +73,5 @@ SQLite DO `FreeRuntime` 通过私有 binding 执行完整认证与上传控制 A
 匿名首页支持中文关键词、场景、语义语言、画风和有无动作筛选。`GET /v1/packs` 默认20、最多50条，以更新时间与稳定包 ID 游标分页。公开分享页路径 `/packs/:pack/releases/:release` 展示完整精确内容、许可、示例、作用域和宿主说明。包 ID 可回到 dsh 市场搜索。新待审版本不覆盖旧公开内容；每个批准版本保持独立精确下载。`archive` 响应提供 SHA-256、长度和 ETag；媒体和归档每次检查发布状态、引用与真实字节摘要，R2 无永久公共链接。公开读同样消耗共享冻结对象读取额度。下架版本返回410，待审直链返回404。
 
 `test/reviews.test.mjs` 通过真实本地 workerd D1/R2 binding 覆盖四actor、退回修订、CAS/回滚/幂等、私有隔离及摘要一致。云端四actor浏览器、实际R2 S3和云D1故障证据需单独实测，不能由本地测试推定。
+
+匿名公开读取统一按受信边缘 IP 限制每分钟120次，429附Retry-After；分享详情由 Static Assets 的 single-page-application fallback 支持直接访问。

@@ -212,3 +212,11 @@ test("review HTTP: self-review, CAS race, transaction rollback, bootstrap and sa
       );
   }
 });
+test("anonymous reads enforce the shared 120 per minute IP budget", async (t) => {
+  const f = await fixture(t);
+  for (let i = 0; i < 120; i++)
+    assert.equal((await get(f, "/v1/packs")).status, 200);
+  const denied = await get(f, "/v1/packs");
+  assert.equal(denied.status, 429);
+  assert.ok(denied.headers.get("retry-after"));
+});

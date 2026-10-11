@@ -95,6 +95,10 @@ const words = {
     pack: "场景包",
     expression: "表情",
     action: "动作",
+    turn: "本次请求",
+    conversation: "当前会话",
+    instruction: "协作提示",
+    hook: "会话习惯",
   },
   en: {
     title: "Creator workspace",
@@ -154,6 +158,10 @@ const words = {
     pack: "Scenario pack",
     expression: "Expression",
     action: "Action",
+    turn: "This request",
+    conversation: "This conversation",
+    instruction: "Collaboration instruction",
+    hook: "Conversation habit",
   },
 };
 async function api(
@@ -252,7 +260,8 @@ function Preview({
         <article key={a.action_id}>
           <h4>{a.name ?? a.effect_summary}</h4>
           <p>
-            {a.kind} · {a.scope} · {a.locale}
+            {a.kind === "instruction" ? t.instruction : t.hook} ·{" "}
+            {a.scope === "turn" ? t.turn : t.conversation} · {a.locale}
           </p>
           <p>{a.effect_summary}</p>
           {a.instruction ? (
@@ -286,7 +295,10 @@ function Preview({
       </p>
       <p>{manifest.rights.source}</p>
       {manifest.derived_from && (
-        <pre>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
+        <details>
+          <summary>{t.source}</summary>
+          <pre>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
+        </details>
       )}
       <details>
         <summary>{t.full}</summary>

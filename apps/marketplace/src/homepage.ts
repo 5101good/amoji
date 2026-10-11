@@ -35,7 +35,7 @@ export async function homepage(template: Response, catalog: Response): Promise<R
   const bootstrap = `<div id="catalog-bootstrap" hidden>${escape(JSON.stringify(data))}</div>`;
   const filters = [['q', '关键词'], ['scenario', '场景'], ['locale', '语义语言'], ['style', '画风']].map(([name, label]) => `<label>${label}<input name="${name}" maxlength="256" disabled></label>`).join('');
   const shell = `<div id="root"><header><a class="brand" href="/">amoji<span>表情市场</span></a><button class="language" disabled>English</button></header><main class="creator-page"><section class="creator catalog"><h2>发现场景包</h2><form class="market-filters">${filters}<label>协作动作<select disabled><option>全部</option></select></label><button disabled>搜索</button></form><p role="status">${data.packs.length ? '' : '没有匹配的公开内容。'}</p>${rows}${data.cursor ? '<button disabled>加载更多</button>' : ''}</section></main></div>`;
-  return new Response(source.replace(placeholder, shell + bootstrap), {
+  return new Response(source.replace(placeholder, () => shell + bootstrap), {
     headers: {
       'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
       'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://5e76b121867f4d57af8fb17fd0afbcfb.r2.cloudflarestorage.com; img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",

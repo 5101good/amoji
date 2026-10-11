@@ -66,3 +66,18 @@ test('malformed or excessively long public summary fails closed before HTML inje
     assert.ok(!(await response.text()).includes('catalog-row'));
   }
 });
+
+test('homepage preserves literal replacement metacharacters in public names', async t => {
+  const f = await fixture(t);
+  const name = "price $& $` $' $$ value";
+  await f.db.prepare("UPDATE market_public_release SET manifest=json_set(manifest,'$.name',?)").bind(name).run();
+  const response = await f.request();
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.equal((html.match(/id="root"/g) ?? []).length, 1);
+  assert.ok(html.includes("price $&amp; $` $&#39; $$ value"));
+  const encoded = /<div id="catalog-bootstrap" hidden>(.*?)<\/div>/.exec(html)?.[1];
+  assert.ok(encoded);
+  const decoded = encoded.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+  assert.equal(JSON.parse(decoded).packs[0].manifest.name, name);
+});

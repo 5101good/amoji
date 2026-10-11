@@ -14,3 +14,14 @@ test('market opening shows the latest failed revocation check as stale',async t=
  await React.act(async()=>root.render(React.createElement(Marketplace,{rpc,sessionId:'session',onChanged:()=>{}})));
  assert.match(dom.window.document.body.textContent!,/prior-safety-check/);assert.match(dom.window.document.body.textContent!,/发布状态可能滞后/);
 });
+
+test('open market observes background revocation changes and failed search updates',async t=>{
+ const dom=new JSDOM('<div id="root"></div>',{url:'http://localhost'}),prior={window:globalThis.window,document:globalThis.document,sessionStorage:globalThis.sessionStorage};Object.assign(globalThis,{window:dom.window,document:dom.window.document,sessionStorage:dom.window.sessionStorage,IS_REACT_ACT_ENVIRONMENT:true});const root=createRoot(dom.window.document.getElementById('root')!);t.after(async()=>{await React.act(()=>root.unmount());Object.assign(globalThis,prior);dom.window.close();});
+ t.mock.timers.enable({apis:['setInterval']});let revocations={last_checked_at:'first-check',stale:false},failSearch=false;
+ const rpc:any={marketplace:async(_s:string,method:string)=>{if(method==='search'){if(failSearch){revocations={last_checked_at:'second-check',stale:true};throw {code:'MARKET_UNAVAILABLE'};}return {packs:[],last_checked_at:'catalog-check',stale:false};}if(method==='local')return {installs:[],collections:[],revocations:{...revocations}};}};
+ await React.act(async()=>root.render(React.createElement(Marketplace,{rpc,sessionId:'session',onChanged:()=>{}})));
+ assert.doesNotMatch(dom.window.document.body.textContent!,/发布状态可能滞后/);
+ revocations={last_checked_at:'first-check',stale:true};await React.act(async()=>t.mock.timers.tick(5000));assert.match(dom.window.document.body.textContent!,/发布状态可能滞后/);
+ revocations={last_checked_at:'second-check',stale:false};await React.act(async()=>t.mock.timers.tick(5000));assert.match(dom.window.document.body.textContent!,/second-check/);assert.doesNotMatch(dom.window.document.body.textContent!,/发布状态可能滞后/);
+ failSearch=true;await React.act(async()=>dom.window.document.querySelector('form')!.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true})));assert.match(dom.window.document.body.textContent!,/发布状态可能滞后/);assert.match(dom.window.document.body.textContent!,/MARKET_UNAVAILABLE/);
+});

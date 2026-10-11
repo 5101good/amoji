@@ -1,3 +1,5 @@
+import { reviewRoute } from "./reviews";
+import { catalogRoute } from "./catalog";
 import { createAuth } from "./auth";
 import { submissionRoute } from "./submissions";
 import { uploadRoute } from "./uploads";
@@ -138,6 +140,8 @@ export default {
       if (url.origin !== env.APP_ORIGIN) return error("ORIGIN", 403);
       if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32)
         return error("CONFIGURATION", 503);
+      if (path === "/v1/packs" || path.startsWith("/v1/packs/"))
+        return catalogRoute(request, env);
       if (path === "/v1/auth/csrf" && request.method === "GET") {
         const stamp = `${Date.now()}.${crypto.randomUUID()}`;
         return json({ csrf: `${stamp}.${await csrf(request, env, stamp)}` });
@@ -162,6 +166,7 @@ export default {
         });
       }
       if (
+        path.startsWith("/v1/review/") ||
         path === "/v1/uploads" ||
         path.startsWith("/v1/uploads/") ||
         path.startsWith("/v1/submissions") ||
@@ -207,6 +212,8 @@ export default {
           )
             return error("RATE_LIMITED", 429);
         }
+        if (path.startsWith("/v1/review/"))
+          return reviewRoute(request, env, domain.id);
         return creatorRoute
           ? submissionRoute(request, env, domain.id)
           : uploadRoute(request, env, domain.id);

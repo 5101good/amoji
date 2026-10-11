@@ -353,3 +353,31 @@ summary {
     padding: 16px;
   }
 }
+.market-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: end;
+}
+select {
+  font: inherit;
+  padding: 12px;
+  border: 1px solid #a1b7bb;
+  border-radius: 7px;
+  background: white;
+  min-height: 48px;
+}
+.catalog-row,
+.review-queue article {
+  padding: 20px 0;
+  border-bottom: 1px solid #d2e0e3;
+}
+.release {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.download {
+  display: inline-block;
+  padding: 12px 18px;
+  border: 1px solid #156762;
+  border-radius: 9px;
+}

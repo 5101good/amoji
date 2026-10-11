@@ -9,7 +9,7 @@ import {
   type Upload,
   type UploadEnv,
 } from "./upload-shared";
-type Submission = {
+export type Submission = {
   id: string;
   owner: string;
   upload_id: string;
@@ -31,7 +31,7 @@ type Operation = {
   status: number;
   result: string;
 };
-const visible = ({ owner, last_operation, ...s }: Submission) => s;
+export const visible = ({ owner, last_operation, ...s }: Submission) => s;
 function canonical(value: any): any {
   return Array.isArray(value)
     ? value.map(canonical)
@@ -49,7 +49,7 @@ const ownedUpload = (env: UploadEnv, id: string, owner: string) =>
   env.DB.prepare("SELECT * FROM market_direct_upload WHERE id=? AND owner=?")
     .bind(id, owner)
     .first<Upload>();
-async function snapshot(env: UploadEnv, u: Upload) {
+export async function snapshot(env: UploadEnv, u: Upload) {
   if (u.state !== "valid") throw Error("UPLOAD_NOT_VALID");
   const ref = await env.DB.prepare(
     "SELECT 1 FROM market_direct_upload_reference WHERE upload_id=? LIMIT 1",
@@ -71,7 +71,7 @@ async function snapshot(env: UploadEnv, u: Upload) {
     raw = files.get("manifest.json")!;
   if ((await digest(raw)) !== u.manifest_sha256)
     throw Error("CONTENT_INTEGRITY");
-  return { files, manifest: JSON.parse(new TextDecoder().decode(raw)) };
+  return { bytes, files, manifest: JSON.parse(new TextDecoder().decode(raw)) };
 }
 /** These supported licenses expressly permit redistribution. Unknown licenses need a future review workflow. */
 function publicationRights(m: any) {

@@ -50,6 +50,14 @@ export async function fixture(t) {
     .split(/;\n(?=CREATE)/)
     .filter((s) => s.trim()))
     await db.prepare(statement).run();
+  const reviewMigration = await readFile(
+    new URL("../migrations/0006-review-publish.sql", import.meta.url),
+    "utf8",
+  );
+  for (const statement of reviewMigration
+    .split(/;\n(?=CREATE)/)
+    .filter((s) => s.trim()))
+    await db.prepare(statement).run();
   async function post(
     path,
     data,

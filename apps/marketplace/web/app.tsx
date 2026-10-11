@@ -1,3 +1,4 @@
+import { Catalog, Reviews } from "./market";
 import { UploadPanel } from "./upload";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -126,7 +127,8 @@ function App() {
           {locale === "zh" ? "English" : "中文"}
         </button>
       </header>
-      <main className={account ? "creator-page" : undefined}>
+      <main className="creator-page">
+        <Catalog locale={locale} />
         <section className="intro">
           <div className="expression" aria-hidden="true">
             ( ◡‿◡ )
@@ -143,6 +145,13 @@ function App() {
               <p className="welcome">{account.name}</p>
               <p>{account.email}</p>
               <p className="note">{t.unverified}</p>
+              {["reviewer", "admin"].includes(account.role) && (
+                <Reviews
+                  key={account.id + ":review"}
+                  locale={locale}
+                  accountId={account.id}
+                />
+              )}
               <UploadPanel
                 key={account.id}
                 locale={locale}

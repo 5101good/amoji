@@ -46,7 +46,7 @@ const sum = async (bytes: Uint8Array) =>
   )
     .map((x) => x.toString(16).padStart(2, "0"))
     .join("");
-const words = {
+export const previewWords = {
   zh: {
     title: "创作者工作台",
     steps: ["选择内容", "说明与许可", "可选动作", "预览投稿"],
@@ -188,20 +188,22 @@ async function api(
   if (!r.ok) throw Error(result.error?.code ?? "UNAVAILABLE");
   return result;
 }
-function Preview({
+export function Preview({
   manifest,
   uploadId,
+  mediaBase,
   files,
   t,
 }: {
   manifest: any;
   uploadId?: string;
+  mediaBase?: string;
   files: Record<string, Uint8Array>;
-  t: typeof words.zh | typeof words.en;
+  t: typeof previewWords.zh | typeof previewWords.en;
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (uploadId) {
+    if (uploadId || mediaBase) {
       setUrls({});
       return;
     }
@@ -216,9 +218,13 @@ function Preview({
       }
     setUrls(u);
     return () => Object.values(u).forEach(URL.revokeObjectURL);
-  }, [manifest, files, uploadId]);
+  }, [manifest, files, uploadId, mediaBase]);
   const mediaUrl = (m: any) =>
-    uploadId ? `/v1/uploads/${uploadId}/media/${m.sha256}` : urls[m.sha256];
+    mediaBase
+      ? `${mediaBase}/media/${m.sha256}`
+      : uploadId
+        ? `/v1/uploads/${uploadId}/media/${m.sha256}`
+        : urls[m.sha256];
   return (
     <section className="pack-preview" aria-label={t.allContent}>
       <h3>{manifest.name}</h3>
@@ -314,7 +320,7 @@ export function UploadPanel({
   locale: "zh" | "en";
   accountId: string;
 }) {
-  const t = words[locale],
+  const t = previewWords[locale],
     zh = locale === "zh";
   const [draft, setDraft] = useState<Draft | null>(null),
     [busy, setBusy] = useState(false),

@@ -10,7 +10,7 @@ import type { Env } from "./worker";
 // Supplied only by the owning runtime, after the public ingress has overwritten
 // its forwarding marker. Request headers cannot select a limiter or skip it.
 type ApiEnv = Env & {
-  publicRateLimit?: (key: string, bucket: number, max: number) => boolean;
+  publicRateLimit?: (key: string, bucket: number, max: number) => boolean | undefined;
 };
 const encoder = new TextEncoder();
 function json(data: object, status = 200, extra?: HeadersInit) {
@@ -109,8 +109,10 @@ async function limitedBody(request: Request) {
 }
 async function limit(env: ApiEnv, key: string, max: number, window = 900000) {
   const bucket = Math.floor(Date.now() / window);
-  if (key.startsWith("public:") && env.publicRateLimit)
-    return env.publicRateLimit(key, bucket, max);
+  if (key.startsWith("public:") && env.publicRateLimit) {
+    const permitted = env.publicRateLimit(key, bucket, max);
+    if (permitted !== undefined) return permitted;
+  }
   const result = await env.DB.prepare(
     "INSERT INTO auth_rate_limit (key,bucket,count) VALUES (?, ?, 1) ON CONFLICT(key,bucket) DO UPDATE SET count=count+1 RETURNING count",
   )

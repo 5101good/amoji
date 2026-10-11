@@ -7,11 +7,13 @@ import { convertV4MiniflareOptions } from './runtime-fixture.mjs';
 
 // Real Worker, SQLite DO and D1. Only the wall clock is replaced, so bucket
 // boundaries and a full runtime restart are deterministic without private APIs.
-async function fixture(t) {
+const activationTime = 1800000000000;
+const steadyTime = activationTime + 60000;
+async function fixture(t, { activating = false } = {}) {
   const directory = await mkdtemp(tmpdir() + '/amoji-public-rate-');
   const script = await readFile(new URL('../dist/worker.js', import.meta.url), 'utf8');
   let mf;
-  async function restart(now = 1800000000000, bindings = {}) {
+  async function restart(now = steadyTime, bindings = {}) {
     await mf?.dispose();
     mf = new Miniflare(convertV4MiniflareOptions({
       resourcePersistencePath: directory,
@@ -28,7 +30,7 @@ async function fixture(t) {
     }));
   }
   t.after(async () => { await mf?.dispose(); await rm(directory, { recursive: true, force: true }); });
-  await restart();
+  await restart(activationTime);
   const db = await mf.getD1Database('DB');
   const migrations = new URL('../migrations/', import.meta.url);
   for (const name of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
@@ -36,8 +38,11 @@ async function fixture(t) {
     for (const statement of sql.split(/;\n(?=CREATE|ALTER|DROP|--)/).filter(s => s.trim()))
       await db.prepare(statement).run();
   }
+  await mf.dispatchFetch('http://localhost/v1/auth/csrf');
+  if (!activating) await restart();
   return {
-    db, restart,
+    db: await mf.getD1Database('DB'), restart,
+    database: () => mf.getD1Database('DB'),
     request: (path, init) => mf.dispatchFetch('http://localhost' + path, init),
   };
 }
@@ -78,8 +83,29 @@ test('120 public reads share one persistent per-minute allowance across paths an
   }
   await f.restart();
   assert.equal((await f.request('/v1/packs')).status, 429);
-  await f.restart(1800000060000);
+  await f.restart(steadyTime + 60000);
   for (let i = 0; i < paths.length; i++) assert.equal((await f.request(paths[i])).status, statuses[i]);
+});
+
+test('activation minute keeps the existing D1 allowance across restarts and changes storage only in the next minute', async t => {
+  const f = await fixture(t, { activating: true });
+  for (let i = 0; i < 116; i++) assert.equal((await f.request(paths[i % 4])).status, statuses[i % 4]);
+  await f.db.prepare("CREATE TRIGGER unavailable_rate_write BEFORE INSERT ON auth_rate_limit BEGIN SELECT RAISE(ABORT,'RATE_STORAGE_UNAVAILABLE'); END").run();
+  const unavailable = await f.request('/v1/packs');
+  assert.equal(unavailable.status, 503);
+  assert.equal((await unavailable.json()).error.code, 'UNAVAILABLE');
+  await f.db.prepare('DROP TRIGGER unavailable_rate_write').run();
+  await f.restart(activationTime);
+  const last = await Promise.all(Array.from({ length: 8 }, () => f.request('/v1/packs')));
+  assert.deepEqual(last.map(r => r.status).sort(), [200, 200, 200, 200, 429, 429, 429, 429]);
+  await f.restart(activationTime);
+  for (const path of paths) assert.equal((await f.request(path)).status, 429);
+  await f.restart(steadyTime);
+  const db = await f.database();
+  await db.prepare("CREATE TRIGGER unavailable_rate_write BEFORE INSERT ON auth_rate_limit BEGIN SELECT RAISE(ABORT,'RATE_STORAGE_UNAVAILABLE'); END").run();
+  for (let i = 0; i < paths.length; i++) assert.equal((await f.request(paths[i])).status, statuses[i]);
+  await f.restart(steadyTime);
+  assert.equal((await f.request('/v1/packs')).status, 200);
 });
 
 test('origin and secret checks still precede public access', async t => {

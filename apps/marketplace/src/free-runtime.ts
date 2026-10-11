@@ -9,6 +9,7 @@ import { cleanupUploads } from "./uploads";
 import { digest, failure, readBytes, type Upload } from "./upload-shared";
 /** One SQLite DO serializes all heavy jobs, including cleanup, within this application. */
 export class FreeRuntime extends DurableObject<Env> {
+  private readonly publicRateActivationBucket: number;
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.sql.exec(
@@ -20,8 +21,22 @@ export class FreeRuntime extends DurableObject<Env> {
     ctx.storage.sql.exec(
       "CREATE INDEX IF NOT EXISTS public_rate_limit_bucket ON public_rate_limit(bucket)",
     );
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS public_rate_activation(id INTEGER PRIMARY KEY CHECK(id=1),bucket INTEGER NOT NULL)",
+    );
+    ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO public_rate_activation(id,bucket) VALUES(1,?)",
+      Math.floor(Date.now() / 60000),
+    );
+    this.publicRateActivationBucket = [...ctx.storage.sql.exec<{ bucket: number }>(
+      "SELECT bucket FROM public_rate_activation WHERE id=1",
+    )][0].bucket;
   }
   private publicRateLimit(key: string, bucket: number, max: number) {
+    // The activation minute finishes against existing D1 counters, so rollout
+    // cannot grant another allowance. Persisting this marker makes later
+    // evictions/restarts stay local instead of starting a fresh fallback minute.
+    if (bucket <= this.publicRateActivationBucket) return undefined;
     return this.ctx.storage.transactionSync(() => {
       // Bound cleanup work even after a long idle period. Only HMAC identities
       // are stored, and rejected requests do not keep incrementing a full bucket.

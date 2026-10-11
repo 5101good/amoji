@@ -89,3 +89,11 @@ test('apply注册原生amoji词典和locale seats，宿主user renderer保持原
  assert.equal(locale.bind('amoji')('表情'),'Expressions');assert.equal(locale.getLocale().active,'en');
  cleanup.forEach(fn=>fn());assert.equal(locale.bind('amoji')('表情'),'表情');assert.equal(core.entriesOfSlot('conversation.chat.node')[0]!.component,original);
 });
+test('发布向导中文状态、许可占位、中英切换与步骤焦点保留',async t=>{
+ const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
+ const manifest={name:'固定包名',release_id:'local',rights:{license:'仅供个人使用'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:1,state:'draft',source_release_id:'local',manifest};
+ const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string,args:any)=>{if(method==='loginStatus')return{state:'signed_out'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1,step:args.step};return d;}throw Error(method);}} as unknown as DshRpc;
+ await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));assert.match(f.dom.window.document.body.textContent!,/编辑中/);assert.doesNotMatch(f.dom.window.document.body.textContent!,/· draft/);
+ await act(async()=>f.button('恢复发布草稿').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 2：说明与许可');assert.ok([...f.dom.window.document.querySelectorAll('option')].some(o=>o.selected&&o.textContent==='请选择允许公开分发的许可'));
+ await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选动作');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional actions/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
+});

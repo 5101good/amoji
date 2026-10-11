@@ -463,4 +463,13 @@ export const english = {
 "published": "Published",
 "withdrawn": "Withdrawn",
 "明确重试同一投稿操作": "Explicitly retry the same submission operation",
+"编辑中": "Draft",
+"上传中": "Uploading",
+"校验完成": "Validated upload",
+"已投稿": "Submitted",
+"待审核": "Pending review",
+"需要修改": "Changes requested",
+"已公开": "Published",
+"已撤回": "Withdrawn",
+"请选择允许公开分发的许可": "Select a redistribution license",
 } as const;

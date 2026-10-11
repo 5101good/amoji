@@ -97,3 +97,10 @@ test('发布向导中文状态、许可占位、中英切换与步骤焦点保�
  await act(async()=>f.button('恢复发布草稿').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 2：说明与许可');assert.ok([...f.dom.window.document.querySelectorAll('option')].some(o=>o.selected&&o.textContent==='请选择允许公开分发的许可'));
  await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选动作');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional actions/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
 });
+test('发布网络与授权错误按当前英文locale显示，原始诊断单独保留',async t=>{
+ const f=await fixture(t);await act(()=>f.locale.setLocale('en'));
+ for(const code of ['PUBLISHER_OFFLINE','PUBLISHER_LOGIN','UNAUTHENTICATED','POLL_TOO_FAST']){
+  await f.render(React.createElement(Conflict,{error:Object.assign(new Error('发布诊断'),{code})}));
+  assert.doesNotMatch(f.dom.window.document.querySelector('[role="alert"]')!.querySelector('p')!.textContent!,/发布诊断/);
+ }
+});

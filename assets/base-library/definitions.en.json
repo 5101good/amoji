@@ -28,13 +28,13 @@
     },
     {
       "slug": "still-there",
-      "name": "Anybody home?",
+      "name": "Hello? You there?",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I'm waiting for your response and want to check whether you can still respond, and whether there is a blocker I need to deal with.",
         "tone": "Gentle nudge",
-        "fallback": "[Anybody home?]",
+        "fallback": "[Hello? You there?]",
         "use_when": [
           "No response after a long wait",
           "Checking whether the conversation can continue"
@@ -46,7 +46,7 @@
       },
       "tags": [
         "协作:进度",
-        "Anybody home?",
+        "Hello? You there?",
         "human-AI collab"
       ]
     },

@@ -34,12 +34,21 @@ export interface BrowseQuery {
   page: number;
   library?: boolean;
   archived?: boolean;
+  category?: string;
 }
 export interface ExpressionPage {
   items: LibraryEntry[];
   page: number;
   pages: number;
   total: number;
+}
+export interface BrowseWindowQuery {
+  query: string;
+  offset: number;
+  limit: number;
+  library?: boolean;
+  archived?: boolean;
+  category?: string;
 }
 
 /** Host-independent use cases. Media/UI encoding and host delivery belong to adapters. */
@@ -56,6 +65,31 @@ export class ExpressionApplication {
       input.page < 0
     )
       fail("INVALID_ARGUMENT", "搜索最多 240 字，页码须为非负整数");
+    const matches = await this.matches(input);
+    const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+    const page = Math.min(input.page, pages - 1);
+    return {
+      items: matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+      page,
+      pages,
+      total: matches.length,
+    };
+  }
+  async browseWindow(input: BrowseWindowQuery) {
+    if (typeof input.query !== "string" || input.query.length > 240 ||
+        !Number.isSafeInteger(input.offset) || input.offset < 0 ||
+        !Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 100)
+      fail("INVALID_ARGUMENT", "无效的搜索窗口");
+    if (input.category !== undefined && !["全部", "进度", "澄清", "方向", "反馈", "其他"].includes(input.category))
+      fail("INVALID_ARGUMENT", "无效的表情场景");
+    const all = await this.matches(input);
+    const categoryOf = (entry: LibraryEntry) => entry.expression.tags?.find(tag => tag.startsWith("协作:"))?.slice(3) || "其他";
+    const categories = ["进度", "澄清", "方向", "反馈", "其他"].filter(category => all.some(entry => categoryOf(entry) === category));
+    const matches = input.category && input.category !== "全部" ? all.filter(entry => categoryOf(entry) === input.category) : all;
+    return { items: matches.slice(input.offset, input.offset + input.limit),
+      categories, offset: input.offset, total: matches.length };
+  }
+  private async matches(input: Pick<BrowseQuery, "query" | "library" | "archived">) {
     const [entries, available] = await Promise.all([
       this.library.listEntries(),
       input.library ? Promise.resolve(null) : this.expressions.catalog.all(),
@@ -83,14 +117,7 @@ export class ExpressionApplication {
             ...(e.tags ?? []),
           ].some((v) => v.toLocaleLowerCase().includes(query)),
       );
-    const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
-    const page = Math.min(input.page, pages - 1);
-    return {
-      items: matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-      page,
-      pages,
-      total: matches.length,
-    };
+    return matches;
   }
   receive(context: BindingContext, ref: ExpressionRef, requestId: string) {
     return this.expressions.receive(

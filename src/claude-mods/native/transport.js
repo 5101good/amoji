@@ -1,7 +1,7 @@
 /** The only Mods -> Node boundary. User text travels on stdin, never in a shell. */
 export async function bridge($, context, command, args = {}) {
-  const node = (await $.env.get("AMOJI_NODE")) || "node";
-  const data = await $.env.get("AMOJI_DATA_DIR");
+  const [configuredNode, data] = await Promise.all([$.env.get("AMOJI_NODE"), $.env.get("AMOJI_DATA_DIR")]);
+  const node = configuredNode || "node";
   const result = await $.process.run(
     [node, $.plugin.root + "/runtime/src/claude-mods/main.js"],
     {

@@ -7,7 +7,7 @@ import { MEDIA_LIMITS } from "../media.js";
 import { PACK_LIMITS } from "../packs.js";
 import { readFile } from "node:fs/promises";
 import type { Expression } from "../sample-catalog.js";
-import { thumbnailSvg } from "./thumbnail.js";
+import { cachedThumbnailImage } from "./thumbnail.js";
 import { humanText, messageMarker, renderSegments } from "./messages.js";
 import { readBoundedFile, writeNewFile } from "./files.js";
 import {
@@ -20,6 +20,7 @@ export async function executeBridge(
   app: ExpressionApplication,
   client: Pick<SharedClient, "blobPath">,
   raw: unknown,
+  options: { previewDirectory?: string; bundledPreviewDirectory?: string } = {},
 ): Promise<unknown> {
   const request = object(raw, ["command", "context", "args"]);
   const command = nonempty(request.command);
@@ -29,50 +30,74 @@ export async function executeBridge(
     fail("INVALID_ARGUMENT", "需要命令参数");
   const preview = async (
     visual: Expression["visual"] | undefined,
+    gallery = false,
   ): Promise<string | null> => {
     if (!visual) return null;
     try {
-      return await thumbnailSvg(
-        await readFile(
-          await client.blobPath((visual.poster ?? visual.primary).sha256),
-        ),
-      );
+      const digest = (visual.poster ?? visual.primary).sha256;
+      return await cachedThumbnailImage(digest,
+        async () => readFile(await client.blobPath(digest)), options.previewDirectory,
+        gallery ? "gallery" : "detail", options.bundledPreviewDirectory);
     } catch {
       return null;
     } // A missing/corrupt image must never erase its frozen meaning.
   };
   switch (command) {
     case "browse": {
-      const page = await app.browse({
+      const filter = {
         query: args.query as string,
-        page: args.page as number,
+        category: args.category as string | undefined,
         library: args.library === true,
         archived: args.archived === true,
-      });
+      };
+      const page = args.offset === undefined ? await app.browse({ ...filter, page: args.page as number })
+        : await app.browseWindow({ ...filter, offset: args.offset as number, limit: args.limit as number });
       return {
         ...page,
         items: await Promise.all(
           page.items.map(async (e) => ({
             ...e,
-            preview: await preview(e.expression.visual),
+            preview: await preview(e.expression.visual, true),
           })),
         ),
       };
     }
     case "settings":
       return app.library.getSettings();
-    case "updateSettings":
-      return app.library.updateSettings(
+    case "updateSettings": {
+      const settings = await app.library.updateSettings(
         draftVersion(args.version),
         preferences(args.preferences),
       );
+      if (!args.browse) return settings;
+      // Save once, then read the matching collection over this same connection.
+      // If the refresh fails, return the committed settings without retrying the write.
+      try {
+        const collection = await executeBridge(app, client,
+          { command: "browse", context, args: args.browse }, options);
+        return { preferences: settings, collection };
+      } catch {
+        return { preferences: settings, refreshError: true };
+      }
+    }
     case "receive": {
       const message = await app.receive(
         context,
         expressionRef(args.ref),
         nonempty(args.requestId),
       );
-      return { messageId: message.message_id, text: humanText(message) };
+      return {
+        messageId: message.message_id,
+        text: humanText(message),
+        segments: [{
+          kind: "expression",
+          name: message.revision.name,
+          semantics: message.revision.semantics,
+          messageId: message.message_id,
+          animated: message.revision.visual.animated,
+          preview: await preview(message.revision.visual),
+        }],
+      };
     }
     case "search":
       return app.search(context, nonempty(args.query));

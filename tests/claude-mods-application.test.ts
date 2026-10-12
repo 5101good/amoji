@@ -1,5 +1,6 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
+import sharp from "sharp";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
@@ -15,7 +16,7 @@ import {
   messageMarker,
   renderSegments,
 } from "../src/claude-mods/messages.js";
-import { thumbnailSvg } from "../src/claude-mods/thumbnail.js";
+import { thumbnailImage, cachedThumbnailImage } from "../src/claude-mods/thumbnail.js";
 import { readBoundedFile, writeNewFile } from "../src/claude-mods/files.js";
 import { executeBridge } from "../src/claude-mods/bridge.js";
 
@@ -85,6 +86,47 @@ test("宿主空闲时人工表情按请求幂等，AI 仍需真实回合；当�
       .candidates.length,
     0,
   );
+});
+
+test("发送时预备的展示与冻结消息完全一致，模型文字不含媒体", async (t) => {
+  const { app, client, context } = await setup(t);
+  const x = (await app.browse({ query: "", page: 0 })).items[0]!.expression;
+  const prepared = await executeBridge(app, client, {
+    context, command: "receive",
+    args: { ref: { asset_id: x.asset_id, revision_id: x.revision_id }, requestId: "ready-to-draw" },
+  }) as { text: string; messageId: string; segments: unknown[] };
+  const rendered = await executeBridge(app, client, {
+    context, command: "render", args: { direction: "human_to_ai", text: prepared.text },
+  });
+  assert.deepEqual(prepared.segments, rendered);
+  assert.doesNotMatch(prepared.text, /base64|sha256|visual|image\//);
+  assert.equal((await app.history(context)).length, 1);
+});
+
+test("并发重绘合并读请求，失败可重试且会话缓存有界", async () => {
+  const { messageSegments, rememberMessage } = await import(
+    new URL("../src/claude-mods/native/message-view.js", import.meta.url).href
+  );
+  const s: Record<string, any> = {};
+  let reads = 0;
+  let release!: (value: unknown) => void;
+  const gate = new Promise(resolve => { release = resolve; });
+  const read = () => { reads++; return gate; };
+  const first = messageSegments(s, "human:x", read);
+  const second = messageSegments(s, "human:x", read);
+  assert.equal(reads, 1);
+  const expected = [{ kind: "expression", name: "固定语义" }];
+  release(expected);
+  assert.deepEqual(await first, expected);
+  assert.deepEqual(await second, expected);
+  assert.equal(s.messageReads.size, 0);
+  let attempts = 0;
+  const retry = () => { attempts++; return attempts === 1 ? Promise.reject(new Error("offline")) : Promise.resolve(expected); };
+  await assert.rejects(messageSegments(s, "ai:y", retry), /offline/);
+  assert.deepEqual(await messageSegments(s, "ai:y", retry), expected);
+  assert.equal(attempts, 2);
+  for (let i = 0; i < 140; i++) rememberMessage(s, "human:" + i, expected);
+  assert.equal(s.messageCache.size, 128);
 });
 
 test("只重绘同会话同方向的完整标记，保留普通文字、未知标记和历史固定语义", async (t) => {
@@ -162,9 +204,13 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
   const raw = await readFile(
     await client.blobPath((item.visual.poster ?? item.visual.primary).sha256),
   );
-  const svg = await thumbnailSvg(raw);
-  assert.match(svg, /^<svg/);
-  assert.ok(svg.length <= 8500);
+  const image = await thumbnailImage(raw);
+  assert.match(image, /^data:image\/webp;base64,/);
+  assert.ok(image.length <= 48000);
+  assert.match(image, /data:image\/webp;base64,/);
+  const encoded = image.match(/base64,([^"']+)/)![1]!;
+  const dimensions = await sharp(Buffer.from(encoded, "base64")).metadata();
+  assert.equal(Math.max(dimensions.width!, dimensions.height!), 192, "96 CSS px at 2x must retain 192 source pixels");
   const result: any = await executeBridge(app, client, {
     command: "browse",
     context,
@@ -172,6 +218,22 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
   });
   assert.equal(result.page, 0);
   assert.equal(result.items.length, 3);
+  for (const item of result.items) {
+    assert.match(item.preview, /^data:image\/avif;base64,/);
+    const pixels = Buffer.from(item.preview.split(",")[1], "base64");
+    assert.ok(pixels.length <= 3350, "20 visible images must fit the host text budget");
+    const dimensions = await sharp(pixels).metadata();
+    assert.equal(Math.max(dimensions.width!, dimensions.height!), 152);
+  }
+  const window: any = await executeBridge(app, client, {
+    command: "browse", context, args: { query: "", offset: 1, limit: 2 },
+  });
+  assert.equal(window.offset, 1);
+  assert.equal(window.total, 3);
+  assert.deepEqual(window.items.map((x: any) => x.expression.asset_id), result.items.slice(1).map((x: any) => x.expression.asset_id));
+  await assert.rejects(app.browseWindow({ query: "", offset: -1, limit: 2 }), /INVALID_ARGUMENT/);
+  await assert.rejects(app.browseWindow({ query: "", offset: 0, limit: 101 }), /INVALID_ARGUMENT/);
+  assert.equal((await app.browseWindow({ query: "", offset: 999, limit: 10 })).items.length, 0);
   assert.ok(JSON.stringify(result).length < 85000);
   assert.doesNotMatch(
     JSON.stringify(result),
@@ -181,6 +243,51 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
     executeBridge(app, client, { command: "unknown", context, args: {} }),
     /INVALID_ARGUMENT/,
   );
+});
+
+test("高清预览按原图摘要持久缓存，重开桥接不重编码，坏缓存可恢复", async (t) => {
+  const { client, directory } = await setup(t);
+  const item = (await client.list())[0]!;
+  const digest = (item.visual.poster ?? item.visual.primary).sha256;
+  const cache = join(directory, "preview-cache");
+  let reads = 0;
+  const readSource = async () => { reads++; return readFile(await client.blobPath(digest)); };
+  const first = await cachedThumbnailImage(digest, readSource, cache);
+  const second = await cachedThumbnailImage(digest, readSource, cache);
+  assert.equal(second, first);
+  assert.equal(reads, 1, "a new helper call should reuse persisted pixels without reading the source");
+  await writeFile(join(cache, `192-q88-v1-${digest}.webp`), "broken cache");
+  assert.equal(await cachedThumbnailImage(digest, readSource, cache), first);
+  assert.equal(reads, 2);
+  const otherDigest = "a".repeat(64);
+  await cachedThumbnailImage(otherDigest, readSource, cache);
+  assert.equal(reads, 3, "different immutable media must not reuse another preview");
+  const personal = join(directory, "personal-cache");
+  assert.equal(await cachedThumbnailImage(digest, readSource, personal, "detail", cache), first);
+  assert.equal(reads, 3, "bundled pixels must work before a personal cache exists");
+  await writeFile(join(cache, `192-q88-v1-${digest}.webp`), "broken bundle");
+  assert.equal(await cachedThumbnailImage(digest, readSource, personal, "detail", cache), first);
+  assert.equal(reads, 4, "a corrupt bundle falls back to the original and personal cache");
+  assert.equal(await cachedThumbnailImage(digest, readSource, personal, "detail", cache), first);
+  assert.equal(reads, 4, "a corrupt bundle must not trigger encoding on every call");
+});
+
+test("画风保存和列表读取在同一次桥接完成，刷新失败不重试已提交设置", async (t) => {
+  const { app, client, context } = await setup(t);
+  const p = await client.getSettings();
+  const result: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
+    version: p.version, preferences: {style:p.style, frequency:p.frequency, paused:p.paused, appearance:"office"},
+    browse: {query:"", offset:0, limit:64},
+  } });
+  assert.equal(result.preferences.appearance, "office");
+  assert.ok(Array.isArray(result.collection.items));
+  const failed: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
+    version: result.preferences.version, preferences: {style:p.style, frequency:p.frequency, paused:p.paused, appearance:"classic"},
+    browse: {query:"", offset:-1, limit:64},
+  } });
+  assert.equal(failed.preferences.appearance, "classic");
+  assert.equal(failed.refreshError, true);
+  assert.equal((await client.getSettings()).version, failed.preferences.version);
 });
 
 test("通过管理用例创建、核对、确认、归档和包导出导入；拒绝静默覆盖文件", async (t) => {
@@ -214,7 +321,7 @@ test("通过管理用例创建、核对、确认、归档和包导出导入；�
     id: saved.draft_id,
     version: saved.version,
   });
-  assert.match(preview.preview, /^<svg/);
+  assert.match(preview.preview, /^data:image\/webp;base64,/);
   await assert.rejects(
     run("confirmDraft", {
       id: saved.draft_id,
@@ -380,4 +487,29 @@ test("冲突另存可沿用原图片摘要，远端草稿与本地文字互不�
   assert.equal((await client.getDraft(original.draft_id)).version, remote.version);
   assert.equal((await client.getDraft(original.draft_id)).fields.name, "另一会话的修改");
   await assert.rejects(run("saveDraft", {id:saved.draft_id,version:saved.version,fields,imageHash:"../../private"}), /INVALID_ARGUMENT/);
+});
+
+test("场景在完整结果上筛选再取窗口，未知分类被拒绝", async (t) => {
+  const { app } = await setup(t);
+  const all = await app.browseWindow({ query: "", offset: 0, limit: 100 });
+  const categoryOf = (x: any) => x.expression.tags?.find((tag: string) => tag.startsWith("协作:"))?.slice(3) || "其他";
+  for (const category of all.categories) {
+    const expected = all.items.filter(x => categoryOf(x) === category);
+    const first = await app.browseWindow({ query: "", category, offset: 0, limit: 1 });
+    assert.equal(first.total, expected.length);
+    assert.equal(first.items[0]?.expression.asset_id, expected[0]?.expression.asset_id);
+    assert.deepEqual(first.categories, all.categories);
+  }
+  await assert.rejects(app.browseWindow({ query: "", category: "forged", offset: 0, limit: 1 }), /INVALID_ARGUMENT|无效/);
+});
+
+test("窄栏语义完整换行，不截断固定内容", async () => {
+  const { wrapText } = await import(new URL("../src/claude-mods/native/text-layout.js", import.meta.url).href);
+  const meaning = "表达发送者觉得很好笑、非常开心或畅快的情绪反应。";
+  const wrapped = wrapText(meaning, 30);
+  assert.ok(wrapped.includes("\n"));
+  assert.equal(wrapped.replaceAll("\n", ""), meaning);
+  for (const line of wrapped.split("\n")) assert.ok([...line].length <= 15);
+  assert.ok(wrapText("PNG / JPG / WebP / GIF · 10 MiB", 28).includes("MiB"));
+  assert.equal(wrapText("仅根据文字生成，按所选模型计费。", 32).includes("\n。"), false);
 });

@@ -1,6 +1,13 @@
+import { wrapText } from "./text-layout.js";
+import { creationView } from "./creation-view.js";
+import { rasterPicture } from "./raster-picture.js";
 import { L, refOf } from "./transport.js";
+import { deliveryText } from "./message-view.js";
+import { galleryLayout, galleryLabel, TILE_HEIGHT, PANE_MAX_COLUMNS } from "./gallery.js";
+import { controls } from "./controls.js";
 import {
   perform,
+  revise,
   navigate,
   load,
   send,
@@ -14,9 +21,16 @@ import {
 } from "./controller.js";
 
 export function pane($, e, s, makePicture) {
-  const { Box, Text, Button, Input, Select, Link, Svg } = $.ui.resolve(e);
+  const { Box, Text, Input, Select, Link } = $.ui.resolve(e);
+  const Button = controls($, e, s);
+  const sendEpoch = s.pictureEpoch;
+  const bodyColumns = e.props.bodyColumns || 48;
+  const textColumns = Math.min(80, bodyColumns >= 96 && s.tab !== "picker" ? bodyColumns - 23 : bodyColumns);
   const t = (value, dim = false) =>
-    Text({ children: [value], wrap: "wrap", ...(dim ? { dimColor: true } : {}) });
+    Text({ children: [wrapText(value, textColumns)], wrap: "wrap", ...(dim ? { dimColor: true } : {}) });
+  const heading = (value) => Text({ children: [wrapText(value, textColumns)], bold: true, wrap: "wrap" });
+  const section = (label, children) => Box({ flexDirection: "column", gap: 1,
+    marginTop: 1, children: [heading(label), ...children.filter(Boolean)] });
   const row = (children) =>
     Box({
       flexDirection: "row",
@@ -28,22 +42,21 @@ export function pane($, e, s, makePicture) {
   const col = (children) =>
     Box({
       flexDirection: "column",
+      width: "100%",
+      minWidth: 0,
       gap: 1,
       children: children.filter(Boolean),
     });
   const button = (key, label, action, primary = false) =>
-    s.busy
-      ? t(label, true)
-      : Button({
-          key,
-          label,
-          ...(primary ? { variant: "primary" } : { plain: true }),
-          onPress: () => perform($, s, action),
-        });
+    Button({ key, label,
+      ...(primary ? { variant: "primary" } : { plain: true }),
+      dimColor: s.busy,
+      onPress: () => perform($, s, action),
+    });
   const input = (key, label, value, change, placeholder = "") =>
-    Input({
+    Box({ flexDirection: "column", gap: 0, width: "100%", children: [
+      t(label, true), Input({
       key,
-      label,
       value,
       placeholder,
       onInput: (value) => {
@@ -52,7 +65,7 @@ export function pane($, e, s, makePicture) {
       onSubmit: (value) => {
         if (!s.busy) change(value);
       },
-    });
+    })] });
   const select = (key, label, value, options, change) =>
     col([
       t(label, true),
@@ -64,38 +77,30 @@ export function pane($, e, s, makePicture) {
       }),
     ]);
   const picture = (preview, name) =>
-    preview && Svg
+    preview
       ? Box({
           width: 14,
           children: [
-            Svg({ source: preview, alt: name, width: 96, height: 96 }),
+            rasterPicture($, e, s, { key: "preview:" + name, source: preview, alt: name }),
           ],
         })
       : t(L(s, "预览不可用", "Preview unavailable"), true);
-  const tabs = row(
-    [
-      ["picker", "表情", "Expressions"],
-      ["library", "个人库", "Library"],
-      ["create", "创建", "Create"],
-      ["settings", "偏好", "Preferences"],
-    ].map(([tab, zh, en]) =>
-      button(
-        "tab:" + tab,
-        L(s, zh, en),
-        () => navigate($, s, tab),
-        s.tab === tab,
-      ),
-    ),
-  );
-  const header = row([
-    t("Amoji"),
-    Button({
-      key: "close",
-      label: L(s, "关闭", "Close"),
-      role: "dismiss",
-      onPress: () => $.ui.close({ id: "amoji" }),
-    }),
-  ]);
+  const managerSections = [
+    ["library", L(s, "表情库", "Library")],
+    ["create", L(s, "创作与草稿", "Create and drafts")],
+    ["settings", L(s, "AI 偏好", "AI preferences")],
+    ["packs", L(s, "导入与导出", "Import and export")],
+  ];
+  const wideManager = s.tab !== "picker" && (e.props.bodyColumns || 48) >= 96;
+  const tabs = s.tab === "picker"
+    ? Box({ flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, children: [heading(L(s, "用表情表达", "Say it with an expression")),
+        button("tab:library", L(s, "管理表情", "Manage expressions"), () => navigate($, s, "library"))] })
+    : col([
+        row([button("tab:picker", L(s, "‹ 返回表情", "‹ Back to expressions"), () => navigate($, s, "picker")), heading(L(s, "管理表情", "Manage expressions"))]),
+        !wideManager && Select({ key: "manager-section", value: s.tab,
+          options: managerSections.map(([value, label]) => ({value, label})),
+          onSelect: value => perform($, s, () => navigate($, s, value)) }),
+      ]);
   const refresh = button("refresh", L(s, "刷新", "Refresh"), async () => {
     s.collection = null;
     s.preferences = null;
@@ -106,15 +111,9 @@ export function pane($, e, s, makePicture) {
     const p = s.preferences;
     body = p
       ? col([
-          t(
-            L(
-              s,
-              "这些偏好控制 AI 选图和发送频率，不会改变固定语义。",
-              "Preferences guide AI selection and frequency. Fixed meanings stay unchanged.",
-            ),
-            true,
-          ),
-          select(
+          heading(L(s, "让表达更像你", "Make it feel like you")),
+          t(L(s, "选择你看到的画风，以及 AI 回应你的方式。", "Choose the artwork you see and how AI responds."), true),
+          section(L(s, "外观", "Appearance"), [select(
             "preference:appearance",
             L(s, "表情画风", "Appearance"),
             p.appearance,
@@ -126,8 +125,8 @@ export function pane($, e, s, makePicture) {
               ["office", L(s, "办公 · 简洁克制", "Office · clear and calm")],
             ],
             (value) => changePreference($, s, "appearance", value),
-          ),
-          select(
+          )]),
+          section(L(s, "AI 的表达", "AI expression"), [select(
             "preference:style",
             L(s, "AI 语气偏好", "AI tone"),
             p.style,
@@ -158,7 +157,7 @@ export function pane($, e, s, makePicture) {
               ["true", L(s, "暂停", "Paused")],
             ],
             (value) => changePreference($, s, "paused", value === "true"),
-          ),
+          )]),
           t(
             L(
               s,
@@ -167,7 +166,11 @@ export function pane($, e, s, makePicture) {
             ),
             true,
           ),
-          refresh,
+          section(L(s, "关于 Amoji", "About Amoji"), [
+            t(L(s, "人看图，AI 懂语义。", "Images for people. Meaning for AI.")),
+            Link({ href: "https://github.com/5101good/amoji", children: [L(s, "GitHub 开源项目", "Open source on GitHub")] }),
+            refresh,
+          ]),
         ])
       : refresh;
   } else if (s.tab === "create") {
@@ -208,7 +211,9 @@ export function pane($, e, s, makePicture) {
                 s.copyImageHash = null;
                 s.draftConflict = false;
                 s.conflictLatest = null;
-                s.step = "edit";
+                s.step = "idea";
+                s.manual = false;
+                s.dirty = false;
                 s.preview = null;
                 s.reviewed = false;
               }),
@@ -218,7 +223,6 @@ export function pane($, e, s, makePicture) {
       body = col([
         t(L(s, "未完成的草稿", "Unfinished drafts")),
         ...s.drafts
-          .slice((s.draftPage || 0) * 8, ((s.draftPage || 0) + 1) * 8)
           .map((draft) =>
             button(
               "draft:" + draft.draft_id,
@@ -228,7 +232,9 @@ export function pane($, e, s, makePicture) {
                   id: draft.draft_id,
                 });
                 s.drafts = null;
-                s.step = "edit";
+                s.step = "idea";
+                s.manual = false;
+                s.dirty = false;
                 s.preview = null;
                 s.imagePath = "";
                 s.copyImageHash = null;
@@ -237,25 +243,11 @@ export function pane($, e, s, makePicture) {
               },
             ),
           ),
-        row([
-          (s.draftPage || 0) > 0 &&
-            button("draft-previous", L(s, "上一页", "Previous"), async () => {
-              s.draftPage--;
-            }),
-          t(
-            `${(s.draftPage || 0) + 1} / ${Math.max(1, Math.ceil(s.drafts.length / 8))}`,
-            true,
-          ),
-          ((s.draftPage || 0) + 1) * 8 < s.drafts.length &&
-            button("draft-next", L(s, "下一页", "Next"), async () => {
-              s.draftPage = (s.draftPage || 0) + 1;
-            }),
-        ]),
         button("draft-back", L(s, "返回", "Back"), async () => {
           s.drafts = null;
         }),
       ]);
-    else if (!d) body = refresh;
+    else if (!d) body = creationView($, e, s, { col, row, t, heading, button, input, select, picture, Button });
     else if (s.step === "review" && s.preview)
       body = col([
         t(
@@ -347,287 +339,7 @@ export function pane($, e, s, makePicture) {
             ),
         ]),
       ]);
-    else if (s.step === "idea")
-      body = col([
-        t(
-          L(
-            s,
-            "从你想表达的意思开始。",
-            "Start with what you want to express.",
-          ),
-        ),
-        input(
-          "intent",
-          L(s, "想表达什么", "Your intent"),
-          s.intent,
-          (value) =>
-            edit(s, () => {
-              s.intent = value;
-            }),
-          L(
-            s,
-            "例如：温柔地提醒搭档休息一下，适合工作太久时使用",
-            "For example: gently remind a teammate to take a break after working too long",
-          ),
-        ),
-        select(
-          "suggestion-model",
-          L(s, "生成建议的模型", "Suggestion model"),
-          s.model,
-          [
-            [
-              "current",
-              L(s, "当前对话 · ", "Current chat · ") + s.currentModel,
-            ],
-            ...["haiku", "sonnet", "opus"].map((x) => [x, x]),
-            ["custom", L(s, "自定义模型 ID…", "Custom model ID…")],
-          ],
-          (value) => {
-            edit(s, () => {
-              s.model = value;
-            });
-            invalidate($);
-          },
-        ),
-        s.model === "custom" &&
-          input(
-            "custom-model",
-            L(s, "模型 ID", "Model ID"),
-            s.customModel || "",
-            (value) =>
-              edit(s, () => {
-                s.customModel = value;
-              }),
-          ),
-        t(
-          L(
-            s,
-            "默认使用当前对话模型；只发送这段意图，不读取图片或聊天记录。",
-            "Defaults to the current conversation model. Only this intent is sent, without images or chat history.",
-          ),
-          true,
-        ),
-        s.generating
-          ? row([
-              t(L(s, "正在生成…", "Generating…")),
-              Button({
-                key: "cancel-suggestion",
-                label: L(s, "取消", "Cancel"),
-                onPress: () => {
-                  s.suggestionAbort?.abort();
-                  s.editEpoch++;
-                  invalidate($);
-                },
-              }),
-            ])
-          : Button({
-              key: "suggest",
-              label: L(s, "AI 生成文字建议", "Generate with AI"),
-              variant: "primary",
-              onPress: () => suggest($, s),
-            }),
-        s.suggestion &&
-          col([
-            t(s.suggestion.name),
-            t(s.suggestion.semantics.meaning),
-            t(s.suggestion.semantics.fallback, true),
-            row([
-              button(
-                "apply-suggestion",
-                L(s, "采用并编辑", "Use and edit"),
-                async () => {
-                  edit(s, () => {
-                    d.fields = { ...d.fields, ...s.suggestion };
-                  });
-                  s.suggestion = null;
-                  s.step = "edit";
-                },
-              ),
-              button(
-                "discard-suggestion",
-                L(s, "放弃建议", "Discard"),
-                async () => {
-                  s.suggestion = null;
-                },
-              ),
-            ]),
-          ]),
-        row([
-          button(
-            "manual-edit",
-            L(s, "手工填写", "Write manually"),
-            async () => {
-              s.step = "edit";
-            },
-          ),
-          button(
-            "resume-drafts",
-            L(s, "继续草稿", "Resume a draft"),
-            async () => {
-              s.drafts = await call($, s.context, "listDrafts");
-              s.draftPage = 0;
-            },
-          ),
-        ]),
-      ]);
-    else
-      body = col([
-        input(
-          "image-path",
-          L(s, "图片文件", "Image file"),
-          s.imagePath,
-          (value) =>
-            edit(s, () => {
-              s.imagePath = value;
-            }),
-          L(
-            s,
-            "粘贴本地图片的绝对路径；PNG / JPEG / WebP / GIF",
-            "Paste an absolute local path; PNG / JPEG / WebP / GIF",
-          ),
-        ),
-        d.visual &&
-          !s.imagePath &&
-          t(
-            L(
-              s,
-              "已保存图片；留空保留原图。",
-              "Image saved; leave empty to keep it.",
-            ),
-            true,
-          ),
-        s.copyImageHash && !s.imagePath && t(L(s, "待保存时沿用原草稿图片。", "The original draft image will be kept when saved."), true),
-        input("field:name", L(s, "名称", "Name"), d.fields.name, (value) =>
-          editField("name", value),
-        ),
-        input(
-          "field:meaning",
-          L(s, "固定语义", "Fixed meaning"),
-          d.fields.semantics.meaning,
-          (value) => semantic("meaning", value),
-        ),
-        input(
-          "field:fallback",
-          L(s, "纯文字替代", "Text fallback"),
-          d.fields.semantics.fallback,
-          (value) => semantic("fallback", value),
-        ),
-        input(
-          "field:license",
-          L(s, "使用许可", "Usage license"),
-          d.fields.rights.license,
-          (value) =>
-            edit(s, () => {
-              d.fields.rights.license = value;
-            }),
-        ),
-        button(
-          "advanced",
-          L(
-            s,
-            s.advanced ? "收起更多选项" : "语气、场景与署名",
-            s.advanced ? "Fewer options" : "Tone, context and attribution",
-          ),
-          async () => {
-            s.advanced = !s.advanced;
-          },
-        ),
-        ...(s.advanced
-          ? [
-              input(
-                "field:locale",
-                L(s, "语义语言", "Meaning language"),
-                d.fields.semantics.locale,
-                (value) => semantic("locale", value),
-              ),
-              input(
-                "field:tone",
-                L(s, "语气", "Tone"),
-                d.fields.semantics.tone || "",
-                (value) => semantic("tone", value),
-              ),
-              input(
-                "field:use",
-                L(s, "适用场景（分号分隔）", "Use when (semicolon separated)"),
-                (d.fields.semantics.use_when || []).join("; "),
-                (value) =>
-                  semantic(
-                    "use_when",
-                    value
-                      .split(/[;；]/)
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  ),
-              ),
-              input(
-                "field:avoid",
-                L(
-                  s,
-                  "避免场景（分号分隔）",
-                  "Avoid when (semicolon separated)",
-                ),
-                (d.fields.semantics.avoid_when || []).join("; "),
-                (value) =>
-                  semantic(
-                    "avoid_when",
-                    value
-                      .split(/[;；]/)
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  ),
-              ),
-              input(
-                "field:tags",
-                L(s, "标签（分号分隔）", "Tags (semicolon separated)"),
-                (d.fields.tags || []).join("; "),
-                (value) =>
-                  editField(
-                    "tags",
-                    value
-                      .split(/[;；]/)
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  ),
-              ),
-              input(
-                "field:creator",
-                L(s, "作者", "Creator"),
-                d.fields.rights.creator || "",
-                (value) =>
-                  edit(s, () => {
-                    d.fields.rights.creator = value;
-                  }),
-              ),
-              input(
-                "field:source",
-                L(s, "来源", "Source"),
-                d.fields.rights.source || "",
-                (value) =>
-                  edit(s, () => {
-                    d.fields.rights.source = value;
-                  }),
-              ),
-            ]
-          : []),
-        row([
-          button("save-draft", L(s, "保存草稿", "Save draft"), () =>
-            save($, s),
-          ),
-          button(
-            "preview-draft",
-            L(s, "预览并核对", "Preview and review"),
-            () => save($, s, true),
-            true,
-          ),
-        ]),
-        button(
-          "back-idea",
-          L(s, "返回 AI 建议", "Back to AI suggestions"),
-          async () => {
-            s.step = "idea";
-          },
-        ),
-      ]);
+    else body = creationView($, e, s, { col, row, t, heading, button, input, select, picture, Button });
   } else if (s.transfer) {
     body = col([
       t(
@@ -694,6 +406,15 @@ export function pane($, e, s, makePicture) {
         ),
       ]),
     ]);
+  } else if (s.tab === "packs") {
+    body = col([
+      heading(L(s, "分享你的表达", "Share your expressions")),
+      t(L(s, ".amoji 文件包含图片和固定语义，可以在支持 Amoji 的客户端之间使用。", ".amoji packs contain images and fixed meanings, ready for any Amoji client."), true),
+      button("import", L(s, "导入表情包", "Import a pack"), async () => { s.transfer = "import"; s.path = ""; }, true),
+      button("choose-export", L(s, "选择表情并导出", "Choose expressions to export"), async () => {
+        await navigate($, s, "library"); s.selecting = true; s.selected = {};
+      }),
+    ]);
   } else if (s.detail) {
     const item = s.detail;
     const x = item.expression;
@@ -722,7 +443,7 @@ export function pane($, e, s, makePicture) {
             key: "detail-send",
             label: L(s, "发送", "Send"),
             variant: "primary",
-            onPress: () => send($, s, x),
+            onPress: () => send($, s, x, sendEpoch),
           }),
         button(
           "revise",
@@ -731,19 +452,7 @@ export function pane($, e, s, makePicture) {
             item.origin === "local" ? "创建新版本" : "复制后编辑",
             item.origin === "local" ? "Create a revision" : "Copy and edit",
           ),
-          async () => {
-            s.draft = await call($, s.context, "startRevisionDraft", {
-              ref: refOf(x),
-              version: item.version,
-            });
-            s.step = "edit";
-            s.preview = null;
-            s.imagePath = "";
-            s.copyImageHash = null;
-            s.draftConflict = false;
-            s.conflictLatest = null;
-            await navigate($, s, "create");
-          },
+          () => revise($, s, item),
         ),
         button(
           "archive",
@@ -800,56 +509,58 @@ export function pane($, e, s, makePicture) {
     ]);
   } else {
     const collection = s.collection;
+    const geometry = galleryLayout(e);
     const cards = (collection?.items || []).map((item) => {
       const x = item.expression;
+      // Desktop currently draws Button.label even when Text children exist.
+      // Keep captions bounded here; the image alt and detail retain full names.
+      const caption = (value) => galleryLabel(value, geometry.tileWidth);
       // Host-specific media stays in the presentation adapter.
       const visual = makePicture
         ? makePicture(item)
         : picture(item.preview, x.name);
       return Box({
         key: "card:" + x.asset_id,
-        width: 15,
+        width: geometry.tileWidth,
+        height: TILE_HEIGHT,
+        position: "relative",
+        alignItems: "center",
         flexDirection: "column",
         gap: 0,
         children: [
           visual,
           s.tab === "picker"
-            ? Button({
-                key: "send:" + x.asset_id,
-                label: x.name,
-                plain: true,
-                onPress: () => send($, s, x),
-              })
-            : button("details:" + x.asset_id, x.name, async () => {
-                s.detail = item;
-                s.revisions = null;
-              }),
-          s.tab === "picker"
-            ? button(
-                "details:" + x.asset_id,
-                L(s, "含义", "Meaning"),
-                async () => {
-                  s.detail = item;
-                  s.revisions = null;
-                },
-              )
-            : button(
-                "select:" + x.asset_id,
-                (s.selected[x.asset_id] ? "☑ " : "☐ ") +
-                  L(s, "选入导出", "Select for export"),
-                async () => {
+            ? Box({ key: "send-focus:" + x.asset_id, height: 2, children: [Button({
+                key: "send:" + x.asset_id, label: caption(x.name), plain: true, dimColor: true,
+                onPress: () => send($, s, x, sendEpoch),
+              })] })
+            : s.tab === "library" && s.selecting
+              ? Button({ key: "select:" + x.asset_id, label: caption((s.selected[x.asset_id] ? "☑ " : "☐ ") + x.name), plain: true,
+                  onPress: () => perform($, s, async () => {
                   if (s.selected[x.asset_id]) delete s.selected[x.asset_id];
                   else s.selected[x.asset_id] = refOf(x);
-                },
-              ),
+                }) })
+              : Button({ key: "details:" + x.asset_id, label: caption(x.name), plain: true,
+                  onPress: () => perform($, s, async () => {
+                s.detail = item;
+                s.revisions = null;
+              }) }),
+
         ],
       });
     });
     body = col([
+      s.tab === "picker" && row([
+        t(L(s, "画风", "Artwork"), true),
+        ...[["classic", "经典", "Classic"], ["office", "办公", "Office"]].map(([value, zh, en]) =>
+          Button({ key: "appearance:" + value, label: L(s, zh, en),
+            ...(s.preferences?.appearance === value ? { variant: "primary" } : { plain: true, dimColor: true }),
+            onPress: () => changePreference($, s, "appearance", value) })),
+      ]),
       Input({
         key: "search",
-        label: L(s, "搜索", "Search"),
-        placeholder: L(s, "名称、情绪或场景", "Name, emotion or context"),
+        placeholder: L(s, "想表达什么？", "What do you want to express?"),
+        submitLabel: L(s, "搜索", "Search"),
         value: s.query,
         onInput: (value) => {
           s.query = value;
@@ -857,21 +568,24 @@ export function pane($, e, s, makePicture) {
         onSubmit: (value) =>
           perform($, s, async () => {
             s.query = value;
+            s.category = "全部";
             s.page = 0;
             s.collection = null;
             await load($, s);
           }),
       }),
       s.tab === "picker"
-        ? t(
-            L(
-              s,
-              "点击表情名称即可发送 · AI 只接收固定文字语义",
-              "Choose a name to send · AI receives only fixed text",
-            ),
-            true,
-          )
+        ? row(["全部", ...(collection?.categories || [])].map(category =>
+            button("category:" + category, L(s, category,
+              ({"全部":"All", "进度":"Progress", "澄清":"Clarify", "方向":"Direction", "反馈":"Feedback", "其他":"Other"})[category]), async () => {
+              s.category = category; s.collection = null; await load($, s);
+            }, (s.category || "全部") === category)))
         : row([
+            button("select-mode", L(s, s.selecting ? "取消选择" : "选择", s.selecting ? "Cancel selection" : "Select"), async () => {
+              s.selecting = !s.selecting;
+              s.pictureEpoch = (s.pictureEpoch || 0) + 1;
+              if (!s.selecting) s.selected = {};
+            }),
             button(
               "archived",
               L(
@@ -886,10 +600,6 @@ export function pane($, e, s, makePicture) {
                 await load($, s);
               },
             ),
-            button("import", L(s, "导入", "Import"), async () => {
-              s.transfer = "import";
-              s.path = "";
-            }),
             Object.keys(s.selected).length > 0 &&
               button(
                 "export",
@@ -905,54 +615,45 @@ export function pane($, e, s, makePicture) {
               ),
           ]),
       cards.length
-        ? Box({
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 1,
-            children: cards,
-          })
-        : t(
-            L(
-              s,
-              "没有找到表情。试试其他关键词，或创建自己的表情。",
-              "No expressions found. Try another search or create your own.",
-            ),
-          ),
-      collection &&
-        row([
-          collection.page > 0 &&
-            button("previous", L(s, "上一页", "Previous"), async () => {
-              s.page = collection.page - 1;
-              s.collection = null;
-              await load($, s);
-            }),
-          t(`${collection.page + 1} / ${collection.pages}`, true),
-          collection.page + 1 < collection.pages &&
-            button("next", L(s, "下一页", "Next"), async () => {
-              s.page = collection.page + 1;
-              s.collection = null;
-              await load($, s);
-            }),
-          refresh,
-        ]),
+        ? Box({ flexDirection: "column", children: [
+            (collection.offset || 0) > 0 && Box({ height: Math.floor(collection.offset / geometry.columns) * TILE_HEIGHT, children: [] }),
+            Box({ flexDirection: "row", flexWrap: "wrap", columnGap: 1, rowGap: 0, children: cards }),
+            Box({ height: Math.max(0, Math.ceil(collection.total / geometry.columns) -
+              Math.ceil(((collection.offset || 0) + cards.length) / geometry.columns)) * TILE_HEIGHT, children: [] }),
+          ].filter(Boolean) })
+        : s.busy ? t(L(s, "正在查找表情…", "Finding expressions…"), true)
+        : s.error ? refresh
+        : col([
+            t(L(s, "没有找到表情", "No expressions found")),
+            t(L(s, "换个关键词，或创建自己的表情。", "Try another search or create your own."), true),
+            row([
+              s.query && button("clear-search", L(s, "显示全部", "Show all"), async () => {
+                s.query = "";
+                s.page = 0;
+                s.collection = null;
+                await load($, s);
+              }),
+              button("empty-create", L(s, "创建表情", "Create expression"), () => navigate($, s, "create")),
+            ]),
+          ]),
+      s.tab === "picker" && t(L(s, `${collection?.total || 0} 个表情 · 点击即发送`, `${collection?.total || 0} expressions · Click to send`), true),
+      s.tab === "picker" && s.pictureFault && button("retry-pictures", L(s, "恢复图片点击", "Restore image clicks"), async () => {
+        s.pictureFault = false; s.pictureEpoch = (s.pictureEpoch || 0) + 1;
+      }),
     ]);
   }
-  return col([
-    header,
-    tabs,
-    s.busy && t(L(s, "处理中…", "Working…"), true),
-    s.error && t(s.error),
-    s.notice && t(s.notice),
-    body,
-    Link({
-      href: "https://github.com/5101good/amoji",
-      children: [
-        L(
-          s,
-          "Amoji · 开源的 AI 原生表情",
-          "Amoji · open-source AI-native expressions",
-        ),
-      ],
-    }),
+  const content = col([
+    !s.error && (deliveryText(s) || s.busy) && t(deliveryText(s) || L(s, "处理中…", "Working…"), true),
+    s.error && t(s.error), s.notice && t(s.notice), body,
   ]);
+  const navigation = Box({ width: 20, flexDirection: "column", gap: 1,
+    children: managerSections.map(([tab, label]) => button("tab:" + tab, label, () => navigate($, s, tab), s.tab === tab)) });
+  return Box({ width: "100%", alignItems: "center", flexDirection: "column", children: [
+    Box({ width: Math.min(wideManager ? 108 : s.tab === "picker" || s.tab === "library" ? PANE_MAX_COLUMNS : 84, e.props.bodyColumns || 48),
+      minWidth: 0, flexDirection: "column", gap: 1, children: [
+        tabs,
+        wideManager ? Box({ flexDirection: "row", gap: 3, children: [navigation,
+          Box({ width: Math.min(84, e.props.bodyColumns - 23), flexDirection: "column", children: [content] })] }) : content,
+      ] }),
+  ] });
 }

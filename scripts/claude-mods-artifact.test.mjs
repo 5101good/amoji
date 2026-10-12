@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   readFile,
+  readdir,
   mkdtemp,
   rm,
   stat,
@@ -37,6 +38,8 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
   assert.equal(marketplace.plugins[0].source, "./plugin");
   for (const path of [
     "hooks/register.js",
+    "hooks/picture-input.js",
+    "hooks/control-input.js",
     "runtime/src/claude-mods/main.js",
     "runtime/src/service-main.js",
     "runtime/docs/specs/amoji-v0.1.schema.json",
@@ -108,7 +111,16 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
   });
   assert.equal(response.ok, true, JSON.stringify(response));
   assert.equal(response.result.total, 24);
-  assert.ok(response.result.items[0].preview.startsWith("<svg"));
+  assert.ok(response.result.items[0].preview.startsWith("data:image/avif;base64,"));
+  const previews = join(plugin, "assets/claude-previews");
+  assert.ok((await readdir(previews)).filter(name => name.endsWith(".avif")).length >= response.result.total);
+  for (const item of response.result.items) {
+    const visual = item.expression.visual;
+    const digest = (visual.poster ?? visual.primary).sha256;
+    const pixels = await readFile(join(previews, `152-avif-v1-${digest}.avif`));
+    assert.equal(item.preview, `data:image/avif;base64,${pixels.toString("base64")}`);
+  }
+  await assert.rejects(stat(join(data, "cache/claude-mods-previews")), { code: "ENOENT" });
   // Let only this private service release its DB before the temporary package is removed.
   const { stopSharedService } = await import("../dist/src/shared-client.js");
   try {

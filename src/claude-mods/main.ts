@@ -7,7 +7,10 @@ import {
   LIBRARY_MANAGEMENT_CAPABILITY,
   PACKS_CAPABILITY,
   ServiceError,
+  dataDirectory,
 } from "../shared-contract.js";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { executeBridge } from "./bridge.js";
 
 let client: SharedClient | undefined;
@@ -34,6 +37,10 @@ try {
     new ExpressionApplication(new ConnectedRuntime(client), client),
     client,
     request,
+    {
+      previewDirectory: join(dataDirectory(), "cache", "claude-mods-previews"),
+      bundledPreviewDirectory: fileURLToPath(new URL("../../../assets/claude-previews/", import.meta.url)),
+    },
   );
   process.stdout.write(JSON.stringify({ ok: true, result }));
 } catch (error) {

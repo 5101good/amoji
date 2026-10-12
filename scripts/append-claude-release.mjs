@@ -64,6 +64,8 @@ export async function inspectClaudeArchive(source) {
     ".claude-plugin/marketplace.json",
     "plugin/.claude-plugin/plugin.json",
     "plugin/hooks/register.js",
+    "plugin/hooks/picture-input.js",
+    "plugin/hooks/control-input.js",
     "plugin/runtime/src/claude-mods/main.js",
     "plugin/runtime/package-lock.json",
     "plugin/assets/base-library/base.amoji",

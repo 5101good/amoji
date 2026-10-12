@@ -29,7 +29,7 @@ The portable ZIP excludes node_modules and native binaries; locked dependencies 
 
 ## Use
 
-- **Expressions:** search by name or meaning, pressing Enter to update. Click an expression name to send immediately. Open Meaning to inspect the fixed semantics.
+- **Expressions:** search by name or meaning, pressing Enter to update. In Desktop, click an image to send it directly to the current conversation. No additional submission is needed. The name button supports keyboard sending. In Library, click a name to inspect its fixed meaning. Terminal users retain a Send button. Right clicks and dragging outside do not send.
 - **Library:** archive/restore, create revisions of personal entries, copy built-ins, or choose imported revisions. Past messages retain the exact image and meaning that were sent.
 - **Create:** describe an intention in one field. Suggestions default to the conversation model; choose an alias or custom model ID. Only that intent is sent, with no images or chat history. Adopt, edit and review the suggestion, or fill the fields manually.
 - **Images and packs:** paste an absolute local path (`~/` is supported). PNG, JPEG, WebP and GIF are accepted, up to 10 MiB. A working preview and explicit review are required to confirm. Claude shows static covers for animations.
@@ -46,7 +46,7 @@ For an older shared service, close windows still using the older Amoji and retry
 
 If concurrent edits conflict, view the latest saved draft before explicitly adopting it, or save your own text and image as a separate draft. Saving separately leaves the original draft unchanged.
 
-The Node bridge accesses the shared service, creates thumbnails and reads files you explicitly select. Suggestions use Claude’s configured credentials and the chosen model, incurring normal text-inference costs. Expression images are not uploaded to that model.
+The Node bridge accesses the shared service, creates thumbnails and reads files you explicitly select. Suggestions use Claude’s configured credentials and the chosen model, incurring normal text-inference costs. Expression images are not uploaded to that model. The interface displays raster images directly, without SVG; originals remain intact. Both built-in appearances ship with prepared display images, while personal media uses a local cache.
 
 ## Develop
 
@@ -62,3 +62,9 @@ npm run test:claude-artifact
 ```
 
 Edit `src/claude-mods/native/` and rebuild. `hooks/register.js` is generated as one file for the host’s static analysis. See `docs/claude-mods.en.md` in the repository for installation and native validation.
+
+The picker stays open after sending and shows “Sent · Waiting for Claude”. Human expressions appear on the right; AI messages stay on the left, with no additional role labels, matching Claude’s native layout. Use the host’s close or collapse control when needed. Keeping the picker open avoids Desktop’s empty expanded-view behavior on programmatic close.
+
+Desktop can expire native Button handles during focus redraws, logging `ui_press not handled`. The redesigned entry, navigation and action controls retain native appearance and keyboard access, while a keyed Client captures complete pointer gestures and dispatches through the current page’s action map. Stale pages and forged actions are rejected. A Client fault restores native buttons; Enter remains available. Inputs and selects continue to use the host controls. See [Claude Code #99211](https://github.com/anthropics/claude-code/issues/99211).
+
+The picker and management workspace follow dsh: quick artwork/context filters, separate drafts, AI preferences and pack transfer, plus summary-first creation with editing on demand. See the [workflow guide](../../docs/claude-mods.en.md#workflow-aligned-with-dsh).

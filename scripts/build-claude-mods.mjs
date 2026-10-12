@@ -44,6 +44,8 @@ export async function buildClaudeMods(
     ".claude-plugin/plugin.json",
     "hooks/hooks.json",
     "hooks/register.js",
+    "hooks/picture-input.js",
+    "hooks/control-input.js",
     "README.md",
     "README.en.md",
   ]) {
@@ -71,6 +73,21 @@ export async function buildClaudeMods(
     join(plugin, "assets/base-library"),
     { recursive: true },
   );
+  // Ship display pixels for both built-in appearances: a first switch should
+  // read files, not encode an entire gallery in the user's local bridge.
+  const { withValidatedPack } = await import("../dist/src/packs.js");
+  const { cachedThumbnailImage } = await import("../dist/src/claude-mods/thumbnail.js");
+  const previewDirectory = join(plugin, "assets/claude-previews");
+  await withValidatedPack(await readFile(join(plugin, "assets/base-library/base.amoji")), async (pack) => {
+    const seen = new Set();
+    for (const expression of pack.manifest.expressions) {
+      const blob = expression.visual.poster ?? expression.visual.primary;
+      if (seen.has(blob.sha256)) continue;
+      seen.add(blob.sha256);
+      for (const profile of ["gallery", "detail"])
+        await cachedThumbnailImage(blob.sha256, () => pack.readBlob(blob), previewDirectory, profile);
+    }
+  });
   const runtimePackage = {
     name: project.name,
     version: project.version,

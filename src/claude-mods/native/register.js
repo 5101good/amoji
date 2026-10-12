@@ -1,6 +1,9 @@
-import { state, load, open, send, call, invalidate } from "./controller.js";
-import { L, errorText } from "./transport.js";
+import { state, load, loadGalleryWindow, open, send, call, invalidate, perform } from "./controller.js";
+import { L, errorText, refOf } from "./transport.js";
 import { pane } from "./views.js";
+import { controls } from "./controls.js";
+import { deliveryText, messageSegments, messageView } from "./message-view.js";
+import { rasterPicture } from "./raster-picture.js";
 
 const turns = new Map();
 export function register(on) {
@@ -40,6 +43,9 @@ export function register(on) {
     if (e.agentId) return next(e);
     const id = await $.session.id();
     const ordinal = await $.session.turns();
+    const s = await state($);
+    if (s.delivery?.text === e.text && s.delivery.phase !== "error")
+      s.delivery.turnId = e.turnId;
     turns.set(id, {
       turnId: e.turnId,
       ...(Number.isSafeInteger(ordinal) && ordinal > 0
@@ -52,6 +58,11 @@ export function register(on) {
     if (!e.agentId) {
       const id = await $.session.id();
       if (turns.get(id)?.turnId === e.turnId) turns.delete(id);
+      const s = await state($);
+      if (s.delivery?.turnId === e.turnId) {
+        s.delivery = null;
+        invalidate($);
+      }
     }
     return next(e);
   });
@@ -59,18 +70,28 @@ export function register(on) {
     await open($);
     return { text: "" };
   });
+  on("ui.scroll", { component: "Pane", requestId: "amoji" }, async ($, e, next) => {
+    const result = await next(e);
+    invalidate($);
+    return result;
+  });
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     if (e.surface !== "desktop" && e.surface !== "terminal") return next(e);
-    const { Box, Button } = $.ui.resolve(e);
+    if (e.props.hasSurvey || e.props.view?.agentId) return next(e);
+    const { Box, Text } = $.ui.resolve(e);
+    const s = await state($);
+    s.viewAgentId = e.props.view?.agentId;
+    const Button = controls($, e, s);
     return Box({
-      flexDirection: "row",
+      flexDirection: "row", alignItems: "center", gap: 1, flexWrap: "wrap",
       children: [
         Button({
           key: "amoji-open",
-          label: "☺ Amoji",
+          label: L(s, "☺  表情", "☺  Expressions"),
           plain: true,
           onPress: () => open($),
         }),
+        ...(deliveryText(s) ? [Text({ children: [deliveryText(s)], dimColor: true, wrap: "wrap" })] : []),
       ],
     });
   });
@@ -81,6 +102,12 @@ export function register(on) {
     )
       return next(e);
     const s = await state($);
+    s.viewAgentId = e.props.view?.agentId;
+    if (s.viewAgentId) {
+      s.pictureTargets?.clear();
+      const { Text } = $.ui.resolve(e);
+      return Text({ children: [L(s, "回到主对话后即可发送表情", "Return to the main conversation to send expressions")], dimColor: true });
+    }
     if (!s.preferences && !s.error) {
       try {
         await load($, s);
@@ -88,27 +115,77 @@ export function register(on) {
         s.error = errorText(s, error);
       }
     }
-    const { Box, Text, Svg } = $.ui.resolve(e);
+    const { Text } = $.ui.resolve(e);
+    try { await loadGalleryWindow($, s, e); }
+    catch (error) { s.error = errorText(s, error); }
+    if (e.surface === "desktop") {
+      if (s.pictureCollection !== s.collection) {
+        s.pictureCollection = s.collection;
+        s.pictureEpoch = (s.pictureEpoch || 0) + 1;
+      }
+      s.pictureTargets = new Map();
+    }
     const makePicture = (item) => {
       if (!item.preview || e.surface !== "desktop")
         return Text({
           children: [item.expression.semantics.fallback],
           dimColor: true,
         });
-      return Box({
-        width: 14,
-        height: 6,
-        children: [
-          Svg({
-            source: item.preview,
-            alt: item.expression.name,
-            width: 96,
-            height: 96,
-          }),
-        ],
-      });
+      const key = `picture:${s.pictureEpoch}:${item.expression.asset_id}:${item.expression.revision_id}`;
+      const clickable = (s.tab === "picker" || s.tab === "library") && !s.pictureFault;
+      const enabled = clickable && !s.busy && !s.pictureClosed;
+      if (enabled) s.pictureTargets.set(key, item);
+      if (s.pictureFault) return Text({ children: [item.expression.name], dimColor: true });
+      return rasterPicture($, e, s, { key, source: item.preview, alt: item.expression.name,
+        width: 9, height: 4, enabled, interactive: true, pending: s.tab === "picker" ? L(s, "发送中…", "Sending…") : "" });
     };
     return pane($, e, s, makePicture);
+  });
+  on("ui.message", async ($, e, next) => {
+    if (e.surface === "desktop" && e.module === "hooks/control-input.js" &&
+        (e.component === "AbovePrompt" || (e.component === "Pane" && e.requestId === "amoji"))) {
+      const s = await state($);
+      const action = s.controls?.[e.component]?.get(e.element);
+      if (action && e.data?.action === "press" && !s.busy && !s.viewAgentId) await action();
+      return {};
+    }
+    if (e.surface !== "desktop" || e.component !== "Pane" ||
+        e.requestId !== "amoji" || e.module !== "hooks/picture-input.js")
+      return next(e);
+    const s = await state($);
+    const item = s.pictureTargets?.get(e.element);
+    if (e.data?.action !== "send" || !item || s.busy || s.pictureClosed || s.viewAgentId ||
+        (s.tab !== "picker" && s.tab !== "library") || s.detail || s.transfer ||
+        s.pictureCollection !== s.collection) return {};
+    // Only the current rendered target decides the expression. Client data
+    // cannot replace its identity, semantics, or destination conversation.
+    if (s.tab === "picker") await send($, s, item.expression);
+    else await perform($, s, async () => {
+      if (s.selecting) {
+        const id = item.expression.asset_id;
+        if (s.selected[id]) delete s.selected[id];
+        else s.selected[id] = refOf(item.expression);
+      } else { s.detail = item; s.revisions = null; }
+    });
+    return {};
+  });
+  on("ui.fault", async ($, e, next) => {
+    if (e.surface === "desktop" && e.module === "hooks/control-input.js") {
+      const s = await state($);
+      if (!s.controls?.[e.component]?.has(e.element)) return next(e);
+      s.controlFault = true;
+      s.controls = {};
+      invalidate($);
+    }
+    if (e.surface === "desktop" && e.component === "Pane" &&
+        e.requestId === "amoji" && e.module === "hooks/picture-input.js") {
+      const s = await state($);
+      if (!s.pictureTargets?.has(e.element)) return next(e);
+      s.pictureFault = true;
+      s.pictureTargets?.clear();
+      invalidate($);
+    }
+    return next(e);
   });
   for (const component of ["UserMessage", "AssistantMessage"])
     on("ui.render", { component }, async ($, e, next) => {
@@ -121,58 +198,14 @@ export function register(on) {
       const direction =
         component === "UserMessage" ? "human_to_ai" : "ai_to_human";
       const key = direction + ":" + e.props.text;
-      s.messageCache ??= new Map();
-      let segments = s.messageCache.get(key);
-      if (!segments) {
-        try {
-          segments = await call($, s.context, "render", {
-            direction,
-            text: e.props.text,
-          });
-        } catch {
-          return next(e);
-        }
-        if (!segments.some((segment) => segment.kind === "expression"))
-          return next(e);
-        if (s.messageCache.size >= 128)
-          s.messageCache.delete(s.messageCache.keys().next().value);
-        s.messageCache.set(key, segments);
-      }
-      const { Box, Text, Markdown, Svg } = $.ui.resolve(e);
-      return Box({
-        flexDirection: "column",
-        gap: 0,
-        children: segments.map((segment) =>
-          segment.kind === "text"
-            ? Markdown({ text: segment.text })
-            : Box({
-                flexDirection: "column",
-                children: [
-                  ...(e.surface === "desktop" && segment.preview
-                    ? [
-                        Box({
-                          width: 14,
-                          children: [
-                            Svg({
-                              source: segment.preview,
-                              alt: segment.semantics.fallback,
-                              width: 96,
-                              height: 96,
-                            }),
-                          ],
-                        }),
-                      ]
-                    : []),
-                  Text({
-                    children: [
-                      segment.name + " · " + segment.semantics.fallback,
-                    ],
-                    dimColor: true,
-                  }),
-                ],
-              }),
-        ),
-      });
+      let segments;
+      try {
+        segments = await messageSegments(s, key, () => call($, s.context, "render", {
+          direction, text: e.props.text,
+        }));
+      } catch { return next(e); }
+      if (!segments.some(segment => segment.kind === "expression")) return next(e);
+      return messageView($, e, s, segments, component === "UserMessage");
     });
   for (const name of ["search", "emit"])
     on("tool.call", { tool: "mcp__amoji__" + name }, async ($, e) => {

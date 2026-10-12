@@ -17,6 +17,8 @@ test('英文定义与中文定义一一对应，经典与办公共用同一组�
   assert.ok(semantics(entry.semantics),`${entry.slug}: ${JSON.stringify(semantics.errors)}`);
   assert.ok(name(entry.name),entry.slug);assert.ok(tags(entry.tags),`${entry.slug}: ${JSON.stringify(tags.errors)}`);
   assert.equal(entry.semantics.fallback,`[${entry.name}]`,entry.slug);
+  // The picker groups by the Chinese '协作:<group>' tag and localizes the label itself.
+  assert.equal(entry.tags[0],source.tags[0],entry.slug);
   // Same optional fields as the Chinese source, so both locales carry the same guidance.
   assert.deepEqual(Object.keys(entry.semantics).sort(),Object.keys(source.semantics).sort(),entry.slug);
   for(const key of ['use_when','avoid_when'])assert.equal(entry.semantics[key].length,source.semantics[key].length,`${entry.slug}.${key}`);

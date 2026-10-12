@@ -1,0 +1,619 @@
+{
+  "version": 4,
+  "name": "Amoji Collaboration · Classic & Office",
+  "entries": [
+    {
+      "slug": "progress",
+      "name": "How's it going",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'd like to know how far the current task has gotten. Please briefly say what is done, what is in progress, and what remains.",
+        "tone": "Friendly, focused on progress",
+        "fallback": "[How's it going]",
+        "use_when": [
+          "Asking for real progress while awaiting results",
+          "Wanting a short status update"
+        ],
+        "avoid_when": [
+          "Don't invent completion percentages or background work",
+          "AI must not use it to claim it is running a task"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "How's it going",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "still-there",
+      "name": "Still there?",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'm waiting for your response and want to check whether you can still respond, and whether any blocker needs me.",
+        "tone": "Gentle nudge",
+        "fallback": "[Still there?]",
+        "use_when": [
+          "No response after a long wait",
+          "Checking whether the conversation can continue"
+        ],
+        "avoid_when": [
+          "Not proof of ongoing background work",
+          "Don't replace a checkable status with vague busy talk"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "Still there?",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "blocked",
+      "name": "Where are you stuck?",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I want to know exactly where things are stuck, what is missing, and how I can help.",
+        "tone": "Direct, willing to help",
+        "fallback": "[Where are you stuck?]",
+        "use_when": [
+          "Asking for the specific cause of a blocked task",
+          "Clarifying what the next step depends on"
+        ],
+        "avoid_when": [
+          "Don't make up blockers",
+          "Don't imply the user granted extra permissions"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "Where are you stuck?",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "clarify",
+      "name": "Be more specific",
+      "group": "Clarify",
+      "semantics": {
+        "locale": "en",
+        "meaning": "That explanation was too abstract. Please be more specific: name the object, the reason, or an actionable next step.",
+        "tone": "Earnest, constructive",
+        "fallback": "[Be more specific]",
+        "use_when": [
+          "The answer is too general",
+          "Turning advice into concrete items"
+        ],
+        "avoid_when": [
+          "Not sarcasm toward the other party",
+          "Not agreement to any unconfirmed plan"
+        ]
+      },
+      "tags": [
+        "collab:clarify",
+        "Be more specific",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "example",
+      "name": "Give an example",
+      "group": "Clarify",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'd like a concrete example related to the current question to help me understand what you just explained.",
+        "tone": "Curious, wanting to understand",
+        "fallback": "[Give an example]",
+        "use_when": [
+          "An abstract concept is hard to grasp",
+          "Checking with an example whether a plan fits"
+        ],
+        "avoid_when": [
+          "Examples must not pass as things that really happened",
+          "Don't treat made-up demo data as the user's data"
+        ]
+      },
+      "tags": [
+        "collab:clarify",
+        "Give an example",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "confused",
+      "name": "I don't get it",
+      "group": "Clarify",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I haven't understood that yet. Please put it more simply, or first clarify where we disagree.",
+        "tone": "Candid, not blaming",
+        "fallback": "[I don't get it]",
+        "use_when": [
+          "The explanation is hard to follow",
+          "Noticing a mismatch in understanding"
+        ],
+        "avoid_when": [
+          "Not agreement with earlier conclusions",
+          "AI must not use it to dodge answerable questions"
+        ]
+      },
+      "tags": [
+        "collab:clarify",
+        "I don't get it",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "wrong-direction",
+      "name": "Wrong direction",
+      "group": "Direction",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I think the current understanding or direction has drifted from the original request. Let's realign on the goal before deciding how to continue.",
+        "tone": "Clear, constructive",
+        "fallback": "[Wrong direction]",
+        "use_when": [
+          "The result drifts from the request",
+          "Correcting an assumption or work direction"
+        ],
+        "avoid_when": [
+          "Not permission to discard existing work",
+          "Don't infer a new specific goal or scope from it"
+        ]
+      },
+      "tags": [
+        "collab:direction",
+        "Wrong direction",
+        "human-AI collab"
+      ],
+      "family": "direction"
+    },
+    {
+      "slug": "wait",
+      "name": "Hold on",
+      "group": "Direction",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'd like to pause the current work until I add details or reconfirm, then continue.",
+        "tone": "Calm, clear",
+        "fallback": "[Hold on]",
+        "use_when": [
+          "About to change the request",
+          "Wanting to check the current result first"
+        ],
+        "avoid_when": [
+          "Not a receipt that the system has stopped the task",
+          "AI must not use it to claim a cancellation is done"
+        ]
+      },
+      "tags": [
+        "collab:direction",
+        "Hold on",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "continue",
+      "name": "Go ahead",
+      "group": "Direction",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Please keep going on the current task in the direction already agreed and authorized, without asking again about settled points.",
+        "tone": "Trusting, encouraging",
+        "fallback": "[Go ahead]",
+        "use_when": [
+          "Moving to the next step after aligning on a plan",
+          "Continuing planned work that isn't finished"
+        ],
+        "avoid_when": [
+          "Grants no new permissions and doesn't widen scope",
+          "Doesn't replace a key answer or high-risk confirmation"
+        ]
+      },
+      "tags": [
+        "collab:direction",
+        "Go ahead",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "step-by-step",
+      "name": "Step by step",
+      "group": "Direction",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Let's break the problem down, handle the clear step in front of us first, then move forward gradually.",
+        "tone": "Patient, practical",
+        "fallback": "[Step by step]",
+        "use_when": [
+          "Breaking up complex work",
+          "Avoiding chaos from doing too much at once"
+        ],
+        "avoid_when": [
+          "Doesn't mean work will keep running in the background",
+          "Can't replace concrete steps or real progress"
+        ]
+      },
+      "tags": [
+        "collab:direction",
+        "Step by step",
+        "human-AI collab"
+      ],
+      "family": "steps"
+    },
+    {
+      "slug": "understood",
+      "name": "Got it",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I understood the explanation you just gave; message received.",
+        "tone": "Natural, concise",
+        "fallback": "[Got it]",
+        "use_when": [
+          "Confirming understanding",
+          "Closing a round of explanation"
+        ],
+        "avoid_when": [
+          "Not approval to carry out a new action",
+          "Doesn't mean the task is done or verified"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Got it",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "nice",
+      "name": "Nice one",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I like the idea, approach, or result you just showed; this direction looks good.",
+        "tone": "Sincere, measured",
+        "fallback": "[Nice one]",
+        "use_when": [
+          "Approving a useful answer or result",
+          "Encouraging the current direction"
+        ],
+        "avoid_when": [
+          "Doesn't mean full acceptance is complete",
+          "Not authorization to publish, delete, or act anew"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Nice one",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "thanks",
+      "name": "Thanks",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Thank you for the help you just gave; I really appreciate it.",
+        "tone": "Sincere, relaxed",
+        "fallback": "[Thanks]",
+        "use_when": [
+          "After receiving useful help",
+          "Acknowledging the other's time and effort"
+        ],
+        "avoid_when": [
+          "The sender thanks the recipient; don't swap them",
+          "Doesn't signal a new task or authorization"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Thanks",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "celebrate",
+      "name": "Let's celebrate",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Happy about a small step forward that has actually happened and been confirmed, and want to celebrate it together.",
+        "tone": "Happy, moderate",
+        "fallback": "[Let's celebrate]",
+        "use_when": [
+          "After truly finishing a stage",
+          "After confirming a problem is solved"
+        ],
+        "avoid_when": [
+          "Don't imply completion without evidence",
+          "Don't let it replace results, checks, or open items"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Let's celebrate",
+        "human-AI collab"
+      ]
+    },
+    {
+      "slug": "wry",
+      "name": "Sheepish grin",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "A good-natured, self-deprecating shrug at my own harmless little slip.",
+        "tone": "Gentle, self-deprecating",
+        "fallback": "[Sheepish grin]",
+        "use_when": [
+          "Admitting a small mistake of my own"
+        ],
+        "avoid_when": [
+          "Mocking someone else",
+          "When the other person is seriously expressing pain"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Sheepish grin",
+        "human-AI collab",
+        "self-deprecating",
+        "helpless",
+        "slip-up"
+      ]
+    },
+    {
+      "slug": "encourage",
+      "name": "You've got this",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'm behind your efforts; we'll take it one step at a time.",
+        "tone": "Warm, steady",
+        "fallback": "[You've got this]",
+        "use_when": [
+          "When the other person needs support and encouragement"
+        ],
+        "avoid_when": [
+          "Using a sticker instead of real help or needed explanation"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "You've got this",
+        "human-AI collab",
+        "encouragement",
+        "support",
+        "cheer"
+      ]
+    },
+    {
+      "slug": "handle",
+      "name": "I'll handle it",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I understand your request and will take on the clear, authorized work at hand.",
+        "tone": "Reliable, proactive",
+        "fallback": "[I'll handle it]",
+        "use_when": [
+          "AI takes on an authorized task and states the next step"
+        ],
+        "avoid_when": [
+          "The task is unclear or AI can't actually do it",
+          "No implied background work; doesn't mean it's done"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "I'll handle it",
+        "human-AI collab",
+        "AI reply",
+        "take over",
+        "received",
+        "handle",
+        "start"
+      ]
+    },
+    {
+      "slug": "checking",
+      "name": "Checking now",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I'm checking the material or results in front of me to get the details right.",
+        "tone": "Careful, patient",
+        "fallback": "[Checking now]",
+        "use_when": [
+          "AI really is checking material or verifying details now"
+        ],
+        "avoid_when": [
+          "When not actually checking",
+          "Not a pass; no promise to keep working offline"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "Checking now",
+        "human-AI collab",
+        "AI reply",
+        "check",
+        "review",
+        "verify",
+        "sort out"
+      ]
+    },
+    {
+      "slug": "confirm",
+      "name": "Your call",
+      "group": "Clarify",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Here is a specific choice that needs your decision, so I'm handing it to you to confirm.",
+        "tone": "Respectful, clear",
+        "fallback": "[Your call]",
+        "use_when": [
+          "AI has laid out specific options for the user to decide"
+        ],
+        "avoid_when": [
+          "Asking again for a confirmation already given",
+          "Can't replace a concrete question; not user approval"
+        ]
+      },
+      "tags": [
+        "collab:clarify",
+        "Your call",
+        "human-AI collab",
+        "AI reply",
+        "confirm",
+        "choice",
+        "decide",
+        "your call"
+      ]
+    },
+    {
+      "slug": "mistake",
+      "name": "I misunderstood",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I misread that just now. I admit the mistake and will correct course as you pointed out.",
+        "tone": "Sincere, not shifting blame",
+        "fallback": "[I misunderstood]",
+        "use_when": [
+          "AI realizes it misread the user and corrects itself"
+        ],
+        "avoid_when": [
+          "Blaming the user or downplaying real losses",
+          "Can't replace a needed apology, fix, or remedy"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "I misunderstood",
+        "human-AI collab",
+        "AI reply",
+        "own up",
+        "misread",
+        "sorry",
+        "correct",
+        "misunderstood"
+      ]
+    },
+    {
+      "slug": "uncertain",
+      "name": "Not sure yet",
+      "group": "Clarify",
+      "semantics": {
+        "locale": "en",
+        "meaning": "The information or evidence so far isn't enough, so I can't give a confident judgment yet.",
+        "tone": "Candid, cautious",
+        "fallback": "[Not sure yet]",
+        "use_when": [
+          "AI must say evidence is thin or its judgment is hedged"
+        ],
+        "avoid_when": [
+          "Dodging when reliable evidence exists",
+          "No guesses as facts; say what is uncertain"
+        ]
+      },
+      "tags": [
+        "collab:clarify",
+        "Not sure yet",
+        "human-AI collab",
+        "AI reply",
+        "uncertain",
+        "low evidence",
+        "not sure",
+        "candid"
+      ]
+    },
+    {
+      "slug": "welcome",
+      "name": "You're welcome",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "Got your thanks; glad I could help.",
+        "tone": "Natural, warm",
+        "fallback": "[You're welcome]",
+        "use_when": [
+          "AI casually answers the user's thanks"
+        ],
+        "avoid_when": [
+          "Treating thanks as new task authorization",
+          "Replying by rote while the user complains"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "You're welcome",
+        "human-AI collab",
+        "AI reply",
+        "reply to thanks",
+        "glad to help"
+      ]
+    },
+    {
+      "slug": "effort",
+      "name": "Thanks for your effort",
+      "group": "Feedback",
+      "semantics": {
+        "locale": "en",
+        "meaning": "I can see the time and effort you've put into this; thank you for working so hard.",
+        "tone": "Understanding, sincere",
+        "fallback": "[Thanks for your effort]",
+        "use_when": [
+          "AI responds to effort or fatigue the user has shown"
+        ],
+        "avoid_when": [
+          "Assuming fatigue or pain without knowing",
+          "Talking down, or comfort instead of real help"
+        ]
+      },
+      "tags": [
+        "collab:feedback",
+        "Thanks for your effort",
+        "human-AI collab",
+        "AI reply",
+        "hard work",
+        "effort",
+        "empathy",
+        "tired",
+        "dedication"
+      ]
+    },
+    {
+      "slug": "ready",
+      "name": "Ready",
+      "group": "Progress",
+      "semantics": {
+        "locale": "en",
+        "meaning": "This result is ready for you to look at.",
+        "tone": "Calm, clear",
+        "fallback": "[Ready]",
+        "use_when": [
+          "AI has really produced the result and delivers it in text"
+        ],
+        "avoid_when": [
+          "No result yet, or the result can't be provided",
+          "Not full acceptance; not released or deployed"
+        ]
+      },
+      "tags": [
+        "collab:progress",
+        "Ready",
+        "human-AI collab",
+        "AI reply",
+        "ready",
+        "result",
+        "deliver",
+        "review"
+      ]
+    }
+  ]
+}

@@ -51,3 +51,13 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 Expected content includes Host/Client, core runtime, built-in assets, `BUILD.json`, `LICENSE`, `NOTICE`, `THIRD_PARTY.json`, and `THIRD_PARTY_LICENSES/`. Personal data, credentials, `node_modules`, and native binaries are excluded. The dependency inventory describes the build machine's resolved packages, not identical dependency resolution on every platform.
 
 See [contributing](../CONTRIBUTING.en.md) and [release process](release.en.md).
+
+## Claude Mods
+
+```sh
+npm run build:claude
+npm run test:claude
+npm run test:claude-artifact
+```
+
+Builds a portable ZIP and local marketplace. Native tests require Claude Code 2.1.295+. Artifact tests install locked production dependencies in a temporary directory without changing global configuration. See [adapter validation](claude-mods.en.md).

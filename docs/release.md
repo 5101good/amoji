@@ -21,14 +21,21 @@
 - 某提供方 Flash 路由的 AI 检索、发送和显示成功后，后续模型请求因要求 `reasoning_text` 返回 HTTP 400。它属于宿主/提供方续答兼容边界；Amoji 不能保证所有模型完整工具回合成功。
 - 建议能力依赖宿主模型服务和凭据；超时、取消、配额、模型列表或输出格式问题会明确失败，不自动重试或伪装成本地模板结果。
 - 切换 UI 语言不翻译已保存的名称、含义、标签和用户文字；未保存草稿输入不跨页面刷新保留。
-- Codex、Claude Code 源码作为 legacy 保留，暂不验证；旧适配器可能无法连接要求新能力的核心。
+- 旧 Codex/Claude hook 适配器作为 legacy 保留。当前源码中的 Claude Desktop Mods 是独立适配器；范围和验证状态见 [Mods 指南](claude-mods.md)。已发布 1.0.0 不包含此新适配器。
 
 ## 维护者发布流程
 
-1. 将根包与 dsh 包版本保持一致，更新中英指南和发布正文；产品版本与 Schema/API/数据库版本分别维护。
+1. 将根包、dsh 包与 Claude Mods 清单版本保持一致，更新中英指南和发布正文；产品版本与 Schema/API/数据库版本分别维护。
 2. 从候选提交执行类型检查、核心测试和完整 dsh 测试，检查构建包清单、基础素材数量、许可、隐私与个人路径。
 3. 对最终候选执行实际安装和适用的 UI/模型验收，记录失败与未验证项。费用型请求按明确范围执行。
 4. 推送对应 `v1.0.0` 标签，由仓库官方 GitHub Actions 构建、校验并发布同一版本的 tgz、`SHA256SUMS` 校验和、发布说明及 `BUILD_PROVENANCE.json`（提交、标签与 Actions 运行地址）。具体工作流见 [Actions](https://github.com/5101good/amoji/actions)。
 5. 核对 Release 附件、SHA-256、标签提交及实际下载包；工作流定义存在不代表已成功发布。
 
 代码及技术文档 MIT；基础资产、固定语义与提示 CC0-1.0。依赖许可清单以实际构建为准，Sharp/libvips 等依赖保持自身许可。参见 [NOTICE](../NOTICE) 与[基础库](../assets/base-library/README.md)。
+
+
+## Claude Mods 构建附加包
+
+当前 CI 还会构建 `amoji-claude-mods-<版本>.zip`，解压验证、安装锁定的生产依赖并启动真实桥接，同时执行官方 CLI strict 校验及控件测试。ZIP 不携带 node_modules、私有配置或原生二进制，所有文件经过个人路径及凭据格式扫描。
+
+`append-claude-release.mjs` 将已校验 ZIP 加入同一发布目录、SHA-256 和 provenance。只增加后续候选的附件，不重写已发布的 1.0.0。发布前仍须完成 [Claude 原生验收](claude-mods.md)，再选择新的产品版本和标签；本分支的本地构建不是发布记录。

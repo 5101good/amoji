@@ -36,3 +36,10 @@ adapters/dsh/THIRD_PARTY_LICENSES/
 *.sqlite-*
 *.db
 *.db-*
+
+# Claude Mods requires a single-file hooks bundle (generated from adapter source).
+plugins/amoji-claude-mods/hooks/register.js
+plugins/amoji-claude-mods/.claude-plugin/types/
+
+plugins/amoji-claude-mods/hooks/picture-input.js
+plugins/amoji-claude-mods/hooks/control-input.js

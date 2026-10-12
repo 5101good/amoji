@@ -20,10 +20,10 @@
     "test:claude-artifact": "npm run build:claude && node --test scripts/claude-mods-artifact.test.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "yauzl": "3.4.0",
     "yazl": "3.3.1"
   },

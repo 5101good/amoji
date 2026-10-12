@@ -4,13 +4,13 @@
   "entries": [
     {
       "slug": "progress",
-      "name": "How's progress?",
+      "name": "Any updates?",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I'd like to know how far the current task has gotten. Please briefly say what is done, what is in progress, and what remains.",
         "tone": "Friendly, focused on progress",
-        "fallback": "[How's progress?]",
+        "fallback": "[Any updates?]",
         "use_when": [
           "Asking for real progress while awaiting results",
           "Wanting a short status update"
@@ -22,19 +22,19 @@
       },
       "tags": [
         "协作:进度",
-        "How's progress?",
+        "Any updates?",
         "human-AI collab"
       ]
     },
     {
       "slug": "still-there",
-      "name": "Still there?",
+      "name": "Anybody home?",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I'm waiting for your response and want to check whether you can still respond, and whether there is a blocker I need to deal with.",
         "tone": "Gentle nudge",
-        "fallback": "[Still there?]",
+        "fallback": "[Anybody home?]",
         "use_when": [
           "No response after a long wait",
           "Checking whether the conversation can continue"
@@ -46,19 +46,19 @@
       },
       "tags": [
         "协作:进度",
-        "Still there?",
+        "Anybody home?",
         "human-AI collab"
       ]
     },
     {
       "slug": "blocked",
-      "name": "Where are you stuck?",
+      "name": "What's the holdup?",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I want to know exactly where things are stuck, what is missing, and how I can help.",
         "tone": "Direct, willing to help",
-        "fallback": "[Where are you stuck?]",
+        "fallback": "[What's the holdup?]",
         "use_when": [
           "Asking for the specific cause of a blocked task",
           "Clarifying what the next step depends on"
@@ -70,19 +70,19 @@
       },
       "tags": [
         "协作:进度",
-        "Where are you stuck?",
+        "What's the holdup?",
         "human-AI collab"
       ]
     },
     {
       "slug": "clarify",
-      "name": "Be more specific",
+      "name": "Elaborate pls",
       "group": "Clarify",
       "semantics": {
         "locale": "en",
         "meaning": "That explanation was too abstract. Please be more specific about what it refers to, why, or what the actionable next step is.",
         "tone": "Earnest, constructive",
-        "fallback": "[Be more specific]",
+        "fallback": "[Elaborate pls]",
         "use_when": [
           "The answer is too general",
           "Turning advice into concrete items"
@@ -94,19 +94,19 @@
       },
       "tags": [
         "协作:澄清",
-        "Be more specific",
+        "Elaborate pls",
         "human-AI collab"
       ]
     },
     {
       "slug": "example",
-      "name": "Give an example",
+      "name": "Like what?",
       "group": "Clarify",
       "semantics": {
         "locale": "en",
         "meaning": "I'd like a concrete example related to the current question to help me understand what you just explained.",
         "tone": "Curious, wanting to understand",
-        "fallback": "[Give an example]",
+        "fallback": "[Like what?]",
         "use_when": [
           "An abstract concept is hard to grasp",
           "Checking with an example whether a plan fits"
@@ -118,19 +118,19 @@
       },
       "tags": [
         "协作:澄清",
-        "Give an example",
+        "Like what?",
         "human-AI collab"
       ]
     },
     {
       "slug": "confused",
-      "name": "I don't get it",
+      "name": "I'm lost",
       "group": "Clarify",
       "semantics": {
         "locale": "en",
         "meaning": "I haven't understood that yet. Please put it more simply, or first clarify where we disagree.",
         "tone": "Candid, not blaming",
-        "fallback": "[I don't get it]",
+        "fallback": "[I'm lost]",
         "use_when": [
           "The explanation is hard to follow",
           "Noticing a mismatch in understanding"
@@ -142,19 +142,19 @@
       },
       "tags": [
         "协作:澄清",
-        "I don't get it",
+        "I'm lost",
         "human-AI collab"
       ]
     },
     {
       "slug": "wrong-direction",
-      "name": "Wrong direction",
+      "name": "That's not it",
       "group": "Direction",
       "semantics": {
         "locale": "en",
         "meaning": "I think the current understanding or direction has drifted from the original request. Let's realign on the goal before deciding how to continue.",
         "tone": "Clear, constructive",
-        "fallback": "[Wrong direction]",
+        "fallback": "[That's not it]",
         "use_when": [
           "The result drifts from the request",
           "Correcting an assumption or work direction"
@@ -166,20 +166,20 @@
       },
       "tags": [
         "协作:方向",
-        "Wrong direction",
+        "That's not it",
         "human-AI collab"
       ],
       "family": "direction"
     },
     {
       "slug": "wait",
-      "name": "Hold on",
+      "name": "Hold up",
       "group": "Direction",
       "semantics": {
         "locale": "en",
         "meaning": "I'd like to pause the current work until I add details or reconfirm, then continue.",
         "tone": "Calm, clear",
-        "fallback": "[Hold on]",
+        "fallback": "[Hold up]",
         "use_when": [
           "About to change the request",
           "Wanting to check the current result first"
@@ -191,19 +191,19 @@
       },
       "tags": [
         "协作:方向",
-        "Hold on",
+        "Hold up",
         "human-AI collab"
       ]
     },
     {
       "slug": "continue",
-      "name": "Keep going",
+      "name": "Carry on",
       "group": "Direction",
       "semantics": {
         "locale": "en",
         "meaning": "Please keep going on the current task in the direction already agreed and authorized, without asking again about settled points.",
         "tone": "Trusting, encouraging",
-        "fallback": "[Keep going]",
+        "fallback": "[Carry on]",
         "use_when": [
           "Moving to the next step after aligning on a plan",
           "Continuing planned work that isn't finished"
@@ -215,19 +215,19 @@
       },
       "tags": [
         "协作:方向",
-        "Keep going",
+        "Carry on",
         "human-AI collab"
       ]
     },
     {
       "slug": "step-by-step",
-      "name": "Step by step",
+      "name": "Baby steps",
       "group": "Direction",
       "semantics": {
         "locale": "en",
         "meaning": "Let's break the problem down, handle the clear step in front of us first, then move forward gradually.",
         "tone": "Patient, practical",
-        "fallback": "[Step by step]",
+        "fallback": "[Baby steps]",
         "use_when": [
           "Breaking up complex work",
           "Avoiding chaos from doing too much at once"
@@ -239,20 +239,20 @@
       },
       "tags": [
         "协作:方向",
-        "Step by step",
+        "Baby steps",
         "human-AI collab"
       ],
       "family": "steps"
     },
     {
       "slug": "understood",
-      "name": "Got it",
+      "name": "Copy that",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "I understood the explanation you just gave; message received.",
         "tone": "Natural, concise",
-        "fallback": "[Got it]",
+        "fallback": "[Copy that]",
         "use_when": [
           "Confirming understanding",
           "Closing a round of explanation"
@@ -264,19 +264,19 @@
       },
       "tags": [
         "协作:反馈",
-        "Got it",
+        "Copy that",
         "human-AI collab"
       ]
     },
     {
       "slug": "nice",
-      "name": "Nice one",
+      "name": "Ooh, nice",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "I like the idea, approach, or result you just showed; this direction looks good.",
         "tone": "Sincere, measured",
-        "fallback": "[Nice one]",
+        "fallback": "[Ooh, nice]",
         "use_when": [
           "Recognizing a useful answer or result",
           "Encouraging the current direction"
@@ -288,19 +288,19 @@
       },
       "tags": [
         "协作:反馈",
-        "Nice one",
+        "Ooh, nice",
         "human-AI collab"
       ]
     },
     {
       "slug": "thanks",
-      "name": "Thanks",
+      "name": "Thanks a ton",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "Thank you for the help you just gave; I really appreciate it.",
         "tone": "Sincere, relaxed",
-        "fallback": "[Thanks]",
+        "fallback": "[Thanks a ton]",
         "use_when": [
           "After receiving useful help",
           "Acknowledging the other's time and effort"
@@ -312,19 +312,19 @@
       },
       "tags": [
         "协作:反馈",
-        "Thanks",
+        "Thanks a ton",
         "human-AI collab"
       ]
     },
     {
       "slug": "celebrate",
-      "name": "Let's celebrate",
+      "name": "Let's gooo",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "Happy about a small step forward that has actually happened and been confirmed, and want to celebrate it together.",
         "tone": "Happy, moderate",
-        "fallback": "[Let's celebrate]",
+        "fallback": "[Let's gooo]",
         "use_when": [
           "After truly finishing a stage",
           "After confirming a problem is solved"
@@ -336,19 +336,19 @@
       },
       "tags": [
         "协作:反馈",
-        "Let's celebrate",
+        "Let's gooo",
         "human-AI collab"
       ]
     },
     {
       "slug": "wry",
-      "name": "Sheepish grin",
+      "name": "Oopsie",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "A good-natured, self-deprecating shrug at my own harmless little slip.",
         "tone": "Gentle, self-deprecating",
-        "fallback": "[Sheepish grin]",
+        "fallback": "[Oopsie]",
         "use_when": [
           "Admitting a small mistake of my own"
         ],
@@ -359,7 +359,7 @@
       },
       "tags": [
         "协作:反馈",
-        "Sheepish grin",
+        "Oopsie",
         "human-AI collab",
         "self-deprecating",
         "resigned",
@@ -368,13 +368,13 @@
     },
     {
       "slug": "encourage",
-      "name": "Cheering you on",
+      "name": "You got this",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "I'm behind your efforts; we'll take it one step at a time.",
         "tone": "Warm, steady",
-        "fallback": "[Cheering you on]",
+        "fallback": "[You got this]",
         "use_when": [
           "When the other person needs support and encouragement"
         ],
@@ -384,7 +384,7 @@
       },
       "tags": [
         "协作:反馈",
-        "Cheering you on",
+        "You got this",
         "human-AI collab",
         "encouragement",
         "support",
@@ -393,13 +393,13 @@
     },
     {
       "slug": "handle",
-      "name": "I'll handle it",
+      "name": "On it!",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I understand your request and will take on the clear, authorized work at hand.",
         "tone": "Reliable, proactive",
-        "fallback": "[I'll handle it]",
+        "fallback": "[On it!]",
         "use_when": [
           "AI takes on an authorized task and states the next step"
         ],
@@ -410,7 +410,7 @@
       },
       "tags": [
         "协作:进度",
-        "I'll handle it",
+        "On it!",
         "human-AI collab",
         "AI reply",
         "take over",
@@ -421,13 +421,13 @@
     },
     {
       "slug": "checking",
-      "name": "Checking now",
+      "name": "Let me check",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "I'm checking the material or results in front of me to get the details right.",
         "tone": "Careful, patient",
-        "fallback": "[Checking now]",
+        "fallback": "[Let me check]",
         "use_when": [
           "AI really is checking material or verifying details now"
         ],
@@ -438,7 +438,7 @@
       },
       "tags": [
         "协作:进度",
-        "Checking now",
+        "Let me check",
         "human-AI collab",
         "AI reply",
         "check",
@@ -449,13 +449,13 @@
     },
     {
       "slug": "confirm",
-      "name": "Please confirm",
+      "name": "Need your OK",
       "group": "Clarify",
       "semantics": {
         "locale": "en",
         "meaning": "Here is a specific choice that needs your decision, so I'm handing it to you to confirm.",
         "tone": "Respectful, clear",
-        "fallback": "[Please confirm]",
+        "fallback": "[Need your OK]",
         "use_when": [
           "AI has laid out specific options for the user to decide"
         ],
@@ -466,7 +466,7 @@
       },
       "tags": [
         "协作:澄清",
-        "Please confirm",
+        "Need your OK",
         "human-AI collab",
         "AI reply",
         "confirm",
@@ -477,13 +477,13 @@
     },
     {
       "slug": "mistake",
-      "name": "I misunderstood",
+      "name": "My bad",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "I misread that just now. I admit the mistake and will correct course as you pointed out.",
         "tone": "Sincere, not shifting blame",
-        "fallback": "[I misunderstood]",
+        "fallback": "[My bad]",
         "use_when": [
           "AI realizes it misread the user and corrects itself"
         ],
@@ -494,7 +494,7 @@
       },
       "tags": [
         "协作:反馈",
-        "I misunderstood",
+        "My bad",
         "human-AI collab",
         "AI reply",
         "own up",
@@ -506,13 +506,13 @@
     },
     {
       "slug": "uncertain",
-      "name": "Not sure yet",
+      "name": "Hmm, not sure",
       "group": "Clarify",
       "semantics": {
         "locale": "en",
         "meaning": "The information or evidence so far isn't enough, so I can't give a confident judgment yet.",
         "tone": "Candid, cautious",
-        "fallback": "[Not sure yet]",
+        "fallback": "[Hmm, not sure]",
         "use_when": [
           "When AI needs to flag thin evidence or a hedged judgment"
         ],
@@ -523,7 +523,7 @@
       },
       "tags": [
         "协作:澄清",
-        "Not sure yet",
+        "Hmm, not sure",
         "human-AI collab",
         "AI reply",
         "uncertain",
@@ -534,13 +534,13 @@
     },
     {
       "slug": "welcome",
-      "name": "You're welcome",
+      "name": "Anytime!",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "Got your thanks; glad I could help.",
         "tone": "Natural, warm",
-        "fallback": "[You're welcome]",
+        "fallback": "[Anytime!]",
         "use_when": [
           "AI casually answers the user's thanks"
         ],
@@ -551,7 +551,7 @@
       },
       "tags": [
         "协作:反馈",
-        "You're welcome",
+        "Anytime!",
         "human-AI collab",
         "AI reply",
         "reply to thanks",
@@ -560,13 +560,13 @@
     },
     {
       "slug": "effort",
-      "name": "You've worked hard",
+      "name": "Respect the grind",
       "group": "Feedback",
       "semantics": {
         "locale": "en",
         "meaning": "I can see the time and effort you've put into this; you've worked hard.",
         "tone": "Understanding, sincere",
-        "fallback": "[You've worked hard]",
+        "fallback": "[Respect the grind]",
         "use_when": [
           "AI responds to effort or fatigue the user has shown"
         ],
@@ -577,7 +577,7 @@
       },
       "tags": [
         "协作:反馈",
-        "You've worked hard",
+        "Respect the grind",
         "human-AI collab",
         "AI reply",
         "hard work",
@@ -589,13 +589,13 @@
     },
     {
       "slug": "ready",
-      "name": "Ready",
+      "name": "Ta-da!",
       "group": "Progress",
       "semantics": {
         "locale": "en",
         "meaning": "This result is ready for you to look at.",
         "tone": "Calm, clear",
-        "fallback": "[Ready]",
+        "fallback": "[Ta-da!]",
         "use_when": [
           "AI has really produced the result and shares it with the message"
         ],
@@ -606,7 +606,7 @@
       },
       "tags": [
         "协作:进度",
-        "Ready",
+        "Ta-da!",
         "human-AI collab",
         "AI reply",
         "prepared",

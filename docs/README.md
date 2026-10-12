@@ -2,10 +2,11 @@
 
 [English](README.en.md) · [项目首页](../README.md)
 
-这里是 Amoji 1.0 的当前使用与开发入口。主要支持 dsh；Codex 与 Claude Code 为暂不验证的 legacy 适配。
+这里是 Amoji 1.0 的当前使用与开发入口。已发布版本主要支持 dsh；当前源码新增 Claude Desktop Code Mods 适配，验证状态见专用指南。旧 Codex/Claude hook 适配器仍为 legacy。
 
 | 想做什么 | 文档 |
 | --- | --- |
+| Claude Desktop Code 原生表情 | [Mods 适配指南](claude-mods.md) |
 | 安装、升级、备份和故障恢复 | [dsh 安装指南](dsh-installation.md) |
 | 发送表情、创作、偏好、导入导出 | [使用指南](usage.md) |
 | 理解固定语义、版本和投递状态 | [架构与协议](architecture.md) |

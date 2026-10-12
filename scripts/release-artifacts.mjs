@@ -47,7 +47,7 @@ export function inspectTarball(compressed) {
 export function validatePublicFile(path, bytes) {
   assert.ok(!path.split('/').some(part => part.startsWith('.') || ['node_modules', 'tests', 'samples'].includes(part)), `Private or development path: ${path}`);
   assert.ok(!/\.(?:map|sqlite(?:3)?|db|pem|key|node|dylib|so|dll)$/i.test(path), `Unexpected sensitive or native file: ${path}`);
-  if (/\.(?:amoji|png|webp|gif|jpg|jpeg|ico|woff2?)$/i.test(path)) return;
+  if (/\.(?:amoji|png|webp|avif|gif|jpg|jpeg|ico|woff2?)$/i.test(path)) return;
   const text = bytes.toString('utf8');
   assert.ok(!/(?:\/Users\/|\/home\/|[A-Z]:\\Users\\)[\w.-]+[\/\\]/i.test(text), `Personal absolute path in ${path}`);
   assert.ok(!/(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{32,})/.test(text), `Credential-like content in ${path}`);

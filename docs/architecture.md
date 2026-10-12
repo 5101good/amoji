@@ -66,3 +66,7 @@ flowchart LR
 `.amoji` 是 ZIP，包含 `manifest.json` 与内容寻址 `blobs/`。清单记录 `kind: amoji.pack`、`schema_version: 0.1`、包身份、表达版本与默认引用；每个资产恰有一个包内默认版本。导入验证 Schema、路径、CRC、SHA-256、实际解码格式、媒体和展开预算，并拒绝冲突的不可变版本。
 
 相关实现：`src/packs.ts`、`src/media.ts`、`src/drafts.ts`；机器可读示例见 [expression.example.json](specs/examples/expression.example.json)。兼容新宿主时应重新验证其身份、持久化与渲染合同；legacy 实现不是新宿主可用性的证明。
+
+## 宿主间复用
+
+新增 `src/application` 提供宿主无关的交互用例和建议约束。Claude Mods 将原生事件、消息标记与 UI 留在 `src/claude-mods`，通过公共客户端复用单一服务。共享服务新增 `session-bindings-v1`：人工发送和历史可使用会话绑定，AI 检索与发送仍强制真实回合。详见 [Claude Mods 分层](claude-mods.md)。

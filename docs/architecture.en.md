@@ -66,3 +66,7 @@ Drafts may persist incomplete input. Final semantics and media must validate bef
 A `.amoji` pack is a ZIP containing `manifest.json` and content-addressed `blobs/`. The manifest includes `kind: amoji.pack`, `schema_version: 0.1`, pack identity, expression revisions, and default references, with exactly one in-pack default per asset. Imports validate schema, paths, CRC, SHA-256, decoded formats, media limits, and expansion budgets, rejecting conflicting immutable revisions.
 
 See `src/packs.ts`, `src/media.ts`, `src/drafts.ts`, and the machine-readable [expression example](specs/examples/expression.example.json). New host integrations require their own identity, persistence, and rendering validation; legacy implementations are not proof of support.
+
+## Sharing across hosts
+
+`src/application` provides host-independent interaction use cases and suggestion constraints. Claude Mods keeps native events, markers and UI in `src/claude-mods`, reusing the single service through public clients. The service adds `session-bindings-v1`: human input and history may bind a session without a turn; AI search/emit still require a real turn. See [Claude Mods layers](claude-mods.en.md).

@@ -51,3 +51,13 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 包应包含 Host/Client、核心 runtime、基础资产、`BUILD.json`、`LICENSE`、`NOTICE`、`THIRD_PARTY.json` 和 `THIRD_PARTY_LICENSES/`。不包含个人库、凭据、`node_modules` 或原生二进制。第三方清单反映构建机器实际解析结果，不保证其他平台安装依赖完全相同。
 
 见[贡献指南](../CONTRIBUTING.md)和[发布流程](release.md)。
+
+## Claude Mods
+
+```sh
+npm run build:claude
+npm run test:claude
+npm run test:claude-artifact
+```
+
+构建可移植 ZIP 和本地 marketplace，原生测试需安装 Claude Code 2.1.295+。产物测试会在临时目录安装锁定的生产依赖，不修改全局配置。参见 [适配与验收](claude-mods.md)。

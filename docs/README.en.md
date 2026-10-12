@@ -2,10 +2,11 @@
 
 [中文](README.md) · [Project](../README.en.md)
 
-These are the current user and developer guides for Amoji 1.0. dsh is the primary host; Codex and Claude Code remain unvalidated legacy adapters.
+These are the current user and developer guides for Amoji 1.0. The published release primarily supports dsh. Current source adds a Claude Desktop Code Mods adapter; see its guide for verification status. Older Codex/Claude hook adapters remain legacy.
 
 | Goal | Guide |
 | --- | --- |
+| Native expressions in Claude Desktop Code | [Mods adapter guide](claude-mods.en.md) |
 | Install, upgrade, back up, recover | [dsh installation](dsh-installation.en.md) |
 | Send, create, customize, import/export | [Usage](usage.en.md) |
 | Understand fixed semantics, revisions, delivery | [Architecture and protocol](architecture.en.md) |

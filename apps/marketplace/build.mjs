@@ -56,7 +56,9 @@ await build({
   bundle: true,
   format: "esm",
   minify: true,
-  outfile: "dist/public/app.js",
+  splitting: true,
+  outdir: "dist/public",
+  chunkNames: "chunks/[name]-[hash]",
 });
 await Promise.all(
   ["index.html", "style.css", "_headers"].map((f) =>

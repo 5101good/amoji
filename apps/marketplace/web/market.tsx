@@ -1,7 +1,7 @@
 import type { CatalogPage } from "../src/catalog-page";
 import {Report} from "./lifecycle";
 import React, { useEffect, useRef, useState } from "react";
-import { Preview, previewWords } from "./upload";
+import { Preview, previewWords } from "./preview";
 type Locale = "zh" | "en";
 const words = {
   zh: {

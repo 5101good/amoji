@@ -8,7 +8,7 @@
 
 ## 安装
 
-本源码适配器尚未随 v1.0.0 发布。使用当前分支构建，或在后续 GitHub Release 中下载 `amoji-claude-mods-<版本>.zip`。解压后得到 `.claude-plugin/` 和 `plugin/`；保留完整目录。
+从 v1.1.0 起，GitHub Release 提供 `amoji-claude-mods-<版本>.zip`，请用同次发行的 `SHA256SUMS` 核对；也可从源码构建。v1.0.0 不含此包。解压后得到 `.claude-plugin/` 和 `plugin/`；保留完整目录。
 
 在解压目录执行：
 

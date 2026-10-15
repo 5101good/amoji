@@ -21,7 +21,7 @@ The final 1.0 archive requires evidence from its corresponding workflow and rele
 - On one provider's Flash route, AI search, emission, and display succeeded, but the following model request returned HTTP 400 requiring `reasoning_text`. This is a host/provider continuation compatibility boundary; Amoji cannot guarantee complete tool turns for every model.
 - Suggestions depend on host model services and credentials. Timeout, cancellation, quota, model discovery, and output-format failures are surfaced without automatic retries or disguised local-template fallbacks.
 - UI language changes do not translate stored names, meanings, tags, or user text. Unsaved draft input does not survive page reloads.
-- Codex and Claude Code source remains legacy and is not currently validated. Older adapters may be incompatible with a core requiring newer capabilities.
+- Older Codex/Claude hook adapters remain legacy. The new Claude Desktop Mods adapter is separate; see its guide for scope and verification. The published 1.0.0 does not include it.
 
 ## Maintainer release process
 
@@ -32,3 +32,10 @@ The final 1.0 archive requires evidence from its corresponding workflow and rele
 5. Verify Release assets, SHA-256, tag commit, and downloaded package. A workflow definition alone does not prove successful publication.
 
 Code and technical documentation are MIT; built-in assets, semantics, and prompts are CC0-1.0. The actual build supplies a dependency-license inventory. Sharp/libvips and other dependencies retain their own licenses. See [NOTICE](../NOTICE) and [built-in assets](../assets/base-library/README.en.md).
+
+
+## Additional Claude Mods artifact
+
+CI also builds `amoji-claude-mods-<version>.zip`, verifies and extracts it, installs locked production dependencies, and exercises its real bridge. Official CLI strict validation and control tests run separately. The ZIP excludes node_modules, private configuration and native binaries; all files are scanned for personal paths and credential patterns.
+
+`append-claude-release.mjs` adds the verified ZIP to the same release directory, SHA-256 list and provenance. This extends future candidates without rewriting the published 1.0.0. Complete [native Claude acceptance](claude-mods.en.md) before choosing a new product version and tag; a local branch build is not a release record.

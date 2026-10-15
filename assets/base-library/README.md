@@ -7,7 +7,8 @@
 经典延续原创奶白圆团角色，办公采用灰蓝纸张角色。两套画风的同名表达具有相同固定语义；AI 读取文字，不识别图片。切换画风不改写旧消息所引用的精确版本。
 
 - `manifest.json`：与 ZIP 内一致的完整版本、语义、许可及素材摘要。
-- `definitions.json`：创作定义；`generation.json`：生成提示记录。
+- `definitions.json`：创作定义；`definitions.en.json`：同一组 24 个语义的英文版（`locale: en`），按 slug 一一对应，经典与办公共用；首个标签沿用中文 `协作:<分组>`，供选择器分组；目前只是数据，尚未打进 `base.amoji`。
+- `generation.json`：生成提示记录。
 - `provenance.json`：生成器、视觉意图、素材来源和摘要；不是完整生成会话。
 - `builtin-policy.json`：包身份与旧默认条目的精确迁移策略。
 

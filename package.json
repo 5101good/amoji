@@ -15,7 +15,10 @@
     "build:dsh": "npm run build && node scripts/build-dsh-plugin.mjs",
     "test:dsh": "npm run build:dsh && node scripts/dsh/prepare-baseline.mjs && tsx --test tests/dsh-*.test.ts",
     "prepare:dsh": "node scripts/dsh/prepare-baseline.mjs",
-    "probe:dsh:context": "node scripts/probes/dsh-native-context.mjs"
+    "probe:dsh:context": "node scripts/probes/dsh-native-context.mjs",
+    "build:claude": "npm run build && node scripts/build-claude-mods-ui.mjs && node scripts/build-claude-mods.mjs",
+    "test:claude": "node scripts/build-claude-mods-ui.mjs && claude plugin validate plugins/amoji-claude-mods --strict && claude plugin test plugins/amoji-claude-mods",
+    "test:claude-artifact": "npm run build:claude && node --test scripts/claude-mods-artifact.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",

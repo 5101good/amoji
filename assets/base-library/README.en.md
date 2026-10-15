@@ -7,7 +7,8 @@
 Classic uses the original cream-colored rounded character; Office uses a gray-blue paper character. Matching expressions across appearances share identical semantics. AI reads text rather than interpreting artwork. Appearance changes do not rewrite exact revisions referenced by old messages.
 
 - `manifest.json`: complete revisions, semantics, rights, and hashes, matching the ZIP manifest.
-- `definitions.json`: creation definitions; `generation.json`: recorded prompts.
+- `definitions.json`: creation definitions; `definitions.en.json`: English versions (`locale: en`) of the same 24 meanings, matched by slug and shared by Classic and Office. Its first tag keeps the Chinese `协作:<group>` key that the picker groups by. It is data only and not yet packaged into `base.amoji`.
+- `generation.json`: recorded prompts.
 - `provenance.json`: generator, visual intent, sources, and hashes; not a complete generation transcript.
 - `builtin-policy.json`: pack identity and exact migration rules for old defaults.
 

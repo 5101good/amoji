@@ -12,6 +12,7 @@ export const TEXT_SUGGESTION_CAPABILITY = 'text-suggestions-v1';
 export const DSH_RELIABILITY_CAPABILITY = 'dsh-reliable-delivery-v1';
 export const DSH_NATIVE_CAPABILITY = 'dsh-native-delivery-v1';
 export const DSH_SUBMISSION_CAPABILITY = 'dsh-idle-submission-v1';
+export const SESSION_BINDINGS_CAPABILITY = 'session-bindings-v1';
 export const CLAUDE_TICKET_CAPABILITY = 'claude-hook-tickets-v1';
 export interface ApiRange { min: number; max: number }
 export interface ServiceIdentity { serviceId: string; pid: number; dataRoot: string; apiVersion: number; databaseVersion: number; capabilities?: string[] }
@@ -49,7 +50,8 @@ export function nonempty(value: unknown): string {
 export function bindingContext(value: unknown): BindingContext {
   const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId', 'turnOrdinal'], ['host', 'sessionId']);
   if (!['codex', 'claude-code', 'dsh'].includes(String(c.host))) fail('INVALID_ARGUMENT', '未知宿主');
-  if (c.turnId === undefined && c.host !== 'dsh') fail('INVALID_ARGUMENT', '此宿主必须提供真实回合');
+  // Session-only bindings serve human input and history. AI search/emit require a real turn.
+
   if (c.turnOrdinal !== undefined && (c.turnId === undefined || !Number.isSafeInteger(c.turnOrdinal) || (c.turnOrdinal as number) < 1)) fail('INVALID_ARGUMENT', '需要可信正整数回合序号');
   return { ...(c.turnOrdinal === undefined ? {} : { turnOrdinal: c.turnOrdinal as number }), host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), ...(c.turnId === undefined ? {} : { turnId: nonempty(c.turnId) }) };
 }

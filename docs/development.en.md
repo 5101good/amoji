@@ -55,3 +55,13 @@ See [contributing](../CONTRIBUTING.en.md) and [release process](release.en.md).
 ## Contributing scenario content
 
 Start with the [official packs](../assets/scenario-packs/README.en.md) and `scripts/build-seed-scenarios.mjs`. Preserve confirmed semantics and exact identities; reuse clearly licensed visuals. State the original language, both communication directions and illustrative nature of examples. Actions are optional guidance, not enforcement; disabling stops future application without deleting history. Run seed and baseline tests, then submit as a creator for independent review; self-review is forbidden.
+
+## Claude Mods
+
+```sh
+npm run build:claude
+npm run test:claude
+npm run test:claude-artifact
+```
+
+Builds a portable ZIP and local marketplace. Native tests require Claude Code 2.1.295+. Artifact tests install locked production dependencies in a temporary directory without changing global configuration. See [adapter validation](claude-mods.en.md).

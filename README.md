@@ -132,3 +132,7 @@ npm run test:dsh
 `test:dsh` 会构建插件并检查锁定的 dsh npm 合同。构建输出为 `adapters/dsh`。[开发指南](docs/development.md)、[架构与协议](docs/architecture.md)、[贡献指南](CONTRIBUTING.md)和[安全政策](SECURITY.md)说明开发、验证与报告问题的方法。
 
 代码和技术文档使用 [MIT](LICENSE)；内置基础表情视觉、固定语义及生成提示使用 [CC0-1.0](assets/base-library/LICENSE)。生成来源见[基础库说明](assets/base-library/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。
+
+## Claude Desktop Mods（开发中）
+
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。它是新的分层适配器，独立于旧 Claude 原型；不包含在已发布的 v1.0.0 中。

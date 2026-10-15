@@ -55,3 +55,13 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ## 场景包内容贡献
 
 从[正式场景包](../assets/scenario-packs/README.md)和 `scripts/build-seed-scenarios.mjs` 开始。保留已确认语义和精确身份，复用许可明确的素材；说明原始语义语言、双向角色和示例性质。动作可选、不强制控制，关闭只停止后续应用而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。
+
+## Claude Mods
+
+```sh
+npm run build:claude
+npm run test:claude
+npm run test:claude-artifact
+```
+
+构建可移植 ZIP 和本地 marketplace，原生测试需安装 Claude Code 2.1.295+。产物测试会在临时目录安装锁定的生产依赖，不修改全局配置。参见 [适配与验收](claude-mods.md)。

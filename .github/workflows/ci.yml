@@ -48,12 +48,20 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+      - name: Build and exercise portable Claude Mods package
+        run: npm run test:claude-artifact
+      - name: Validate and test Mods with pinned official Claude Code
+        run: |
+          npm exec --yes --package=@anthropic-ai/claude-code@2.1.296 -- claude plugin validate plugins/amoji-claude-mods --strict
+          npm exec --yes --package=@anthropic-ai/claude-code@2.1.296 -- claude plugin test plugins/amoji-claude-mods
       - name: Release validation regression tests
         run: node --test scripts/release-artifacts.test.mjs
       - name: Verify package, licenses, content and checksums
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
         run: node scripts/release-artifacts.mjs
+      - name: Add verified Claude Mods package and checksums
+        run: node scripts/append-claude-release.mjs
       - name: Upload verified release files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

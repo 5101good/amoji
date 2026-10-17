@@ -21,14 +21,38 @@ test('daily export saves SQL and digest privately; repeat cron does not export a
  await runBackup(f.env,f.now+900000,f.network);assert.equal(f.calls.length,2);
  assert.equal((await backupHealth(f.env,f.now+86400001)).status,'stale');
 });
-test('polling preserves bookmark, failed export preserves previous good backup and redacts failures',async()=>{
+test('one maintenance run continuously polls D1 until a usable private snapshot is saved',async()=>{
+ const f=fixture();let polls=0;
+ await runBackup(f.env,f.now,async(url,init)=>{
+  if(String(url).startsWith('https://api.cloudflare.com/')){
+   const request=JSON.parse(init.body);
+   if(polls++===0){assert.equal(request.current_bookmark,undefined);return Response.json({success:true,result:{success:true,at_bookmark:'same-export'}});}
+   assert.equal(request.current_bookmark,'same-export');
+   if(polls<3)return Response.json({success:true,result:{success:true,at_bookmark:'same-export'}});
+  }
+  return f.network(url,init);
+ });
+ assert.deepEqual(await backupHealth(f.env,f.now),{status:'ok',last_success_at:f.now});
+ const status=JSON.parse(f.objects.get('backups/status.json'));
+ assert.equal(f.objects.get(status.key),'CREATE TABLE example(id TEXT);');
+});
+test('a stalled export is bounded, preserves the good snapshot, and restarts without an expired bookmark',async()=>{
  const f=fixture();await runBackup(f.env,f.now,f.network);
  const old=JSON.parse(f.objects.get('backups/status.json'));
- const poll=async()=>Response.json({success:true,result:{status:'active',at_bookmark:'opaque-bookmark'}});
- await runBackup(f.env,f.now+86400000,poll);assert.equal(JSON.parse(f.objects.get('backups/pending.json')).bookmark,'opaque-bookmark');
+ let polls=0;
+ const poll=async()=>{polls++;return Response.json({success:true,result:{status:'active',at_bookmark:'opaque-bookmark'}});};
+ await runBackup(f.env,f.now+86400000,poll);
+ assert.ok(polls>1&&polls<=24,'export must stop within its free-plan request budget');
+ assert.equal(JSON.parse(f.objects.get('backups/status.json')).key,old.key);
+ assert.equal((await backupHealth(f.env,f.now+86400000)).status,'failed');
+ // An old deployment may have persisted a bookmark before this fix.
+ f.objects.set('backups/pending.json',JSON.stringify({started_at:f.now,bookmark:'expired-bookmark'}));
  let request;await runBackup(f.env,f.now+86490000,async(_u,init)=>{request=JSON.parse(init.body);throw Error('secret-value');});
- assert.equal(request.current_bookmark,'opaque-bookmark');assert.equal(JSON.parse(f.objects.get('backups/status.json')).key,old.key);
+ assert.equal(request.current_bookmark,undefined);assert.equal(JSON.parse(f.objects.get('backups/status.json')).key,old.key);
  assert.ok(!f.objects.get('backups/status.json').includes('secret-value'));
+ await runBackup(f.env,f.now+87300000,f.network);
+ assert.equal((await backupHealth(f.env,f.now+87300000)).status,'ok');
+ assert.equal(f.objects.has('backups/pending.json'),false);
 });
 test('untrusted export URL or oversize SQL never becomes a successful backup',async()=>{
  for(const url of ['https://attacker.example/db.sql','http://export.d1.cloudflare.com/db.sql','https://export.d1.cloudflare.com.attacker.example/db.sql']){
@@ -60,14 +84,13 @@ test('2 GiB shared backup budget retires oldest SQL while retaining the last goo
  await runBackup(f.env,f.now+43200000,f.network);
  assert.equal(f.objects.has('backups/d1/older.sql'),false);assert.equal(f.objects.has(last.key),true);assert.equal((await backupHealth(f.env,f.now+43200000)).status,'ok');
 });
-test('pending export preserves retention failure in public health until cleanup recovers',async()=>{
+test('successful export still exposes retention failure until cleanup recovers',async()=>{
  const f=fixture();await runBackup(f.env,f.now,f.network);
  const expired='backups/d1/expired.sql';f.objects.set(expired,'private SQL');
  f.env.UPLOADS.list=async()=>({objects:[{key:expired,uploaded:new Date(f.now-31*86400000),size:11}],truncated:false});
  const remove=f.env.UPLOADS.delete;f.env.UPLOADS.delete=async()=>{throw Error('synthetic failure');};
- const poll=async()=>Response.json({success:true,result:{status:'active',at_bookmark:'opaque'}});
- await runBackup(f.env,f.now+13*3600000,poll);
+ await runBackup(f.env,f.now+13*3600000,f.network);
  assert.equal((await backupHealth(f.env,f.now+13*3600000)).status,'failed');
- f.env.UPLOADS.delete=remove;await runBackup(f.env,f.now+14*3600000,poll);
+ f.env.UPLOADS.delete=remove;await runBackup(f.env,f.now+14*3600000,f.network);
  assert.equal((await backupHealth(f.env,f.now+14*3600000)).status,'ok');
 });

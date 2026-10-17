@@ -5,8 +5,8 @@ const PENDING = 'backups/pending.json';
 const DAY = 86_400_000;
 const MAX_BYTES = 256 * 1024 * 1024;
 const TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_EXPORT_POLLS = 24;
 type BackupStatus = { key?: string; sha256?: string; bytes?: number; snapshot_at?: number; completed_at?: number; failed?: boolean; retention_failed?: boolean };
-type Pending = { started_at: number; bookmark?: string };
 async function read<T>(env: Env, key: string): Promise<T | null> {
   const object = await env.UPLOADS?.get(key);
   return object ? object.json<T>() : null;
@@ -19,7 +19,7 @@ export async function backupHealth(env: Env, now = Date.now()) {
     return { status: state?.failed || state?.retention_failed ? 'failed' : last === null ? 'missing' : now - last > DAY ? 'stale' : 'ok', last_success_at: last };
   } catch { return { status: 'unavailable', last_success_at: null }; }
 }
-/** One bounded export/poll per cron. Start twice daily to leave retry margin for the 24h RPO. */
+/** D1 cancels exports that are not continuously polled. Bound each attempt, not each cron poll. */
 export async function runBackup(env: Env, now = Date.now(), network: typeof fetch = fetch) {
   if (!env.UPLOADS) return;
   let previous: BackupStatus | null;
@@ -41,23 +41,27 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
   }
   try {
     if (!/^[a-f0-9]{32}$/.test(env.BACKUP_ACCOUNT_ID ?? '') || !/^[a-f0-9-]{36}$/.test(env.BACKUP_DATABASE_ID ?? '') || !env.D1_BACKUP_API_TOKEN) throw Error('BACKUP_CONFIGURATION');
-    let pending = await read<Pending>(env, PENDING);
-    if (!pending || now - pending.started_at > DAY) pending = { started_at: now };
-    const api = await network(`https://api.cloudflare.com/client/v4/accounts/${env.BACKUP_ACCOUNT_ID}/d1/database/${env.BACKUP_DATABASE_ID}/export`, {
-      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30_000),
-      headers: { authorization: `Bearer ${env.D1_BACKUP_API_TOKEN}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ output_format: 'polling', ...(pending.bookmark ? { current_bookmark: pending.bookmark } : {}) }),
-    });
-    if (!api.ok) throw Error('BACKUP_EXPORT');
-    const data = await api.json() as { success: boolean; result: { success?: boolean; status?: string; at_bookmark?: string; error?: string; result?: { signed_url?: string } } };
-    if (!data.success || data.result.success === false || data.result.error || data.result.status === 'error') throw Error('BACKUP_EXPORT');
-    if (data.result.status !== 'complete') {
+    // A bookmark from an earlier cron has already expired; start a fresh export.
+    // Like Wrangler, poll again as soon as D1 responds, without a 15-minute gap.
+    const deadline = AbortSignal.timeout(120_000);
+    let bookmark: string | undefined, signedUrl: string | undefined;
+    for (let attempt = 0; attempt < MAX_EXPORT_POLLS; attempt++) {
+      deadline.throwIfAborted();
+      const api = await network(`https://api.cloudflare.com/client/v4/accounts/${env.BACKUP_ACCOUNT_ID}/d1/database/${env.BACKUP_DATABASE_ID}/export`, {
+        method: 'POST', redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(30_000)]),
+        headers: { authorization: `Bearer ${env.D1_BACKUP_API_TOKEN}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ output_format: 'polling', ...(bookmark ? { current_bookmark: bookmark } : {}) }),
+      });
+      if (!api.ok) throw Error('BACKUP_EXPORT');
+      const data = await api.json() as { success: boolean; result: { success?: boolean; status?: string; at_bookmark?: string; error?: string; result?: { signed_url?: string } } };
+      deadline.throwIfAborted();
+      if (!data.success || data.result.success === false || data.result.error || data.result.status === 'error') throw Error('BACKUP_EXPORT');
+      if (data.result.status === 'complete') { signedUrl = data.result.result?.signed_url; break; }
       if (!data.result.at_bookmark || data.result.at_bookmark.length > 512) throw Error('BACKUP_EXPORT');
-      await env.UPLOADS.put(PENDING, JSON.stringify({ ...pending, bookmark: data.result.at_bookmark }));
-      await env.UPLOADS.put(STATUS, JSON.stringify({ ...previous, retention_failed: retentionFailed }));
-      return;
+      bookmark = data.result.at_bookmark;
     }
-    const url = new URL(data.result.result?.signed_url ?? '');
+    if (!signedUrl) throw Error('BACKUP_EXPORT_INCOMPLETE');
+    const url = new URL(signedUrl);
     if (url.protocol !== 'https:' || url.username || url.password || url.port || !(url.hostname === '1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com')) throw Error('BACKUP_URL');
     const response = await network(url.href, { redirect: 'error', signal: AbortSignal.timeout(60_000) });
     if (!response.ok || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) throw Error('BACKUP_DOWNLOAD');
@@ -72,11 +76,11 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
       await env.UPLOADS.delete(object.key); total -= object.size;
     }
     if (total + length > TOTAL_BYTES) throw Error('BACKUP_STORAGE_BUDGET');
-    const key = `backups/d1/${new Date(pending.started_at).toISOString().replaceAll(':', '-')}-${crypto.randomUUID()}.sql`;
+    const key = `backups/d1/${new Date(now).toISOString().replaceAll(':', '-')}-${crypto.randomUUID()}.sql`;
     const stream = new FixedLengthStream(length);
     const reader = response.body.getReader(), writer = stream.writable.getWriter();
     const hash = createHash('sha256'); let received = 0;
-    const stored = env.UPLOADS.put(key, stream.readable, { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: 'application/sql' }, customMetadata: { snapshot_at: String(pending.started_at) } });
+    const stored = env.UPLOADS.put(key, stream.readable, { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: 'application/sql' }, customMetadata: { snapshot_at: String(now) } });
     const pumping = (async () => {
       while (true) {
         const { value, done } = await reader.read(); if (done) break;
@@ -96,7 +100,7 @@ export async function runBackup(env: Env, now = Date.now(), network: typeof fetc
     } finally { reader.releaseLock(); writer.releaseLock(); }
     const sha256 = hash.digest('hex');
     // Publish the pointer only after the complete SQL object is durable.
-    await env.UPLOADS.put(STATUS, JSON.stringify({ key, sha256, bytes: length, snapshot_at: pending.started_at, completed_at: now, failed: false, retention_failed: retentionFailed }));
+    await env.UPLOADS.put(STATUS, JSON.stringify({ key, sha256, bytes: length, snapshot_at: now, completed_at: Date.now(), failed: false, retention_failed: retentionFailed }));
     try { await env.UPLOADS.delete(PENDING); } catch { console.error('BACKUP_BOOKMARK_CLEANUP_RETRY'); }
   } catch {
     console.error("BACKUP_FAILED");

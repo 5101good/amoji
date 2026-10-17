@@ -1,6 +1,6 @@
 # Amoji
 
-[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 1.0](https://github.com/5101good/amoji/releases/tag/v1.0.0)
+[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 1.1](https://github.com/5101good/amoji/releases/tag/v1.1.0)
 
 **人机协作，也需要表情。**
 
@@ -11,6 +11,10 @@ AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励�
   <img src="assets/samples/source/wry.png" alt="挠头苦笑" width="140" />
   <img src="assets/samples/encourage-poster.png" alt="给你加油" width="140" />
 </p>
+
+## 场景包市场
+
+1.1 新增[审核制市场](https://amoji.ai-web.ai)、三套场景包、可选的一次性协作提示与两种会话规则。在 dsh「表情 → 市场」安装；安装不会自动启用动作。参阅[运营与恢复说明](docs/marketplace-operations.md)。
 
 ## 为什么我们需要它
 
@@ -77,20 +81,20 @@ Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**1.0
 已经在使用 dsh 的 `web` profile，可以直接安装公开发布包，然后重启该 profile：
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 需要独立 profile 或先核验下载文件时：
 
 1. 使用 Node.js **24 或更新版本**。当前验证基线为 **dsh 0.1.5-rc.2 / macOS arm64**。
-2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-1.0.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
+2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-1.1.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
 3. 安装到自己的 dsh profile，重启该 profile，选择工作区后打开输入区的“表情”。
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 

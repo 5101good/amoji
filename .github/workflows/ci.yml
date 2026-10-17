@@ -28,14 +28,26 @@ jobs:
           package-manager-cache: false
       - name: Install locked dependencies
         run: npm ci --registry=https://registry.npmjs.org
+      - name: Install marketplace locked dependencies
+        working-directory: apps/marketplace
+        run: npm ci --registry=https://registry.npmjs.org
       - name: Typecheck
         run: npm run typecheck
       - name: Audit locked dependencies
+        run: npm audit --audit-level=low --registry=https://registry.npmjs.org
+      - name: Audit marketplace locked dependencies
+        working-directory: apps/marketplace
         run: npm audit --audit-level=low --registry=https://registry.npmjs.org
       - name: Core tests
         run: npm test
       - name: Build plugin and test published dsh contracts
         run: npm run test:dsh
+      - name: Verify marketplace runtime and web application
+        working-directory: apps/marketplace
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
       - name: Build and exercise portable Claude Mods package
         run: npm run test:claude-artifact
       - name: Validate and test Mods with pinned official Claude Code

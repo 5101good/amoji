@@ -13,6 +13,7 @@ import { pipeline } from "node:stream/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { ZipFile } from "yazl";
+import { API_VERSION, DATABASE_VERSION } from "../dist/src/shared-contract.js";
 
 const root = resolve(import.meta.dirname, "..");
 export async function buildClaudeMods(
@@ -124,8 +125,8 @@ export async function buildClaudeMods(
     dependencyLockSha256: createHash("sha256")
       .update(await readFile(join(plugin, "runtime/package-lock.json")))
       .digest("hex"),
-    serviceApi: 2,
-    databaseVersion: 4,
+    serviceApi: API_VERSION,
+    databaseVersion: DATABASE_VERSION,
     requiredCapabilities: [
       "session-bindings-v1",
       "create-drafts-v1",

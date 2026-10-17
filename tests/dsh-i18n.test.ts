@@ -89,3 +89,30 @@ test('apply注册原生amoji词典和locale seats，宿主user renderer保持原
  assert.equal(locale.bind('amoji')('表情'),'Expressions');assert.equal(locale.getLocale().active,'en');
  cleanup.forEach(fn=>fn());assert.equal(locale.bind('amoji')('表情'),'表情');assert.equal(core.entriesOfSlot('conversation.chat.node')[0]!.component,original);
 });
+test('发布向导中文状态、许可占位、中英切换与步骤焦点保留',async t=>{
+ const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
+ const manifest={name:'固定包名',release_id:'local',rights:{license:'仅供个人使用'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:1,state:'draft',source_release_id:'local',manifest};
+ const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string,args:any)=>{if(method==='loginStatus')return{state:'signed_out'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1,step:args.step};return d;}throw Error(method);}} as unknown as DshRpc;
+ await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));assert.match(f.dom.window.document.body.textContent!,/编辑中/);assert.doesNotMatch(f.dom.window.document.body.textContent!,/· draft/);
+ await act(async()=>f.button('恢复发布草稿').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 2：说明与许可');assert.ok([...f.dom.window.document.querySelectorAll('option')].some(o=>o.selected&&o.textContent==='请选择允许公开分发的许可'));
+ await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选动作');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional actions/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
+});
+test('发布网络与授权错误按当前英文locale显示，原始诊断单独保留',async t=>{
+ const f=await fixture(t);await act(()=>f.locale.setLocale('en'));
+ for(const code of ['PUBLISHER_OFFLINE','PUBLISHER_LOGIN','UNAUTHENTICATED','POLL_TOO_FAST']){
+  await f.render(React.createElement(Conflict,{error:Object.assign(new Error('发布诊断'),{code})}));
+  assert.doesNotMatch(f.dom.window.document.querySelector('[role="alert"]')!.querySelector('p')!.textContent!,/发布诊断/);
+ }
+});
+test('上传响应丢失后立即重读持久草稿并呈现恢复原上传',async t=>{
+ const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
+ const manifest={name:'selected',release_id:'local',rights:{license:'CC0-1.0'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:3,state:'draft',source_release_id:'local',manifest};
+ const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string)=>{if(method==='loginStatus')return{state:'authenticated'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1};return d;}if(method==='upload'){d={...d,state:'uploading',version:d.version+1};throw Object.assign(Error('断网'),{code:'PUBLISHER_OFFLINE'});}throw Error(method);}} as unknown as DshRpc;
+ await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));await act(async()=>f.button('恢复发布草稿').click());await act(async()=>f.button('上传并校验所选内容').click());assert.ok(f.button('恢复原上传'));assert.equal(f.button('上传并校验所选内容'),undefined);
+});
+test('显式重试丢响应后恢复最新unknown状态且英文处理中提示完整',async t=>{
+ const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);await act(()=>f.locale.setLocale('en'));
+ const manifest={name:'selected',release_id:'local',rights:{license:'CC0-1.0'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:3,state:'unknown',unknown_absent:true,source_release_id:'local',manifest};let finish!:()=>void;const waiting=new Promise<void>(r=>{finish=r;});
+ const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string)=>{if(method==='loginStatus')return{state:'authenticated'};if(method==='drafts')return[d];if(method==='retrySubmit'){d={...d,unknown_absent:undefined};await waiting;throw Object.assign(Error('断网'),{code:'PUBLISHER_OFFLINE'});}throw Error(method);}} as unknown as DshRpc;
+ await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));await act(async()=>f.button('Resume publishing draft').click());await act(async()=>f.button('Explicitly retry the same submission operation').click());const englishBusy=f.dom.window.document.body.textContent!.includes('Working…');await act(async()=>{finish();await waiting;});assert.ok(englishBusy);assert.equal(f.button('Explicitly retry the same submission operation'),undefined);
+});

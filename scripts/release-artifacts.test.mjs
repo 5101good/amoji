@@ -13,7 +13,7 @@ test('release rejects stale or mismatched tags and allows branch validation', ()
 
 test('public files reject local paths, credentials, private files and native binaries', () => {
   validatePublicFile('runtime/host.js', Buffer.from('const home = process.env.HOME;'));
-  for (const path of ['.env', 'web/.npmrc', 'runtime/state.sqlite', 'runtime/private.pem', 'runtime/sharp.node', 'node_modules/test.js']) {
+  for (const path of ['.env', 'web/.npmrc', 'runtime/state.sqlite', 'runtime/private.pem', 'runtime/sharp.node', 'node_modules/test.js', 'task/internal.md', 'knowledge/decision.md', 'superteam.yaml']) {
     assert.throws(() => validatePublicFile(path, Buffer.from('')));
   }
   for (const content of ['/Users/example/private/file', '/home/example/work/file', 'C:\\Users\\example\\private', `ghp_${'x'.repeat(36)}`, '-----BEGIN PRIVATE KEY-----']) {

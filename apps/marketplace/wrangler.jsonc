@@ -1,0 +1,70 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "amoji-marketplace",
+  "main": "dist/worker.js",
+  "no_bundle": true,
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
+  ],
+  "find_additional_modules": true,
+  "durable_objects": {
+    "bindings": [{ "name": "FREE_RUNTIME", "class_name": "FreeRuntime" }],
+  },
+  "migrations": [
+    { "tag": "free-runtime-v1", "new_sqlite_classes": ["FreeRuntime"] },
+  ],
+  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "amoji-uploads-v0" }],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "compatibility_date": "2026-09-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/public",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/v1/*"],
+  },
+  "vars": {
+    "APP_ORIGIN": "http://localhost:8787",
+    "LOCAL_TEST": "true",
+    "UPLOAD_ENABLED": "false",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "amoji-marketplace",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "traces": { "enabled": true },
+  },
+  "env": {
+    "production": {
+      "name": "amoji-auth-v0",
+      "routes": [{ "pattern": "amoji.ai-web.ai", "custom_domain": true }],
+      "vars": {
+        "APP_ORIGIN": "https://amoji.ai-web.ai",
+        "BACKUP_ACCOUNT_ID": "5e76b121867f4d57af8fb17fd0afbcfb",
+        "BACKUP_DATABASE_ID": "be637e12-8314-4926-8354-de444558b7b2",
+        "UPLOAD_ENABLED": "false",
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "FREE_RUNTIME", "class_name": "FreeRuntime" }],
+      },
+      "r2_buckets": [
+        { "binding": "UPLOADS", "bucket_name": "amoji-uploads-v0" },
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "amoji-auth-v0",
+          "database_id": "be637e12-8314-4926-8354-de444558b7b2",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+  },
+}

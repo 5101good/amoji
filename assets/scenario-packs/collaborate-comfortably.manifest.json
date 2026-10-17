@@ -1,0 +1,347 @@
+{
+  "kind": "amoji.pack",
+  "schema_version": "0.2",
+  "pack_id": "f664e22a-f6b9-4325-8b3b-2f3580f65095",
+  "release_id": "70c7a2f2-e9d9-4c35-8490-a532e3725418",
+  "version": 2,
+  "name": "轻松一点合作 / Collaborate comfortably",
+  "created_at": "2026-10-11T00:00:00Z",
+  "scenario": [
+    "感谢",
+    "支持",
+    "不确定",
+    "thanks",
+    "support",
+    "uncertainty"
+  ],
+  "expressions": [
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "0df6f317-c37e-4370-a5c2-a82fbd0b143b",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "辛苦了",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我看到了你为这件事投入的时间和努力，辛苦了。",
+        "tone": "体谅、真诚",
+        "fallback": "[辛苦了]",
+        "use_when": [
+          "AI回应用户已经表达或可见的付出、疲惫和努力"
+        ],
+        "avoid_when": [
+          "不了解情况就假定用户疲惫或经历了痛苦",
+          "居高临下评价用户，或用安慰替代具体帮助"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "辛苦了",
+        "人与AI协作",
+        "AI回应",
+        "辛苦",
+        "努力",
+        "体谅",
+        "疲惫",
+        "付出",
+        "amoji:appearance:classic",
+        "amoji:family:effort"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "bf6416705df48c0cd1a1db2e9550e6852818ba113988974cfa50b7d85ea4a4aa",
+          "mime": "image/png",
+          "bytes": 170891,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "80ea66b4-4d32-4d41-9f29-f9d16db51b83"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "8890e47c-aef0-4e9c-98b4-017892c2aa02",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "不客气",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "你的感谢我收到了，能帮上忙就好。",
+        "tone": "自然、温暖",
+        "fallback": "[不客气]",
+        "use_when": [
+          "AI回应用户的感谢，轻松表达不客气"
+        ],
+        "avoid_when": [
+          "把收到感谢误解为新的任务授权",
+          "用户在投诉或表达不满时机械回应"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "不客气",
+        "人与AI协作",
+        "AI回应",
+        "回应感谢",
+        "帮上忙",
+        "amoji:appearance:classic",
+        "amoji:family:welcome"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "a34a2b50daafd514f9d9411a677c096f69f58f9c3b40e82dcbe1bfe19054bb67",
+          "mime": "image/png",
+          "bytes": 155505,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "1bd72135-7eca-41c8-a840-7e0e75c30780"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "e2d70147-1994-4fd0-af2f-005876f4eb46",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "暂时没把握",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "目前的信息或证据还不足，我暂时不能给出有把握的判断。",
+        "tone": "坦诚、审慎",
+        "fallback": "[暂时没把握]",
+        "use_when": [
+          "AI需要明确表达证据不足、还不确定或判断有保留"
+        ],
+        "avoid_when": [
+          "明明已有可靠依据却回避回答",
+          "不能把猜测包装成事实，也不能代替说明不确定在哪里"
+        ]
+      },
+      "tags": [
+        "协作:澄清",
+        "暂时没把握",
+        "人与AI协作",
+        "AI回应",
+        "不确定",
+        "证据不足",
+        "没把握",
+        "坦诚",
+        "amoji:appearance:classic",
+        "amoji:family:uncertain"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "fe5ad028eba0106abee782e11cac1ecc7517f389ccb6cc8f395a43da81cb691d",
+          "mime": "image/png",
+          "bytes": 163370,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "57457a35-aea7-4631-857f-39f0b040ac9c"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "ac6a6567-bf06-4595-8560-d776a738f466",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "辛苦了",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我看到了你为这件事投入的时间和努力，辛苦了。",
+        "tone": "体谅、真诚",
+        "fallback": "[辛苦了]",
+        "use_when": [
+          "AI回应用户已经表达或可见的付出、疲惫和努力"
+        ],
+        "avoid_when": [
+          "不了解情况就假定用户疲惫或经历了痛苦",
+          "居高临下评价用户，或用安慰替代具体帮助"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "辛苦了",
+        "人与AI协作",
+        "AI回应",
+        "辛苦",
+        "努力",
+        "体谅",
+        "疲惫",
+        "付出",
+        "amoji:appearance:office",
+        "amoji:family:effort"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "221adb9ebb8724021e8123bfe099e7068450f3424867cae68091c52c32eac08f",
+          "mime": "image/png",
+          "bytes": 119497,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "a432b9fc-c4d9-4229-bee4-2d1d448bc229"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "2d2249ca-0b83-4fdc-87f7-840491613974",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "不客气",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "你的感谢我收到了，能帮上忙就好。",
+        "tone": "自然、温暖",
+        "fallback": "[不客气]",
+        "use_when": [
+          "AI回应用户的感谢，轻松表达不客气"
+        ],
+        "avoid_when": [
+          "把收到感谢误解为新的任务授权",
+          "用户在投诉或表达不满时机械回应"
+        ]
+      },
+      "tags": [
+        "协作:反馈",
+        "不客气",
+        "人与AI协作",
+        "AI回应",
+        "回应感谢",
+        "帮上忙",
+        "amoji:appearance:office",
+        "amoji:family:welcome"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "a5a81e43f62bfa80a8eaff1c1c5a38ac3517bc67f9ed98e6766a3d1d5fae30bc",
+          "mime": "image/png",
+          "bytes": 111957,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "30ff9c57-e557-478f-9f10-0ffecbe454da"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "8c5f73eb-ec46-4076-b830-65b6a780dd94",
+      "created_at": "2026-09-21T00:00:00Z",
+      "name": "暂时没把握",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "目前的信息或证据还不足，我暂时不能给出有把握的判断。",
+        "tone": "坦诚、审慎",
+        "fallback": "[暂时没把握]",
+        "use_when": [
+          "AI需要明确表达证据不足、还不确定或判断有保留"
+        ],
+        "avoid_when": [
+          "明明已有可靠依据却回避回答",
+          "不能把猜测包装成事实，也不能代替说明不确定在哪里"
+        ]
+      },
+      "tags": [
+        "协作:澄清",
+        "暂时没把握",
+        "人与AI协作",
+        "AI回应",
+        "不确定",
+        "证据不足",
+        "没把握",
+        "坦诚",
+        "amoji:appearance:office",
+        "amoji:family:uncertain"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "f8bb8ba787b36667c6b32513636ee88301df1fbc463ed61e7f4316304007ec25",
+          "mime": "image/png",
+          "bytes": 108801,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji contributors",
+        "source": "Original Codex imagegen character; assets/base-library/provenance.json"
+      },
+      "revision_id": "e2655f37-504b-42f6-938d-8cc9276f222f"
+    }
+  ],
+  "defaults": [
+    {
+      "asset_id": "0df6f317-c37e-4370-a5c2-a82fbd0b143b",
+      "revision_id": "80ea66b4-4d32-4d41-9f29-f9d16db51b83"
+    },
+    {
+      "asset_id": "8890e47c-aef0-4e9c-98b4-017892c2aa02",
+      "revision_id": "1bd72135-7eca-41c8-a840-7e0e75c30780"
+    },
+    {
+      "asset_id": "e2d70147-1994-4fd0-af2f-005876f4eb46",
+      "revision_id": "57457a35-aea7-4631-857f-39f0b040ac9c"
+    },
+    {
+      "asset_id": "ac6a6567-bf06-4595-8560-d776a738f466",
+      "revision_id": "a432b9fc-c4d9-4229-bee4-2d1d448bc229"
+    },
+    {
+      "asset_id": "2d2249ca-0b83-4fdc-87f7-840491613974",
+      "revision_id": "30ff9c57-e557-478f-9f10-0ffecbe454da"
+    },
+    {
+      "asset_id": "8c5f73eb-ec46-4076-b830-65b6a780dd94",
+      "revision_id": "e2655f37-504b-42f6-938d-8cc9276f222f"
+    }
+  ],
+  "actions": [],
+  "bindings": [],
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "assets/base-library/provenance.json; assets/scenario-packs/README.md"
+  },
+  "styles": [
+    "classic",
+    "office"
+  ],
+  "description": "原始固定语义语言为中文；双语说明不改写语义。动作可选，仅是提示，不保证模型遵从。一次提示用于关联回合，会话规则可随时关闭；关闭不删除历史。新会话不继承规则，AI 发送表情不会启用绑定动作。 / Original fixed semantics are Chinese; bilingual descriptions do not rewrite them. Optional actions are guidance, not enforcement. One-time guidance applies to its linked turn; conversation rules can be disabled without erasing history. New conversations do not inherit rules; AI-sent expressions never activate bindings.",
+  "examples": [
+    "示例 / Example: 人→AI / Human→AI：「辛苦了」认可投入，可以只表达感谢。 “Thanks for the effort” acknowledges effort without requesting an action.",
+    "示例 / Example: AI→人 / AI→Human：「不客气」自然回应感谢；「暂时没把握」坦诚不确定，不替代必要的查证。 “You are welcome” responds to thanks; “Unsure for now” admits uncertainty without replacing needed verification."
+  ]
+}

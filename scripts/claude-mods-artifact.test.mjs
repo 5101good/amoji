@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { spawn, execFileSync } from "node:child_process";
 import { inspectClaudeArchive } from "./append-claude-release.mjs";
 import { buildClaudeMods } from "./build-claude-mods.mjs";
@@ -18,7 +19,19 @@ const root = resolve(import.meta.dirname, "..");
 
 test("可安装包包含生成 hooks、锁定运行时、许可和共享素材，不内嵌依赖或个人配置", async (t) => {
   const out = await mkdtemp(join(tmpdir(), "amoji-mods-package-"));
-  t.after(() => rm(out, { recursive: true, force: true }));
+  const data = join(out, "test-data");
+  t.after(async () => {
+    // Own shutdown explicitly, including when an assertion fails. Do not race
+    // a short idle timer or remove files while this private service is writing.
+    const { stopSharedService } = await import("../dist/src/shared-client.js");
+    try {
+      const identity = JSON.parse(await readFile(join(data, "service.json"), "utf8"));
+      await stopSharedService(data, identity.serviceId);
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+    await rm(out, { recursive: true, force: true });
+  });
   const result = await buildClaudeMods(out);
   const contents = await inspectClaudeArchive(result.archive);
   const extracted = join(out, "extracted");
@@ -63,6 +76,9 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
   assert.equal(build.runtimeDependenciesEmbedded, false);
   assert.ok(build.dependencies.length > 0);
   const runtime = join(plugin, "runtime");
+  const contract = await import(pathToFileURL(join(runtime, "src/shared-contract.js")));
+  assert.equal(build.serviceApi, contract.API_VERSION, "BUILD must describe the packaged service API");
+  assert.equal(build.databaseVersion, contract.DATABASE_VERSION, "BUILD must describe the packaged database version");
   execFileSync(
     process.execPath,
     [
@@ -75,7 +91,6 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     ],
     { cwd: runtime, stdio: "pipe" },
   );
-  const data = join(out, "test-data");
   const response = await new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -84,7 +99,7 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
         env: {
           ...process.env,
           AMOJI_DATA_DIR: data,
-          AMOJI_SERVICE_IDLE_MS: "100",
+          AMOJI_SERVICE_IDLE_MS: "60000",
         },
         stdio: ["pipe", "pipe", "pipe"],
       },
@@ -121,16 +136,6 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     assert.equal(item.preview, `data:image/avif;base64,${pixels.toString("base64")}`);
   }
   await assert.rejects(stat(join(data, "cache/claude-mods-previews")), { code: "ENOENT" });
-  // Let only this private service release its DB before the temporary package is removed.
-  const { stopSharedService } = await import("../dist/src/shared-client.js");
-  try {
-    const identity = JSON.parse(
-      await readFile(join(data, "service.json"), "utf8"),
-    );
-    await stopSharedService(data, identity.serviceId);
-  } catch (e) {
-    if (e.code !== "ENOENT") throw e;
-  }
   assert.ok(result.archive.endsWith(".zip"));
 });
 

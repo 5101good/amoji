@@ -10,11 +10,11 @@
 
 ## 安装发布包
 
-从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-1.0.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
+从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-1.1.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -27,7 +27,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 已有 `web` profile 的用户也可以直接安装版本固定的发布包：
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 安装后重启该 profile。下载和安装不需要 GitHub 登录，也不需要单独的 Amoji API Key。已有 dsh CLI 时使用 `dsh`；否则替换为 `npx @deepseek-ai/dsh@0.1.5-rc.2`。
@@ -38,7 +38,7 @@ dsh plugin --profile web add https://github.com/5101good/amoji/releases/download
 
 市场条目必须使用预构建 Release 包。仓库根包用于开发，`adapters/dsh` 源码目录也不包含所有生成文件；不要把根仓库 Git URL 当作可直接安装的插件。
 
-当前条目固定到 v1.0.0，不承诺市场自动升级。新版本发布后需更新目录中的 tarball 链接，并验证更新安装。请勿把 `releases/latest/download/` 与带旧版本号的文件名组合使用。
+第三方目录可能仍固定到旧版本，不承诺市场自动升级。新版本发布后需由目录维护者更新 tarball 链接，并验证更新安装；GitHub 发行不代表目录已更新。请勿把 `releases/latest/download/` 与带旧版本号的文件名组合使用。
 
 ## 从源码构建
 
@@ -53,7 +53,7 @@ mkdir -p .local/release
 npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ```
 
-`test:dsh` 包含 `build:dsh` 与固定公开合同准备。只构建可运行 `npm run build:dsh`。`npm pack` 的文件名由 `adapters/dsh/package.json` 决定；1.0.0 为 `amoji-dsh-1.0.0.tgz`。安装自己刚生成的文件，而非旧缓存包。源码依赖由根目录 `package-lock.json` 锁定，宿主安装后的实际依赖由其 profile 锁文件记录。
+`test:dsh` 包含 `build:dsh` 与固定公开合同准备。只构建可运行 `npm run build:dsh`。`npm pack` 的文件名由 `adapters/dsh/package.json` 决定；1.1.0 为 `amoji-dsh-1.1.0.tgz`。安装自己刚生成的文件，而非旧缓存包。源码依赖由根目录 `package-lock.json` 锁定，宿主安装后的实际依赖由其 profile 锁文件记录。
 
 ## 数据与备份
 

@@ -1,10 +1,12 @@
+import { LocalAcquisition } from './local-acquisition.js';
+import { actionSelection } from './collaboration.js';
 import { createServer, type ServerResponse, type IncomingMessage } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { API_VERSION, DATABASE_VERSION, SESSION_BINDINGS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { COLLABORATION_CAPABILITY, API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, SESSION_BINDINGS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -14,7 +16,7 @@ import { draftVersion } from './drafts.js';
 interface Connection { response: ServerResponse; bindings: Map<string, BindingContext>; heartbeat: NodeJS.Timeout }
 
 /** A kernel-held SQLite EXCLUSIVE lock elects the sole writer, including during startup. */
-export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void> }> {
+export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void>; closed: Promise<void> }> {
   if (!Number.isFinite(heartbeatMs) || heartbeatMs < 10 || heartbeatMs > 60000) fail('INVALID_ARGUMENT', '保活间隔必须在10–60000毫秒内');
   process.umask(0o077);
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -26,13 +28,18 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   let store: LibraryStore;
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [SESSION_BINDINGS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji.ai-web.ai');
+  void marketplace.refreshRevocations({});
+  const revocationTimer=setInterval(()=>void marketplace.refreshRevocations({}),15*60*1000);revocationTimer.unref();
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [SESSION_BINDINGS_CAPABILITY, 'marketplace-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
   selectionCleanup.unref();
   let timer: NodeJS.Timeout | undefined;
   let closing: Promise<void> | undefined;
+  let didClose!: () => void;
+  const closed = new Promise<void>(resolve => { didClose = resolve; });
   let shuttingDown = false;
   const http = createServer((req, res) => { void handle(req, res).catch(error => {
     json(res, error instanceof ServiceError ? 400 : 500, { code: error instanceof ServiceError ? error.code : 'SERVICE_ERROR', error: error instanceof Error ? error.message : '服务操作失败', ...(error instanceof ServiceError && error.current !== undefined ? { current: error.current } : {}) });
@@ -52,6 +59,8 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     closing = (async () => {
       clearTimeout(timer);
       clearInterval(selectionCleanup);
+      clearInterval(revocationTimer);
+      await marketplace.stop();
       for (const id of connections.keys()) disconnect(id);
       http.closeAllConnections();
       await new Promise<void>(resolve => http.close(() => resolve()));
@@ -60,6 +69,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
         if (current.serviceId === descriptor.serviceId) await rm(join(directory, 'service.json'));
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       finally { store.close(); lock.close(); }
+      didClose();
     })();
     return closing;
   }
@@ -87,11 +97,15 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       res.write(`${JSON.stringify({ connectionId: id })}\n`);
       res.once('close', () => disconnect(id)); return;
     }
-    if (req.method === 'POST' && ['/packs/import', '/packs/export'].includes(url.pathname)) {
+    if (req.method === 'POST' && ['/packs/import', '/packs/export', '/packs/scenario-export'].includes(url.pathname)) {
       if (!connections.has(String(req.headers['x-amoji-connection'] ?? ''))) fail('CONNECTION_CLOSED', '适配器连接已失效');
       if (url.pathname === '/packs/import') {
         if (req.headers['content-type'] !== 'application/zip') fail('INVALID_ARGUMENT', '需要 ZIP 文件');
         json(res, 200, { result: await store.importPack(req) });
+      } else if(url.pathname==='/packs/scenario-export'){
+        const args=object(await readJson(req),['release_id','expressions_only']);if(typeof args.expressions_only!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
+        const bytes=await store.exportScenarioPack(nonempty(args.release_id),args.expressions_only);
+        res.writeHead(200,{'Content-Type':'application/zip','Content-Length':bytes.length,'Cache-Control':'no-store'});res.end(bytes);
       } else {
         const args = object(await readJson(req), ['refs', 'name']);
         if (!Array.isArray(args.refs) || args.refs.length > 200) fail('INVALID_ARGUMENT', '需要有界确定版本列表');
@@ -117,6 +131,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     const context = (args: Record<string, unknown>): BindingContext => connection.bindings.get(nonempty(args.binding)) ?? fail('BINDING_UNAVAILABLE', '当前连接没有此绑定');
     let result: unknown;
     switch (method) {
+      case 'marketplace': {const a=object(value,['method','args']);const method=nonempty(a.method);if(!['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual','refreshRevocations'].includes(method))fail('INVALID_ARGUMENT','未知市场操作');result=await marketplace[method as 'search'](a.args);break;}
       case 'issueClaudeTicket': result = claudeTickets.issue(value); break;
       case 'redeemClaudeTicket': result = claudeTickets.redeem(value); break;
       case 'close': object(value, []); json(res, 200, { result: null }); disconnect(connectionId); return;
@@ -126,6 +141,14 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
+      case 'createScenarioDraft':{const args=object(value,['refs']);if(!Array.isArray(args.refs))fail('INVALID_ARGUMENT','需要版本列表');result=store.createScenarioDraft(args.refs.map(expressionRef));break;}
+      case 'listScenarioDrafts':object(value,[]);result=store.listScenarioDrafts();break;
+      case 'listScenarioPacks':object(value,[]);result=store.listScenarioPacks();break;
+      case 'getScenarioPack':{const args=object(value,['release_id']);result=store.getScenarioPack(nonempty(args.release_id));break;}
+      case 'getScenarioDraft':{const args=object(value,['draft_id']);result=store.getScenarioDraft(nonempty(args.draft_id));break;}
+      case 'saveScenarioDraft':{const args=object(value,['draft_id','version','manifest']);result=store.saveScenarioDraft(nonempty(args.draft_id),draftVersion(args.version),args.manifest);break;}
+      case 'previewScenarioDraft':
+      case 'confirmScenarioDraft':{const args=object(value,['draft_id','version']);result=await store[method](nonempty(args.draft_id),draftVersion(args.version));break;}
       case 'listRevisions': { const args = object(value, ['asset_id']); result = store.listRevisions(nonempty(args.asset_id)); break; }
       case 'listEntries': object(value, []); result = store.listEntries(); break;
       case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }
@@ -148,9 +171,21 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'emit': { const args = object(value, ['binding', 'selection_token']); result = store.emit(context(args), nonempty(args.selection_token)); break; }
       case 'history': { const args = object(value, ['binding']); result = store.history(context(args)); break; }
       case 'receive': {
-        const args = object(value, ['binding', 'ref', 'send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
-        result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id)); break;
+        const args = object(value, ['binding', 'ref', 'send_request_id', 'action'], ['binding','ref','send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
+        if(args.action!==undefined)await marketplace.refreshRevocations({});
+        result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id), args.action === undefined ? undefined : actionSelection(args.action)); break;
       }
+      case 'ruleChoices': case 'rules': {const args=object(value,['binding']);result=store[method](context(args));break;}
+      case 'changeRules': {const args=object(value,['binding','change']);const change=object(args.change,['kind','generation','selection','replace','checkpoint'],['kind','generation','checkpoint']);
+        if(!['enable','disable','disableAll'].includes(String(change.kind)))fail('INVALID_ARGUMENT','无效规则操作');
+        if(change.selection)change.selection=actionSelection(change.selection);if(change.replace)change.replace=actionSelection(change.replace);
+        if(change.kind==='enable')await marketplace.refreshRevocations({});
+        result=store.changeRules(context(args),change as unknown as import('./conversation-rules.js').RuleChange);break;}
+      case 'removeScenarioPack': {const args=object(value,['release_id']);store.removeScenarioPack(nonempty(args.release_id));result=null;break;}
+      case 'collaborationChoices': { const args=object(value,['binding','ref']); result=store.collaborationChoices(context(args),expressionRef(args.ref)); break; }
+      case 'saveActionIntent': { const args=object(value,['binding','message_id','update']); const update=object(args.update,['status','checkpoint','receipt'],['status']);
+        if(!['prepared','dispatched','bound','attached','failed','cancelled','unknown'].includes(String(update.status)))fail('INVALID_ARGUMENT','无效动作状态');
+        store.saveActionIntent(context(args),nonempty(args.message_id),update as unknown as import('./collaboration.js').ActionIntent);result=null;break; }
       case 'dshAttempted': {
         const args = object(value, ['binding', 'message_id']);
         result = store.dshAttempted(context(args), nonempty(args.message_id)); break;
@@ -176,7 +211,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     const temporary = join(directory, `service-${descriptor.serviceId}.tmp`);
     await writeFile(temporary, JSON.stringify(descriptor), { mode: 0o600 });
     await rename(temporary, join(directory, 'service.json'));
-    armIdle(); return { close };
+    armIdle(); return { close, closed };
   } catch (error) { await close(); throw error; }
 }
 function json(res: ServerResponse, status: number, value: unknown): void {

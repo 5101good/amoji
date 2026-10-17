@@ -2,17 +2,17 @@
 
 [English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-面向人和 AI 的原生表情：人看图，模型读固定语义。1.0.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
+面向人和 AI 的原生表情：人看图，模型读固定语义。1.1.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.0.0.tgz`，在文件所在目录执行：
+从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.1.0.tgz`，在文件所在目录执行：
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -37,3 +37,17 @@ direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具
 代码 MIT；基础素材 CC0-1.0；第三方依赖保留各自许可。参见包内 `LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/` 和 `assets/base-library/`。
 
 完整[安装恢复](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)、[使用](https://github.com/5101good/amoji/blob/main/docs/usage.md)和[已知限制](https://github.com/5101good/amoji/blob/main/docs/release.md)见源码仓库。
+
+### 表情市场
+
+在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装场景包或独立收藏单张表情。安装不会启用动作。检查更新会列出语义和动作差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
+
+Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认正式市场 `https://amoji.ai-web.ai`）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
+
+断网仍可发送已安装或独立收藏的表情。缓存显示上次核对时间；失败安装保留原库，未知结果通过「核对原安装操作」读取原 operation，不能改用新请求盲目重试。
+
+### 从 dsh 投稿
+
+在管理页的「导入与导出」先确认本地场景包，再打开「发布到市场」。向导保存说明、许可和可选动作；纯视觉包可以不带动作。浏览器登录后核对 dsh 显示的设备名称及短码，勾选确认并授权。配对五分钟内有效，取消后需重新开始；无需修改模型设置。
+
+完整预览后上传、校验并明确投稿。结果不明时点击「核对原操作与审核状态」，不要另建投稿。退回理由显示在原草稿；选择修订后的本地包，创建新版本重新审核。断网保留已保存草稿。访问凭据仅保存在当前 dsh profile 的 `plugins/amoji/publisher` 私有目录，不进入网页、包、模型输入或共享库；不要分享该目录。注销设备会撤销授权。

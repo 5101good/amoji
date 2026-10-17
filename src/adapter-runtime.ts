@@ -1,6 +1,7 @@
+import type { ActionSelection, ActionChoice, ActionIntent } from './collaboration.js';
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
+import { COLLABORATION_CAPABILITY, PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, type BindingContext as HostContext } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 import type { SharedClient } from './shared-client.js';
@@ -8,9 +9,13 @@ import type { SharedClient } from './shared-client.js';
 type Awaitable<T> = T | Promise<T>;
 /** Host presentation boundary; supports the ticket-01 fixtures and the shared client. */
 export interface AdapterRuntime {
+  marketplace?: Pick<SharedClient,'marketplace'>;
+  collaboration?: { choices(context:HostContext,ref:ExpressionRef):Promise<ActionChoice[]>; save(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void> };
+  rules?: { choices(context:HostContext):Promise<import('./conversation-rules.js').RuleChoice[]>; read(context:HostContext):Promise<import('./conversation-rules.js').RuleSnapshot>; change(context:HostContext,change:import('./conversation-rules.js').RuleChange):Promise<import('./conversation-rules.js').RuleSnapshot> };
   connectionSignal?: AbortSignal;
   reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
+  scenarios?: Pick<SharedClient,'createScenarioDraft'|'listScenarioDrafts'|'getScenarioDraft'|'saveScenarioDraft'|'previewScenarioDraft'|'confirmScenarioDraft'|'listScenarioPacks'|'getScenarioPack'|'exportScenarioPack'>;
   packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
   management?: Pick<SharedClient, 'listRevisions' | 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
   suggestions?: Pick<SharedClient, 'suggestText'>;
@@ -18,7 +23,7 @@ export interface AdapterRuntime {
   search(context: HostContext, query: string, limit?: number): Awaitable<{ candidates: Candidate[]; policy: string }>;
   emit(context: HostContext, token: string): Awaitable<SampleMessage>;
   messages(context: HostContext): Awaitable<SampleMessage[]>;
-  receive(context: HostContext, ref: ExpressionRef, requestId: string): Awaitable<SampleMessage>;
+  receive(context: HostContext, ref: ExpressionRef, requestId: string, action?: ActionSelection): Awaitable<SampleMessage>;
   dshAttempted?(context: HostContext, messageId: string): Awaitable<boolean>;
   dshAccepted?(context: HostContext, messageId: string): Awaitable<void>;
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback'): Awaitable<void>;
@@ -35,7 +40,15 @@ export class ConnectedRuntime implements AdapterRuntime {
   readonly suggestions;
   readonly management;
   readonly packs;
+  readonly scenarios;
+  readonly marketplace;
+  readonly collaboration;
+  readonly rules;
   constructor(private readonly client: SharedClient) {
+    this.marketplace=client.identity.capabilities?.includes('marketplace-v1')?client:undefined;
+    this.rules=client.identity.capabilities?.includes(COLLABORATION_CAPABILITY)?{choices:(c:HostContext)=>this.withBinding(c,b=>client.ruleChoices(b)),read:(c:HostContext)=>this.withBinding(c,b=>client.rules(b)),change:(c:HostContext,v:import('./conversation-rules.js').RuleChange)=>this.withBinding(c,b=>client.changeRules(b,v))}:undefined;
+    this.collaboration=client.identity.capabilities?.includes(COLLABORATION_CAPABILITY)?{choices:(context:HostContext,ref:ExpressionRef)=>this.withBinding(context,b=>client.collaborationChoices(b,ref)),save:(context:HostContext,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>)=>this.withBinding(context,b=>client.saveActionIntent(b,messageId,update))}:undefined;
+    this.scenarios=client.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)?client:undefined;
     this.packs = client.identity.capabilities?.includes(PACKS_CAPABILITY) ? client : undefined;
     this.management = client.identity.capabilities?.includes(LIBRARY_MANAGEMENT_CAPABILITY) ? client : undefined;
     this.creation = client.identity.capabilities?.includes(CREATE_DRAFT_CAPABILITY) ? client : undefined;
@@ -50,7 +63,7 @@ export class ConnectedRuntime implements AdapterRuntime {
   search(context: HostContext, query: string, limit?: number) { return this.withBinding(context, binding => this.client.search(binding, query, limit)); }
   emit(context: HostContext, token: string) { return this.withBinding(context, binding => this.client.emit(binding, token)); }
   messages(context: HostContext) { return this.withBinding(context, binding => this.client.history(binding)); }
-  receive(context: HostContext, ref: ExpressionRef, requestId: string) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId)); }
+  receive(context: HostContext, ref: ExpressionRef, requestId: string, action?: ActionSelection) { return this.withBinding(context, binding => this.client.receive(binding, ref, requestId, action)); }
   acknowledge(context: HostContext, messageId: string, state: 'rendered' | 'fallback') { return this.withBinding(context, binding => this.client.presentation(binding, messageId, state)); }
   dshAttempted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAttempted(binding, messageId)); }
   dshAccepted(context: HostContext, messageId: string) { return this.withBinding(context, binding => this.client.dshAccepted(binding, messageId)); }

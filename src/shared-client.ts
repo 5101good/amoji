@@ -1,9 +1,12 @@
+import type { ActionSelection, ActionChoice, ActionIntent } from './collaboration.js';
+import type { ScenarioDraft } from './scenario-drafts.js';
+import type { ScenarioPack } from './packs.js';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { API_VERSION, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
+import { API_VERSION, PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
 import type { Expression, ExpressionRef } from './sample-catalog.js';
 import type { Candidate, SampleMessage } from './sample-runtime.js';
 
@@ -138,6 +141,20 @@ export class SharedClient {
   async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
     return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
   }
+  marketplace(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('marketplace-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场');return this.call('marketplace',{method,args},60000);}
+  private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');return this.call(method,params,60000);}
+  createScenarioDraft(refs:ExpressionRef[]):Promise<ScenarioDraft>{return this.scenarioCall('createScenarioDraft',{refs});}
+  listScenarioDrafts():Promise<ScenarioDraft[]>{return this.scenarioCall('listScenarioDrafts',{});}
+  getScenarioDraft(id:string):Promise<ScenarioDraft>{return this.scenarioCall('getScenarioDraft',{draft_id:id});}
+  saveScenarioDraft(id:string,version:number,manifest:ScenarioPack):Promise<ScenarioDraft>{return this.scenarioCall('saveScenarioDraft',{draft_id:id,version,manifest});}
+  previewScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('previewScenarioDraft',{draft_id:id,version});}
+  confirmScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('confirmScenarioDraft',{draft_id:id,version});}
+  listScenarioPacks():Promise<ScenarioPack[]>{return this.scenarioCall('listScenarioPacks',{});}
+  getScenarioPack(releaseId:string):Promise<ScenarioPack>{return this.scenarioCall('getScenarioPack',{release_id:releaseId});}
+  async exportScenarioPack(releaseId:string,expressionsOnly=false):Promise<Buffer>{
+    if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');
+    return Buffer.from(await (await this.packRequest('scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}),'application/json')).arrayBuffer());
+  }
   selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry> {
     if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持包版本选择');
     return this.managementCall('selectRevision', { ref, version });
@@ -175,7 +192,13 @@ export class SharedClient {
   blobPath(digest: string): Promise<string> { return this.call('blobPath', { digest }); }
   search(binding: string, query: string, limit?: number): Promise<{ candidates: Candidate[]; policy: string }> { return this.call('search', { binding, query, ...(limit === undefined ? {} : { limit }) }); }
   emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
-  receive(binding: string, ref: ExpressionRef, requestId: string): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId }); }
+  receive(binding: string, ref: ExpressionRef, requestId: string, action?: ActionSelection): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId, ...(action?{action}:{}) }); }
+  ruleChoices(binding:string):Promise<import('./conversation-rules.js').RuleChoice[]>{return this.call('ruleChoices',{binding});}
+  rules(binding:string):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('rules',{binding});}
+  changeRules(binding:string,change:import('./conversation-rules.js').RuleChange):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('changeRules',{binding,change});}
+  removeScenarioPack(releaseId:string):Promise<void>{return this.call('removeScenarioPack',{release_id:releaseId});}
+  collaborationChoices(binding:string,ref:ExpressionRef):Promise<ActionChoice[]>{return this.call('collaborationChoices',{binding,ref});}
+  saveActionIntent(binding:string,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void>{return this.call('saveActionIntent',{binding,message_id:messageId,update});}
   history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }
   dshAttempted(binding: string, messageId: string): Promise<boolean> { return this.call('dshAttempted', { binding, message_id: messageId }); }
   dshAccepted(binding: string, messageId: string): Promise<void> { return this.call('dshAccepted', { binding, message_id: messageId }); }

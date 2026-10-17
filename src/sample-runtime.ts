@@ -6,6 +6,7 @@ import { buildSearchResult, type SearchCandidate } from './search.js';
 
 interface Selection { context: HostContext; ref: ExpressionRef; expires: number; messageId?: string }
 export interface SampleMessage {
+  action_intent?: import('./collaboration.js').ActionIntent;
   message_id: string;
   binding_id: string;
   direction: 'human_to_ai' | 'ai_to_human';

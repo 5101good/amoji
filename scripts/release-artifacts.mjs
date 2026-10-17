@@ -45,9 +45,10 @@ export function inspectTarball(compressed) {
 }
 
 export function validatePublicFile(path, bytes) {
-  assert.ok(!path.split('/').some(part => part.startsWith('.') || ['node_modules', 'tests', 'samples'].includes(part)), `Private or development path: ${path}`);
+  assert.ok(!path.split('/').some(part => part.startsWith('.') || ['node_modules', 'tests', 'samples', 'task', 'knowledge', 'spec', 'prd', 'result'].includes(part)), `Private or development path: ${path}`);
   assert.ok(!/\.(?:map|sqlite(?:3)?|db|pem|key|node|dylib|so|dll)$/i.test(path), `Unexpected sensitive or native file: ${path}`);
   if (/\.(?:amoji|png|webp|avif|gif|jpg|jpeg|ico|woff2?)$/i.test(path)) return;
+  assert.ok(!/(?:^|\/)(?:superteam\.yaml|AGENTS\.md|CLAUDE\.md|MEMORY\.md)$/i.test(path), `Private project configuration: ${path}`);
   const text = bytes.toString('utf8');
   assert.ok(!/(?:\/Users\/|\/home\/|[A-Z]:\\Users\\)[\w.-]+[\/\\]/i.test(text), `Personal absolute path in ${path}`);
   assert.ok(!/(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{32,})/.test(text), `Credential-like content in ${path}`);
@@ -96,6 +97,18 @@ export async function buildReleaseArtifacts() {
     for (const expression of pack.manifest.expressions) assert.equal(expression.rights.license, 'CC0-1.0', 'Built-in assets must retain their CC0 license');
   });
   await writeFile(resolve(destination, `amoji-base-library-${project.version}.amoji`), baseLibrary);
+  // Publish both explicit formats of the reviewed seed content alongside the
+  // plugin. They contain no profile state and must also meet market budgets.
+  for (const slug of ['make-it-clear', 'work-well-together', 'collaborate-comfortably']) {
+    for (const suffix of ['', '.expressions']) {
+      const bytes = await readFile(resolve(root, `assets/scenario-packs/${slug}${suffix}.amoji`));
+      await withValidatedPack(bytes, async pack => {
+        assert.equal(pack.manifest.schema_version, suffix ? '0.1' : '0.2');
+        for (const e of pack.manifest.expressions) assert.equal(e.rights.license, 'CC0-1.0');
+      }, 'market');
+      await writeFile(resolve(destination, `amoji-${slug}-${project.version}${suffix}.amoji`), bytes);
+    }
+  }
   for (const [source, name] of [['LICENSE', 'LICENSE'], ['NOTICE', 'NOTICE'], ['THIRD_PARTY.json', 'THIRD_PARTY.json'], ['assets/base-library/LICENSE', 'BASE_LIBRARY_LICENSE'], ['assets/base-library/provenance.json', 'BASE_LIBRARY_PROVENANCE.json']]) {
     await writeFile(resolve(destination, name), files.get(source));
   }

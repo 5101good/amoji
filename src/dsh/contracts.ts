@@ -36,14 +36,25 @@ export interface HostPort {
 export type VisualMeta = {
   kind: 'amoji'; messageId: string; ref: { asset_id: string; revision_id: string }; visualHash: string; posterHash: string | null; alt: string;
 }
-export interface HistoryEntry { message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
+export interface HistoryEntry { action?: import('./collaboration-context.js').CollaborationReceipt; message: SampleMessage; meta: VisualMeta; host: { status: 'prepared' | 'unknown' | 'accepted' | 'observed'; requestId: string; hostMessageId?: string; seq?: number; turnStartSeq?: number } | null }
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 export interface DshRpc extends ManagementRpc {
+  publisher?(sessionId:string,method:string,args:unknown):Promise<any>;
+  marketplace?(sessionId:string,method:string,args:unknown):Promise<any>;
+  rules?(sessionId:string):Promise<import('../conversation-rules.js').RuleView>;
+  enableRule?(sessionId:string,selection:import('../collaboration.js').ActionSelection,generation:number,replace:import('../collaboration.js').ActionSelection|null):Promise<import('../conversation-rules.js').RuleView>;
+  disableRule?(sessionId:string,selection:import('../collaboration.js').ActionSelection,generation:number):Promise<import('../conversation-rules.js').RuleView>;
+  disableAllRules?(sessionId:string,generation:number):Promise<import('../conversation-rules.js').RuleView>;
+
   reconnect?(sessionId: string, signal?: AbortSignal): Promise<void>;
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;
   catalog(sessionId: string, signal?: AbortSignal): Promise<Expression[]>;
   search(sessionId: string, query: string, limit?: number, signal?: AbortSignal): Promise<Expression[]>;
   submit(sessionId: string, ref: ExpressionRef, requestId: string, signal?: AbortSignal): Promise<HistoryEntry>;
+  submitWithAction?(sessionId:string,ref:ExpressionRef,actionRef:import('../actions.js').ActionRef,releaseRef:{release_id:string},requestId:string,signal?:AbortSignal):Promise<HistoryEntry>;
+  receipts?(sessionId:string,signal?:AbortSignal):Promise<HistoryEntry[]>;
+  capabilities?(sessionId:string,signal?:AbortSignal):Promise<{supported:boolean;scopes:string[];reason:string|null}>;
+  actions?(sessionId:string,ref:ExpressionRef,signal?:AbortSignal):Promise<import('../collaboration.js').ActionChoice[]>;
   history(sessionId: string, signal?: AbortSignal): Promise<HistoryEntry[]>;
   visual(sessionId: string, ref: ExpressionRef, messageId?: string, signal?: AbortSignal): Promise<VisualData>;
   display(sessionId: string, messageId: string, hash: string, state: 'rendered' | 'fallback' | 'failed', signal?: AbortSignal): Promise<void>;

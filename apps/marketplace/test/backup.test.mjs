@@ -94,3 +94,28 @@ test('successful export still exposes retention failure until cleanup recovers',
  f.env.UPLOADS.delete=remove;await runBackup(f.env,f.now+14*3600000,f.network);
  assert.equal((await backupHealth(f.env,f.now+14*3600000)).status,'ok');
 });
+
+test('private status identifies bounded backup failures without retaining provider messages or credentials',async()=>{
+ const f=fixture();
+ await runBackup(f.env,f.now,async()=>new Response(null,{status:403}));
+ assert.equal(JSON.parse(f.objects.get('backups/status.json')).failure_code,'BACKUP_EXPORT');
+ assert.deepEqual(await backupHealth(f.env,f.now),{status:'failed',last_success_at:null});
+ await runBackup(f.env,f.now,async()=>{throw Error('provider message with secret-token');});
+ assert.equal(JSON.parse(f.objects.get('backups/status.json')).failure_code,'BACKUP_UNEXPECTED');
+ assert.ok(!f.objects.get('backups/status.json').includes('secret-token'));
+ await runBackup(f.env,f.now,f.network);
+ assert.equal(JSON.parse(f.objects.get('backups/status.json')).failure_code,undefined);
+});
+
+test('an unavailable authorization diagnostic preserves the original export failure',async()=>{
+ const f=fixture();
+ await runBackup(f.env,f.now,async(_url,init)=>{
+  if(init.method==='POST')return Response.json({success:false,errors:[{code:10000,message:'private provider message'}]},{status:401});
+  throw Error('diagnostic network error with secret-token');
+ });
+ const status=JSON.parse(f.objects.get('backups/status.json'));
+ assert.equal(status.failure_code,'BACKUP_EXPORT');assert.equal(status.export_status,401);
+ assert.deepEqual(status.export_codes,[10000]);assert.equal(status.auth_read_status,undefined);
+ assert.ok(!f.objects.get('backups/status.json').includes('secret-token'));
+ assert.ok(!f.objects.get('backups/status.json').includes('private provider message'));
+});

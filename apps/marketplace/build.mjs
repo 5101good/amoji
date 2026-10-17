@@ -1,5 +1,6 @@
-import { build } from "esbuild";
-import { mkdir, copyFile, readFile } from "node:fs/promises";
+import { build, transform } from "esbuild";
+import { mkdir, copyFile, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { Ajv2020 } = require("ajv/dist/2020.js");
@@ -61,7 +62,13 @@ await build({
   chunkNames: "chunks/[name]-[hash]",
 });
 await Promise.all(
-  ["index.html", "style.css", "_headers"].map((f) =>
+  ["style.css"].map((f) =>
     copyFile(`web/${f}`, `dist/public/${f}`),
   ),
 );
+// Ship the small shared stylesheet with the document, removing a blocking
+// network round trip before the server-rendered catalog can become visible.
+const { code: css } = await transform(await readFile('web/style.css', 'utf8'), { loader: 'css', minify: true });
+const styleHash = createHash('sha256').update(css).digest('base64');
+await writeFile('dist/public/index.html', (await readFile('web/index.html', 'utf8')).replace('<link rel="stylesheet" href="/style.css" />', () => `<style data-amoji-base>${css}</style>`));
+await writeFile('dist/public/_headers', (await readFile('web/_headers', 'utf8')).replace("style-src 'self'", `style-src 'self' 'sha256-${styleHash}'`));

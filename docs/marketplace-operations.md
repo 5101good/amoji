@@ -8,7 +8,7 @@
 
 使用锁定依赖、Node.js 24、`apps/marketplace/wrangler.jsonc` 中的 production 环境。顺序为新增 D1 迁移、Worker API/静态站点、最后客户端。现有 D1 已应用的迁移不得重跑；已有 SQLite DO 的 `free-runtime-v1` migration tag 不得改名或重新创建 class。只绑定 `amoji.ai-web.ai`，不得修改根域或其他服务。R2 CORS 仅允许这个正式来源。`UPLOAD_ENABLED=false` 是默认停写开关；只有确认共享额度、安全凭据和验收后才能开启。
 
-Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY` 和 `D1_BACKUP_API_TOKEN`，不写仓库、构建产物或日志。前面三个现有 secret 在更新时必须保留。备份 token 仅需此账号的 D1 Read，不需要 R2 管理权限；应用通过私有 R2 binding 写入。D1 Read 的平台授权范围为账号，不能宣称数据库级 token 隔离。轮换 token 前配置替代值并确认下一次成功备份。
+Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY` 和 `D1_BACKUP_API_TOKEN`，不写仓库、构建产物或日志。前面三个现有 secret 在更新时必须保留。D1 Read 可以读取数据库信息，但实测不能调用 D1 export（返回 401）；自动备份令牌需要 D1 Write。此权限允许账号内 D1 读写管理，不能限制为单库或仅导出，启用前必须由运营者明确批准。应用仅调用数据库信息读取和导出，不执行写入或删除；R2 写入通过私有 binding，不需要为此令牌添加 R2 权限。轮换 token 前配置替代值并确认下一次成功备份。若暂不批准该长期权限，可由已获授权的运营者手动导出、存入 R2 并核验，但不能将手动演练计为自动备份成功。
 
 发布前记录当前 Worker version/deployment、D1 migrations、域名路由和客户端 SHA；失败时回退到上一 Worker version 并核对 `/v1/packs`、登录和上传来源。新增兼容表无需删除。DB5 客户端回退必须停止所有宿主/共享服务写入，导出新数据并恢复升级前一致性备份；禁止旧二进制直接打开 DB5，禁止手改 user_version。
 
@@ -19,6 +19,8 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 现有应用限制包括每日 128 次预留和校验、256 次签名、2000 次密码计算、最多 100 个未回收上传和 1 GiB 预留存储；公开读取每 IP 每分钟 120 次、举报每小时 5 次。签名重放可能消耗额外 R2 请求，应用限额不是绝对账单上限。账号免费额度接近阈值时设 `UPLOAD_ENABLED=false` 并核对新上传拒绝；已发布读取与举报仍应可用。保留服务端错误码和请求 ID，不记录 cookie、token、完整 HTTP headers、SQL 或模型输入。
 
 `GET /v1/health` 与目录共享每 IP 每分钟 120 次的持久限流，返回备份状态及最近成功快照时刻；缺失、失败或超过 24 小时时返回 503。运营者应监控非 200 状态。该时刻是导出开始时刻，保守反映快照年龄，不把延迟完成时间当成新快照。`Server-Timing: amoji;dur=…` 记录 API 服务端耗时，包含 Worker 到 DO 的开销，不含用户网络。
+
+私有 `backups/status.json` 保留有界失败码、阶段、异常类型、导出 HTTP 状态及数值 API 错误码；导出鉴权失败时可记录额外只读诊断的 HTTP 状态。它不保存上游错误正文、令牌或签名 URL，也不通过公开健康接口暴露这些诊断。
 
 ## 私有备份与真实恢复
 
@@ -34,6 +36,8 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 4. 分别记录快照时刻、恢复开始/完成和对象摘要；要求 RPO ≤24 小时、RTO ≤4 小时。完成后删除演练资源，保留脱敏摘要与正式备份。不因 Time Travel 或脚本存在而报告恢复成功。
 
 ## 性能验证
+
+首页在构建时内联压缩后的基础 CSS，并将精确 SHA-256 加入 CSP；不使用 `unsafe-inline`。目录由服务端首屏输出，客户端复用该结果，避免为首屏额外等待 CSS 和重复目录请求。浏览器测量仍必须包含连接建立与公网延迟，不能以服务端耗时代替。
 
 `apps/marketplace/scripts/catalog-load-fixture.mjs PRIVATE_OUTPUT.sql` 生成合成 10000 包数据，**只能写隔离性能数据库**，禁止导入正式目录。使用相同迁移/Worker 版本和真实 D1，记录 fixture 数量。运行 `measure-catalog.mjs HTTPS_ORIGIN NETWORK_LABEL PRIVATE_OUTPUT.json` 以 20 并发执行 100 次目录读取；验收服务端 metadata p95 ≤500ms、首屏 p95 ≤2s，明确客户端网络和地区。工具 HTTP 计时不替代浏览器首屏渲染证据，须另行核对实际页面。
 

@@ -27,6 +27,9 @@ export async function homepage(template: Response, catalog: Response): Promise<R
   if (!catalog.ok) { await template.body?.cancel(); return catalog; }
   if (!template.ok) { await catalog.body?.cancel(); throw Error('TEMPLATE_UNAVAILABLE'); }
   const [source, json] = await Promise.all([boundedText(template, 64 * 1024), boundedText(catalog, MAX_SUMMARY_BYTES)]);
+  // Hash only the trusted build template, before inserting any catalog content.
+  const css = /<style data-amoji-base>([\s\S]*?)<\/style>/.exec(source)?.[1];
+  const styleHash = css ? btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(css))))) : null;
   const data = catalogPage(JSON.parse(json));
   const placeholder = '<div id="root"></div>';
   if (!source.includes(placeholder)) throw Error('INVALID_TEMPLATE');
@@ -38,7 +41,7 @@ export async function homepage(template: Response, catalog: Response): Promise<R
   return new Response(source.replace(placeholder, () => shell + bootstrap), {
     headers: {
       'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
-      'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://5e76b121867f4d57af8fb17fd0afbcfb.r2.cloudflarestorage.com; img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      'content-security-policy': `default-src 'self'; script-src 'self'; style-src 'self'${styleHash ? ` 'sha256-${styleHash}'` : ''}; connect-src 'self' https://5e76b121867f4d57af8fb17fd0afbcfb.r2.cloudflarestorage.com; img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
       'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin', 'x-frame-options': 'DENY',
     },
   });

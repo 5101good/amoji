@@ -5,10 +5,11 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Miniflare } from 'miniflare';
 import { convertV4MiniflareOptions } from './runtime-fixture.mjs';
+import { createHash } from 'node:crypto';
 
 async function fixture(t) {
   const directory = await mkdtemp(tmpdir() + '/amoji-first-paint-');
-  const template = await readFile('web/index.html', 'utf8');
+  const template = await readFile('dist/public/index.html', 'utf8');
   const mf = new Miniflare(convertV4MiniflareOptions({ workers: [{
     name: 'first-paint', modules: true,
     script: 'Date.now = () => 1800000000000;\n' + await readFile('dist/worker.js', 'utf8'),
@@ -45,6 +46,19 @@ test('homepage HTTP already contains visible escaped public summaries and non-ex
   assert.equal((html.match(/<script\b/g) ?? []).length, 1);
   assert.match(html, /href="\/packs\/00000000-0000-4000-8000-000000000021\/releases\/00000000-0000-4000-8000-000000000021"/);
   assert.match(html, /&quot;cursor&quot;:&quot;/);
+});
+
+test('first catalog paint has its stylesheet in the HTML with an exact CSP hash', async t => {
+ const f=await fixture(t);const response=await f.request();const html=await response.text();
+ const css=/<style data-amoji-base>([\s\S]*?)<\/style>/.exec(html)?.[1];
+ assert.ok(css,'first paint must not wait for a second stylesheet request');
+ assert.match(css,/\.catalog-row/);
+ assert.ok(!html.includes('rel="stylesheet"'));
+ const hash=createHash('sha256').update(css).digest('base64');
+ assert.ok(response.headers.get('content-security-policy').includes(`'sha256-${hash}'`));
+ assert.ok(!response.headers.get('content-security-policy').includes("'unsafe-inline'"));
+ const assetHeaders=await readFile('dist/public/_headers','utf8');
+ assert.ok(assetHeaders.includes(`'sha256-${hash}'`),'static detail pages permit the same bundled stylesheet');
 });
 
 test('homepage and catalog API consume the same public allowance; exhaustion never serves stale rows', async t => {

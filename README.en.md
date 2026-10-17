@@ -110,9 +110,9 @@ The [user guide](docs/usage.en.md) covers draft confirmation, revisions, import/
 
 ## Verification and limits
 
-Version 1.0 primarily supports dsh. Existing evidence includes local installation and browser use on macOS arm64, plus one successful live Flash text-suggestion request. This does not establish support for every model, platform, or host version. In one AI expression test, the expression was displayed successfully but the provider's tool continuation returned HTTP 400 over `reasoning_text` compatibility; the whole model turn was not successful.
+Version 1.1 primarily supports dsh. Marketplace installation, real browser interactions and complete expression/text turns with a low-cost model have been verified on macOS arm64; model requests use text semantics without image input. The marketplace has passed private R2 backup, isolated recovery and public first-page checks. These results do not cover every region, model, platform or host version; independent human usability research remains separate.
 
-Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Codex and Claude Code implementations remain legacy and are outside the 1.0 live-validation and compatibility scope. See [release scope and known limitations](docs/release.en.md).
+Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Older Codex/Claude hook implementations remain legacy; the new Claude Desktop Mods adapter has its own integration and validation scope. See [release scope and known limitations](docs/release.en.md).
 
 ## Help shape this vocabulary
 
@@ -133,6 +133,6 @@ npm run test:dsh
 
 Code and technical documentation use [MIT](LICENSE). Built-in artwork, fixed semantics, and generation prompts use [CC0-1.0](assets/base-library/LICENSE); see [asset provenance](assets/base-library/README.en.md). Third-party dependencies and user content retain their own licenses; see [NOTICE](NOTICE).
 
-## Claude Desktop Mods (in development)
+## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. This layered adapter is separate from the legacy prototype and is not included in the published v1.0.0 release.
+[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; scenario marketplace and collaboration actions are currently dsh-only.

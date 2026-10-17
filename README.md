@@ -110,9 +110,9 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## 验证与边界
 
-1.0 以 dsh 为主要支持宿主。已有 macOS arm64 的本地安装、实际浏览器使用及一次真实 Flash 文字建议成功记录；这些证据不代表所有模型、平台或宿主版本均通过。一次 AI 发送测试的表情已成功显示，但提供方工具续答因 `reasoning_text` 兼容问题返回 HTTP 400，不能算完整模型回合成功。
+1.1 以 dsh 为主要支持宿主。macOS arm64 上已验证市场安装、真实浏览器交互，以及使用低成本模型的完整表情/文字回合；模型请求使用文字语义，无需图片输入。市场已完成私有 R2 备份、隔离恢复和公网首屏验收。这些结果不代表所有地区、模型、平台或宿主版本均通过；独立真人易用性研究另行安排。
 
-Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。Codex、Claude Code 实现作为 legacy 保留，暂不纳入 1.0 真机验证或兼容承诺。详见[发布与已知限制](docs/release.md)。
+Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。旧 Codex/Claude hook 实现作为 legacy 保留；新的 Claude Desktop Mods 有独立适配和验证范围。详见[发布与已知限制](docs/release.md)。
 
 ## 一起丰富这套表达
 
@@ -133,6 +133,6 @@ npm run test:dsh
 
 代码和技术文档使用 [MIT](LICENSE)；内置基础表情视觉、固定语义及生成提示使用 [CC0-1.0](assets/base-library/LICENSE)。生成来源见[基础库说明](assets/base-library/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。
 
-## Claude Desktop Mods（开发中）
+## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。它是新的分层适配器，独立于旧 Claude 原型；不包含在已发布的 v1.0.0 中。
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；场景包市场和协作动作目前仅支持 dsh。

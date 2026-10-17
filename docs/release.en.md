@@ -2,17 +2,19 @@
 
 [中文](release.md) · [Documentation](README.en.md)
 
-## Version 1.0 scope
+## Version 1.1 scope
 
-The primary host is dsh 0.1.5-rc.2, requiring Node.js >=24. The primary distribution is `amoji-dsh-1.0.0.tgz` on [GitHub Releases](https://github.com/5101good/amoji/releases), installed with the official dsh plugin CLI. This is not a commitment to npm registry publication or an offline installer bundling Node, dsh, or native dependencies.
+The primary host is dsh 0.1.5-rc.2, requiring Node.js >=24. The primary distribution is `amoji-dsh-1.1.0.tgz` on [GitHub Releases](https://github.com/5101good/amoji/releases), installed with the official dsh plugin CLI. This is not a commitment to npm registry publication or an offline installer bundling Node, dsh, or native dependencies.
 
 Features include two-way fixed-meaning expressions, 24 meanings in each of Classic/Office, native picker and rendering, personal libraries and drafts, explicit preview confirmation, revisions and archiving, pack import/export, AI preferences, and text suggestions from a selected host model. The UI follows dsh's Chinese/English language; built-in semantics remain Chinese.
 
+Version 1.1 adds a reviewed scenario marketplace, direct browser-to-R2 uploads, exact-release installation in dsh, optional turn instructions and conversation rules, and a separate Claude Desktop Mods ZIP. See the [1.1 release notes](releases/v1.1.0.md) for database migration, installation and compatibility boundaries.
+
 ## Evidence layers
 
-Historical evidence includes actual installation, browser selection and two-way display, lifecycle recovery on macOS arm64, and one successful Flash text-suggestion request followed by editing, adoption, and draft saving. These are development observations, not a substitute for acceptance of the final 1.0 archive; see the current [release audit](release-audit.en.md). Earlier records remain in Git history.
+Historical evidence includes actual installation, browser selection and two-way display, lifecycle recovery on macOS arm64, and one successful Flash text-suggestion request followed by editing, adoption, and draft saving. These are development observations, not a substitute for acceptance of the corresponding final archive; see the current [release audit](release-audit.en.md). Earlier records remain in Git history.
 
-The final 1.0 archive requires evidence from its corresponding workflow and release acceptance record. Source implementation, automated tests, installation exit code 0, browser rendering, and a successful complete live model turn establish different things.
+The final release archive requires evidence from its corresponding workflow and release acceptance record. Source implementation, automated tests, installation exit code 0, browser rendering, and a successful complete live model turn establish different things.
 
 ## Known limitations
 
@@ -21,14 +23,14 @@ The final 1.0 archive requires evidence from its corresponding workflow and rele
 - On one provider's Flash route, AI search, emission, and display succeeded, but the following model request returned HTTP 400 requiring `reasoning_text`. This is a host/provider continuation compatibility boundary; Amoji cannot guarantee complete tool turns for every model.
 - Suggestions depend on host model services and credentials. Timeout, cancellation, quota, model discovery, and output-format failures are surfaced without automatic retries or disguised local-template fallbacks.
 - UI language changes do not translate stored names, meanings, tags, or user text. Unsaved draft input does not survive page reloads.
-- Older Codex/Claude hook adapters remain legacy. The new Claude Desktop Mods adapter is separate; see its guide for scope and verification. The published 1.0.0 does not include it.
+- Older Codex/Claude hook adapters remain legacy. The new Claude Desktop Mods adapter is separate; see its guide for scope and verification. Version 1.1 introduces its separate ZIP.
 
 ## Maintainer release process
 
-1. Align root and dsh package versions and update both language guides and release notes. Maintain product, schema, API, and database versions separately.
+1. Align root, dsh and Claude Mods package versions and update both language guides and release notes. Maintain product, schema, API, and database versions separately.
 2. Run type checking, core tests, and the full dsh suite from the candidate commit. Inspect package contents, asset counts, licensing, privacy, and personal paths.
 3. Install the final candidate and perform relevant UI/model acceptance. Record failures and unverified paths. Keep paid requests within the explicitly agreed scope.
-4. Push the corresponding `v1.0.0` tag. Official repository GitHub Actions builds, verifies, and publishes the matching archive, `SHA256SUMS`, release notes, and `BUILD_PROVENANCE.json` with the commit, tag, and Actions run URL. See [Actions](https://github.com/5101good/amoji/actions).
+4. Push the corresponding `v1.1.0` tag. Official repository GitHub Actions builds, verifies, and publishes the matching archive, `SHA256SUMS`, release notes, and `BUILD_PROVENANCE.json` with the commit, tag, and Actions run URL. See [Actions](https://github.com/5101good/amoji/actions).
 5. Verify Release assets, SHA-256, tag commit, and downloaded package. A workflow definition alone does not prove successful publication.
 
 Code and technical documentation are MIT; built-in assets, semantics, and prompts are CC0-1.0. The actual build supplies a dependency-license inventory. Sharp/libvips and other dependencies retain their own licenses. See [NOTICE](../NOTICE) and [built-in assets](../assets/base-library/README.en.md).
@@ -38,4 +40,4 @@ Code and technical documentation are MIT; built-in assets, semantics, and prompt
 
 CI also builds `amoji-claude-mods-<version>.zip`, verifies and extracts it, installs locked production dependencies, and exercises its real bridge. Official CLI strict validation and control tests run separately. The ZIP excludes node_modules, private configuration and native binaries; all files are scanned for personal paths and credential patterns.
 
-`append-claude-release.mjs` adds the verified ZIP to the same release directory, SHA-256 list and provenance. This extends future candidates without rewriting the published 1.0.0. Complete [native Claude acceptance](claude-mods.en.md) before choosing a new product version and tag; a local branch build is not a release record.
+`append-claude-release.mjs` adds the verified ZIP to the same release directory, SHA-256 list and provenance. This extends future candidates without rewriting the published 1.0.0. [Native Claude acceptance](claude-mods.en.md) is recorded separately from automated tests; a local build is not a release record. Verify the corresponding tag's Actions run and assets for each release.

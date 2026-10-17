@@ -12,7 +12,7 @@ Version 1.1 adds a reviewed scenario marketplace, direct browser-to-R2 uploads, 
 
 ## Evidence layers
 
-Historical evidence includes actual installation, browser selection and two-way display, lifecycle recovery on macOS arm64, and one successful Flash text-suggestion request followed by editing, adoption, and draft saving. These are development observations, not a substitute for acceptance of the corresponding final archive; see the current [release audit](release-audit.en.md). Earlier records remain in Git history.
+Historical evidence includes actual installation, browser selection and two-way display, lifecycle recovery on macOS arm64, and one successful Flash text-suggestion request followed by editing, adoption, and draft saving. These are development observations, not a substitute for acceptance of the corresponding final archive; see the historical [1.0 release audit](release-audit.en.md) and the [1.1 release scope](releases/v1.1.0.md). Earlier records remain in Git history.
 
 The final release archive requires evidence from its corresponding workflow and release acceptance record. Source implementation, automated tests, installation exit code 0, browser rendering, and a successful complete live model turn establish different things.
 

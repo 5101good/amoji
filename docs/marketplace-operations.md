@@ -28,6 +28,8 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 
 备份包含认证与私有稿件数据，只能由获授权运营者访问，不能提供公网下载。已公开版本引用的 sealed 对象保持不可变、按摘要验证；恢复时同时核对对象，不能只检查 SQL。私有内容与账号删除遵循产品保留政策，备份中残留数据最多保留 30 天。平台内备份不构成供应商级灾难隔离。
 
+确认自动调度时，在 Worker 的「设置 → 触发事件 → 下次」打开 Cron 历史，核对自然触发时间与成功状态；也可用实时日志核对 scheduled 事件及 `/backup` 调用。再检查 `/v1/health` 和私有 `backups/status.json`：Cron 成功只说明处理函数正常返回，导出错误仍可能记录在备份状态中。距离最近成功快照不足 12 小时且没有失败时，正常触发不会生成新 SQL；不要为了看到新文件而删除旧备份或修改时间戳。手动调用备份函数不能代替自然调度证据。
+
 恢复演练必须：
 
 1. 从私有 R2 取成功状态与指定 SQL，保存到权限 0700 的临时目录、文件 0600，不回显正文。
@@ -37,7 +39,7 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 
 ## 性能验证
 
-首页在构建时内联压缩后的基础 CSS，并将精确 SHA-256 加入 CSP；不使用 `unsafe-inline`。目录由服务端首屏输出，客户端复用该结果，避免为首屏额外等待 CSS 和重复目录请求。浏览器测量仍必须包含连接建立与公网延迟，不能以服务端耗时代替。
+首页模板和压缩后的基础 CSS 随 Worker 一起构建，无需额外读取静态资源服务，并将 CSS 精确 SHA-256 加入 CSP；不使用 `unsafe-inline`。目录仍实时查询，由服务端首屏输出，客户端复用该结果，避免为首屏额外等待 CSS 和重复目录请求。浏览器测量仍必须包含连接建立与公网延迟，不能以服务端耗时代替。
 
 `apps/marketplace/scripts/catalog-load-fixture.mjs PRIVATE_OUTPUT.sql` 生成合成 10000 包数据，**只能写隔离性能数据库**，禁止导入正式目录。使用相同迁移/Worker 版本和真实 D1，记录 fixture 数量。运行 `measure-catalog.mjs HTTPS_ORIGIN NETWORK_LABEL PRIVATE_OUTPUT.json` 以 20 并发执行 100 次目录读取；验收服务端 metadata p95 ≤500ms、首屏 p95 ≤2s，明确客户端网络和地区。工具 HTTP 计时不替代浏览器首屏渲染证据，须另行核对实际页面。
 

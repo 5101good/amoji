@@ -7,7 +7,7 @@ import { Miniflare } from 'miniflare';
 import { convertV4MiniflareOptions } from './runtime-fixture.mjs';
 import { createHash } from 'node:crypto';
 
-async function fixture(t) {
+async function fixture(t, assetsUnavailable = false) {
   const directory = await mkdtemp(tmpdir() + '/amoji-first-paint-');
   const template = await readFile('dist/public/index.html', 'utf8');
   const mf = new Miniflare(convertV4MiniflareOptions({ workers: [{
@@ -15,7 +15,10 @@ async function fixture(t) {
     script: 'Date.now = () => 1800000000000;\n' + await readFile('dist/worker.js', 'utf8'),
     compatibilityDate: '2026-09-21', compatibilityFlags: ['nodejs_compat'],
     d1Databases: { DB: 'first-paint' }, r2Buckets: { UPLOADS: 'first-paint' },
-    serviceBindings: { ASSETS: async () => new Response(template, { headers: { 'content-type': 'text/html', 'etag': 'static-template' } }) },
+    serviceBindings: { ASSETS: async () => {
+      if (assetsUnavailable) return new Response('Asset service unavailable', { status: 503 });
+      return new Response(template, { headers: { 'content-type': 'text/html', 'etag': 'static-template' } });
+    } },
     bindings: { APP_ORIGIN: 'http://localhost', LOCAL_TEST: 'true', BETTER_AUTH_SECRET: 'synthetic-test-secret-at-least-32-bytes' },
   }] }));
   t.after(async () => { await mf.dispose(); await rm(directory, { recursive: true, force: true }); });
@@ -46,6 +49,17 @@ test('homepage HTTP already contains visible escaped public summaries and non-ex
   assert.equal((html.match(/<script\b/g) ?? []).length, 1);
   assert.match(html, /href="\/packs\/00000000-0000-4000-8000-000000000021\/releases\/00000000-0000-4000-8000-000000000021"/);
   assert.match(html, /&quot;cursor&quot;:&quot;/);
+});
+
+test('first catalog paint remains available without a static-template round trip', async t => {
+  const f = await fixture(t, true);
+  const response = await f.request();
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.equal((html.match(/class="catalog-row"/g) ?? []).length, 20);
+  assert.match(html, /<style data-amoji-base>/);
+  // Other routes still use the asset binding; only the build's homepage is embedded.
+  assert.equal((await f.request('/app.js')).status, 503);
 });
 
 test('first catalog paint has its stylesheet in the HTML with an exact CSP hash', async t => {

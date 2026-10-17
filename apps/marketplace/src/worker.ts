@@ -1,4 +1,5 @@
 import { homepage } from "./homepage";
+import homepageTemplate from "amoji-homepage";
 import { scheduledMaintenance } from "./maintenance";
 import { failure } from "./upload-shared";
 export { FreeRuntime } from "./free-runtime";
@@ -48,13 +49,9 @@ export default {
       const runtime = env.FREE_RUNTIME.getByName("free-runtime-v1");
       let response: Response;
       if (firstPage) {
-        if (!env.ASSETS) return failure("RUNTIME_UNAVAILABLE", 503);
         const catalogURL = new URL("/v1/packs", url);
-        const [template, catalog] = await Promise.all([
-          env.ASSETS.fetch(new Request(new URL("/", url), { method: "GET" })),
-          runtime.fetch(new Request(catalogURL, { method: "GET", headers })),
-        ]);
-        response = await homepage(template, catalog);
+        const catalog = await runtime.fetch(new Request(catalogURL, { method: "GET", headers }));
+        response = await homepage(new Response(homepageTemplate), catalog);
       } else {
         response = await runtime.fetch(new Request(request, { headers }));
       }

@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { spawn, execFileSync } from "node:child_process";
 import { inspectClaudeArchive } from "./append-claude-release.mjs";
 import { buildClaudeMods } from "./build-claude-mods.mjs";
@@ -63,6 +64,9 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
   assert.equal(build.runtimeDependenciesEmbedded, false);
   assert.ok(build.dependencies.length > 0);
   const runtime = join(plugin, "runtime");
+  const contract = await import(pathToFileURL(join(runtime, "src/shared-contract.js")));
+  assert.equal(build.serviceApi, contract.API_VERSION, "BUILD must describe the packaged service API");
+  assert.equal(build.databaseVersion, contract.DATABASE_VERSION, "BUILD must describe the packaged database version");
   execFileSync(
     process.execPath,
     [

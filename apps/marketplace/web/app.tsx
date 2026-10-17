@@ -2,9 +2,8 @@ import { catalogPage, type CatalogPage } from "../src/catalog-page";
 import {Lifecycle} from "./lifecycle";
 import {DeviceApproval} from "./device";
 import { Catalog, Reviews } from "./market";
-import React, { Suspense, lazy, useEffect, useState } from "react";
-// The creator workspace (archive tools and schema validators) loads only after sign-in.
-const UploadPanel = lazy(() => import("./upload").then(m => ({ default: m.UploadPanel })));
+import React, { useEffect, useState } from "react";
+import { CreatorWorkspace } from "./creator-workspace";
 import { createRoot } from "react-dom/client";
 const words = {
   zh: {
@@ -165,13 +164,7 @@ function App({ initial }: { initial?: CatalogPage }) {
                 />
               )}
               <Lifecycle account={account} locale={locale} onDeleted={()=>setAccount(null)}/>
-              <Suspense fallback={<p className="note">{t.busy}</p>}>
-                <UploadPanel
-                  key={account.id}
-                  locale={locale}
-                  accountId={account.id}
-                />
-              </Suspense>
+              <CreatorWorkspace locale={locale} accountId={account.id} />
               <button disabled={busy} onClick={() => operation("logout", {})}>
                 {busy ? t.busy : t.logout}
               </button>

@@ -220,3 +220,26 @@ test("anonymous reads enforce the shared 120 per minute IP budget", async (t) =>
   assert.equal(denied.status, 429);
   assert.ok(denied.headers.get("retry-after"));
 });
+
+test('public covers reuse bounded verified bytes without extra sealed reads and honor revocation', async t => {
+  const f = await fixture(t), reviewer = await f.register('cover-reviewer@example.test');
+  await f.db.prepare("UPDATE market_account SET role='reviewer' WHERE auth_user_id=(SELECT id FROM auth_user WHERE email='cover-reviewer@example.test')").run();
+  const a = await submitted(f), path = `/v1/packs/${a.s.pack_id}/releases/${a.s.release_id}`;
+  assert.equal((await get(f,path+'/cover')).status,404);
+  const decision = await f.post(`/v1/review/submissions/${a.s.id}/decision`,{decision:'approve',reason:'isolated cover test'},reviewer,crypto.randomUUID(),{'if-match':'"1"'});
+  assert.equal(decision.status,200,await decision.clone().text());
+  const reads = async () => (await f.db.prepare("SELECT count FROM market_runtime_budget WHERE kind='sealed_reads'").first()).count;
+  const before=await reads(),first=await get(f,path+'/cover');
+  assert.equal(first.status,200);assert.equal(first.headers.get('cache-control'),'no-store');
+  assert.equal(hash(new Uint8Array(await first.arrayBuffer())),hash(a.image));
+  for(let i=0;i<20;i++){const response=await get(f,path+'/cover');assert.equal(response.status,200);await response.arrayBuffer();}
+  const concurrent=await Promise.all(Array.from({length:20},()=>get(f,path+'/cover')));
+  assert.ok(concurrent.every(response=>response.status===200));
+  await Promise.all(concurrent.map(response=>response.arrayBuffer()));
+  assert.equal(await reads(),before+1);
+  await f.db.prepare("UPDATE market_runtime_budget SET count=4096 WHERE kind='sealed_reads'").run();
+  assert.equal((await get(f,path+'/cover')).status,200);
+  assert.equal((await get(f,path+'/archive')).status,429);
+  await f.db.prepare("UPDATE market_public_release SET state='unpublished' WHERE release_id=?").bind(a.s.release_id).run();
+  assert.equal((await get(f,path+'/cover')).status,410);
+});

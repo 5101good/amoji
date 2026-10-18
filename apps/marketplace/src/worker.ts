@@ -50,13 +50,32 @@ export default {
       let response: Response;
       if (firstPage) {
         const catalogURL = new URL("/v1/packs", url);
-        const catalog = await runtime.fetch(new Request(catalogURL, { method: "GET", headers }));
-        response = await homepage(new Response(homepageTemplate), catalog);
+        for (const key of ["q", "scenario", "locale", "style", "actions"]) {
+          const value = url.searchParams.get(key);
+          if (value) catalogURL.searchParams.set(key, value);
+        }
+        const catalog = await runtime.fetch(
+          new Request(catalogURL, { method: "GET", headers }),
+        );
+        response = await homepage(
+          new Response(homepageTemplate),
+          catalog,
+          url.searchParams.has("view") || url.searchParams.has("authorization"),
+          catalogURL.search,
+          /(?:^|;\s*)amoji-market-language=en(?:;|$)/.test(
+            request.headers.get("cookie") ?? "",
+          )
+            ? "en"
+            : "zh",
+        );
       } else {
         response = await runtime.fetch(new Request(request, { headers }));
       }
       const result = new Response(response.body, response);
-      result.headers.set("server-timing", `amoji;dur=${(performance.now() - start).toFixed(2)}`);
+      result.headers.set(
+        "server-timing",
+        `amoji;dur=${(performance.now() - start).toFixed(2)}`,
+      );
       return result;
     } catch {
       return failure("RUNTIME_UNAVAILABLE", 503);

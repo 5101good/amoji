@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Modal } from "./ui";
 export const previewWords = {
   zh: {
     title: "创作者工作台",
@@ -119,17 +120,40 @@ export const previewWords = {
 };
 export function Preview({
   manifest,
+  hideHeading = false,
   uploadId,
   mediaBase,
   files,
   t,
 }: {
   manifest: any;
+  hideHeading?: boolean;
   uploadId?: string;
   mediaBase?: string;
   files: Record<string, Uint8Array>;
   t: typeof previewWords.zh | typeof previewWords.en;
 }) {
+  const zh = t.title === previewWords.zh.title;
+  const appearances: string[] = [
+    ...new Set<string>(
+      manifest.expressions.flatMap((e: any) =>
+        (e.tags ?? [])
+          .filter((tag: string) => tag.startsWith("amoji:appearance:"))
+          .map((tag: string) => tag.slice(17)),
+      ),
+    ),
+  ];
+  const [appearance, setAppearance] = useState(appearances[0] ?? "");
+  const [zoom, setZoom] = useState<any>(null);
+  const shown =
+    hideHeading && appearance
+      ? manifest.expressions.filter(
+          (e: any) =>
+            !e.tags?.some((tag: string) =>
+              tag.startsWith("amoji:appearance:"),
+            ) || e.tags.includes("amoji:appearance:" + appearance),
+        )
+      : manifest.expressions;
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     if (uploadId || mediaBase) {
@@ -156,17 +180,64 @@ export function Preview({
         : urls[m.sha256];
   return (
     <section className="pack-preview" aria-label={t.allContent}>
-      <h3>{manifest.name}</h3>
-      <p>{manifest.description}</p>
-      <p>{manifest.scenario?.join(" · ")}</p>
+      {!hideHeading && (
+        <div className="preview-heading">
+          <h3>{manifest.name}</h3>
+          <p>{manifest.description}</p>
+        </div>
+      )}
+      {hideHeading && (
+        <div className="preview-toolbar">
+          <h2>{zh ? "表情与含义" : "Expressions & meanings"}</h2>
+          {appearances.length > 1 && (
+            <div
+              className="segmented"
+              role="group"
+              aria-label={zh ? "选择画风" : "Choose appearance"}
+            >
+              {["", ...appearances].map((style) => (
+                <button
+                  type="button"
+                  key={style}
+                  aria-pressed={appearance === style}
+                  onClick={() => setAppearance(style)}
+                >
+                  {style === ""
+                    ? zh
+                      ? "全部"
+                      : "All"
+                    : style === "classic"
+                      ? zh
+                        ? "经典"
+                        : "Classic"
+                      : style === "office"
+                        ? zh
+                          ? "办公"
+                          : "Office"
+                        : style}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="expression-grid">
-        {manifest.expressions.map((e: any) => (
+        {shown.map((e: any) => (
           <article key={e.asset_id + e.revision_id}>
             <div className="preview-media">
-              <img
-                src={mediaUrl(e.visual.primary)}
-                alt={e.semantics.fallback}
-              />
+              <button
+                className="image-preview-button"
+                type="button"
+                onClick={() => setZoom(e)}
+                aria-label={(zh ? "放大查看：" : "View larger: ") + e.name}
+              >
+                <img
+                  loading="lazy"
+                  decoding="async"
+                  src={mediaUrl(e.visual.primary)}
+                  alt={e.semantics.fallback}
+                />
+              </button>
               {e.visual.poster && (
                 <img
                   src={mediaUrl(e.visual.poster)}
@@ -183,22 +254,27 @@ export function Preview({
             <details>
               <summary>{t.full}</summary>
               <pre>{JSON.stringify(e.semantics, null, 2)}</pre>
+              <p>
+                {e.rights.license} · {e.rights.creator}
+              </p>
+              <p>{e.rights.source}</p>
             </details>
-            <p>
-              {e.rights.license} · {e.rights.creator}
-            </p>
-            <p>{e.rights.source}</p>
           </article>
         ))}
       </div>
+      {!!manifest.actions?.length && (
+        <h2 className="preview-section-title">
+          {zh ? "可选协作提示" : "Optional collaboration guidance"}
+        </h2>
+      )}
       {manifest.actions?.map((a: any) => (
-        <article key={a.action_id}>
+        <article className="action-preview" key={a.action_id}>
           <h4>{a.name ?? a.effect_summary}</h4>
           <p>
             {a.kind === "instruction" ? t.instruction : t.hook} ·{" "}
             {a.scope === "turn" ? t.turn : t.conversation} · {a.locale}
           </p>
-          <p>{a.effect_summary}</p>
+          {a.name && a.name !== a.effect_summary && <p>{a.effect_summary}</p>}
           {a.instruction ? (
             <p>{a.instruction}</p>
           ) : (
@@ -213,14 +289,17 @@ export function Preview({
               </pre>
             </details>
           )}
-          <p>
-            {a.rights.license} · {a.rights.creator}
-          </p>
-          <p>{a.rights.source}</p>
+          <details>
+            <summary>{zh ? "许可与来源" : "License & attribution"}</summary>
+            <p>
+              {a.rights.license} · {a.rights.creator}
+            </p>
+            <p>{a.rights.source}</p>
+          </details>
         </article>
       ))}
       {manifest.examples?.map((e: any, i: number) => (
-        <article key={i}>
+        <article className="example-preview" key={i}>
           <h4>{t.example}</h4>
           <p>{typeof e === "string" ? e : JSON.stringify(e)}</p>
         </article>
@@ -239,6 +318,20 @@ export function Preview({
         <summary>{t.full}</summary>
         <pre>{JSON.stringify(manifest, null, 2)}</pre>
       </details>
+      {zoom && (
+        <Modal
+          locale={zh ? "zh" : "en"}
+          title={zoom.name}
+          close={() => setZoom(null)}
+        >
+          <img
+            className="zoom-image"
+            src={mediaUrl(zoom.visual.primary)}
+            alt={zoom.semantics.fallback}
+          />
+          <p lang={zoom.semantics.locale}>{zoom.semantics.meaning}</p>
+        </Modal>
+      )}
     </section>
   );
 }

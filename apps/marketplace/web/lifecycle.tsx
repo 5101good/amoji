@@ -122,8 +122,8 @@ export function Lifecycle({
   const zh = locale === "zh",
     [accounts, setAccounts] = useState<any[]>([]),
     [reports, setReports] = useState<any[]>([]),
-    [accountsCursor,setAccountsCursor]=useState<string|null>(null),
-    [reportsCursor,setReportsCursor]=useState<string|null>(null),
+    [accountsCursor, setAccountsCursor] = useState<string | null>(null),
+    [reportsCursor, setReportsCursor] = useState<string | null>(null),
     [reason, setReason] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
@@ -146,10 +146,33 @@ export function Lifecycle({
     }
   };
   const refresh = async () => {
-    if (admin) {const value=await api('/v1/admin/accounts');setAccounts(value.accounts);setAccountsCursor(value.cursor);}
-    if (moderator) {const value=await api('/v1/review/reports');setReports(value.reports);setReportsCursor(value.cursor);}
+    if (admin) {
+      const value = await api("/v1/admin/accounts");
+      setAccounts(value.accounts);
+      setAccountsCursor(value.cursor);
+    }
+    if (moderator) {
+      const value = await api("/v1/review/reports");
+      setReports(value.reports);
+      setReportsCursor(value.cursor);
+    }
   };
-  const more=async(kind:'accounts'|'reports')=>{const cursor=kind==='accounts'?accountsCursor:reportsCursor;if(!cursor)return;const value=await api((kind==='accounts'?'/v1/admin/accounts':'/v1/review/reports')+'?cursor='+encodeURIComponent(cursor));if(kind==='accounts'){setAccounts(old=>[...old,...value.accounts]);setAccountsCursor(value.cursor);}else{setReports(old=>[...old,...value.reports]);setReportsCursor(value.cursor);}};
+  const more = async (kind: "accounts" | "reports") => {
+    const cursor = kind === "accounts" ? accountsCursor : reportsCursor;
+    if (!cursor) return;
+    const value = await api(
+      (kind === "accounts" ? "/v1/admin/accounts" : "/v1/review/reports") +
+        "?cursor=" +
+        encodeURIComponent(cursor),
+    );
+    if (kind === "accounts") {
+      setAccounts((old) => [...old, ...value.accounts]);
+      setAccountsCursor(value.cursor);
+    } else {
+      setReports((old) => [...old, ...value.reports]);
+      setReportsCursor(value.cursor);
+    }
+  };
   useEffect(() => {
     void run(async () => {
       await refresh();
@@ -157,167 +180,271 @@ export function Lifecycle({
     });
   }, [account.id]);
   return (
-    <section>
+    <section className="management">
       <h3>{zh ? "发布与账号管理" : "Publication and account management"}</h3>
       <p role="status">{message}</p>
-      <label>
+      <label className="management-reason">
         {zh ? "操作理由" : "Reason"}
         <textarea
           value={reason}
+          rows={2}
+          placeholder={
+            zh
+              ? "下架、处理举报或调整角色前，请说明原因。"
+              : "Explain any removal, report resolution or role change."
+          }
           maxLength={1000}
           onChange={(e) => setReason(e.target.value)}
         />
       </label>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run(async () => {
-            const current = await api(`/v1/packs/${pack}/releases/${release}`);
-            await api(
-              `/v1/packs/${pack}/unpublish`,
-              { release_id: release, type: kind, reason },
-              current.row_version,
-            );
-            setMessage(
-              zh
-                ? "已下架；已开始下载或保存的副本不能收回。"
-                : "Removed. In-flight downloads and saved copies cannot be recalled.",
-            );
-          });
-        }}
-      >
-        <h4>{zh ? "下架精确版本" : "Remove an exact release"}</h4>
-        <label>
-          Pack ID
-          <input
-            required
-            value={pack}
-            onChange={(e) => setPack(e.target.value)}
-          />
-        </label>
-        <label>
-          Release ID
-          <input
-            required
-            value={release}
-            onChange={(e) => setRelease(e.target.value)}
-          />
-        </label>
-        <select
-          aria-label={zh ? "下架类型" : "Removal type"}
-          value={kind}
-          onChange={(e) => setKind(e.target.value)}
+      <details className="management-section" name="account-sections">
+        <summary>
+          <span>{zh ? "管理公开内容" : "Manage publications"}</span>
+          <small>
+            {zh
+              ? "管理已发布的场景包与精确版本"
+              : "Manage published packs and their exact releases"}
+          </small>
+        </summary>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              if (
+                !window.confirm(
+                  zh
+                    ? "下架后其他人将无法获取这个版本。确认继续？"
+                    : "This release will no longer be available to others. Continue?",
+                )
+              )
+                return;
+              const current = await api(
+                `/v1/packs/${pack}/releases/${release}`,
+              );
+              await api(
+                `/v1/packs/${pack}/unpublish`,
+                { release_id: release, type: kind, reason },
+                current.row_version,
+              );
+              setMessage(
+                zh
+                  ? "已下架；已开始下载或保存的副本不能收回。"
+                  : "Removed. In-flight downloads and saved copies cannot be recalled.",
+              );
+            });
+          }}
         >
-          <option value="unpublished">{zh ? "普通下架" : "Unpublish"}</option>
-          {moderator && (
-            <option value="safety_removed">
-              {zh
-                ? "安全下架（不可恢复此版本）"
-                : "Safety removal (permanent for this release)"}
-            </option>
-          )}
-        </select>
-        <button disabled={busy || !reason.trim()}>
-          {zh ? "下架" : "Remove"}
-        </button>
-      </form>
-      {moderator && (
-        <section>
-          <h4>{zh ? "举报处理" : "Reports"}</h4>{reportsCursor&&<button disabled={busy} onClick={()=>void run(()=>more('reports'))}>{zh?'加载更多举报':'More reports'}</button>}
-          <button disabled={busy} onClick={() => void run(refresh)}>
-            {zh ? "刷新" : "Refresh"}
+          <h4>{zh ? "下架精确版本" : "Remove an exact release"}</h4>
+          <p className="note">
+            {zh
+              ? "在场景包详情中复制 ID。下架后将停止公开下载这个版本。"
+              : "Copy the IDs from the pack details. Removing a release stops public downloads."}
+          </p>
+          <div className="release-identifiers">
+            <label>
+              {zh ? "场景包 ID" : "Pack ID"}
+              <input
+                required
+                value={pack}
+                onChange={(e) => setPack(e.target.value)}
+              />
+            </label>
+            <label>
+              {zh ? "版本 ID" : "Release ID"}
+              <input
+                required
+                value={release}
+                onChange={(e) => setRelease(e.target.value)}
+              />
+            </label>
+          </div>
+          <label>
+            {zh ? "下架类型" : "Removal type"}
+            <select
+              aria-label={zh ? "下架类型" : "Removal type"}
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+            >
+              <option value="unpublished">
+                {zh ? "普通下架" : "Unpublish"}
+              </option>
+              {moderator && (
+                <option value="safety_removed">
+                  {zh
+                    ? "安全下架（不可恢复此版本）"
+                    : "Safety removal (permanent for this release)"}
+                </option>
+              )}
+            </select>
+          </label>
+          <button disabled={busy || !reason.trim()}>
+            {zh ? "下架" : "Remove"}
           </button>
-          {reports.map((r) => (
-            <article key={r.id}>
-              <p>
-                {r.pack_id} / {r.release_id}
+        </form>
+      </details>
+      {moderator && (
+        <details className="management-section" name="account-sections">
+          <summary>
+            <span>{zh ? "举报处理" : "Reports"}</span>
+            <small>
+              {zh
+                ? "核对社区反馈并记录处理结果"
+                : "Review community feedback and record resolutions"}
+            </small>
+          </summary>
+          <section>
+            {!reports.length && !busy && (
+              <p className="management-empty">
+                {zh
+                  ? "目前没有举报需要处理。"
+                  : "No reports to review right now."}
               </p>
-              <p>{r.reason}</p>
-              <p>
-                {r.state} {r.resolution}
-              </p>
+            )}
+            {reportsCursor && (
               <button
-                disabled={busy || r.state !== "open" || !reason.trim()}
-                onClick={() =>
-                  void run(async () => {
-                    await api(
-                      `/v1/review/reports/${r.id}/resolve`,
-                      { reason },
-                      r.row_version,
-                    );
-                    await refresh();
-                  })
-                }
+                disabled={busy}
+                onClick={() => void run(() => more("reports"))}
               >
-                {zh ? "记录处理结果" : "Record resolution"}
+                {zh ? "加载更多举报" : "More reports"}
               </button>
-            </article>
-          ))}
-        </section>
+            )}
+            <button disabled={busy} onClick={() => void run(refresh)}>
+              {zh ? "刷新" : "Refresh"}
+            </button>
+            {reports.map((r) => (
+              <article key={r.id}>
+                <p>
+                  {r.pack_id} / {r.release_id}
+                </p>
+                <p>{r.reason}</p>
+                <p>
+                  {r.state} {r.resolution}
+                </p>
+                <button
+                  disabled={busy || r.state !== "open" || !reason.trim()}
+                  onClick={() =>
+                    void run(async () => {
+                      await api(
+                        `/v1/review/reports/${r.id}/resolve`,
+                        { reason },
+                        r.row_version,
+                      );
+                      await refresh();
+                    })
+                  }
+                >
+                  {zh ? "记录处理结果" : "Record resolution"}
+                </button>
+              </article>
+            ))}
+          </section>
+        </details>
       )}
       {admin && (
-        <section>
-          <h4>{zh ? "角色管理" : "Account roles"}</h4>{accountsCursor&&<button disabled={busy} onClick={()=>void run(()=>more('accounts'))}>{zh?'加载更多账号':'More accounts'}</button>}
-          {accounts.map((a) => (
-            <label key={a.id}>
-              {a.display_name} · {a.id}
-              <select
-                aria-label={a.id}
-                value={a.role}
-                disabled={busy || !reason.trim()}
-                onChange={(e) => {
-                  const role = e.target.value;
-                  void run(async () => {
-                    await api(
-                      `/v1/admin/accounts/${a.id}/roles`,
-                      { role, reason },
-                      a.row_version,
-                    );
-                    await refresh();
-                  });
-                }}
+        <details className="management-section" name="account-sections">
+          <summary>
+            <span>{zh ? "角色管理" : "Account roles"}</span>
+            <small>
+              {zh
+                ? "分配创作、审核和管理权限"
+                : "Assign creator, reviewer and administrative access"}
+            </small>
+          </summary>
+          <section>
+            {accountsCursor && (
+              <button
+                disabled={busy}
+                onClick={() => void run(() => more("accounts"))}
               >
-                {["creator", "reviewer", "moderator", "admin"].map((role) => (
-                  <option key={role}>{role}</option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </section>
+                {zh ? "加载更多账号" : "More accounts"}
+              </button>
+            )}
+            {accounts.map((a) => (
+              <label key={a.id}>
+                {a.display_name} · {a.id}
+                <select
+                  aria-label={a.id}
+                  value={a.role}
+                  disabled={busy || !reason.trim()}
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    void run(async () => {
+                      await api(
+                        `/v1/admin/accounts/${a.id}/roles`,
+                        { role, reason },
+                        a.row_version,
+                      );
+                      await refresh();
+                    });
+                  }}
+                >
+                  {["creator", "reviewer", "moderator", "admin"].map((role) => (
+                    <option key={role} value={role}>
+                      {zh
+                        ? (
+                            {
+                              creator: "创作者",
+                              reviewer: "审核者",
+                              moderator: "内容管理员",
+                              admin: "管理员",
+                            } as Record<string, string>
+                          )[role]
+                        : role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </section>
+        </details>
       )}
-      <section>
-        <h4>{zh ? "删除账号" : "Delete account"}</h4>
-        <p>
-          {zh
-            ? "立即撤销登录并下架本人内容，30 天内清理私有数据。已公开许可和署名保留，必要安全审计最多保留 180 天；不能收回已下载副本。"
-            : "Immediately revoke sign-in and remove your publications; clear private data within 30 days. Public licenses and attribution remain, and necessary safety audits remain up to 180 days. Downloaded copies cannot be recalled."}
-        </p>
-        <label>
-          <input
-            type="checkbox"
-            checked={confirm}
-            onChange={(e) => setConfirm(e.target.checked)}
-          />
-          {zh
-            ? "我已阅读并确认删除账号"
-            : "I have read this notice and confirm account deletion"}
-        </label>
-        <button
-          disabled={busy || !confirm || !policy}
-          onClick={() =>
-            void run(async () => {
-              await api(
-                "/v1/me/delete",
-                { confirm: true, policy_version: "1" },
-                policy.row_version,
-              );
-              onDeleted();
-            })
-          }
-        >
-          {zh ? "删除我的账号" : "Delete my account"}
-        </button>
-      </section>
+      <details
+        className="management-section danger-zone"
+        name="account-sections"
+      >
+        <summary>
+          <span>{zh ? "删除账号与数据" : "Delete account and data"}</span>
+          <small>
+            {zh
+              ? "查看数据保留说明与删除选项"
+              : "Review retention details and account deletion"}
+          </small>
+        </summary>
+        <section>
+          <h4>{zh ? "删除账号" : "Delete account"}</h4>
+          <p>
+            {zh
+              ? "立即撤销登录并下架本人内容，30 天内清理私有数据。已公开许可和署名保留，必要安全审计最多保留 180 天；不能收回已下载副本。"
+              : "Immediately revoke sign-in and remove your publications; clear private data within 30 days. Public licenses and attribution remain, and necessary safety audits remain up to 180 days. Downloaded copies cannot be recalled."}
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              checked={confirm}
+              onChange={(e) => setConfirm(e.target.checked)}
+            />
+            {zh
+              ? "我已阅读并确认删除账号"
+              : "I have read this notice and confirm account deletion"}
+          </label>
+          <button
+            className="danger"
+            disabled={busy || !confirm || !policy}
+            onClick={() =>
+              void run(async () => {
+                await api(
+                  "/v1/me/delete",
+                  { confirm: true, policy_version: "1" },
+                  policy.row_version,
+                );
+                onDeleted();
+              })
+            }
+          >
+            {zh ? "删除我的账号" : "Delete my account"}
+          </button>
+        </section>
+      </details>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import type { CoverCache } from "./cover-cache";
 import { failure, reply, type UploadEnv } from "./upload-shared";
 import {
   mediaResponse,
@@ -18,6 +19,9 @@ type PublicRelease = {
   state: string;
   updated_at: number;
   row_version: number;
+  cover_sha256?: string;
+  expression_count?: number;
+  action_count?: number;
 };
 const project = (r: PublicRelease) => ({
   pack_id: r.pack_id,
@@ -29,7 +33,12 @@ const project = (r: PublicRelease) => ({
   published_at: r.published_at,
   row_version: r.row_version,
 });
-export async function catalogRoute(request: Request, env: UploadEnv) {
+export async function catalogRoute(
+  request: Request,
+  env: UploadEnv,
+  covers?: CoverCache,
+  queueCover?: (job: () => Promise<Response>) => Promise<Response>,
+) {
   try {
     if (request.method !== "GET") return failure("NOT_FOUND", 404);
     const url = new URL(request.url);
@@ -85,7 +94,7 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
       );
       const rows = (
         await env.DB.prepare(
-          `SELECT r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.updated_at DESC,p.pack_id DESC LIMIT ?`,
+          `SELECT coalesce(json_extract(r.manifest,'$.expressions[0].visual.poster.sha256'),json_extract(r.manifest,'$.expressions[0].visual.primary.sha256')) AS cover_sha256,json_array_length(r.manifest,'$.expressions') AS expression_count,coalesce(json_array_length(r.manifest,'$.actions'),0) AS action_count,r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.updated_at DESC,p.pack_id DESC LIMIT ?`,
         )
           .bind(...values)
           .all<PublicRelease>()
@@ -95,6 +104,9 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
           const p = project(r);
           return {
             ...p,
+            ...(r.cover_sha256 ? { cover: { sha256: r.cover_sha256 } } : {}),
+            expression_count: r.expression_count ?? 0,
+            action_count: r.action_count ?? 0,
             manifest: {
               name: p.manifest.name,
               description: p.manifest.description,
@@ -107,7 +119,7 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
       });
     }
     const match =
-      /^\/v1\/packs\/([0-9a-f-]{36})(?:\/releases\/([0-9a-f-]{36})(?:\/(archive|media\/([a-f0-9]{64})))?)?$/.exec(
+      /^\/v1\/packs\/([0-9a-f-]{36})(?:\/releases\/([0-9a-f-]{36})(?:\/(archive|cover|media\/([a-f0-9]{64})))?)?$/.exec(
         url.pathname,
       );
     if (!match) return failure("NOT_FOUND", 404);
@@ -121,7 +133,24 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
           ).bind(match[1])
     ).first<PublicRelease>();
     if (!r) return failure("NOT_FOUND", 404);
-    if (r.state !== "published") return reply({error:{code:'RELEASE_REMOVED',message:'RELEASE_REMOVED',retryable:false},tombstone:{pack_id:r.pack_id,release_id:r.release_id,archive_sha256:r.archive_sha256,state:r.state,row_version:r.row_version}},410);
+    if (r.state !== "published")
+      return reply(
+        {
+          error: {
+            code: "RELEASE_REMOVED",
+            message: "RELEASE_REMOVED",
+            retryable: false,
+          },
+          tombstone: {
+            pack_id: r.pack_id,
+            release_id: r.release_id,
+            archive_sha256: r.archive_sha256,
+            state: r.state,
+            row_version: r.row_version,
+          },
+        },
+        410,
+      );
     if (!match[3])
       return reply({
         ...project(r),
@@ -134,6 +163,34 @@ export async function catalogRoute(request: Request, env: UploadEnv) {
       .bind(r.submission_id)
       .first<Submission>();
     if (!s) return failure("NOT_FOUND", 404);
+    // The live release and submission checks above also apply to warm covers.
+    // Cache identity includes both sealed digests, so it cannot cross revisions.
+    const coverKey = `${r.archive_sha256}:${r.manifest_sha256}`;
+    if (match[3] === "cover") {
+      const cached = covers?.get(coverKey);
+      if (cached) return cached;
+      const load = async () => {
+        // A cold cover waits for the shared heavy queue: recheck visibility once
+        // admitted. A warm cover only needs the live metadata checks above.
+        const current = await env.DB.prepare(
+          "SELECT state FROM market_public_release WHERE release_id=?",
+        )
+          .bind(r.release_id)
+          .first<{ state: string }>();
+        if (!current || current.state !== "published")
+          return failure("RELEASE_REMOVED", 410);
+        const hit = covers?.get(coverKey);
+        if (hit) return hit;
+        const { manifest, files } = await submissionSnapshot(env, s);
+        const expression = manifest.expressions[0];
+        const hash = (expression?.visual.poster ?? expression?.visual.primary)
+          ?.sha256;
+        if (!hash) return failure("NOT_FOUND", 404);
+        const response = mediaResponse(manifest, files, hash);
+        return covers ? covers.remember(coverKey, response) : response;
+      };
+      return await (queueCover ? queueCover(load) : load());
+    }
     const { bytes, manifest, files } = await submissionSnapshot(env, s);
     if (match[4]) return mediaResponse(manifest, files, match[4]);
     return new Response(new Blob([new Uint8Array(bytes)]).stream(), {

@@ -48,6 +48,23 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+      - name: Install browser for marketplace UI checks
+        working-directory: apps/marketplace
+        run: npx playwright install --with-deps chromium
+      - name: Verify marketplace browser flows and accessibility
+        working-directory: apps/marketplace
+        run: npm run test:ui
+      - name: Upload marketplace UI evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: marketplace-ui-evidence
+          path: |
+            apps/marketplace/.cache/design/*.png
+            apps/marketplace/.cache/browser-results/**
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build and exercise portable Claude Mods package
         run: npm run test:claude-artifact
       - name: Validate and test Mods with pinned official Claude Code

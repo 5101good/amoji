@@ -6,12 +6,13 @@ import {
   migrateUploads,
 } from "./runtime-fixture.mjs";
 import { hash } from "./upload-fixtures.mjs";
-export async function fixture(t) {
+export async function fixture(t, serviceBindings = {}) {
   const mf = new Miniflare(
     convertV4MiniflareOptions({
       workers: [
         {
           name: "flow",
+          serviceBindings,
           modules: true,
           script: await readFile(
             new URL("../dist/worker.js", import.meta.url),
@@ -58,9 +59,18 @@ export async function fixture(t) {
     .split(/;\n(?=CREATE)/)
     .filter((s) => s.trim()))
     await db.prepare(statement).run();
-  for (const name of ['0007-device-authorizations.sql','0008-moderation-lifecycle.sql']) {
-    const migration=await readFile(new URL('../migrations/'+name,import.meta.url),'utf8');
-    for(const statement of migration.split(/;\n(?=CREATE|ALTER|DROP)/).filter(s=>s.trim())) await db.prepare(statement).run();
+  for (const name of [
+    "0007-device-authorizations.sql",
+    "0008-moderation-lifecycle.sql",
+  ]) {
+    const migration = await readFile(
+      new URL("../migrations/" + name, import.meta.url),
+      "utf8",
+    );
+    for (const statement of migration
+      .split(/;\n(?=CREATE|ALTER|DROP)/)
+      .filter((s) => s.trim()))
+      await db.prepare(statement).run();
   }
   async function post(
     path,

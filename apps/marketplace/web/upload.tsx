@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { unzipSync, zipSync } from "fflate";
 import { validate01, validate02 } from "amoji-schema";
 import { buildSnapshot } from "./snapshot";
+import { Icon, EmptyState } from "./ui";
 import { draftStore } from "./draft";
 import { Preview, previewWords } from "./preview";
 export { Preview, previewWords };
@@ -388,7 +389,9 @@ export function UploadPanel({
     : [];
   return (
     <section className="creator" aria-labelledby="creator-title">
-      <h2 id="creator-title">{t.title}</h2>
+      <h2 id="creator-title">
+        {zh ? "发布一份场景包" : "Publish an expression pack"}
+      </h2>
       <p>{t.fileHint}</p>
       <p ref={status} tabIndex={-1} role="status" aria-live="polite">
         {message}
@@ -397,243 +400,281 @@ export function UploadPanel({
         <p>{t.busy}</p>
       ) : (
         <>
-          <ol className="steps">
-            {t.steps.map((label, i) => (
-              <li
-                key={label}
-                aria-current={draft?.step === i ? "step" : undefined}
-              >
-                {i + 1}. {label}
-              </li>
-            ))}
-          </ol>
-          {!draft?.manifest ? (
-            <label>
-              {t.choose}
-              <input
-                type="file"
-                accept=".amoji,.zip"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.currentTarget.value = "";
-                  if (file) void run(() => choose(file));
-                }}
-              />
-            </label>
-          ) : (
-            <>
-              <p className="note">
-                {draft.filename} · {t.saved}
-              </p>
-              {draft.step === 1 && (
-                <div className="editor-fields">
-                  <label>
-                    {t.name}
-                    <input
-                      value={draft.manifest.name}
-                      maxLength={120}
-                      disabled={busy}
-                      onChange={(e) =>
-                        edit({
-                          ...draft,
-                          manifest: { ...draft.manifest, name: e.target.value },
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    {t.description}
-                    <textarea
-                      value={draft.manifest.description ?? ""}
-                      maxLength={4000}
-                      disabled={busy}
-                      onChange={(e) =>
-                        edit({
-                          ...draft,
-                          manifest: {
-                            ...draft.manifest,
-                            description: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                  <p>{t.rights}</p>
-                  {rights.map((r: any, i: number) => (
-                    <fieldset key={i}>
-                      <legend>{r.label}</legend>
-                      {(["license", "creator", "source"] as const).map(
-                        (field) => (
-                          <label key={field}>
-                            {t[field]}
-                            <input
-                              value={r.value?.[field] ?? ""}
-                              maxLength={field === "source" ? 500 : 120}
-                              list={
-                                field === "license" ? "licenses" : undefined
-                              }
-                              disabled={busy}
-                              onChange={(e) => {
-                                const m = structuredClone(draft.manifest);
-                                const target =
-                                  i === 0
-                                    ? m.rights
-                                    : i <= m.expressions.length
-                                      ? m.expressions[i - 1].rights
-                                      : m.actions[i - m.expressions.length - 1]
-                                          .rights;
-                                if (e.target.value)
-                                  target[field] = e.target.value;
-                                else delete target[field];
-                                edit({ ...draft, manifest: m });
-                              }}
-                            />
-                          </label>
-                        ),
-                      )}
-                    </fieldset>
-                  ))}
-                  <datalist id="licenses">
-                    <option>CC0-1.0</option>
-                    <option>CC-BY-4.0</option>
-                    <option>CC-BY-SA-4.0</option>
-                  </datalist>
-                </div>
-              )}
-              {draft.step === 2 && (
-                <>
-                  <p>{t.actions}</p>
-                  {!draft.manifest.actions.length ? (
-                    <p>{t.noActions}</p>
-                  ) : (
-                    draft.manifest.actions.map((a: any) => (
-                      <article key={a.action_id}>
-                        <h3>{a.effect_summary}</h3>
-                        {a.instruction ? (
-                          <p>{a.instruction}</p>
-                        ) : (
-                          <details>
-                            <summary>{t.full}</summary>
-                            <pre>
-                              {JSON.stringify(
-                                { template: a.template, config: a.config },
-                                null,
-                                2,
-                              )}
-                            </pre>
-                          </details>
-                        )}
-                        <button
-                          disabled={busy}
-                          onClick={() => {
-                            const m = structuredClone(draft.manifest);
-                            m.actions = m.actions.filter(
-                              (v: any) => v.action_id !== a.action_id,
-                            );
-                            m.bindings = m.bindings
-                              .map((b: any) => ({
-                                ...b,
-                                actions: b.actions.filter(
-                                  (v: any) => v.action_id !== a.action_id,
-                                ),
-                              }))
-                              .filter((b: any) => b.actions.length);
-                            edit({ ...draft, manifest: m });
-                          }}
-                        >
-                          {zh ? "不包含此动作" : "Exclude this action"}
-                        </button>
-                      </article>
-                    ))
-                  )}
-                </>
-              )}
-              {draft.step === 3 && (
-                <>
-                  <h3>{preview ? t.verifiedPreview : t.localPreview}</h3>
-                  <p>{t.sourceHint}</p>
-                  <Preview
-                    manifest={preview ?? draft.manifest}
-                    files={draft.files}
-                    uploadId={preview ? draft.upload?.id : undefined}
-                    t={t}
+          <div className="studio-flow">
+            <ol className="steps">
+              {t.steps.map((label, i) => (
+                <li
+                  key={label}
+                  data-complete={(draft?.step ?? 0) > i || undefined}
+                  aria-current={(draft?.step ?? 0) === i ? "step" : undefined}
+                >
+                  <span className="step-number">{i + 1}</span>
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="studio-editor">
+              {!draft?.manifest ? (
+                <label className="upload-drop">
+                  <Icon name="upload" size={32} />
+                  <strong>{t.choose}</strong>
+                  <span className="note">
+                    {zh
+                      ? "从 dsh 导出场景包，在这里开始分享。最大 10 MiB。"
+                      : "Export a scenario pack from dsh, then start sharing here. Up to 10 MiB."}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".amoji,.zip"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.currentTarget.value = "";
+                      if (file) void run(() => choose(file));
+                    }}
                   />
-                  {preview ? (
-                    <>
-                      <label className="check">
+                </label>
+              ) : (
+                <>
+                  <p className="note">
+                    {draft.filename} · {t.saved}
+                  </p>
+                  {draft.step === 1 && (
+                    <div className="editor-fields">
+                      <label>
+                        {t.name}
                         <input
-                          type="checkbox"
-                          checked={!!draft.confirmed}
+                          value={draft.manifest.name}
+                          maxLength={120}
                           disabled={busy}
                           onChange={(e) =>
-                            void save({
+                            edit({
                               ...draft,
-                              confirmed: e.target.checked,
-                            }).catch(() => notify(explanation(Error())))
+                              manifest: {
+                                ...draft.manifest,
+                                name: e.target.value,
+                              },
+                            })
                           }
                         />
-                        <span>{t.confirm}</span>
                       </label>
-                      <button
-                        disabled={busy || !draft.confirmed}
-                        onClick={() => void run(submit)}
-                      >
-                        {t.submit}
-                      </button>
-                    </>
-                  ) : (
-                    <button disabled={busy} onClick={() => void run(validate)}>
-                      {busy ? t.busy : t.validate}
-                    </button>
+                      <label>
+                        {t.description}
+                        <textarea
+                          value={draft.manifest.description ?? ""}
+                          maxLength={4000}
+                          disabled={busy}
+                          onChange={(e) =>
+                            edit({
+                              ...draft,
+                              manifest: {
+                                ...draft.manifest,
+                                description: e.target.value,
+                              },
+                            })
+                          }
+                        />
+                      </label>
+                      <p>{t.rights}</p>
+                      {rights.map((r: any, i: number) => (
+                        <details
+                          className="rights-editor"
+                          key={i}
+                          open={i === 0}
+                        >
+                          <summary>
+                            {r.label} <span>{r.value?.license}</span>
+                          </summary>
+                          <fieldset>
+                            <legend className="sr-only">{r.label}</legend>
+                            {(["license", "creator", "source"] as const).map(
+                              (field) => (
+                                <label key={field}>
+                                  {t[field]}
+                                  <input
+                                    value={r.value?.[field] ?? ""}
+                                    maxLength={field === "source" ? 500 : 120}
+                                    list={
+                                      field === "license"
+                                        ? "licenses"
+                                        : undefined
+                                    }
+                                    disabled={busy}
+                                    onChange={(e) => {
+                                      const m = structuredClone(draft.manifest);
+                                      const target =
+                                        i === 0
+                                          ? m.rights
+                                          : i <= m.expressions.length
+                                            ? m.expressions[i - 1].rights
+                                            : m.actions[
+                                                i - m.expressions.length - 1
+                                              ].rights;
+                                      if (e.target.value)
+                                        target[field] = e.target.value;
+                                      else delete target[field];
+                                      edit({ ...draft, manifest: m });
+                                    }}
+                                  />
+                                </label>
+                              ),
+                            )}
+                          </fieldset>
+                        </details>
+                      ))}
+                      <datalist id="licenses">
+                        <option>CC0-1.0</option>
+                        <option>CC-BY-4.0</option>
+                        <option>CC-BY-SA-4.0</option>
+                      </datalist>
+                    </div>
                   )}
-                </>
-              )}
-              <div className="button-row">
-                {draft.step > 1 && (
+                  {draft.step === 2 && (
+                    <>
+                      <p>{t.actions}</p>
+                      {!draft.manifest.actions.length ? (
+                        <p>{t.noActions}</p>
+                      ) : (
+                        draft.manifest.actions.map((a: any) => (
+                          <article key={a.action_id}>
+                            <h3>{a.effect_summary}</h3>
+                            {a.instruction ? (
+                              <p>{a.instruction}</p>
+                            ) : (
+                              <details>
+                                <summary>{t.full}</summary>
+                                <pre>
+                                  {JSON.stringify(
+                                    { template: a.template, config: a.config },
+                                    null,
+                                    2,
+                                  )}
+                                </pre>
+                              </details>
+                            )}
+                            <button
+                              disabled={busy}
+                              onClick={() => {
+                                const m = structuredClone(draft.manifest);
+                                m.actions = m.actions.filter(
+                                  (v: any) => v.action_id !== a.action_id,
+                                );
+                                m.bindings = m.bindings
+                                  .map((b: any) => ({
+                                    ...b,
+                                    actions: b.actions.filter(
+                                      (v: any) => v.action_id !== a.action_id,
+                                    ),
+                                  }))
+                                  .filter((b: any) => b.actions.length);
+                                edit({ ...draft, manifest: m });
+                              }}
+                            >
+                              {zh ? "不包含此动作" : "Exclude this action"}
+                            </button>
+                          </article>
+                        ))
+                      )}
+                    </>
+                  )}
+                  {draft.step === 3 && (
+                    <>
+                      <h3>{preview ? t.verifiedPreview : t.localPreview}</h3>
+                      <p>{t.sourceHint}</p>
+                      <Preview
+                        manifest={preview ?? draft.manifest}
+                        files={draft.files}
+                        uploadId={preview ? draft.upload?.id : undefined}
+                        t={t}
+                      />
+                      {preview ? (
+                        <>
+                          <label className="check">
+                            <input
+                              type="checkbox"
+                              checked={!!draft.confirmed}
+                              disabled={busy}
+                              onChange={(e) =>
+                                void save({
+                                  ...draft,
+                                  confirmed: e.target.checked,
+                                }).catch(() => notify(explanation(Error())))
+                              }
+                            />
+                            <span>{t.confirm}</span>
+                          </label>
+                          <button
+                            disabled={busy || !draft.confirmed}
+                            onClick={() => void run(submit)}
+                          >
+                            {t.submit}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          disabled={busy}
+                          onClick={() => void run(validate)}
+                        >
+                          {busy ? t.busy : t.validate}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <div className="button-row">
+                    {draft.step > 1 && (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => edit({ ...draft, step: draft.step - 1 })}
+                      >
+                        {t.back}
+                      </button>
+                    )}
+                    {draft.step < 3 && (
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            await save({ ...draft, step: draft.step + 1 });
+                            notify(t.saved);
+                          })
+                        }
+                      >
+                        {t.next}
+                      </button>
+                    )}
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void run(restore)}
+                    >
+                      {t.restore}
+                    </button>
+                  </div>
                   <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => edit({ ...draft, step: draft.step - 1 })}
-                  >
-                    {t.back}
-                  </button>
-                )}
-                {draft.step < 3 && (
-                  <button
+                    className="switch"
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        await save({ ...draft, step: draft.step + 1 });
-                        notify(t.saved);
+                        if (
+                          !window.confirm(
+                            zh
+                              ? "开始新草稿会清除这份本地草稿，已提交的内容不会受影响。继续吗？"
+                              : "Starting a new draft clears this local draft. Submitted content stays unchanged. Continue?",
+                          )
+                        )
+                          return;
+                        await save(null);
+                        setPreview(null);
                       })
                     }
                   >
-                    {t.next}
+                    {t.new}
                   </button>
-                )}
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void run(restore)}
-                >
-                  {t.restore}
-                </button>
-              </div>
-              <button
-                className="switch"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await save(null);
-                    setPreview(null);
-                  })
-                }
-              >
-                {t.new}
-              </button>
-            </>
-          )}
+                </>
+              )}
+            </div>
+          </div>
         </>
       )}
       <section className="submissions">
@@ -647,13 +688,28 @@ export function UploadPanel({
             {t.refresh}
           </button>
         </div>
-        {!rows.length && <p>{t.empty}</p>}
+        {!rows.length && (
+          <EmptyState title={t.empty} icon="upload">
+            <p>
+              {zh
+                ? "完成上方的四步向导后，可以在这里查看审核进度。"
+                : "Finish the steps above, then follow your review progress here."}
+            </p>
+          </EmptyState>
+        )}
         {rows.map((s) => (
           <article key={s.id}>
             <h4>
-              {s.pack_id} · v{s.version}
+              {viewed?.id === s.id
+                ? viewed.manifest.name
+                : zh
+                  ? "场景包投稿"
+                  : "Pack submission"}{" "}
+              <span className="note">v{s.version}</span>
             </h4>
-            <p>{t[s.state as "pending"] ?? s.state}</p>
+            <p className="submission-state" data-state={s.state}>
+              {t[s.state as "pending"] ?? s.state}
+            </p>
             {s.reason && <p>{s.reason}</p>}
             <button
               className="secondary"
@@ -684,7 +740,16 @@ export function UploadPanel({
               />
             )}
 
-            <code>{s.archive_sha256}</code>
+            <details>
+              <summary>
+                {zh ? "版本标识与摘要" : "Version identity & digest"}
+              </summary>
+              <code>
+                {s.pack_id}
+                <br />
+                {s.archive_sha256}
+              </code>
+            </details>
             <div className="button-row">
               {s.state === "pending" && (
                 <button

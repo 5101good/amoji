@@ -1,3 +1,4 @@
+import type { CoverCache } from "./cover-cache";
 import { backupHealth } from "./backup";
 import { lifecycleRoute } from "./lifecycle";
 import {deviceRoute,deviceActor,revokeDevices} from "./devices";
@@ -10,6 +11,8 @@ import type { Env } from "./worker";
 // Supplied only by the owning runtime, after the public ingress has overwritten
 // its forwarding marker. Request headers cannot select a limiter or skip it.
 type ApiEnv = Env & {
+  publicCovers?: CoverCache;
+  queueCover?: (job: () => Promise<Response>) => Promise<Response>;
   publicRateLimit?: (key: string, bucket: number, max: number) => boolean | undefined;
 };
 const encoder = new TextEncoder();
@@ -190,7 +193,7 @@ export default {
           ))
         )
           return error("RATE_LIMITED", 429);
-        return catalogRoute(request, env);
+        return catalogRoute(request, env, env.publicCovers, env.queueCover);
       }
       if (path === "/v1/auth/csrf" && request.method === "GET") {
         const stamp = `${Date.now()}.${crypto.randomUUID()}`;

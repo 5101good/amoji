@@ -1,3 +1,4 @@
+import { CoverCache } from "./cover-cache";
 import { runBackup } from "./backup";
 import { cleanupLifecycle } from "./retention";
 import marketApi from "./market-api";
@@ -9,6 +10,7 @@ import { cleanupUploads } from "./uploads";
 import { digest, failure, readBytes, type Upload } from "./upload-shared";
 /** One SQLite DO serializes all heavy jobs, including cleanup, within this application. */
 export class FreeRuntime extends DurableObject<Env> {
+  private readonly publicCovers = new CoverCache();
   private readonly publicRateActivationBucket: number;
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -73,9 +75,9 @@ export class FreeRuntime extends DurableObject<Env> {
   private metadataReading = 0;
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
-    // Metadata does not run archive decoding/password hashing. Its atomic local
-    // rate limit still applies, while slow mutations retain the bounded queue.
-    if (request.method === "GET" && /^\/v1\/packs(?:\/[0-9a-f-]{36}(?:\/releases\/[0-9a-f-]{36})?)?$/.test(path)) {
+    // Metadata and warm covers avoid archive/password work. Cold covers enter
+    // the shared heavy queue through queueCover; public rate limits still apply.
+    if (request.method === "GET" && /^\/v1\/packs(?:\/[0-9a-f-]{36}(?:\/releases\/[0-9a-f-]{36}(?:\/cover)?)?)?$/.test(path)) {
       if (this.metadataReading >= 64) return failure("RUNTIME_BUSY", 429);
       this.metadataReading++;
       try { return await this.handle(request); } finally { this.metadataReading--; }
@@ -100,10 +102,13 @@ export class FreeRuntime extends DurableObject<Env> {
         this.reading--;
       }
     }
+    return this.enqueue(() => this.handle(request));
+  }
+  private async enqueue(job: () => Promise<Response>): Promise<Response> {
     if (this.queued >= 8) return failure("RUNTIME_BUSY", 429);
     this.queued++;
     const work = this.tail
-      .then(() => this.handle(request))
+      .then(job)
       .finally(() => {
         this.queued--;
       });
@@ -158,6 +163,8 @@ export class FreeRuntime extends DurableObject<Env> {
       return marketApi.fetch(request, {
         ...this.env,
         FREE_RUNTIME: runtime,
+        publicCovers: this.publicCovers,
+        queueCover: (job) => this.enqueue(job),
         publicRateLimit: (key, bucket, max) => this.publicRateLimit(key, bucket, max),
       });
     }

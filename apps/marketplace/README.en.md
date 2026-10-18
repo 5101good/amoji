@@ -24,6 +24,31 @@ Open `http://localhost:8787`. Never enable `LOCAL_TEST` in production. No confir
 
 Local tests do not establish cloud free-tier CPU, memory or latency feasibility. Passwords use Better Auth's default scrypt without weakened parameters.
 
+## Web navigation and browser checks
+
+- **Discover** `/`: real image covers, keyword search and combined filters. Filters remain in the URL for sharing and browser Back. The server renders public summaries before JavaScript; anonymous browsing does not load the creator archive tools.
+- **Pack details** `/packs/:pack/releases/:release`: switch available appearances, enlarge images, read fixed meanings, download an exact release and copy its dsh pack ID. Appearance selection never changes semantics; installation never enables actions.
+- **Creator studio** `/?view=studio`: choose content → details and licenses → optional actions → preview and submit. Drafts stay on the current device, interrupted uploads can be recovered, and a reviewer publishes submitted content.
+- **Review** `/?view=review` is limited to reviewers and administrators. **Account & publications** `/?view=account` groups content, reports, roles and account deletion. Device pairing has a separate confirmation page.
+
+The interface defaults to Chinese and remembers an optional English selection. Interface language never translates or rewrites creators' fixed semantics. Layouts support phones and tablets, keyboard focus, modal Escape and focus return, and reduced motion. The hero artwork was generated with the repository's CC0 expressions as a reference; see [brand artwork provenance and license](web/art/README.md). Example expressions come from the base library, and the brand image is `assets/brand/amoji-logo.png`. Images use optimized WebP assets without external font or image services.
+
+The interactive homepage exhibit places an expression beside its fixed meaning. Choosing an example only changes the local preview; it never sends a message or calls a model. Example text is copied verbatim from the repository’s Chinese and English built-in definitions, selecting the corresponding independent example for each interface language. The account page separates identity, publications, reports, roles and deletion controls.
+
+Browser regression checks (install locked dependencies at the repository root and in this directory first):
+
+```sh
+npm run build
+npx playwright install chromium
+npm run test:ui
+# Alternatively, use an existing Microsoft Edge installation:
+PLAYWRIGHT_CHANNEL=msedge npm run test:ui
+```
+
+Tests start isolated servers bound to the local machine. Port `4173` uses state fixtures for empty/error states, languages, roles, focus and responsive layouts. Port `4174` runs real local workerd, D1 and R2 through upload, trusted validation, submission, approval and public download; only the S3 network transfer is emulated. Browser tests also run axe accessibility rules. Screenshots go to `.cache/design` and failed traces to `.cache/browser-results`; neither is committed. Test entry points are excluded from the production bundle. These checks do not replace cloud S3, free-tier, performance or real dsh acceptance.
+
+Public covers use a separate `/cover` endpoint. Each runtime caches only verified image bytes (8 MiB / 64 entries, at most 1 MiB each) and checks publication state on every hit. Hits do not reread archives or spend `sealed_reads`; cold reads, eviction and restarts still use the existing allowance and heavy-job queue. No cloud objects are added. Browser responses remain `no-store`, so removals take effect immediately.
+
 ## Deployment
 
 Set your provisioned D1 database ID and production origin, set a random secret with `wrangler secret put BETTER_AUTH_SECRET --env production`, and apply migrations to the explicitly selected database before `npm run deploy`. The production ID is explicit; verify it before any remote command. Production does not inherit the local-test switch. Stop on insufficient permissions or quotas; never activate paid upgrades automatically. Do not enable read replicas for auth data.

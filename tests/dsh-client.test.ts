@@ -41,7 +41,7 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   const disposers: Array<() => void> = [];
   const ctx: ClientPort = { slots, effect(factory) { disposers.push(factory()); }, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
     const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
-    const result = endpoint.endsWith('/management') ? (payload.method === 'getSettings' ? {version:1,style:'neutral',frequency:'restrained',paused:false} : []) : endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
+    const result = (endpoint.endsWith('/actions') || endpoint.endsWith('/collaboration.receipts')) ? [] : endpoint.endsWith('/management') ? (payload.method === 'getSettings' ? {version:1,style:'neutral',frequency:'restrained',paused:false} : []) : endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
     return { ok: true, value: result };
   } } } };
   module.apply(ctx);

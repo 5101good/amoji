@@ -1,3 +1,4 @@
+import type { ActionChoice, ActionSelection } from '../collaboration.js';
 import { useText, message, type TextMessage, AmojiLocaleProvider, AMOJI_LOCALE, chinese, dictionaries, type AmojiLocale } from './i18n.js';
 import { english } from './i18n-dictionary.js';
 import { aiExpressionDefinition, AiExpressions } from './ai-messages.js';
@@ -28,6 +29,9 @@ interface SessionProps { sessionId: string }
 import { AmojiImage, createRpc, parseMeta, errorText, sameRef } from './media.js';
 export { AmojiImage, createRpc, parseMeta } from './media.js';
 function deliveryText(row: HistoryEntry): TextMessage {
+  if(row.action){
+    return ({prepared:'动作已准备，尚未投递。',dispatched:'表达已排队，动作等待匹配回合领取。',bound:'动作已绑定匹配回合，尚待核对附加。',attached:'动作已附加到原生用户上下文；不代表模型遵从。',failed:'动作未应用；宿主未提交匹配上下文。可另选仅发送表达。',cancelled:'动作已取消，不会用于后续回合。',unknown:'动作结果待核对；不会再次提交原请求。',unsupported:'当前宿主不支持动作，可明确选择仅发送。'} as const)[row.action.status];
+  }
   if (row.host?.status === 'observed') return row.message?.presentation === 'rendered' ? '已观察到会话用户消息，图片已展示' : row.message?.presentation === 'fallback' ? '已观察到会话用户消息，当前使用固定文字回退' : '已观察到会话用户消息，图片展示尚待确认';
   if (row.host?.status === 'accepted') return '宿主已接收入队，尚未确认用户消息落盘';
   if (row.host?.status === 'unknown') return '投递结果尚待核对；不会再次提交，请核对原会话。';
@@ -36,16 +40,32 @@ function deliveryText(row: HistoryEntry): TextMessage {
 export function createComponents(rpc: DshRpc) {
   // Keep unresolved identities beyond a keyed PickerSession's lifetime. A UI abort
   // cannot tell us whether the host already accepted the original submission.
-  const pendingSelections = new Map<string, {selected: Expression; requestId: string; sent?: HistoryEntry}>();
+  const pendingSelections = new Map<string, {selected: Expression; requestId: string; action?:ActionSelection; sent?: HistoryEntry}>();
   function Picker({ sessionId }: SessionProps) {
-    const [reopen,setReopen]=useState(0); const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
-    return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onManage={()=>{setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
+    const [managerTab,setManagerTab]=useState('library'); const [reopen,setReopen]=useState(0); const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
+    return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onMarket={()=>{setManagerTab('market');setManagerSession(v=>v??sessionId);setManagerOpen(true);}} onManage={()=>{setManagerTab('library');setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager initialTab={managerTab} rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
   }
-  function PickerSession({ sessionId, onManage, refresh, reopen }: SessionProps & {onManage:()=>void;refresh:number;reopen:number}) {
+  function PickerSession({ sessionId, onManage, onMarket, refresh, reopen }: SessionProps & {onManage:()=>void;onMarket:()=>void;refresh:number;reopen:number}) {
  const t=useText();
     const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState<TextMessage>(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState<TextMessage>(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
+    const [choices,setChoices]=useState<ActionChoice[]>([]); const [actionIndex,setActionIndex]=useState(0); const [actionsLoading,setActionsLoading]=useState(false);
+    const choose = async (expression:Expression, detail=false) => {
+      selectionEpoch.current++; const epoch=selectionEpoch.current; setSent(undefined);setStatus('');setChoices([]);setActionIndex(0);setRequestId('');
+      if(!rpc.actions){if(detail)setSelected(expression);else void send(expression,'',undefined);return;}
+      setSelected(expression);setActionsLoading(true);
+      try {const values=await rpc.actions(sessionId,expression,lifetime.current.abort.signal);if(selectionEpoch.current!==epoch)return;if(!Array.isArray(values))throw new Error('当前宿主不支持动作，可明确选择仅发送。');setChoices(values);if(!values.length&&!detail)void send(expression,'',undefined);}
+      catch(e){if(selectionEpoch.current===epoch)setStatus(errorText(e));}
+      finally{if(selectionEpoch.current===epoch)setActionsLoading(false);}
+    };
+    const [receipts,setReceipts]=useState<HistoryEntry[]>([]);
+    const refreshReceipts=async()=>{
+      if(!rpc.receipts || !target)return;
+      const owner=lifetime.current;const generation=owner.generation;
+      try{const rows=await rpc.receipts(sessionId,owner.abort.signal);if(!Array.isArray(rows))throw new Error('协作回执暂不可用，请重新核对。');if(!owner.abort.signal.aborted&&owner.generation===generation)setReceipts(rows);}
+      catch(error){if(!owner.abort.signal.aborted&&owner.generation===generation)setStatus(errorText(error));}
+    };
     const previousReopen = useRef(reopen);
     useEffect(()=>{if(previousReopen.current !== reopen){previousReopen.current = reopen;setTarget(sessionId);}},[reopen,sessionId]);
     const [category,setCategory]=useState('全部');
@@ -56,6 +76,7 @@ export function createComponents(rpc: DshRpc) {
     const sendLock = useRef(false);
     const [settings,setSettings]=useState<PersonalSettings>();
     const [unavailable, setUnavailable] = useState(!!pending); const [uncertain, setUncertain] = useState(!!pending); const [sent, setSent] = useState<HistoryEntry | undefined>(pending?.sent);
+    useEffect(()=>{void refreshReceipts();},[target,sent?.meta?.messageId]);
     const lifetime = useRef({ sessionId, generation: 0, abort: new AbortController() });
     const searchTask = useRef({ generation: 0, abort: new AbortController() });
     useEffect(() => {
@@ -82,25 +103,27 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) { setCatalog([]); setUnavailable(true); setSearchStatus(errorText(e)); } }
       finally { if (current()) setSearching(false); }
     };
-    const send = async (choice = selected, retryRequestId = requestId) => {
+    const send = async (choice = selected, retryRequestId = requestId, action:ActionSelection|undefined = pendingSelections.get(sessionId)?.action) => {
       if (!target || !choice || sendLock.current || unavailable) return;
       sendLock.current = true;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
       const current = () => !signal.aborted && owner.generation === generation && owner.sessionId === frozen;
       const id = retryRequestId || crypto.randomUUID();
       setSelected(choice); setRequestId(id);
-      const identity = { selected: choice, requestId: id, sent };
+      const identity = { selected: choice, requestId: id, action, sent };
       pendingSelections.set(frozen, identity);
       setBusy(true); setStatus('');
       try {
-        const result = await rpc.submit(frozen, { asset_id: choice.asset_id, revision_id: choice.revision_id }, id, signal);
+        const ref={asset_id:choice.asset_id,revision_id:choice.revision_id};
+        if(action && !rpc.submitWithAction)throw new Error('当前宿主不支持动作，可明确选择仅发送。');
+        const result = action ? await rpc.submitWithAction!(frozen,ref,{action_id:action.action_id,action_revision_id:action.action_revision_id},{release_id:action.release_id},id,signal) : await rpc.submit(frozen,ref,id,signal);
         if (pendingSelections.get(frozen) === identity) {
           if (result.host?.status === 'unknown') identity.sent = result;
           else pendingSelections.delete(frozen);
         }
         if (current()) {
           setSent(result); setUncertain(result.host?.status === 'unknown'); setStatus(deliveryText(result));
-          if (result.host?.status === 'accepted' || result.host?.status === 'observed') {
+          if (!result.action && (result.host?.status === 'accepted' || result.host?.status === 'observed')) {
             setSelected(undefined); setTarget(undefined); anchor.current?.focus({ preventScroll: true });
           }
         }
@@ -137,11 +160,11 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (!owner.abort.signal.aborted && owner.generation === generation && selection === selectionEpoch.current) setStatus(errorText(e)); }
     };
     useEffect(() => {
-      if (!target || !sent?.meta?.messageId || sent.host?.status === 'observed') return;
+      if (!target || !sent?.meta?.messageId || (sent.host?.status === 'observed' && (!sent.action || ['attached','failed','cancelled'].includes(sent.action.status)))) return;
       let remaining = 30;
       const timer = setInterval(() => { if (remaining-- > 0) void check(); else clearInterval(timer); }, 2000);
       return () => clearInterval(timer);
-    }, [target, sent?.meta?.messageId, sent?.host?.status]);
+    }, [target, sent?.meta?.messageId, sent?.host?.status,sent?.action?.status]);
     const recover = async () => {
       if (!target || !rpc.reconnect) return;
       const owner = lifetime.current; const generation = owner.generation;
@@ -166,7 +189,7 @@ export function createComponents(rpc: DshRpc) {
         setQuery(''); setCategory('全部'); setSelected(undefined);
       }}><SmileIcon/><span>{t("表情")}</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
-        <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={()=>dismiss()}><CloseIcon/></button></div></header>
+        <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={()=>{dismiss(false);onMarket();}}>{t("表情市场")}</button><button className="quiet" type="button" onClick={()=>{dismiss(false);onManage();}}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={()=>dismiss()}><CloseIcon/></button></div></header>
         <div className="amoji-appearance" aria-label={t("表情画风")}><span className="muted">{t("画风")}</span>{([['classic',t("经典")],['office',t("办公")]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={(settings?.appearance??'classic')===value} disabled={busy||uncertain} onClick={()=>void changeAppearance(value)}>{label}</button>)}<span className="muted">{t("点击即发送")}</span></div>
         <form className="amoji-picker-search" aria-label={t("搜索 Amoji")} onSubmit={event => { event.preventDefault(); setCategory('全部'); void load(query); }}>
           <input aria-label={t("搜索表情")} value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder={t("想表达什么？")} />
@@ -175,12 +198,18 @@ export function createComponents(rpc: DshRpc) {
         </form>
         {categories.some(c=>c!=='其他') && <nav className="amoji-categories" aria-label={t("表情场景")}>{['全部',...categories].map(c=><button className="quiet" type="button" key={c} aria-pressed={category===c} disabled={busy||uncertain} onClick={()=>{setCategory(c);setSelected(undefined);setSent(undefined);setStatus('');selectionEpoch.current++;}}>{t(c)}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
-          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>{selectionEpoch.current++;setSent(undefined);setStatus('');void send(e,'');}} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情',{name:e.name})} disabled={busy||uncertain} onClick={()=>{selectionEpoch.current++;setSelected(e);setSent(undefined);setStatus('');}}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}
+          {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={()=>void choose(e)} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情',{name:e.name})} disabled={busy||uncertain} onClick={()=>void choose(e,true)}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}
         </div>
         <footer className="amoji-picker-footer">
+          {!!receipts.length && <details><summary>{t('协作动作记录')}</summary><button type="button" onClick={()=>void refreshReceipts()}>{t('核对协作记录')}</button>{receipts.map(row=><p role="status" key={row.message.message_id}>{row.message.revision?.name} · {t(deliveryText(row))} {row.action?.reason} {row.action?.turnStartSeq!==undefined&&<> · turn {row.action.turnStartSeq} · snapshot {row.action.snapshotSeq??'—'}</>}</p>)}</details>}
           {selected ? <section className="amoji-selection" aria-label={t("固定语义与精确版本")}><strong>{selected.name}</strong><p>{selected.semantics.meaning}</p><details><summary>{t("查看含义与适用场景")}</summary><p>{selected.semantics.tone}</p><p>{selected.semantics.use_when?.join('；')}</p><p>{selected.semantics.avoid_when?.join('；')}</p><small>{t('版本 {revision}',{revision:selected.revision_id})}</small></details></section> : <p className="muted">{t("选一张表情，看看它想表达什么。")}</p>}
+          {selected && !sent && <section aria-label={t('一次性协作提示')}>
+            {actionsLoading && <p role="status">{t('正在读取可选动作…')}</p>}
+            {!!choices.length && <><label>{t('一次性协作提示')}<select aria-label={t('选择协作提示')} value={actionIndex} disabled={busy||uncertain} onChange={e=>setActionIndex(Number(e.target.value))}>{choices.map((c,i)=><option key={`${c.selection.release_id}:${c.selection.action_revision_id}`} value={i}>{c.action.effect_summary}</option>)}</select></label><p>{choices[actionIndex]?.action.instruction}</p><small>{choices[actionIndex]?.source.origin} · {choices[actionIndex]?.source.release_id} · {choices[actionIndex]?.selection.action_revision_id}</small><p>{t('仅用于关联消息的一个回合；提示不保证模型遵从。')}</p></>}
+            <div className="row"><button type="button" disabled={busy||uncertain||actionsLoading} onClick={()=>void send(selected,'',undefined)}>{t('仅发送')}</button>{!!choices.length&&<button type="button" disabled={busy||uncertain||actionsLoading} onClick={()=>void send(selected,'',choices[actionIndex]!.selection)}>{t('发送并应用')}</button>}</div>
+          </section>}
           {!sent && status && <p className="amoji-notice" role="status">{t(status)}</p>}
-          {sent && !uncertain && <details className="amoji-notice"><summary>{t("上次发送记录")}</summary><p role="status">{t(status)}</p><button type="button" disabled={busy} onClick={()=>void check()}>{t("核对投递状态")}</button></details>}
+          {sent && !uncertain && <details className="amoji-notice" open={!!sent.action}><summary>{t("上次发送记录")}</summary><p role="status">{t(status)}{sent.action?.reason && <> ({sent.action.reason})</>}{sent.action?.turnStartSeq!==undefined&&<> · turn {sent.action.turnStartSeq} · snapshot {sent.action.snapshotSeq??'—'} · {sent.action.digest??''}</>}</p><button type="button" disabled={busy} onClick={()=>void check()}>{t("核对投递状态")}</button></details>}
           {sent && uncertain && <p className="amoji-notice" role="status">{t(status)}</p>}
           {(unavailable || uncertain) && <div className="row">{sent?.meta?.messageId && <button type="button" disabled={busy} onClick={()=>void check()}>{t("核对投递状态")}</button>}{rpc.reconnect && <button type="button" disabled={busy} onClick={()=>void recover()}>{t("重新连接并核对")}</button>}</div>}
         </footer>

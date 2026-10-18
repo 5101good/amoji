@@ -1,0 +1,10 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { resolve, dirname } from 'node:path';
+const root = resolve(import.meta.dirname, '../..');
+const output = resolve(root, '.cache/dsh-native-context/evidence.jsonl');
+await mkdir(dirname(output), { recursive: true });
+await writeFile(output, '');
+const child = spawn(process.execPath, ['--import', 'tsx', '--test', 'tests/dsh-native-context.test.ts', 'tests/dsh-correlated.test.ts'], { cwd: root, stdio: 'inherit', env: { ...process.env, AMOJI_NATIVE_EVIDENCE: output } });
+child.on('error', error => { console.error(error); process.exitCode = 1; });
+child.on('exit', code => { process.exitCode = code ?? 1; console.log(`Synthetic native driver evidence: ${output}; model cost: 0; no live model compliance claim.`); });

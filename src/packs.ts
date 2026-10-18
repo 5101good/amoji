@@ -11,27 +11,33 @@ import { ZipFile } from 'yazl';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { fullFormats } from 'ajv-formats/dist/formats.js';
 import schema from '../docs/specs/amoji-v0.1.schema.json' with { type: 'json' };
+import schema02 from '../docs/specs/amoji-v0.2.schema.json' with { type: 'json' };
+import { validateAction, actionKey, type ActionDefinition, type ActionRef } from './actions.js';
 import type { Expression, ExpressionRef, BlobRef } from './sample-catalog.js';
 import { validateExpressionDefinition } from './drafts.js';
-import { MEDIA_LIMITS, validateExpressionMedia } from './media.js';
+import { MEDIA_LIMITS, MARKET_MEDIA_LIMITS, validateExpressionMedia } from './media.js';
 import { fail, ServiceError } from './shared-contract.js';
 
 export const PACK_LIMITS = Object.freeze({ expressions: 200, entries: 1000, expanded: 250 * 1024 * 1024, manifest: 2 * 1024 * 1024, archive: 260 * 1024 * 1024 });
-export interface Pack { kind: 'amoji.pack'; schema_version: '0.1'; pack_id: string; name: string; created_at: string; expressions: Expression[]; defaults: ExpressionRef[] }
-export interface ImportResult { pack_id: string; added: number; existing: number; defaults: ExpressionRef[] }
+export interface LegacyPack { kind: 'amoji.pack'; schema_version: '0.1'; pack_id: string; name: string; created_at: string; expressions: Expression[]; defaults: ExpressionRef[] }
+export interface ScenarioPack extends Omit<LegacyPack, 'schema_version'> { schema_version:'0.2'; release_id:string; version:number; scenario:string[]; actions:ActionDefinition[]; bindings:Array<{expression:ExpressionRef;actions:ActionRef[]}>; rights:Expression['rights']; description?:string; styles?:string[]; examples?:string[]; requires?:string[]; derived_from?:{pack_id:string;release_id:string} }
+export type Pack = LegacyPack | ScenarioPack;
+export interface ImportResult { pack_id: string; added: number; existing: number; defaults: ExpressionRef[]; actions?: Array<{ref:ActionRef;enabled:false;reason:string}> }
 export type PackInput = Uint8Array | AsyncIterable<Uint8Array>;
 export interface ValidatedPack { manifest: Pack; readBlob(blob: BlobRef): Promise<Buffer> }
 const ajv = new Ajv2020({ strict: false, formats: fullFormats });
 const validate = ajv.compile({ $defs: schema.$defs, $ref: '#/$defs/pack' });
+const validate02 = ajv.compile(schema02);
 const key = (ref: ExpressionRef) => `${ref.asset_id}:${ref.revision_id}`;
 function limit(condition: boolean, message: string): void { if (condition) fail('PACK_LIMIT_EXCEEDED', message); }
 
 export function validatePackManifest(value: unknown): Pack {
-  if (value && typeof value === 'object' && 'schema_version' in value && value.schema_version !== '0.1') fail('UNSUPPORTED_SCHEMA', '不支持此包协议版本');
+  if (value && typeof value === 'object' && 'schema_version' in value && !['0.1','0.2'].includes(String(value.schema_version))) fail('UNSUPPORTED_SCHEMA', '不支持此包协议版本');
   if (value && typeof value === 'object' && 'expressions' in value && Array.isArray(value.expressions)) {
     for (const entry of value.expressions) if (entry && typeof entry === 'object' && 'schema_version' in entry && entry.schema_version !== '0.1') fail('UNSUPPORTED_SCHEMA', '不支持包中资产协议版本');
   }
-  if (!validate(value)) fail('INVALID_SCHEMA', ajv.errorsText(validate.errors));
+  const validator = (value as {schema_version?:string})?.schema_version === '0.2' ? validate02 : validate;
+  if (!validator(value)) fail('INVALID_SCHEMA', ajv.errorsText(validator.errors));
   const pack = value as Pack;
   const refs = new Set<string>(); const assets = new Set<string>(); const defaults = new Set<string>();
   for (const e of pack.expressions) {
@@ -44,6 +50,13 @@ export function validatePackManifest(value: unknown): Pack {
     defaults.add(ref.asset_id);
   }
   if (defaults.size !== assets.size) fail('PACK_REFERENCE_INVALID', '每个表情必须有且仅有一个默认引用');
+  if(pack.schema_version==='0.2') {
+    const actions=new Set<string>();
+    for(const action of pack.actions){validateAction(action);if(actions.has(actionKey(action)))fail('PACK_REFERENCE_INVALID','动作版本引用重复');actions.add(actionKey(action));}
+    const bound=new Set<string>();
+    for(const binding of pack.bindings){if(!refs.has(key(binding.expression))||bound.has(key(binding.expression)))fail('PACK_REFERENCE_INVALID','绑定表达不存在或重复');bound.add(key(binding.expression));for(const ref of binding.actions)if(!actions.has(actionKey(ref)))fail('PACK_REFERENCE_INVALID','绑定动作不在包内');}
+    for(const text of [pack.description,...(pack.examples??[])])if(text!==undefined&&Buffer.byteLength(text)>4096)fail('PACK_LIMIT_EXCEEDED','说明最多 4 KiB UTF-8');
+  }
   return pack;
 }
 
@@ -53,7 +66,9 @@ async function openZip(path: string): Promise<IteratedZip> {
   return new Promise((resolve, reject) => yauzl.open(path, { lazyEntries: true, autoClose: true, strictFileNames: true, validateEntrySizes: true }, (error, zip) => error ? reject(error) : resolve(zip as IteratedZip)));
 }
 /** Bounded staging and real streaming accounting; no archive pathname is ever extracted. */
-export async function withValidatedPack<T>(input: PackInput, consume: (pack: ValidatedPack) => Promise<T>): Promise<T> {
+export async function withValidatedPack<T>(input: PackInput, consume: (pack: ValidatedPack) => Promise<T>, profile:'local'|'market'='local'): Promise<T> {
+  const limits=profile==='market'?{...PACK_LIMITS,archive:10*1024*1024,expanded:16*1024*1024,manifest:512*1024,entries:256}:PACK_LIMITS;
+  const mediaLimits=profile==='market'?MARKET_MEDIA_LIMITS:MEDIA_LIMITS;
   const directory = await mkdtemp(join(tmpdir(), 'amoji-pack-'));
   let zip: IteratedZip | undefined;
   try {
@@ -61,14 +76,14 @@ export async function withValidatedPack<T>(input: PackInput, consume: (pack: Val
     const source = input instanceof Uint8Array ? [input] : input;
     await pipeline(source, new Transform({ transform(chunk: Buffer, _, done) {
       received += chunk.length;
-      if (received > PACK_LIMITS.archive) done(new ServiceError('PACK_LIMIT_EXCEEDED', '压缩包最多 260 MiB'));
+      if (received > limits.archive) done(new ServiceError('PACK_LIMIT_EXCEEDED', '压缩包最多 260 MiB'));
       else done(null, chunk);
     } }), createWriteStream(archive, { flags: 'wx', mode: 0o600 }));
     zip = await openZip(archive);
-    limit(zip.entryCount > PACK_LIMITS.entries, 'ZIP 条目超过 1000');
+    limit(zip.entryCount > limits.entries, 'ZIP 条目超过 1000');
     const paths = new Map<string, string>(); let expanded = 0; let count = 0;
     for await (const entry of zip.eachEntry()) {
-      limit(++count > PACK_LIMITS.entries, 'ZIP 条目超过 1000');
+      limit(++count > limits.entries, 'ZIP 条目超过 1000');
       const name = entry.fileName;
       if (!/^(manifest\.json|blobs\/(?:[0-9a-f]{64})?)$/.test(name) || paths.has(name)) fail('PACK_PATH_INVALID', '只接受唯一 manifest.json 和 blobs/<sha256> 文件');
       const local = await zip.readLocalFileHeaderPromise(entry);
@@ -76,14 +91,14 @@ export async function withValidatedPack<T>(input: PackInput, consume: (pack: Val
       const mode = (entry.externalFileAttributes >>> 16) & 0xf000;
       const directoryEntry = name === 'blobs/';
       if ((mode !== 0 && mode !== (directoryEntry ? 0x4000 : 0x8000)) || (!directoryEntry && (entry.externalFileAttributes & 0x10) !== 0) || entry.isEncrypted()) fail('PACK_PATH_INVALID', '不接受链接、非允许目录、特殊文件或加密条目');
-      const maximum = directoryEntry ? 0 : name === 'manifest.json' ? PACK_LIMITS.manifest : MEDIA_LIMITS.bytes;
-      limit(entry.uncompressedSize > maximum || expanded + entry.uncompressedSize > PACK_LIMITS.expanded, '清单、素材或展开大小超限');
+      const maximum = directoryEntry ? 0 : name === 'manifest.json' ? limits.manifest : mediaLimits.bytes;
+      limit(entry.uncompressedSize > maximum || expanded + entry.uncompressedSize > limits.expanded, '清单、素材或展开大小超限');
       const path = join(directory, `entry-${count}`); paths.set(name, path);
       let size = 0; let crc = 0;
       const stream = await zip.openReadStreamPromise(entry);
       await pipeline(stream, new Transform({ transform(chunk: Buffer, _, done) {
         size += chunk.length; expanded += chunk.length;
-        if (size > maximum || expanded > PACK_LIMITS.expanded) return done(new ServiceError('PACK_LIMIT_EXCEEDED', '实际展开字节超过预算'));
+        if (size > maximum || expanded > limits.expanded) return done(new ServiceError('PACK_LIMIT_EXCEEDED', '实际展开字节超过预算'));
         crc = crc32(chunk, crc); done(null, chunk);
       } }), createWriteStream(path, { flags: 'wx', mode: 0o600 }));
       if (size !== entry.uncompressedSize || crc !== entry.crc32) fail('PACK_INTEGRITY_FAILED', 'ZIP 长度或 CRC-32 不匹配');
@@ -99,7 +114,7 @@ export async function withValidatedPack<T>(input: PackInput, consume: (pack: Val
       const path = paths.get(name); if (!path) fail('BLOB_MISSING', '包缺少引用素材');
       return readFile(path);
     };
-    for (const e of manifest.expressions) await validateExpressionMedia(e, readBlob);
+    for (const e of manifest.expressions) await validateExpressionMedia(e, readBlob,mediaLimits);
     if (referenced.size !== paths.size) fail('PACK_REFERENCE_INVALID', '包含未引用文件');
     return await consume({ manifest, readBlob });
   } catch (error) {
@@ -111,6 +126,10 @@ export async function withValidatedPack<T>(input: PackInput, consume: (pack: Val
 /** Finish a private temporary ZIP before exposing bytes; validate all selected immutable media. */
 export async function exportPack(expressions: Expression[], defaults: ExpressionRef[], name: string, readBlob: (blob: BlobRef) => Promise<Buffer>): Promise<Buffer> {
   const manifest = validatePackManifest({ kind: 'amoji.pack', schema_version: '0.1', pack_id: randomUUID(), name, created_at: new Date().toISOString(), expressions, defaults });
+  return exportManifest(manifest, readBlob);
+}
+export async function exportManifest(value: Pack, readBlob: (blob: BlobRef) => Promise<Buffer>): Promise<Buffer> {
+  const manifest=validatePackManifest(value); const expressions=manifest.expressions;
   const raw = Buffer.from(JSON.stringify(manifest)); limit(raw.length > PACK_LIMITS.manifest, '清单超过 2 MiB');
   const directory = await mkdtemp(join(tmpdir(), 'amoji-export-'));
   try {

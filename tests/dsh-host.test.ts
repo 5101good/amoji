@@ -141,7 +141,7 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
   handler = async (endpoint, payload, signal) => (await (await routes.get(`/api/${endpoint}`)!.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'test-rpc', method: endpoint, payload }), signal }))).json()).result;
   const entry = new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href;
   const plugin = await import(entry) as { apply(ctx: HostPort): Promise<void>; inject: string[] };
-  const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
+  const previous = process.env.AMOJI_DATA_DIR; const previousDsh=process.env.DSH_HOME; process.env.DSH_HOME=join(f.directory,'dsh-profile'); process.env.AMOJI_DATA_DIR = f.directory;
   try {
     await plugin.apply(f.ctx); assert.ok(plugin.inject.includes('connection')); assert.ok(f.tools.has('amoji_emit'));
     const result = await handler!('amoji/catalog', { sessionId: f.a.id }, signal()) as { ok: boolean; value: unknown[] }; assert.equal(result.ok, true); assert.equal(result.value.length, 3);
@@ -149,6 +149,7 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
     const denied = await handler!('amoji/catalog', { sessionId: 'unknown-session' }, signal()) as { ok: boolean }; assert.equal(denied.ok, false);
   } finally {
     for (const close of cleanups.reverse()) await close();
+    if (previousDsh === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME=previousDsh;
     if (previous === undefined) delete process.env.AMOJI_DATA_DIR; else process.env.AMOJI_DATA_DIR = previous;
   }
 });
@@ -162,7 +163,7 @@ test('打包dsh Host提供会话校验的创建面板入口，不增加模型工
   f.ctx.connection.fetch.register = route => { routes.set(route.path, route); return async () => { routes.delete(route.path); }; };
   handler = async (endpoint, payload, signal) => (await (await routes.get(`/api/${endpoint}`)!.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'test-rpc', method: endpoint, payload }), signal }))).json()).result;
   const plugin = await import(new URL('../.cache/dsh-source/host-entry.mjs', import.meta.url).href);
-  const previous = process.env.AMOJI_DATA_DIR; process.env.AMOJI_DATA_DIR = f.directory;
+  const previous = process.env.AMOJI_DATA_DIR; const previousDsh=process.env.DSH_HOME; process.env.DSH_HOME=join(f.directory,'dsh-profile'); process.env.AMOJI_DATA_DIR = f.directory;
   let origin: string | undefined;
   try {
     await plugin.apply(f.ctx);
@@ -195,6 +196,7 @@ test('打包dsh Host提供会话校验的创建面板入口，不增加模型工
     assert.equal(f.prompts.length, 0);
   } finally {
     for (const close of cleanups.reverse()) await close();
+    if (previousDsh === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME=previousDsh;
     if (previous === undefined) delete process.env.AMOJI_DATA_DIR; else process.env.AMOJI_DATA_DIR = previous;
   }
   if (origin) await assert.rejects(fetch(origin));

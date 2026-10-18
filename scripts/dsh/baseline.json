@@ -10,6 +10,10 @@
     "@deepseek-ai/dsh-client-ui-conversation",
     "@deepseek-ai/dsh-client-ui-tool",
     "@deepseek-ai/dsh-api-session-controller",
-    "@deepseek-ai/dsh-client-connection"
+    "@deepseek-ai/dsh-client-connection",
+    "@deepseek-ai/dsh-agent",
+    "@deepseek-ai/dsh-system-prompt",
+    "@deepseek-ai/dsh-agent-loop",
+    "@deepseek-ai/dsh-session-persistence-jsonl"
   ]
 }

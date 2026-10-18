@@ -18,3 +18,10 @@ test('实际dsh分发runtime可加载普通基础包并提供完整包公共能�
   const result = await client.importPack(await client.exportPack([{ asset_id: entries[0]!.expression.asset_id, revision_id: entries[0]!.expression.revision_id }], '分发自检'));
   assert.equal(result.added, 0); assert.equal(result.existing, 1);
 });
+
+test('打包后的动作runtime接入真实recording provider并核对原生回执',async t=>{
+ const {fixture}=await import('./helpers/dsh-correlated.js');const f=await fixture(t);f.bridge.dispose();
+ const hostPath='../adapters/dsh/runtime/src/dsh/host.js',bridgePath='../adapters/dsh/runtime/src/dsh/collaboration.js',runtimePath='../adapters/dsh/runtime/src/adapter-runtime.js';
+ const [{DshAdapter},{DshCollaboration},{ConnectedRuntime}]=await Promise.all([import(hostPath),import(bridgePath),import(runtimePath)]);const bridge=new DshCollaboration(f.host.ctx,new ConnectedRuntime(f.c),'profile');const adapter=new DshAdapter(f.ctx,new ConnectedRuntime(f.c),'profile',bridge);t.after(()=>bridge.dispose());
+ await adapter.rpc('amoji/submitWithAction',{sessionId:'session',ref:f.ref,requestId:'packaged-action',actionRef:{action_id:f.action.action_id,action_revision_id:f.action.action_revision_id},releaseRef:{release_id:f.action.release_id}},new AbortController().signal);await f.live.whenIdle();const rows=await adapter.rpc('amoji/history',{sessionId:'session'},new AbortController().signal);assert.equal(rows[0].action.status,'attached');assert.equal(f.host.provider.requests.length,1);assert.ok(JSON.stringify(f.host.provider.requests).includes('EXACT {{literal}} ACTION'));
+});

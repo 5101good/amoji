@@ -1,6 +1,6 @@
 # Amoji
 
-[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 1.0](https://github.com/5101good/amoji/releases/tag/v1.0.0)
+[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 1.1](https://github.com/5101good/amoji/releases/tag/v1.1.0)
 
 **人机协作，也需要表情。**
 
@@ -11,6 +11,10 @@ AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励�
   <img src="assets/samples/source/wry.png" alt="挠头苦笑" width="140" />
   <img src="assets/samples/encourage-poster.png" alt="给你加油" width="140" />
 </p>
+
+## 场景包市场
+
+1.1 新增[审核制市场](https://amoji.ai-web.ai)、三套场景包、可选的一次性协作提示与两种会话规则。在 dsh「表情 → 市场」安装；安装不会自动启用动作。参阅[运营与恢复说明](docs/marketplace-operations.md)。
 
 ## 为什么我们需要它
 
@@ -77,20 +81,20 @@ Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**1.0
 已经在使用 dsh 的 `web` profile，可以直接安装公开发布包，然后重启该 profile：
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 需要独立 profile 或先核验下载文件时：
 
 1. 使用 Node.js **24 或更新版本**。当前验证基线为 **dsh 0.1.5-rc.2 / macOS arm64**。
-2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-1.0.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
+2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-1.1.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
 3. 安装到自己的 dsh profile，重启该 profile，选择工作区后打开输入区的“表情”。
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -106,9 +110,9 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## 验证与边界
 
-1.0 以 dsh 为主要支持宿主。已有 macOS arm64 的本地安装、实际浏览器使用及一次真实 Flash 文字建议成功记录；这些证据不代表所有模型、平台或宿主版本均通过。一次 AI 发送测试的表情已成功显示，但提供方工具续答因 `reasoning_text` 兼容问题返回 HTTP 400，不能算完整模型回合成功。
+1.1 以 dsh 为主要支持宿主。macOS arm64 上已验证市场安装、真实浏览器交互，以及使用低成本模型的完整表情/文字回合；模型请求使用文字语义，无需图片输入。市场已完成私有 R2 备份、隔离恢复和公网首屏验收。这些结果不代表所有地区、模型、平台或宿主版本均通过；独立真人易用性研究另行安排。
 
-Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。Codex、Claude Code 实现作为 legacy 保留，暂不纳入 1.0 真机验证或兼容承诺。详见[发布与已知限制](docs/release.md)。
+Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。旧 Codex/Claude hook 实现作为 legacy 保留；新的 Claude Desktop Mods 有独立适配和验证范围。详见[发布与已知限制](docs/release.md)。
 
 ## 一起丰富这套表达
 
@@ -129,6 +133,6 @@ npm run test:dsh
 
 代码和技术文档使用 [MIT](LICENSE)；内置基础表情视觉、固定语义及生成提示使用 [CC0-1.0](assets/base-library/LICENSE)。生成来源见[基础库说明](assets/base-library/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。
 
-## Claude Desktop Mods（开发中）
+## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。它是新的分层适配器，独立于旧 Claude 原型；不包含在已发布的 v1.0.0 中。
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；场景包市场和协作动作目前仅支持 dsh。

@@ -1,0 +1,11 @@
+{
+  "rules": [{
+    "allowed": {
+      "origins": ["https://amoji.ai-web.ai"],
+      "methods": ["PUT"],
+      "headers": ["content-type", "content-length"]
+    },
+    "exposeHeaders": ["ETag"],
+    "maxAgeSeconds": 300
+  }]
+}

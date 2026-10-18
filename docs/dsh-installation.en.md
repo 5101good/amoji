@@ -12,11 +12,11 @@
 
 The first command initializes the custom `amoji` profile from the official Web template and prints help without starting a server. Initialize this template before installing into a new custom profile.
 
-Download `amoji-dsh-1.0.0.tgz` and `SHA256SUMS` from the same [release](https://github.com/5101good/amoji/releases). Verify SHA-256, then run from your download directory:
+Download `amoji-dsh-1.1.0.tgz` and `SHA256SUMS` from the same [release](https://github.com/5101good/amoji/releases). Verify SHA-256, then run from your download directory:
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -29,7 +29,7 @@ Restart, select a workspace, and open Expressions in the composer. A new convers
 If you already use the `web` profile, install the version-pinned release directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 Restart that profile after installation. Downloading and installing require neither GitHub authentication nor a separate Amoji API key. If `dsh` is not on your PATH, replace it with `npx @deepseek-ai/dsh@0.1.5-rc.2`.
@@ -40,7 +40,7 @@ Submissions to [Awesome DSH Plugin / dshmarket.com](https://github.com/awesome-d
 
 Market entries must install the prebuilt Release package. The repository root is a development package, and the `adapters/dsh` source directory does not include every generated file. Do not install the repository root Git URL as a plugin.
 
-The current entry is pinned to v1.0.0; automatic market upgrades are not promised. After a new release, update the catalog tarball link and verify the upgrade. Do not combine `releases/latest/download/` with an old versioned asset filename.
+Third-party catalogs may still pin an older version; automatic market upgrades are not promised. Catalog maintainers must update the tarball link and verify installation; a GitHub release does not establish that a catalog has updated. Do not combine `releases/latest/download/` with an old versioned asset filename.
 
 ## Build from source
 
@@ -55,7 +55,7 @@ mkdir -p .local/release
 npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ```
 
-`test:dsh` includes `build:dsh` and pinned public-contract preparation. Use `npm run build:dsh` for a build alone. The archive name comes from `adapters/dsh/package.json`; version 1.0.0 produces `amoji-dsh-1.0.0.tgz`. Install the newly generated archive, avoiding stale cached files. Root `package-lock.json` pins source dependencies; the host profile lockfile records actual installed dependencies.
+`test:dsh` includes `build:dsh` and pinned public-contract preparation. Use `npm run build:dsh` for a build alone. The archive name comes from `adapters/dsh/package.json`; version 1.1.0 produces `amoji-dsh-1.1.0.tgz`. Install the newly generated archive, avoiding stale cached files. Root `package-lock.json` pins source dependencies; the host profile lockfile records actual installed dependencies.
 
 ## Data and backups
 

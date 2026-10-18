@@ -1,6 +1,6 @@
 {
   "name": "amoji",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI 原生表情：人看图，AI 读固定语义。Claude Desktop Code 的原生选择器、双向消息、个人库与创建工具。",
   "author": { "name": "Amoji contributors" },
   "homepage": "https://github.com/5101good/amoji",

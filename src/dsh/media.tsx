@@ -17,7 +17,7 @@ export function createRpc(ctx: ClientPort): DshRpc {
       signal?.throwIfAborted();
       if (operation === 'saveDraft' || operation === 'confirmDraft') throw rpcError({code:'DRAFT_OUTCOME_UNKNOWN',message:'草稿写入结果尚待核对。原填写和上传已保留，请重新连接后核对当前状态，不要重复保存或确认。'});
       if (operation === 'previewDraft') throw rpcError({code:'DRAFT_PREVIEW_UNAVAILABLE',message:'预览连接中断，请重新连接后重试预览；原草稿仍保留。'});
-      throw rpcError({ code: method === 'submit' ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: method === 'submit' ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
+      throw rpcError({ code: (method === 'submit' || method === 'submitWithAction') ? 'DSH_OUTCOME_UNKNOWN' : 'CONNECTION_CLOSED', message: (method === 'submit' || method === 'submitWithAction') ? '投递结果尚待核对，请保留原选择，重新连接后核对原请求。' : '连接中断，请点击重新连接并核对；原有草稿和历史仍保留。' });
     }
     if (!result.ok) throw rpcError(result.error);
     return result.value as T;
@@ -32,6 +32,8 @@ export function createRpc(ctx: ClientPort): DshRpc {
     } return response;
   };
   return {
+    publisher:(sessionId,method,args)=>call('publisher.'+method,{sessionId,args}),
+    marketplace:(sessionId,method,args)=>call('marketplace.'+method,{sessionId,args}),
     reconnect: (sessionId, signal) => call('reconnect', { sessionId }, signal),
     management: (sessionId, method, args, signal) => call('management', { sessionId, method, args }, signal, method),
     importPack: async (sessionId, file) => {
@@ -47,11 +49,20 @@ export function createRpc(ctx: ClientPort): DshRpc {
         throw rpcError({ code: 'PACK_OUTCOME_UNKNOWN', message: '导入结果尚待核对。请保留原文件，核对库或重试同一包。' });
       }
     },
+    exportScenarioPack:async(sessionId,releaseId,expressionsOnly=false)=>(await binary(sessionId,'scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}))).blob(),
     exportPack: async (sessionId, refs, name) => (await binary(sessionId, 'export', JSON.stringify({ refs: refs.map(narrowRef), name }))).blob(),
     manage: (sessionId, signal) => call('manage', { sessionId }, signal),
     catalog: (sessionId, signal) => call('catalog', { sessionId }, signal),
     search: (sessionId, query, limit, signal) => call('search', { sessionId, query, ...(limit === undefined ? {} : { limit }) }, signal),
     submit: (sessionId, ref, requestId, signal) => call('submit', { sessionId, ref: narrowRef(ref), requestId }, signal),
+    submitWithAction: (sessionId,ref,actionRef,releaseRef,requestId,signal) => call('submitWithAction',{sessionId,ref:narrowRef(ref),actionRef,releaseRef,requestId},signal),
+    rules:sessionId=>call('collaboration.rules',{sessionId}),
+    enableRule:(sessionId,selection,generation,replace)=>call('collaboration.enable',{sessionId,selection,generation,replace}),
+    disableRule:(sessionId,selection,generation)=>call('collaboration.disable',{sessionId,selection,generation}),
+    disableAllRules:(sessionId,generation)=>call('collaboration.disableAll',{sessionId,generation}),
+    capabilities: (sessionId,signal)=>call('collaboration.capabilities',{sessionId},signal),
+    receipts: (sessionId,signal)=>call('collaboration.receipts',{sessionId},signal),
+    actions: (sessionId,ref,signal) => call('actions',{sessionId,ref:narrowRef(ref)},signal),
     history: (sessionId, signal) => call('history', { sessionId }, signal),
     visual: (sessionId, ref, messageId, signal) => call('visual', { sessionId, ref: narrowRef(ref), ...(messageId ? { messageId } : {}) }, signal),
     display: (sessionId, messageId, hash, state, signal) => call('display', { sessionId, messageId, hash, state }, signal),

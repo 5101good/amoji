@@ -2,17 +2,17 @@
 
 [中文](README.md) · [Project and documentation](https://github.com/5101good/amoji)
 
-Native expressions for people and AI: people see artwork, models read fixed meaning. Version 1.0.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**, and has live host evidence on macOS arm64.
+Native expressions for people and AI: people see artwork, models read fixed meaning. Version 1.1.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**, and has live host evidence on macOS arm64.
 
 ## Install and use
 
-Download and verify `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
+Download and verify `amoji-dsh-1.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -37,3 +37,17 @@ Includes Host/Client, shared core, assets, build information, and license invent
 Code is MIT; built-in assets are CC0-1.0; dependencies retain their own licenses. See packaged `LICENSE`, `NOTICE`, `THIRD_PARTY.json`, `THIRD_PARTY_LICENSES/`, and `assets/base-library/`.
 
 Full [installation/recovery](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.en.md), [usage](https://github.com/5101good/amoji/blob/main/docs/usage.en.md), and [limitations](https://github.com/5101good/amoji/blob/main/docs/release.en.md) are in the source repository.
+
+### Expression marketplace
+
+Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables actions. Updates show semantic and action differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
+
+The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (defaulting to the public marketplace `https://amoji.ai-web.ai`). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
+
+Installed and collected expressions remain usable offline. Cached results disclose their last check time. Failed installs preserve the library; reconcile uncertain outcomes with “Check original operation” instead of blindly issuing a new operation.
+
+### Publish from dsh
+
+Confirm a local scenario pack under Import and export, then open Publish to marketplace. Save description, licensing and optional actions in the wizard; visual packs need no actions. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
+
+Review the complete content before upload, validation and explicit submission. If the outcome is unknown, check the original operation and review status instead of creating another submission. Returned feedback remains with the draft; select the revised local pack and create a new version for review. Saved drafts survive disconnection. Credentials stay in the private `plugins/amoji/publisher` directory of this dsh profile, outside browser storage, packages, model input and the shared library. Do not share that directory. Signing out the device revokes its authorization.

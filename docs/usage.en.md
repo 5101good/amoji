@@ -37,3 +37,7 @@ Editing personal content creates a new revision. Built-in or imported content is
 Select content deliberately before exporting. A `.amoji` ZIP pack contains exact revisions, fixed semantics, rights, and media. Imports validate structure, hashes, decoded media, and limits; conflicting immutable revisions are rejected instead of silently overwritten. Limits include 200 expression revisions, 260 MiB compressed, and 250 MiB expanded. Export is an explicit sharing action; personal content is not automatically distributed with the software.
 
 For connection or delivery problems, follow the [recovery guide](dsh-installation.en.md) and reconcile the original request. Repeated clicks or changing selections do not resolve an unknown delivery outcome.
+
+## Scenario packs and optional guidance
+
+[Three bilingual packs](../assets/scenario-packs/README.en.md) are importable; public marketplace versions require independent review. Choose Send only or Send and apply. One-time guidance affects its linked turn; habits require explicit activation in the current conversation and can be disabled individually or together. Disabling stops future application without deleting history or guaranteeing forgetting. Guidance is not enforcement; installation, collection and AI sends never enable actions.

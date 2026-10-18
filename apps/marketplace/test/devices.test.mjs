@@ -1,0 +1,61 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture} from './submission-fixture.mjs';
+test('device pairing is explicitly approved, single-use, scoped, rotated and revoked',async t=>{
+ const f=await fixture(t); const {mf,db,post}=f;
+
+ const send=(path,data,token)=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},body:JSON.stringify(data)});
+ const created=await send('device-authorizations',{device_name:'Isolated dsh'});
+ assert.equal(created.status,201);
+ const p=await created.json(); assert.match(p.device_secret,/^[a-f0-9]{64}$/); assert.equal(p.interval,5);assert.ok(p.expires_at-Date.now()<=300000);
+ const pending=await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret});assert.equal(pending.status,202);
+ const cookie=await f.register('device@example.test');
+ const details=await mf.dispatchFetch('http://localhost/v1/device-authorizations/'+p.id,{headers:{cookie}});assert.equal(details.status,200);assert.equal((await details.json()).device_name,'Isolated dsh');
+ assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{user_code:p.user_code,approved:false},cookie)).status,400);
+ assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{user_code:p.user_code,approved:true},cookie)).status,200);
+ assert.equal((await send(`device-authorizations/${p.id}/token`,{device_secret:p.user_code})).status,401);
+ await new Promise(r=>setTimeout(r,5100));
+ const redemption=await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret});assert.equal(redemption.status,200);const token=await redemption.json();
+ assert.equal(token.expires_in,900);assert.equal(token.refresh_expires_in,2592000);assert.deepEqual(token.scope,['creator']);
+ assert.equal((await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret})).status,410);
+ const me=()=>mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+token.access_token}});
+ assert.equal((await me()).status,200);
+ assert.equal((await send('review/decisions',{},token.access_token)).status,403);
+ const refreshed=await send('device-tokens/refresh',{refresh_token:token.refresh_token});assert.equal(refreshed.status,200);const next=await refreshed.json();
+ assert.equal((await send('device-tokens/refresh',{refresh_token:token.refresh_token})).status,401);
+ assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+next.access_token}})).status,401);
+});
+test('device boundaries reject browser redemption, expiry, cancellation, cross-account approval reuse and logout',async t=>{
+ const {mf,db,post,cookie,register}=await fixture(t);
+ const send=(path,data,headers={})=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(data)});
+ const create=async()=>{const r=await send('device-authorizations',{device_name:'Private dsh'});assert.equal(r.status,201);return r.json();};
+ let p=await create();
+ assert.equal((await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret},{origin:'http://localhost'})).status,403);
+ assert.equal((await send(`device-authorizations/${p.id}/cancel`,{device_secret:p.device_secret})).status,200);
+ assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{approved:true,user_code:p.user_code},cookie)).status,410);
+ p=await create();await db.prepare('UPDATE market_device_authorization SET expires_at=0 WHERE id=?').bind(p.id).run();assert.equal((await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret})).status,410);
+ const second=await register('second-device@example.test');p=await create();assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{approved:true,user_code:p.user_code},cookie)).status,200);assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{approved:true,user_code:p.user_code},second)).status,410);
+ const r=await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret});assert.equal(r.status,200);const token=await r.json();const auth={authorization:'Bearer '+token.access_token};
+ await db.prepare('UPDATE market_device_family SET access_expires=0 WHERE id=?').bind(token.device_id).run();assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:auth})).status,401);
+ const next=await(await send('device-tokens/refresh',{refresh_token:token.refresh_token})).json();assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+next.access_token}})).status,200);
+ assert.equal((await post('/v1/auth/logout',{},cookie)).status,200);assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+next.access_token}})).status,401);assert.equal((await send('device-tokens/refresh',{refresh_token:next.refresh_token})).status,401);
+});
+test('device own-content authorization, disable, explicit revoke and concurrent refresh reuse fail closed',async t=>{
+ const {mf,db,post,cookie,register}=await fixture(t);
+ const send=(path,data,token,extra={})=>mf.dispatchFetch('http://localhost/v1/'+path,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{}),...extra},body:JSON.stringify(data)});
+ const pair=async cookie=>{const p=await(await send('device-authorizations',{device_name:'Isolated security device'})).json();assert.equal((await post(`/v1/device-authorizations/${p.id}/approve`,{approved:true,user_code:p.user_code},cookie)).status,200);const r=await send(`device-authorizations/${p.id}/token`,{device_secret:p.device_secret});assert.equal(r.status,200);return r.json();};
+ const token=await pair(cookie),second=await pair(await register('other-device@example.test'));
+ const reservation=await send('uploads',{},token.access_token,{'idempotency-key':crypto.randomUUID()});assert.equal(reservation.status,201);const u=(await reservation.json()).upload;
+ assert.equal((await mf.dispatchFetch('http://localhost/v1/uploads/'+u.id,{headers:{authorization:'Bearer '+second.access_token}})).status,404);
+ await db.prepare('UPDATE market_account SET disabled=1 WHERE id=?').bind(second.account_id).run();assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+second.access_token}})).status,401);assert.equal((await send('device-tokens/refresh',{refresh_token:second.refresh_token})).status,401);
+ assert.equal((await send('device-tokens/revoke',{refresh_token:token.refresh_token})).status,200);assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+token.access_token}})).status,401);
+ const fresh=await pair(cookie);const results=await Promise.all([send('device-tokens/refresh',{refresh_token:fresh.refresh_token}),send('device-tokens/refresh',{refresh_token:fresh.refresh_token})]);assert.deepEqual(results.map(r=>r.status).sort(),[200,401]);const winner=await results.find(r=>r.status===200).json();assert.equal((await mf.dispatchFetch('http://localhost/v1/me/submissions',{headers:{authorization:'Bearer '+winner.access_token}})).status,401);
+ const expired=await pair(cookie);await db.prepare('UPDATE market_device_family SET refresh_expires=0 WHERE id=?').bind(expired.device_id).run();assert.equal((await send('device-tokens/refresh',{refresh_token:expired.refresh_token})).status,401);
+});
+
+test('device authorization creation enforces ten per hour with Retry-After',async t=>{
+ const {mf}=await fixture(t);
+ const create=()=>mf.dispatchFetch('http://localhost/v1/device-authorizations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({device_name:'Rate limit fixture'})});
+ for(let i=0;i<10;i++)assert.equal((await create()).status,201);
+ const denied=await create();assert.equal(denied.status,429);assert.ok(Number(denied.headers.get('retry-after'))>0);
+});

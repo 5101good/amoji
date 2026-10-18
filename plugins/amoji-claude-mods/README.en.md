@@ -8,7 +8,7 @@ Requires Claude Code with Mods (validation baseline: 2.1.295+) and Node.js 24+. 
 
 ## Install
 
-This source adapter has not shipped in v1.0.0. Build this branch, or download `amoji-claude-mods-<version>.zip` when available in a later GitHub Release. Extract the complete `.claude-plugin/` and `plugin/` directories.
+Starting with v1.1.0, GitHub Releases include `amoji-claude-mods-<version>.zip`; verify it with that release's `SHA256SUMS`, or build from source. v1.0.0 does not include this package. Extract the complete `.claude-plugin/` and `plugin/` directories.
 
 From the extracted directory:
 

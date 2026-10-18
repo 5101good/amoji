@@ -1,0 +1,28 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { SharedClient, stopSharedService } from '../src/shared-client.js';
+test('公开本地API原子创建消息与动作、精确去重，纯表达及AI发送不授权', async t => {
+ const directory=await mkdtemp(join(tmpdir(),'amoji-intents-')); const c=await SharedClient.connect({directory});
+ t.after(async()=>{await c.close(); await stopSharedService(directory,c.identity.serviceId); await rm(directory,{recursive:true,force:true});});
+ const e=(await c.list())[0]!; const ref={asset_id:e.asset_id,revision_id:e.revision_id};
+ const binding=await c.bind({host:'dsh',hostInstanceId:'profile',sessionId:'session',turnId:'turn:1'});
+ let d=await c.createScenarioDraft([ref]);
+ const action={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'instruction' as const,scope:'turn' as const,locale:'zh-CN',effect_summary:'解释一次',conflict_group:'explanation' as const,instruction:'解释 {{literal}}',rights:{license:'CC0-1.0'}};
+ d=await c.saveScenarioDraft(d.draft_id,d.version,{...d.manifest,actions:[action],bindings:[{expression:ref,actions:[{action_id:action.action_id,action_revision_id:action.action_revision_id}]}]});
+ await c.confirmScenarioDraft(d.draft_id,d.version);
+ const selection={release_id:d.manifest.release_id,action_id:action.action_id,action_revision_id:action.action_revision_id};
+ const choices=await c.collaborationChoices(binding,ref); assert.equal(choices.length,1);
+ await assert.rejects(c.receive(binding,ref,'invalid',{...selection,action_revision_id:randomUUID()}),/ACTION_UNAVAILABLE/);
+ assert.equal((await c.history(binding)).length,0);
+ const sent=await c.receive(binding,ref,'apply',selection); assert.equal(sent.action_intent?.status,'prepared'); assert.deepEqual(sent.action_intent?.selection,selection);
+ assert.deepEqual(await c.receive(binding,ref,'apply',selection),sent);
+ await assert.rejects(c.receive(binding,ref,'apply'),/REQUEST_CONFLICT/);
+ await assert.rejects(c.receive(binding,ref,'apply',{...selection,release_id:randomUUID()}),/REQUEST_CONFLICT/);
+ assert.equal((await c.receive(binding,ref,'plain')).action_intent,undefined);
+ const found=await c.search(binding,e.name,1);const ai=await c.emit(binding,found.candidates[0]!.selection_token);assert.equal(ai.action_intent,undefined);
+ await c.reconnect(); assert.deepEqual((await c.history(await c.bind({host:'dsh',hostInstanceId:'profile',sessionId:'session'})))[0],sent);
+});

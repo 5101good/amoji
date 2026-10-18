@@ -1,6 +1,6 @@
 # Amoji
 
-[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.0](https://github.com/5101good/amoji/releases/tag/v1.0.0)
+[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.1](https://github.com/5101good/amoji/releases/tag/v1.1.0)
 
 **Working with AI needs room for expression.**
 
@@ -11,6 +11,10 @@ AI-native expressions: people see the artwork; AI reads its fixed meaning. A sha
   <img src="assets/samples/source/wry.png" alt="A sheepish smile" width="140" />
   <img src="assets/samples/encourage-poster.png" alt="Cheering you on" width="140" />
 </p>
+
+## Scenario marketplace
+
+Version 1.1 adds the [reviewed marketplace](https://amoji.ai-web.ai), three scenario packs, optional turn instructions and two conversation rule templates. Install from Expressions → Marketplace in dsh; installation never activates actions. See [operations and recovery](docs/marketplace-operations.en.md).
 
 ## Why we are building this
 
@@ -77,20 +81,20 @@ Our vision is an expression system that can travel across models and clients. **
 If you already use dsh’s `web` profile, install the public Release package directly and restart that profile:
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.0.0/amoji-dsh-1.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
 ```
 
 For a separate profile and checksum verification:
 
 1. Use **Node.js 24 or newer**. The verified baseline is **dsh 0.1.5-rc.2 on macOS arm64**.
-2. Download `amoji-dsh-1.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
+2. Download `amoji-dsh-1.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
 3. Install into your dsh profile, restart that profile, select a workspace, and open Expressions in the composer.
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -106,9 +110,9 @@ The [user guide](docs/usage.en.md) covers draft confirmation, revisions, import/
 
 ## Verification and limits
 
-Version 1.0 primarily supports dsh. Existing evidence includes local installation and browser use on macOS arm64, plus one successful live Flash text-suggestion request. This does not establish support for every model, platform, or host version. In one AI expression test, the expression was displayed successfully but the provider's tool continuation returned HTTP 400 over `reasoning_text` compatibility; the whole model turn was not successful.
+Version 1.1 primarily supports dsh. Marketplace installation, real browser interactions and complete expression/text turns with a low-cost model have been verified on macOS arm64; model requests use text semantics without image input. The marketplace has passed private R2 backup, isolated recovery and public first-page checks. These results do not cover every region, model, platform or host version; independent human usability research remains separate.
 
-Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Codex and Claude Code implementations remain legacy and are outside the 1.0 live-validation and compatibility scope. See [release scope and known limitations](docs/release.en.md).
+Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Older Codex/Claude hook implementations remain legacy; the new Claude Desktop Mods adapter has its own integration and validation scope. See [release scope and known limitations](docs/release.en.md).
 
 ## Help shape this vocabulary
 
@@ -129,6 +133,6 @@ npm run test:dsh
 
 Code and technical documentation use [MIT](LICENSE). Built-in artwork, fixed semantics, and generation prompts use [CC0-1.0](assets/base-library/LICENSE); see [asset provenance](assets/base-library/README.en.md). Third-party dependencies and user content retain their own licenses; see [NOTICE](NOTICE).
 
-## Claude Desktop Mods (in development)
+## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. This layered adapter is separate from the legacy prototype and is not included in the published v1.0.0 release.
+[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; scenario marketplace and collaboration actions are currently dsh-only.

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { SharedClient, stopSharedService } from '../src/shared-client.js';
 import { ConnectedRuntime } from '../src/adapter-runtime.js';
 import { LibraryStore } from '../src/library-store.js';
+import { exportPack } from '../src/packs.js';
 
 async function sandbox(t: TestContext) {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-management-'));
@@ -30,19 +31,12 @@ test('画风缺省为经典，旧客户更新 AI 偏好不重置已选画风', a
 
 test('内置同 family 只显示偏好画风，外部条目的画风 tags 不被误隐藏，在途 token 仍可发', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-appearance-list-'));
-  const store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
+  const store = await LibraryStore.open(directory, new URL('../assets/base-library/base.amoji', import.meta.url));
   t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
-  const base = store.list()[0]!;
-  const classic = { ...base, asset_id: 'a-classic', revision_id: 'r-classic', tags: ['amoji:appearance:classic', 'amoji:family:hello'] };
-  const office = { ...base, asset_id: 'a-office', revision_id: 'r-office', tags: ['amoji:appearance:office', 'amoji:family:hello'] };
-  const imported = { ...base, asset_id: 'a-imported', revision_id: 'r-imported', tags: ['amoji:appearance:office', 'amoji:family:hello'] };
-  const db = (store as any).db;
-  for (const [expression, origin] of [[classic, 'builtin'], [office, 'builtin'], [imported, 'imported']] as const) {
-    db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(expression.asset_id, expression.revision_id, JSON.stringify(expression));
-    db.prepare('INSERT INTO library_entries VALUES (?,?)').run(expression.asset_id, expression.revision_id);
-    db.prepare('INSERT INTO expression_origins VALUES (?,?)').run(expression.asset_id, origin);
-    db.prepare('INSERT INTO entry_state VALUES (?,1,0)').run(expression.asset_id);
-  }
+  const classic = store.list()[0]!;
+  const office = store.listEntries().find(e => e.expression.name === classic.name && e.expression.tags?.includes('amoji:appearance:office'))!.expression;
+  const imported = { ...office, asset_id: 'd6000000-0000-4000-8000-000000000001', revision_id: 'd7000000-0000-4000-8000-000000000001' };
+  await store.importPack(await exportPack([imported], [ref(imported)], 'External style fixture', blob => readFile(join(directory, 'blobs', blob.sha256))));
   assert.ok(store.list().some(e => e.asset_id === classic.asset_id));
   assert.ok(!store.list().some(e => e.asset_id === office.asset_id));
   assert.ok(store.list().some(e => e.asset_id === imported.asset_id));

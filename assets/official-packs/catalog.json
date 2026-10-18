@@ -1,0 +1,67 @@
+{
+  "packs": [
+    {
+      "slug": "classic",
+      "name": "经典 / Classic",
+      "pack_id": "9a18f5b6-c6cd-48fa-b0d4-baee5249b604",
+      "release_id": "7178e5d7-bfc4-43bb-bfab-b7acad4a40a5",
+      "expressions": 24,
+      "archive_sha256": "1e896a0d4ab8547ee14679611d8aef03c5e0ba574b790f2ecd8ec21be5d8cf03",
+      "bytes": 4785782
+    },
+    {
+      "slug": "office",
+      "name": "办公 / Office",
+      "pack_id": "2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1",
+      "release_id": "4bc99279-55ed-4f40-a4a3-2112a7cab86f",
+      "expressions": 24,
+      "archive_sha256": "bff7f0bfd0d627244eaf6c20dc758ac1da7e7d82d88fc0672d670540317e0b05",
+      "bytes": 2642341
+    },
+    {
+      "slug": "slow-cat",
+      "name": "慢半拍猫 / Slow Cat",
+      "pack_id": "dbd45bc2-b332-4798-8062-3b5349b41b60",
+      "release_id": "c526906d-23c7-4c45-a08e-24b791cdde68",
+      "expressions": 4,
+      "archive_sha256": "28a30a6a440576f83663611af813333bd761b4d9067c03c8845043f76be20fbd",
+      "bytes": 410506
+    },
+    {
+      "slug": "good-dog",
+      "name": "搭把手犬 / Good Dog",
+      "pack_id": "2a01ad10-a763-4839-866f-5f78b0897ee0",
+      "release_id": "c498677e-b19e-43e6-8ff7-fed329b99a05",
+      "expressions": 4,
+      "archive_sha256": "1cef14f267a3ed867e21dc277b846f384412b9f3b4ee05c5824426965ba34fbf",
+      "bytes": 358747
+    },
+    {
+      "slug": "pixel-pal",
+      "name": "像素搭档 / Pixel Pal",
+      "pack_id": "41ebd4fc-f4d3-4d43-884c-467bee6dbae1",
+      "release_id": "f3a895cf-6c6e-4a1d-9882-64c053b6d829",
+      "expressions": 4,
+      "archive_sha256": "8057458cb595a06dfd9e5c7ac44782ca44cb11293488d69950389b6f5a8f9acf",
+      "bytes": 173106
+    },
+    {
+      "slug": "orbit-jelly",
+      "name": "灵感水母 / Orbit Jelly",
+      "pack_id": "adae364e-69b2-4584-9845-e4fe31d707c6",
+      "release_id": "4ea711d3-d6b6-4a36-baa7-3dd43a2e3930",
+      "expressions": 4,
+      "archive_sha256": "84deb612ef89cf19c1047e6b4357f5a45c57ebbd67df865d54403777038b657b",
+      "bytes": 280923
+    },
+    {
+      "slug": "paper-goose",
+      "name": "纸片鹅 / Paper Goose",
+      "pack_id": "c4d192ee-1e20-4744-9ca1-544d8c32427c",
+      "release_id": "1f92fbec-6f6b-47bc-b6c7-c3bb2e433a2e",
+      "expressions": 4,
+      "archive_sha256": "9cf6e59f60247d20fce60bae4f70c4aee201229369003d7fbede698dc82e732e",
+      "bytes": 240704
+    }
+  ]
+}

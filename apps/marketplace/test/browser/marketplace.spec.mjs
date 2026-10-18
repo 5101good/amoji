@@ -46,20 +46,52 @@ test("discovery is image-led, searchable, URL-restorable, and does not load crea
     if (/chunks\/upload-/.test(r.url())) modules.push(r.url());
   });
   await page.goto("/");
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
   await expect(page.locator(".pack-art img").first()).toBeVisible();
   expect(modules).toEqual([]);
-  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("把话");
+  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("经典");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(page.locator(".catalog-row")).toHaveCount(1);
   await expect(page).toHaveURL(/q=/);
   await page.reload();
   await expect(page.locator(".catalog-row")).toHaveCount(1);
   await page.getByRole("button", { name: "清除筛选" }).click();
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
   await page.getByRole("button", { name: "筛选", exact: true }).click();
   await expect(page.locator("#catalog-filters")).toBeVisible();
   await accessible(page);
+});
+
+test("official directory has two complete classics and five original collections with usable media", async ({ page }) => {
+  test.setTimeout(90000);
+  const catalog = JSON.parse(await readFile(resolve("../../assets/official-packs/catalog.json"), "utf8"));
+  await page.goto("/");
+  await expect(page.getByText("所有表情包", {exact: true})).toBeVisible();
+  await expect(page.locator(".catalog-row h3 a")).toHaveText(catalog.packs.map(p => p.name));
+  await expect(page.getByText(/场景包/)).toHaveCount(0);
+  for (const pack of catalog.packs) {
+    await page.goto(`/packs/${pack.pack_id}/releases/${pack.release_id}`);
+    await expect(page.locator(".expression-grid article")).toHaveCount(pack.expressions);
+    await expect(page.getByRole("group", {name: "选择画风"})).toHaveCount(0);
+    const images = page.locator(".image-preview-button img");
+    for (const image of await images.all()) {
+      await image.scrollIntoViewIfNeeded();
+      await expect.poll(() => image.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    }
+    await expect(page.getByRole("link", {name: "下载精确版本"})).toHaveAttribute("href", `/v1/packs/${pack.pack_id}/releases/${pack.release_id}/archive`);
+    await noOverflow(page);
+  }
+});
+
+test("older exact links retain their original mixed-style contents", async ({page}) => {
+  const m = JSON.parse(await readFile(resolve("../../assets/scenario-packs/make-it-clear.manifest.json"), "utf8"));
+  await page.goto(`/packs/${m.pack_id}/releases/${m.release_id}`);
+  await expect(page.locator(".expression-grid article")).toHaveCount(4);
+  const meanings = await page.locator(".expression-grid article > p[lang]").allTextContents();
+  expect(meanings).toHaveLength(4);
+  await page.getByRole("button", {name: "办公", exact: true}).click();
+  await expect(page.locator(".expression-grid article")).toHaveCount(4);
+  expect(await page.locator(".expression-grid article > p[lang]").allTextContents()).toEqual(meanings);
 });
 
 test("the expression exhibit uses exact built-in meanings in both languages and works by keyboard", async ({
@@ -121,7 +153,7 @@ test("auth modal keeps focus, recovers errors, returns focus and preserves the p
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(login).toBeFocused();
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
 });
 
 test("language is remembered across detail navigation without changing fixed semantics", async ({
@@ -184,7 +216,7 @@ test("failed creator chunk leaves navigation, sign-out and recovery available", 
   await page.getByRole("button", { name: "退出登录", exact: true }).click();
   await expect(page.getByRole("heading", { name: "登录后继续" })).toBeVisible();
   await page.getByRole("link", { name: "发现表情", exact: true }).click();
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
 });
 
 test("reviewers can inspect exact content and submit a reasoned decision", async ({
@@ -233,7 +265,7 @@ for (const width of [320, 390, 768, 1024, 1440])
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/");
-    await expect(page.locator(".catalog-row")).toHaveCount(3);
+    await expect(page.locator(".catalog-row")).toHaveCount(7);
     await noOverflow(page);
     await capture(page, {
       path: `.cache/design/gallery-${width}.png`,
@@ -328,27 +360,24 @@ test("refreshing recovers a previously failed creator chunk", async ({
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
-test("browser back restores search and appearance controls preserve meaning and focus", async ({
+test("browser back restores search and a complete style collection keeps preview focus", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("把话");
+  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("经典");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(page.locator(".catalog-row")).toHaveCount(1);
   await page.getByRole("button", { name: "清除筛选" }).click();
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
   await page.goBack();
   await expect(page.locator(".catalog-row")).toHaveCount(1);
   await expect(
     page.getByRole("textbox", { name: "关键词", exact: true }),
-  ).toHaveValue("把话");
+  ).toHaveValue("经典");
   await page.locator(".catalog-row h3 a").first().click();
   await expect(page.locator(".expression-grid article").first()).toBeVisible();
-  const count = await page.locator(".expression-grid article").count();
-  await page.getByRole("button", { name: "全部", exact: true }).click();
-  await expect(page.locator(".expression-grid article")).toHaveCount(count * 2);
-  await page.getByRole("button", { name: "办公", exact: true }).click();
-  await expect(page.locator(".expression-grid article")).toHaveCount(count);
+  await expect(page.locator(".expression-grid article")).toHaveCount(24);
+  await expect(page.getByRole("group", { name: "选择画风" })).toHaveCount(0);
   const image = page.locator(".image-preview-button").first();
   await image.click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -395,21 +424,21 @@ test("an invalid public link offers a way back without exposing private content"
 }) => {
   await page.goto("/packs/00000000-0000-4000-8000-000000000000");
   await expect(
-    page.getByRole("heading", { name: "没有找到这份场景包" }),
+    page.getByRole("heading", { name: "没有找到这份表情包" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "返回表情市场" }).click();
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
 });
 
 test("failed search can be retried without showing unrelated previous results", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
   await page.route("**/v1/packs?*", (route) =>
     route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
   );
-  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("把话");
+  await page.getByRole("textbox", { name: "关键词", exact: true }).fill("经典");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(page.locator(".notice.error")).toBeVisible();
   await expect(page.locator(".catalog-row")).toHaveCount(0);
@@ -467,7 +496,7 @@ test("a transient cover failure retries without leaving an empty image tile", as
     return route.continue();
   });
   await page.goto("/");
-  await expect(page.locator(".catalog-row")).toHaveCount(3);
+  await expect(page.locator(".catalog-row")).toHaveCount(7);
   await page.locator(".pack-grid").scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
@@ -668,7 +697,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
           name: locale === "zh" ? "关键词" : "Keywords",
           exact: true,
         })
-        .fill("把话");
+        .fill("经典");
       await panel
         .getByLabel(locale === "zh" ? "场景" : "Scenario", { exact: true })
         .fill("澄清");
@@ -686,7 +715,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
           exact: true,
         })
         .click();
-      await expect(page.locator(".catalog-row")).toHaveCount(3);
+      await expect(page.locator(".catalog-row")).toHaveCount(7);
       await toggle.click();
       await expect(panel).toBeHidden();
       const invitation = page.locator(".about-expression");

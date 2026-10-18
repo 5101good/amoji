@@ -142,7 +142,7 @@ export class SharedClient {
     return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
   }
   marketplace(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('marketplace-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场');return this.call('marketplace',{method,args},60000);}
-  private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');return this.call(method,params,60000);}
+  private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化表情包');return this.call(method,params,60000);}
   createScenarioDraft(refs:ExpressionRef[]):Promise<ScenarioDraft>{return this.scenarioCall('createScenarioDraft',{refs});}
   listScenarioDrafts():Promise<ScenarioDraft[]>{return this.scenarioCall('listScenarioDrafts',{});}
   getScenarioDraft(id:string):Promise<ScenarioDraft>{return this.scenarioCall('getScenarioDraft',{draft_id:id});}
@@ -152,7 +152,7 @@ export class SharedClient {
   listScenarioPacks():Promise<ScenarioPack[]>{return this.scenarioCall('listScenarioPacks',{});}
   getScenarioPack(releaseId:string):Promise<ScenarioPack>{return this.scenarioCall('getScenarioPack',{release_id:releaseId});}
   async exportScenarioPack(releaseId:string,expressionsOnly=false):Promise<Buffer>{
-    if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化场景包');
+    if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化表情包');
     return Buffer.from(await (await this.packRequest('scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}),'application/json')).arrayBuffer());
   }
   selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry> {

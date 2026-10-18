@@ -249,7 +249,7 @@ export class LibraryStore {
   marketInstalls():Array<{release_id:string;origin:string;digest:string;state:string;refs:ExpressionRef[]}> {return (this.db.prepare('SELECT * FROM local_installs').all() as Array<any>).map(r=>({...r,refs:JSON.parse(r.refs)}));}
   marketCollections():Array<{ref:ExpressionRef;source:unknown}> {return (this.db.prepare('SELECT * FROM collection_refs').all() as Array<{asset_id:string;revision_id:string;origin:string}>).map(r=>({ref:{asset_id:r.asset_id,revision_id:r.revision_id},source:JSON.parse(r.origin)}));}
   async marketCommit(pack:ValidatedPack,source:{origin:string;digest:string;operation_id:string;ref?:ExpressionRef},beforeCommit:()=>Promise<void>):Promise<void> {
-    if(pack.manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','市场需要场景包');
+    if(pack.manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','市场需要表情包');
     const manifest=pack.manifest;
     if(source.ref&&!manifest.expressions.some(e=>e.asset_id===source.ref!.asset_id&&e.revision_id===source.ref!.revision_id))fail('REVISION_NOT_FOUND','收藏版本不在包内');
     const selected=source.ref?[source.ref]:manifest.defaults;
@@ -300,14 +300,14 @@ export class LibraryStore {
   createScenarioDraft(refs:ExpressionRef[]):ScenarioDraft {
     if(!Array.isArray(refs)||!refs.length||refs.length>200)fail('INVALID_ARGUMENT','请选择 1–200 个已确认版本');
     const expressions=refs.map(ref=>this.resolve(ref));const defaults=new Map<string,ExpressionRef>();for(const e of expressions)if(!defaults.has(e.asset_id))defaults.set(e.asset_id,{asset_id:e.asset_id,revision_id:e.revision_id});
-    const manifest=validatePackManifest({kind:'amoji.pack',schema_version:'0.2',pack_id:randomUUID(),release_id:randomUUID(),version:1,name:'我的场景包',created_at:new Date().toISOString(),scenario:['协作'],expressions,defaults:[...defaults.values()],actions:[],bindings:[],rights:{license:'仅供个人使用'}}) as ScenarioPack;
+    const manifest=validatePackManifest({kind:'amoji.pack',schema_version:'0.2',pack_id:randomUUID(),release_id:randomUUID(),version:1,name:'我的表情包',created_at:new Date().toISOString(),scenario:['协作'],expressions,defaults:[...defaults.values()],actions:[],bindings:[],rights:{license:'仅供个人使用'}}) as ScenarioPack;
     const draft:ScenarioDraft={draft_id:randomUUID(),version:1,manifest};this.db.prepare('INSERT INTO scenario_drafts VALUES (?,?)').run(draft.draft_id,JSON.stringify(draft));return draft;
   }
   listScenarioDrafts():ScenarioDraft[]{return (this.db.prepare('SELECT data FROM scenario_drafts ORDER BY rowid DESC').all() as Array<{data:string}>).map(r=>JSON.parse(r.data));}
-  getScenarioDraft(id:string):ScenarioDraft {const row=this.db.prepare('SELECT data FROM scenario_drafts WHERE draft_id=?').get(id) as {data:string}|undefined;return row?JSON.parse(row.data):fail('DRAFT_NOT_FOUND','场景包草稿不存在');}
+  getScenarioDraft(id:string):ScenarioDraft {const row=this.db.prepare('SELECT data FROM scenario_drafts WHERE draft_id=?').get(id) as {data:string}|undefined;return row?JSON.parse(row.data):fail('DRAFT_NOT_FOUND','表情包草稿不存在');}
   private scenarioDraft(id:string,version:number):ScenarioDraft {const d=this.getScenarioDraft(id);if(d.version!==version)fail('DRAFT_CONFLICT','草稿已变更，请保留输入并重新读取',d);return d;}
   saveScenarioDraft(id:string,version:number,value:unknown):ScenarioDraft {
-    return this.transaction(()=>{const current=this.scenarioDraft(id,version);if(current.saved)fail('DRAFT_FINALIZED','已保存发布不可改写，请新建草稿');const manifest=validatePackManifest(value);if(manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','场景包需要 0.2');
+    return this.transaction(()=>{const current=this.scenarioDraft(id,version);if(current.saved)fail('DRAFT_FINALIZED','已保存发布不可改写，请新建草稿');const manifest=validatePackManifest(value);if(manifest.schema_version!=='0.2')fail('INVALID_SCHEMA','表情包需要 0.2');
       for(const field of ['pack_id','release_id','created_at','version'] as const)if(manifest[field]!==current.manifest[field])fail('INVALID_ARGUMENT','草稿身份不可更改');
       for(const e of manifest.expressions)if(!isDeepStrictEqual(this.resolve(e),e))fail('REVISION_CONFLICT','只能使用本地已确认的精确版本');
       const draft:ScenarioDraft={...current,version:version+1,manifest};this.db.prepare('UPDATE scenario_drafts SET data=? WHERE draft_id=?').run(JSON.stringify(draft),id);return draft;});

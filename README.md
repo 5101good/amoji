@@ -12,9 +12,9 @@ AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励�
   <img src="assets/samples/encourage-poster.png" alt="给你加油" width="140" />
 </p>
 
-## 场景包市场
+## 表情包市场
 
-1.1 新增[审核制市场](https://amoji.ai-web.ai)、三套场景包、可选的一次性协作提示与两种会话规则。在 dsh「表情 → 市场」安装；安装不会自动启用动作。参阅[运营与恢复说明](docs/marketplace-operations.md)。
+1.1 新增[审核制市场](https://amoji.ai-web.ai)、三套表情包、可选的一次性协作提示与两种会话规则。在 dsh「表情 → 市场」安装；安装不会自动启用动作。参阅[运营与恢复说明](docs/marketplace-operations.md)。
 
 ## 为什么我们需要它
 
@@ -116,6 +116,8 @@ Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch 
 
 ## 一起丰富这套表达
 
+[七套官方表情包](assets/official-packs/README.md)：经典与办公各 24 个表情，以及全新的慢半拍猫、搭把手犬、像素搭档、灵感水母、纸片鹅。选择喜欢的角色，让感谢、鼓励、专注和灵感拥有不同的表达方式。
+
 我们希望通过开放的格式和开源实现，让更多人参与定义 AI 时代的表情：它们可以温暖、幽默，也可以严肃、克制。欢迎分享真实协作中的表达需求、创作新的画风与语义，或帮助我们改进交互和宿主适配。
 
 你可以从[试用 Amoji](#安装)、[提出建议](https://github.com/5101good/amoji/issues)或[贡献代码与素材](CONTRIBUTING.md)开始。
@@ -135,4 +137,4 @@ npm run test:dsh
 
 ## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；场景包市场和协作动作目前仅支持 dsh。
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；表情包市场和协作动作目前仅支持 dsh。

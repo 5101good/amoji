@@ -247,6 +247,9 @@ export function PackCard({
         <h3>
           <a href={url}>{row.manifest.name}</a>
         </h3>
+        {row.manifest.description && (
+          <p className="pack-description">{row.manifest.description}</p>
+        )}
         <div className="pack-footer">
           <span className="author">
             <span className="avatar" aria-hidden="true">

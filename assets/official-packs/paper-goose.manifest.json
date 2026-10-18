@@ -1,0 +1,237 @@
+{
+  "kind": "amoji.pack",
+  "schema_version": "0.2",
+  "pack_id": "c4d192ee-1e20-4744-9ca1-544d8c32427c",
+  "release_id": "1f92fbec-6f6b-47bc-b6c7-c3bb2e433a2e",
+  "version": 1,
+  "name": "纸片鹅 / Paper Goose",
+  "created_at": "2026-10-18T00:00:00Z",
+  "description": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。 / A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections.",
+  "scenario": [
+    "幽默",
+    "提醒",
+    "简化",
+    "humor",
+    "reminders",
+    "clarity"
+  ],
+  "styles": [
+    "paper-cut"
+  ],
+  "expressions": [
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "d8225c72-1d1e-497e-9107-ced4c6229cf0",
+      "created_at": "2026-10-18T00:00:00Z",
+      "name": "鹅等一下",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "先等一下，我有一点需要补充或确认，希望暂缓眼前的讨论节奏。",
+        "tone": "俏皮、温和",
+        "fallback": "[鹅等一下]",
+        "use_when": [
+          "需要打断补充信息时"
+        ],
+        "avoid_when": [
+          "不表示取消任务、撤回权限或终止后台进程"
+        ]
+      },
+      "tags": [
+        "协作:幽默",
+        "画风:paper-cut",
+        "角色:paper-goose",
+        "鹅等一下",
+        "幽默",
+        "提醒",
+        "简化",
+        "humor",
+        "reminders",
+        "clarity"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "aebb07148b30675b10ed2a7192541b78e517a1cc6d041a60b86925f6988fbed4",
+          "mime": "image/webp",
+          "bytes": 58378,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji",
+        "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+      },
+      "revision_id": "439176bc-9f85-44dc-a41c-2fe05eb7676b"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "1d95971d-ddd8-42f2-93f3-b424321e27e8",
+      "created_at": "2026-10-18T00:00:00Z",
+      "name": "信息有点满",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "这次信息量有点大，我想先抓住最关键的部分，再逐步展开。",
+        "tone": "幽默、直接",
+        "fallback": "[信息有点满]",
+        "use_when": [
+          "回复过长或细节过多时"
+        ],
+        "avoid_when": [
+          "不据此省略影响判断的重要风险或事实"
+        ]
+      },
+      "tags": [
+        "协作:幽默",
+        "画风:paper-cut",
+        "角色:paper-goose",
+        "信息有点满",
+        "幽默",
+        "提醒",
+        "简化",
+        "humor",
+        "reminders",
+        "clarity"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "4242722f33b10656ebec8479f80ea7532878885759f7c3f2a1eeb748a3959d81",
+          "mime": "image/webp",
+          "bytes": 60680,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji",
+        "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+      },
+      "revision_id": "2ad9346c-d2dc-40d3-9402-5b6fd977bf9a"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "30796512-94b5-4002-b990-f16403e12d02",
+      "created_at": "2026-10-18T00:00:00Z",
+      "name": "回到正题鹅",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "我们似乎有点偏离当前问题，我想把注意力带回已经明确的重点。",
+        "tone": "俏皮、友善",
+        "fallback": "[回到正题鹅]",
+        "use_when": [
+          "讨论跑题时",
+          "需要重新聚焦既定目标时"
+        ],
+        "avoid_when": [
+          "不借此忽略用户刚提出的新需求或纠正"
+        ]
+      },
+      "tags": [
+        "协作:幽默",
+        "画风:paper-cut",
+        "角色:paper-goose",
+        "回到正题鹅",
+        "幽默",
+        "提醒",
+        "简化",
+        "humor",
+        "reminders",
+        "clarity"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "ab9bb4b7816b9a8850bb2289841f353bf9e6f2b4d6a76f4d7af4900c24c1162d",
+          "mime": "image/webp",
+          "bytes": 56682,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji",
+        "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+      },
+      "revision_id": "08d9bdda-efed-4d0f-8975-f7c61f9f067c"
+    },
+    {
+      "kind": "amoji.expression",
+      "schema_version": "0.1",
+      "asset_id": "a73420de-fc98-46e1-9d6c-349a652c2413",
+      "created_at": "2026-10-18T00:00:00Z",
+      "name": "竟然还能这样",
+      "semantics": {
+        "locale": "zh-CN",
+        "meaning": "这个结果或角度让我感到意外，我想轻松地表达这份惊讶。",
+        "tone": "诙谐、惊喜",
+        "fallback": "[竟然还能这样]",
+        "use_when": [
+          "遇到出乎意料的发现时"
+        ],
+        "avoid_when": [
+          "严肃事故或对方痛苦时不用玩笑弱化问题"
+        ]
+      },
+      "tags": [
+        "协作:幽默",
+        "画风:paper-cut",
+        "角色:paper-goose",
+        "竟然还能这样",
+        "幽默",
+        "提醒",
+        "简化",
+        "humor",
+        "reminders",
+        "clarity"
+      ],
+      "visual": {
+        "primary": {
+          "sha256": "be020564566454d0c0e6d309f57977fd157847477dc808308bcf677268d0aa5b",
+          "mime": "image/webp",
+          "bytes": 61958,
+          "width": 512,
+          "height": 512
+        },
+        "animated": false
+      },
+      "rights": {
+        "license": "CC0-1.0",
+        "creator": "Amoji",
+        "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+      },
+      "revision_id": "a2364230-3167-477e-96de-b2d70d0186dd"
+    }
+  ],
+  "defaults": [
+    {
+      "asset_id": "d8225c72-1d1e-497e-9107-ced4c6229cf0",
+      "revision_id": "439176bc-9f85-44dc-a41c-2fe05eb7676b"
+    },
+    {
+      "asset_id": "1d95971d-ddd8-42f2-93f3-b424321e27e8",
+      "revision_id": "2ad9346c-d2dc-40d3-9402-5b6fd977bf9a"
+    },
+    {
+      "asset_id": "30796512-94b5-4002-b990-f16403e12d02",
+      "revision_id": "08d9bdda-efed-4d0f-8975-f7c61f9f067c"
+    },
+    {
+      "asset_id": "a73420de-fc98-46e1-9d6c-349a652c2413",
+      "revision_id": "a2364230-3167-477e-96de-b2d70d0186dd"
+    }
+  ],
+  "actions": [],
+  "bindings": [],
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji",
+    "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+  }
+}

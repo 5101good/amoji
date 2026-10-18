@@ -12,11 +12,11 @@ test('真实管理UI→RPC→服务：可选动作、保存重开、图文预览
  const render=async(en=false)=>React.act(async()=>root.render(React.createElement(AmojiLocaleProvider,{children:null,t:en?((key:string)=>english[key as keyof typeof english]??key):undefined},React.createElement(PackControls,{rpc,sessionId:'test',refs,onImported:()=>{}}))));
  const button=(label:string)=>[...dom.window.document.querySelectorAll('button')].find(b=>b.textContent===label)!;
  const click=async(label:string)=>{for(let i=0;i<100&&!button(label);i++)await React.act(async()=>new Promise(r=>setTimeout(r,20)));assert.ok(button(label),dom.window.document.body.textContent??label);await React.act(()=>button(label).click());for(let i=0;i<100&&dom.window.document.body.textContent?.includes('正在处理完整包…');i++)await React.act(async()=>new Promise(r=>setTimeout(r,20)));assert.ok(!dom.window.document.body.textContent?.includes('正在处理完整包…'));};
- await render();assert.ok(button('用所选表情创建场景包'));await click('用所选表情创建场景包');
+ await render();assert.ok(button('用所选表情创建表情包'));await click('用所选表情创建表情包');
  await React.act(()=>button('添加一次性提示').click());const field=dom.window.document.querySelector<HTMLTextAreaElement>('[aria-label="一次性提示"]')!;await React.act(()=>{field.value='请先解释依据';field.dispatchEvent(new dom.window.Event('input',{bubbles:true}));});
- await click('保存场景草稿');const draft=(await client.listScenarioDrafts())[0]!;assert.equal(draft.manifest.actions[0]?.kind,'instruction');
- await React.act(()=>root.render(React.createElement('p',{},'closed')));await render();await click('继续编辑场景草稿');assert.equal(dom.window.document.querySelector<HTMLTextAreaElement>('[aria-label="一次性提示"]')!.value,'请先解释依据');
- await click('预览场景包');assert.match(dom.window.document.querySelector('[aria-label="场景包预览"]')!.textContent!,new RegExp(e.semantics.meaning));assert.ok(dom.window.document.querySelector('[aria-label="场景包预览"] img'));
- await click('确认保存场景包');await click('完整导出 0.2（保留动作）');await click('仅导出表情 0.1（不含动作）');assert.deepEqual(formats,[false,true]);
+ await click('保存表情包草稿');const draft=(await client.listScenarioDrafts())[0]!;assert.equal(draft.manifest.actions[0]?.kind,'instruction');
+ await React.act(()=>root.render(React.createElement('p',{},'closed')));await render();await click('继续编辑表情包草稿');assert.equal(dom.window.document.querySelector<HTMLTextAreaElement>('[aria-label="一次性提示"]')!.value,'请先解释依据');
+ await click('预览表情包');assert.match(dom.window.document.querySelector('[aria-label="表情包预览"]')!.textContent!,new RegExp(e.semantics.meaning));assert.ok(dom.window.document.querySelector('[aria-label="表情包预览"] img'));
+ await click('确认保存表情包');await click('完整导出 0.2（保留动作）');await click('仅导出表情 0.1（不含动作）');assert.deepEqual(formats,[false,true]);
  const saved=(await client.listScenarioPacks())[0]!;await render(true);assert.ok(button('Export complete 0.2 (with actions)'));assert.deepEqual(await client.getScenarioPack(saved.release_id),saved);assert.deepEqual(saved.expressions[0],e);
 });

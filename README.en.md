@@ -12,9 +12,9 @@ AI-native expressions: people see the artwork; AI reads its fixed meaning. A sha
   <img src="assets/samples/encourage-poster.png" alt="Cheering you on" width="140" />
 </p>
 
-## Scenario marketplace
+## Expression marketplace
 
-Version 1.1 adds the [reviewed marketplace](https://amoji.ai-web.ai), three scenario packs, optional turn instructions and two conversation rule templates. Install from Expressions → Marketplace in dsh; installation never activates actions. See [operations and recovery](docs/marketplace-operations.en.md).
+Version 1.1 adds the [reviewed marketplace](https://amoji.ai-web.ai), three expression packs, optional turn instructions and two conversation rule templates. Install from Expressions → Marketplace in dsh; installation never activates actions. See [operations and recovery](docs/marketplace-operations.en.md).
 
 ## Why we are building this
 
@@ -115,6 +115,8 @@ Version 1.1 primarily supports dsh. Marketplace installation, real browser inter
 Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Older Codex/Claude hook implementations remain legacy; the new Claude Desktop Mods adapter has its own integration and validation scope. See [release scope and known limitations](docs/release.en.md).
 
 ## Help shape this vocabulary
+
+Explore [seven official expression packs](assets/official-packs/README.en.md): Classic and Office with 24 expressions each, plus Slow Cat, Good Dog, Pixel Pal, Orbit Jelly and Paper Goose. Choose a character for gratitude, encouragement, focus or a spark of inspiration.
 
 Through an open format and an open-source implementation, we want more people to help define expression in the age of AI. That expression can be warm or playful, serious or restrained. Share a need from your own collaboration, create new artwork and meanings, or help improve the interaction and host integrations.
 

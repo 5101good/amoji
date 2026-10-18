@@ -5,11 +5,10 @@ import { resolve, extname } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { unzipSync } from "fflate";
 const root = resolve(import.meta.dirname, "..");
-const packs = await Promise.all(
-  ["make-it-clear", "work-well-together", "collaborate-comfortably"].map(
-    async (name) => {
+const catalog = JSON.parse(await readFile(resolve(root, "../../assets/official-packs/catalog.json"), "utf8"));
+async function loadPack(directory, name) {
       const bytes = await readFile(
-        resolve(root, "../../assets/scenario-packs", name + ".amoji"),
+        resolve(root, "../../assets", directory, name + ".amoji"),
       );
       const files = unzipSync(bytes),
         manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
@@ -23,9 +22,10 @@ const packs = await Promise.all(
         author: manifest.rights.creator,
         row_version: 1,
       };
-    },
-  ),
-);
+}
+const packs = await Promise.all(catalog.packs.map(p => loadPack("official-packs", p.slug)));
+// Keep old exact links usable, but do not advertise the superseded groupings.
+const legacyPacks = await Promise.all(["make-it-clear", "work-well-together", "collaborate-comfortably"].map(name => loadPack("scenario-packs", name)));
 const sessions = new Map();
 const json = (res, body, status = 200) => {
   res.writeHead(status, {
@@ -98,9 +98,15 @@ const server = createServer(async (req, res) => {
       const rows =
         state.mode === "empty"
           ? []
-          : packs.filter((p) =>
-              (p.manifest.name + p.manifest.description).includes(q),
-            );
+          : packs.filter((p) => {
+              const m = p.manifest;
+              const search = [m.name, m.description, ...m.scenario, ...m.expressions.map(e => e.name)].join(" ").normalize("NFKC").toLowerCase();
+              return search.includes(q.normalize("NFKC").toLowerCase()) &&
+                (!url.searchParams.get("scenario") || m.scenario.includes(url.searchParams.get("scenario"))) &&
+                (!url.searchParams.get("style") || m.styles.includes(url.searchParams.get("style"))) &&
+                (!url.searchParams.get("locale") || m.expressions.some(e => e.semantics.locale === url.searchParams.get("locale"))) &&
+                (!url.searchParams.get("actions") || String(m.actions.length > 0) === url.searchParams.get("actions"));
+            });
       return json(res, {
         packs: rows.map((p) => ({
           pack_id: p.pack_id,
@@ -125,7 +131,7 @@ const server = createServer(async (req, res) => {
       });
     }
     if (path.startsWith("/v1/packs/")) {
-      const p = packs.find((p) => path.includes(p.pack_id));
+      const p = [...packs, ...legacyPacks].find((p) => path.includes(p.pack_id) && (!path.includes("/releases/") || path.includes(p.release_id)));
       if (!p) return json(res, {}, 404);
       if (state.mode === "removed")
         return json(

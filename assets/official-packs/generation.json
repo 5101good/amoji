@@ -1,0 +1,141 @@
+{
+  "generator": "Codex built-in imagegen",
+  "created_at": "2026-10-18T00:00:00Z",
+  "prompts": [
+    {
+      "pack": "slow-cat",
+      "expression": "take-a-breath",
+      "generator": "Codex built-in imagegen",
+      "prompt": "Use case: stylized-concept. Asset type: one premium original Amoji chat sticker, square canvas, transparent background.\nCharacter and style: An original rotund ivory-and-orange tabby cat with tiny dot eyes and peach cheeks, loose Japanese watercolor and graphite sketch, visible delicate paper-grain inside the silhouette, expressive hand-drawn edges, sophisticated warm muted palette.\nPose: The cat is resting both paws on a little teal tea mug, eyes gently closed, exhaling one small curved breath. Emotion: take a breath, no rush.\nComposition: ONE character, complete silhouette centered with generous 12% transparent margins; readable at 64px; strong expressive pose. No scene, no floor, no text, no letters, no logo, no watermark, no sticker border, no grid, no multiple panels. This is one of a coherent expression collection. Preserve genuine alpha transparency."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "thinking",
+      "generator": "Codex built-in imagegen",
+      "reference": "slow-cat/take-a-breath",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original rotund ivory-and-orange tabby cat with tiny dot eyes and peach cheeks, loose Japanese watercolor and graphite sketch, visible delicate paper-grain inside the silhouette, expressive hand-drawn edges, sophisticated warm muted palette.\nCreate a NEW pose and expression: The cat rests its cheek on one paw, head tilted, a small loose spiral hovering above. Emotion: give me a moment to think.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "with-you",
+      "generator": "Codex built-in imagegen",
+      "reference": "slow-cat/take-a-breath",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original rotund ivory-and-orange tabby cat with tiny dot eyes and peach cheeks, loose Japanese watercolor and graphite sketch, visible delicate paper-grain inside the silhouette, expressive hand-drawn edges, sophisticated warm muted palette.\nCreate a NEW pose and expression: The cat opens a soft mustard blanket toward the viewer with a tender reassuring smile. Emotion: I am here with you.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "small-step",
+      "generator": "Codex built-in imagegen",
+      "reference": "slow-cat/take-a-breath",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original rotund ivory-and-orange tabby cat with tiny dot eyes and peach cheeks, loose Japanese watercolor and graphite sketch, visible delicate paper-grain inside the silhouette, expressive hand-drawn edges, sophisticated warm muted palette.\nCreate a NEW pose and expression: The cat proudly steps onto one small stone, raising a tiny paw in modest triumph. Emotion: one small step is progress.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "high-five",
+      "generator": "Codex built-in imagegen",
+      "prompt": "Use case: stylized-concept. Asset type: one premium original Amoji chat sticker, square canvas, transparent background.\nCharacter and style: An original fluffy apricot puppy with floppy caramel ears, small round black nose, dark bead eyes, pale mint bandana, tactile needle-felt wool miniature, exquisite fiber texture, soft studio lighting, cute but sophisticated collectible toy.\nPose: The puppy raises one large soft paw toward the viewer for a high five, joyful open mouth. Emotion: we did it together.\nComposition: ONE character, complete silhouette centered with generous 12% transparent margins; readable at 64px; strong expressive pose. No scene, no floor, no text, no letters, no logo, no watermark, no sticker border, no grid, no multiple panels. This is one of a coherent expression collection. Preserve genuine alpha transparency."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "got-you",
+      "generator": "Codex built-in imagegen",
+      "reference": "good-dog/high-five",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original fluffy apricot puppy with floppy caramel ears, small round black nose, dark bead eyes, pale mint bandana, tactile needle-felt wool miniature, exquisite fiber texture, soft studio lighting, cute but sophisticated collectible toy.\nCreate a NEW pose and expression: The puppy proudly holds a small blank folded envelope gently in its paws, nodding. Emotion: received, I understand.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "cheer",
+      "generator": "Codex built-in imagegen",
+      "reference": "good-dog/high-five",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original fluffy apricot puppy with floppy caramel ears, small round black nose, dark bead eyes, pale mint bandana, tactile needle-felt wool miniature, exquisite fiber texture, soft studio lighting, cute but sophisticated collectible toy.\nCreate a NEW pose and expression: The puppy waves two little coral pom-poms with a bouncing enthusiastic pose. Emotion: you can do it, I am cheering for you.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "thanks",
+      "generator": "Codex built-in imagegen",
+      "reference": "good-dog/high-five",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original fluffy apricot puppy with floppy caramel ears, small round black nose, dark bead eyes, pale mint bandana, tactile needle-felt wool miniature, exquisite fiber texture, soft studio lighting, cute but sophisticated collectible toy.\nCreate a NEW pose and expression: The puppy holds a single yellow daisy out toward the viewer, shy happy smile. Emotion: thank you, your help matters.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "focus",
+      "generator": "Codex built-in imagegen",
+      "prompt": "Use case: stylized-concept. Asset type: one premium original Amoji chat sticker, square canvas, transparent background.\nCharacter and style: An original small boxy teal computer robot with a dark navy screen face, two warm amber square eyes, short chunky arms, crisp authentic pixel-art sprite at a visually coarse 64-pixel logical grid, strictly hard square edges, limited teal amber cream palette, intentional retro game craftsmanship.\nPose: The robot carefully adjusts one tiny gear with a pixel wrench, face focused. Emotion: working on this carefully.\nComposition: ONE character, complete silhouette centered with generous 12% transparent margins; readable at 64px; strong expressive pose. No scene, no floor, no text, no letters, no logo, no watermark, no sticker border, no grid, no multiple panels. This is one of a coherent expression collection. Preserve genuine alpha transparency."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "bug",
+      "generator": "Codex built-in imagegen",
+      "reference": "pixel-pal/focus",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small boxy teal computer robot with a dark navy screen face, two warm amber square eyes, short chunky arms, crisp authentic pixel-art sprite at a visually coarse 64-pixel logical grid, strictly hard square edges, limited teal amber cream palette, intentional retro game craftsmanship.\nCreate a NEW pose and expression: The robot inspects a tiny friendly purple pixel bug through a magnifying glass. Emotion: investigating an issue, no result claimed yet.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "idea",
+      "generator": "Codex built-in imagegen",
+      "reference": "pixel-pal/focus",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small boxy teal computer robot with a dark navy screen face, two warm amber square eyes, short chunky arms, crisp authentic pixel-art sprite at a visually coarse 64-pixel logical grid, strictly hard square edges, limited teal amber cream palette, intentional retro game craftsmanship.\nCreate a NEW pose and expression: The robot points upward toward one glowing amber pixel lightbulb, eyes bright. Emotion: I have an idea to explore.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "checkpoint",
+      "generator": "Codex built-in imagegen",
+      "reference": "pixel-pal/focus",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small boxy teal computer robot with a dark navy screen face, two warm amber square eyes, short chunky arms, crisp authentic pixel-art sprite at a visually coarse 64-pixel logical grid, strictly hard square edges, limited teal amber cream palette, intentional retro game craftsmanship.\nCreate a NEW pose and expression: The robot raises a small turquoise flag beside one golden star, happy eyes. Emotion: a verified small milestone, ready for the next step.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "what-if",
+      "generator": "Codex built-in imagegen",
+      "prompt": "Use case: stylized-concept. Asset type: one premium original Amoji chat sticker, square canvas, transparent background.\nCharacter and style: An original small iridescent glass jellyfish creature, rounded translucent lavender bell, exactly four short plump flowing tentacles, two small deep violet friendly eyes, subtle cyan and rose refraction, premium 3D art-toy render with beautiful caustics contained in the object, playful and serene.\nPose: The jellyfish curls two tentacles upward around a tiny floating prism, eyes curious. Emotion: what if we try another possibility.\nComposition: ONE character, complete silhouette centered with generous 12% transparent margins; readable at 64px; strong expressive pose. No scene, no floor, no text, no letters, no logo, no watermark, no sticker border, no grid, no multiple panels. This is one of a coherent expression collection. Preserve genuine alpha transparency."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "connect",
+      "generator": "Codex built-in imagegen",
+      "reference": "orbit-jelly/what-if",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small iridescent glass jellyfish creature, rounded translucent lavender bell, exactly four short plump flowing tentacles, two small deep violet friendly eyes, subtle cyan and rose refraction, premium 3D art-toy render with beautiful caustics contained in the object, playful and serene.\nCreate a NEW pose and expression: The jellyfish gently connects two small floating luminous beads with one fine luminous arc held by its tentacles. Emotion: these ideas might connect.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "uncertain",
+      "generator": "Codex built-in imagegen",
+      "reference": "orbit-jelly/what-if",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small iridescent glass jellyfish creature, rounded translucent lavender bell, exactly four short plump flowing tentacles, two small deep violet friendly eyes, subtle cyan and rose refraction, premium 3D art-toy render with beautiful caustics contained in the object, playful and serene.\nCreate a NEW pose and expression: The jellyfish tilts its bell and curls tentacles inward, beside one small translucent question-mark-shaped bubble. Emotion: I am not sure yet.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "spark",
+      "generator": "Codex built-in imagegen",
+      "reference": "orbit-jelly/what-if",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original small iridescent glass jellyfish creature, rounded translucent lavender bell, exactly four short plump flowing tentacles, two small deep violet friendly eyes, subtle cyan and rose refraction, premium 3D art-toy render with beautiful caustics contained in the object, playful and serene.\nCreate a NEW pose and expression: The jellyfish floats joyfully with tentacles spread, holding one tiny golden four-point spark in front. Emotion: a new inspiration has appeared.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "hold-on",
+      "generator": "Codex built-in imagegen",
+      "prompt": "Use case: stylized-concept. Asset type: one premium original Amoji chat sticker, square canvas, transparent background.\nCharacter and style: An original comical white goose with a long curved neck, triangular vermilion beak, small ink-dot eyes, tiny charcoal eyebrow, layered hand-cut paper collage, warm ivory paper with visible fibers, cobalt blue accent, crisp imperfect scissor-cut shapes and gentle paper-layer shadows, witty editorial illustration.\nPose: The goose confidently holds up one wing palm-forward in a theatrical stop gesture, neck making a gentle S bend. Emotion: hold on a moment, friendly interruption.\nComposition: ONE character, complete silhouette centered with generous 12% transparent margins; readable at 64px; strong expressive pose. No scene, no floor, no text, no letters, no logo, no watermark, no sticker border, no grid, no multiple panels. This is one of a coherent expression collection. Preserve genuine alpha transparency."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "too-much",
+      "generator": "Codex built-in imagegen",
+      "reference": "paper-goose/hold-on",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original comical white goose with a long curved neck, triangular vermilion beak, small ink-dot eyes, tiny charcoal eyebrow, layered hand-cut paper collage, warm ivory paper with visible fibers, cobalt blue accent, crisp imperfect scissor-cut shapes and gentle paper-layer shadows, witty editorial illustration.\nCreate a NEW pose and expression: The goose peeks over a comically tall small stack of blank blue papers, bemused eyes, one paper slipping. Emotion: too much information, please simplify.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "back-on-track",
+      "generator": "Codex built-in imagegen",
+      "reference": "paper-goose/hold-on",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original comical white goose with a long curved neck, triangular vermilion beak, small ink-dot eyes, tiny charcoal eyebrow, layered hand-cut paper collage, warm ivory paper with visible fibers, cobalt blue accent, crisp imperfect scissor-cut shapes and gentle paper-layer shadows, witty editorial illustration.\nCreate a NEW pose and expression: The goose carefully nudges a small blue paper boat back toward a curved dotted path, determined eyebrow. Emotion: let us get back to the point.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "surprise",
+      "generator": "Codex built-in imagegen",
+      "reference": "paper-goose/hold-on",
+      "prompt": "Use case: identity-preserve. Asset type: one original Amoji chat sticker from the same character collection.\nInput image: character identity and exact medium/style reference.\nKeep exactly the reference character, proportions, face design, palette, material, and rendering style: An original comical white goose with a long curved neck, triangular vermilion beak, small ink-dot eyes, tiny charcoal eyebrow, layered hand-cut paper collage, warm ivory paper with visible fibers, cobalt blue accent, crisp imperfect scissor-cut shapes and gentle paper-layer shadows, witty editorial illustration.\nCreate a NEW pose and expression: The goose leans backward with wide eyes and wings out, three small vermilion exclamation-shaped paper confetti pieces overhead. Emotion: well that was unexpected, playful surprise.\nRemove props from the reference that are not needed for this new pose. ONE full character centered on a square canvas with 12% empty margin, genuinely transparent background. No environment, no floor, no text, no logo, no watermark, no grid, no collage. Preserve the character identity, but change its gesture and facial expression clearly to convey this new meaning. Small chat-sticker readability."
+    }
+  ]
+}

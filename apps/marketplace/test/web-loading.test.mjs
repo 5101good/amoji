@@ -149,7 +149,7 @@ test("anonymous browsing skips creator modules and sign-in loads the real worksp
   assert.equal(p.document.querySelector('input[type="file"]'), null);
   await p.login();
   await p.waitFor(() => p.document.querySelector('input[type="file"]'));
-  assert.match(p.document.body.textContent, /发布一份场景包/);
+  assert.match(p.document.body.textContent, /发布一份表情包/);
   assert.ok(p.button("退出登录"));
   assert.ok(p.dynamicRequests.length > 0);
   assert.equal(p.document.querySelector('[role="alert"]'), null);

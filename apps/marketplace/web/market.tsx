@@ -7,7 +7,7 @@ import { Hero, PackCard } from "./gallery";
 import { Icon, CopyButton, EmptyState, type Locale } from "./ui";
 const words = {
   zh: {
-    title: "发现场景包",
+    title: "发现表情包",
     q: "关键词",
     scenario: "场景",
     locale: "语义语言",
@@ -54,7 +54,7 @@ const words = {
     complete: "全部差异内容",
   },
   en: {
-    title: "Discover scenario packs",
+    title: "Discover expression packs",
     q: "Keywords",
     scenario: "Scenario",
     locale: "Semantic language",
@@ -401,7 +401,7 @@ export function Catalog({
                     ? "筛选结果"
                     : "Search results"
                   : zh
-                    ? "所有场景包"
+                    ? "所有表情包"
                     : "All expression packs"}
               </span>
               <span className="note">
@@ -467,7 +467,7 @@ export function Catalog({
                   ? "换个关键词，或清除筛选再看看。"
                   : "Try another keyword or clear your filters."
                 : zh
-                  ? "创作你的场景包，审核通过后会在这里与大家见面。"
+                  ? "创作你的表情包，审核通过后会在这里与大家见面。"
                   : "Share a pack. Once reviewed, it will appear here for everyone."}
             </p>
             {query ? (
@@ -483,7 +483,7 @@ export function Catalog({
         )}
         {notFound && (
           <EmptyState
-            title={zh ? "没有找到这份场景包" : "This pack could not be found"}
+            title={zh ? "没有找到这份表情包" : "This pack could not be found"}
           >
             <p>
               {zh
@@ -870,7 +870,7 @@ export function Reviews({
                   {detail?.submission.id === s.id
                     ? detail.manifest.name
                     : locale === "zh"
-                      ? "场景包投稿"
+                      ? "表情包投稿"
                       : "Pack submission"}
                 </p>
                 <p className="queue-version">

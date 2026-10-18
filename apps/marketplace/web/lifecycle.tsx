@@ -202,7 +202,7 @@ export function Lifecycle({
           <span>{zh ? "管理公开内容" : "Manage publications"}</span>
           <small>
             {zh
-              ? "管理已发布的场景包与精确版本"
+              ? "管理已发布的表情包与精确版本"
               : "Manage published packs and their exact releases"}
           </small>
         </summary>
@@ -237,12 +237,12 @@ export function Lifecycle({
           <h4>{zh ? "下架精确版本" : "Remove an exact release"}</h4>
           <p className="note">
             {zh
-              ? "在场景包详情中复制 ID。下架后将停止公开下载这个版本。"
+              ? "在表情包详情中复制 ID。下架后将停止公开下载这个版本。"
               : "Copy the IDs from the pack details. Removing a release stops public downloads."}
           </p>
           <div className="release-identifiers">
             <label>
-              {zh ? "场景包 ID" : "Pack ID"}
+              {zh ? "表情包 ID" : "Pack ID"}
               <input
                 required
                 value={pack}

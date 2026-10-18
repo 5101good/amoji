@@ -40,4 +40,4 @@ For connection or delivery problems, follow the [recovery guide](dsh-installatio
 
 ## Scenario packs and optional guidance
 
-[Three bilingual packs](../assets/scenario-packs/README.en.md) are importable; public marketplace versions require independent review. Choose Send only or Send and apply. One-time guidance affects its linked turn; habits require explicit activation in the current conversation and can be disabled individually or together. Disabling stops future application without deleting history or guaranteeing forgetting. Guidance is not enforcement; installation, collection and AI sends never enable actions.
+[Seven official expression packs](../assets/official-packs/README.en.md) are importable; public marketplace versions require independent review. Choose Send only or Send and apply. One-time guidance affects its linked turn; habits require explicit activation in the current conversation and can be disabled individually or together. Disabling stops future application without deleting history or guaranteeing forgetting. Guidance is not enforcement; installation, collection and AI sends never enable actions.

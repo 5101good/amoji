@@ -12,7 +12,7 @@ const cases = [
   ['work-well-together', '一起把事做好 / Work well together', ['卡在哪里', '正在核对', '我来处理']],
   ['collaborate-comfortably', '轻松一点合作 / Collaborate comfortably', ['辛苦了', '不客气', '暂时没把握']],
 ] as const;
-for (const [slug, name, names] of cases) test(`正式场景包 ${slug}：许可、双画风、固定语义与双格式公开往返`, async t => {
+for (const [slug, name, names] of cases) test(`正式表情包 ${slug}：许可、双画风、固定语义与双格式公开往返`, async t => {
   const source = JSON.parse(await readFile(new URL('../assets/base-library/manifest.json', import.meta.url), 'utf8'));
   const dir = await mkdtemp(join(tmpdir(), 'amoji-seed-'));
   const store = await LibraryStore.open(dir, new URL('../assets/base-library/base.amoji', import.meta.url));

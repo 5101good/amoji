@@ -390,7 +390,7 @@ export function UploadPanel({
   return (
     <section className="creator" aria-labelledby="creator-title">
       <h2 id="creator-title">
-        {zh ? "发布一份场景包" : "Publish an expression pack"}
+        {zh ? "发布一份表情包" : "Publish an expression pack"}
       </h2>
       <p>{t.fileHint}</p>
       <p ref={status} tabIndex={-1} role="status" aria-live="polite">
@@ -420,8 +420,8 @@ export function UploadPanel({
                   <strong>{t.choose}</strong>
                   <span className="note">
                     {zh
-                      ? "从 dsh 导出场景包，在这里开始分享。最大 10 MiB。"
-                      : "Export a scenario pack from dsh, then start sharing here. Up to 10 MiB."}
+                      ? "从 dsh 导出表情包，在这里开始分享。最大 10 MiB。"
+                      : "Export a expression pack from dsh, then start sharing here. Up to 10 MiB."}
                   </span>
                   <input
                     type="file"
@@ -703,7 +703,7 @@ export function UploadPanel({
               {viewed?.id === s.id
                 ? viewed.manifest.name
                 : zh
-                  ? "场景包投稿"
+                  ? "表情包投稿"
                   : "Pack submission"}{" "}
               <span className="note">v{s.version}</span>
             </h4>

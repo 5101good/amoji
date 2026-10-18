@@ -84,7 +84,7 @@ export function ServerShell({
                       ? "筛选结果"
                       : "Search results"
                     : zh
-                      ? "所有场景包"
+                      ? "所有表情包"
                       : "All expression packs"}
                 </span>
                 <span className="note">

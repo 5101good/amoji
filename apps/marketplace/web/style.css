@@ -560,6 +560,16 @@ legend {
   outline: 3px solid var(--accent);
   outline-offset: 4px;
 }
+.pack-description {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.75;
+  margin: 12px 0 18px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .pack-footer {
   display: flex;
   align-items: center;

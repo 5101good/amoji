@@ -2,6 +2,7 @@ Amoji 1.0.0
 
 原创核心、适配器代码及技术文档：MIT，见 LICENSE。
 assets/base-library 的24组固定语义、48项原创基础视觉及生成提示：CC0-1.0，见该目录 LICENSE、provenance.json。
+assets/official-packs 将经典与办公分别组织为完整包，并新增五套原创角色、20项表情；原创视觉、语义和生成提示采用 CC0-1.0，见该目录 LICENSE、provenance.json、generation.json。
 基础素材由项目使用 Codex imagegen 制作，来源记录不构成输出独有性或第三方权利保证。
 assets/samples 的项目原创生成视觉采用 CC0-1.0（见该目录 LICENSE）。
 测试 manifest 中的旧 rights 字段是不可变协议夹具，保留历史值，不替代目录许可。
@@ -29,6 +30,7 @@ English notice
 
 Original Amoji code, adapters and technical documentation are licensed under MIT (LICENSE).
 The built-in collection contains 24 meanings in two appearances (48 visual assets).
+assets/official-packs packages Classic and Office separately and adds five original collections with 20 new expressions. Their original artwork, semantics and prompts use CC0-1.0; see that directory's LICENSE, provenance.json and generation.json.
 Its original visuals, fixed semantics and generation prompts are dedicated under CC0-1.0;
 see assets/base-library/LICENSE and provenance.json. Assets were generated with Codex
 imagegen. Provenance is not a guarantee of exclusivity or clearance of third-party rights.

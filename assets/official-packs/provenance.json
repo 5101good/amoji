@@ -1,0 +1,186 @@
+{
+  "license": "CC0-1.0",
+  "created_at": "2026-10-18T00:00:00Z",
+  "entries": [
+    {
+      "pack": "slow-cat",
+      "expression": "take-a-breath",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "e72806307d16c32e6beb604c119b8c2b6dfdbbf944e046ea6060b5f16b5c4075",
+      "file": "images/slow-cat/take-a-breath.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "thinking",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "b819cb2fcea590e040ad65e23c1475b5066ce39c2b8476dd96a5d6368e1a65ab",
+      "file": "images/slow-cat/thinking.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "with-you",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "a54e32132a7957799a784b2dce934e32f3c200d29e7758261d7a8daccf765d42",
+      "file": "images/slow-cat/with-you.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "slow-cat",
+      "expression": "small-step",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "886d46407d3f5aad2c411f7e47bd85603c6ebe5899ac2de3b0ec3c5bf503f412",
+      "file": "images/slow-cat/small-step.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "high-five",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "1781e37c731d8f8e8ef470ffc87a839bc9d3328bb809cdb1da9d4ef6923b0c00",
+      "file": "images/good-dog/high-five.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "got-you",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "926a1f1607c06907211c26196569feae00943286b591af4b93152db9c7ff84e6",
+      "file": "images/good-dog/got-you.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "cheer",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "f2cced33c16e31fdbdb1356800ca1dd571c4ce123aa074018a9e12e1d809d8c2",
+      "file": "images/good-dog/cheer.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "good-dog",
+      "expression": "thanks",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "ab178776522733de73788b017ee3212c474a545f34258ff39b2e82deaf5a892e",
+      "file": "images/good-dog/thanks.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "focus",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "f90a7a4ac864adf015f47bed84f0f5bcedb78adfe172f3ab0feff014806a2812",
+      "file": "images/pixel-pal/focus.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "bug",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "10e4c9e95bfc90336f772b8f7a943b611c60b013b52ab8515ddd73414ab9ddf2",
+      "file": "images/pixel-pal/bug.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "idea",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "1965b8d44d43ea945d7c530bf6b6f82668f3cf8bbd5c424d57d03d5fea5bee04",
+      "file": "images/pixel-pal/idea.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "pixel-pal",
+      "expression": "checkpoint",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "6fe76efd446c302035d12c62a811c1d9065b18c35a80b945d20aa52c7bd14caf",
+      "file": "images/pixel-pal/checkpoint.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "what-if",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "942a6f46edf5bef94b96d2e8fd1c6bf0f1d148f23988b6157d69fe11cf2e8aa5",
+      "file": "images/orbit-jelly/what-if.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "connect",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "4255f201d0402ba38a6806e1190e7e8c8c3a615de13c412e99fd6d7331672e82",
+      "file": "images/orbit-jelly/connect.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "uncertain",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "78d53e48a4017e35a5373ae69c9e0ee111aa6c57eb5b5f3a69847672c5e600a0",
+      "file": "images/orbit-jelly/uncertain.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "orbit-jelly",
+      "expression": "spark",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "352dfd50b54fbf17b950312d560c928d6e92a36ded30989b23ffc285dec38b09",
+      "file": "images/orbit-jelly/spark.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "hold-on",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "bc5f420401d6ce73b3ba908d0c1882d17363c4cc05dbd4b77f425f5b45681efc",
+      "file": "images/paper-goose/hold-on.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "too-much",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "a4babe3be6554d7290acf71bae924171fcc2ec7bcb1c5e98106db6c0eebc7e7a",
+      "file": "images/paper-goose/too-much.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "back-on-track",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "6b00196b10dee13bad6f5fed18045a74679637e440752810ef21ba73d55a3054",
+      "file": "images/paper-goose/back-on-track.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    },
+    {
+      "pack": "paper-goose",
+      "expression": "surprise",
+      "generator": "Codex built-in imagegen",
+      "source_sha256": "0d129318b0177cf23b4566c01e6813af426e268532cf170d62a94903018b3dd6",
+      "file": "images/paper-goose/surprise.webp",
+      "prompt_source": "generation.json",
+      "processing": "512px WebP encoding with alpha preserved; no compositional or semantic edits."
+    }
+  ]
+}

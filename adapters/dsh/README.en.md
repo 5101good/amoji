@@ -48,6 +48,6 @@ Installed and collected expressions remain usable offline. Cached results disclo
 
 ### Publish from dsh
 
-Confirm a local scenario pack under Import and export, then open Publish to marketplace. Save description, licensing and optional actions in the wizard; visual packs need no actions. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
+Confirm a local expression pack under Import and export, then open Publish to marketplace. Save description, licensing and optional actions in the wizard; visual packs need no actions. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
 
 Review the complete content before upload, validation and explicit submission. If the outcome is unknown, check the original operation and review status instead of creating another submission. Returned feedback remains with the draft; select the revised local pack and create a new version for review. Saved drafts survive disconnection. Credentials stay in the private `plugins/amoji/publisher` directory of this dsh profile, outside browser storage, packages, model input and the shared library. Do not share that directory. Signing out the device revokes its authorization.

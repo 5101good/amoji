@@ -56,7 +56,7 @@ export class DshPublisher{
   if(method==='drafts')return drafts;
   const save=async(d:PublisherDraft)=>{d.version++;await this.write('drafts.json',drafts);return d;};
   if(method==='create'){
-   if(!this.runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','本地场景包不可用');const source=await this.runtime.scenarios.getScenarioPack(nonempty(a.release_id));
+   if(!this.runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','本地表情包不可用');const source=await this.runtime.scenarios.getScenarioPack(nonempty(a.release_id));
    const old=a.revise_id?drafts.find(d=>d.id===a.revise_id):undefined;
    if(a.revise_id&&(!old||!old.submission||!['changes_requested','published','withdrawn'].includes(old.submission.state)))fail('PUBLISHER_STATE','请先核对投稿状态');
    const d:PublisherDraft={id:randomUUID(),version:1,step:1,source_release_id:source.release_id,manifest:source,state:'draft',reserve_operation:randomUUID(),authorize_operation:randomUUID(),complete_operation:randomUUID(),submit_operation:randomUUID(),...(old?{pack_id:old.submission!.pack_id,account_id:old.account_id}:{})};drafts.unshift(d);await this.write('drafts.json',drafts);return d;

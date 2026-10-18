@@ -1,0 +1,70 @@
+{
+  "created_at": "2026-10-18T00:00:00Z",
+  "packs": [
+    {
+      "slug": "classic", "name": "经典 / Classic", "appearance": "classic",
+      "description": "熟悉的奶白圆团，把感谢、鼓励和日常协作说得柔软一点。 / Familiar cream-white characters for gratitude, encouragement and everyday collaboration.",
+      "scenario": ["日常", "感谢", "鼓励", "澄清", "everyday", "thanks", "encouragement", "clarification"]
+    },
+    {
+      "slug": "office", "name": "办公 / Office", "appearance": "office",
+      "description": "灰蓝纸张角色，克制而清晰。让确认、进度与交接更有默契。 / Quiet paper characters for clear confirmations, progress and handoffs.",
+      "scenario": ["办公", "进度", "确认", "澄清", "office", "progress", "confirmation", "clarification"]
+    },
+    {
+      "slug": "slow-cat", "name": "慢半拍猫 / Slow Cat", "style": "watercolor",
+      "description": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。 / A watercolor cat with no hurry. Room to think, and a little kindness for the effort.",
+      "scenario": ["放松", "陪伴", "思考", "rest", "companionship", "reflection"],
+      "expressions": [
+        {"slug": "take-a-breath", "name": "先喘口气", "meaning": "先缓一缓，给自己一点喘息的空间；不用因为这句表达而催促或继续推进任务。", "tone": "温柔、放松", "use_when": ["人想短暂放松时", "AI 温和回应对方的疲惫时"], "avoid_when": ["不要据此擅自取消、暂停或修改正在运行的任务"]},
+        {"slug": "thinking", "name": "让我想想", "meaning": "我还在思考这件事，暂时没有确定的答案，希望留一点整理思路的空间。", "tone": "从容、坦诚", "use_when": ["人需要考虑一个选择时", "AI 正在梳理问题、尚无结论时"], "avoid_when": ["不要用它掩盖已停止的工作或承诺后台继续执行"]},
+        {"slug": "with-you", "name": "陪你一会儿", "meaning": "我愿意在这段对话里耐心听你说、陪你理一理，不急着给出解决方案。", "tone": "温暖、耐心", "use_when": ["对方更需要被倾听时", "想先给予支持而不是建议时"], "avoid_when": ["不暗示持续在线、排他关系或对真实情绪的确定判断"]},
+        {"slug": "small-step", "name": "一小步也算", "meaning": "虽然这一步不大，但这份实际进展和付出值得被看见。", "tone": "轻柔、鼓励", "use_when": ["完成了一个小步骤时", "回应对方已经付出的努力时"], "avoid_when": ["没有实际进展时不要声称任务已取得成果"]}
+      ]
+    },
+    {
+      "slug": "good-dog", "name": "搭把手犬 / Good Dog", "style": "felt",
+      "description": "热情但不抢戏的毛绒搭档。接住你的消息，也认真回应每一份善意。 / A soft, enthusiastic teammate. Every message received, every kindness returned.",
+      "scenario": ["鼓励", "感谢", "回应", "encouragement", "thanks", "acknowledgement"],
+      "expressions": [
+        {"slug": "high-five", "name": "击个掌", "meaning": "为我们刚刚共同完成的一步击个掌，分享这份开心。", "tone": "开心、亲切", "use_when": ["共同完成一个步骤时", "回应对方分享的好消息时"], "avoid_when": ["不把庆祝当作未验证任务的完成证明"]},
+        {"slug": "got-you", "name": "收到啦", "meaning": "你的这条消息我收到了，也理解了其中明确表达的意思。", "tone": "积极、自然", "use_when": ["确认收到清楚的消息时", "无需长篇回复的日常交接时"], "avoid_when": ["有歧义时应先澄清；收到不代表任务已经完成或权限已经授予"]},
+        {"slug": "cheer", "name": "给你打气", "meaning": "我想给你一些鼓励，认可你的努力，祝你接下来顺利。", "tone": "热情、支持", "use_when": ["对方正在努力时", "开始有挑战的工作之前"], "avoid_when": ["不保证成功，也不替代必要的具体帮助"]},
+        {"slug": "thanks", "name": "多亏有你", "meaning": "谢谢你刚才提供的帮助或支持，这份投入对我很有帮助。", "tone": "真诚、感激", "use_when": ["人感谢 AI 的帮助时", "AI 感谢人补充信息或纠正问题时"], "avoid_when": ["不夸大帮助，也不暗示情感依赖"]}
+      ]
+    },
+    {
+      "slug": "pixel-pal", "name": "像素搭档 / Pixel Pal", "style": "pixel",
+      "description": "从像素世界走来的小机器人。陪你专注、找问题，也庆祝扎实的每一步。 / A tiny robot for focused work, curious debugging and well-earned checkpoints.",
+      "scenario": ["专注", "排障", "灵感", "focus", "debugging", "ideas"],
+      "expressions": [
+        {"slug": "focus", "name": "认真处理中", "meaning": "我此刻正在认真处理眼前这件事，暂时还没有要报告的最终结果。", "tone": "专注、踏实", "use_when": ["确实正在处理当前任务时"], "avoid_when": ["不能暗示实际上不存在的后台工作或持续执行"]},
+        {"slug": "bug", "name": "揪出小问题", "meaning": "这里可能有一个需要排查的问题，我正在关注线索，原因尚待确认。", "tone": "好奇、谨慎", "use_when": ["发现异常、开始排查时"], "avoid_when": ["未经检查不要宣称已定位原因或完成修复"]},
+        {"slug": "idea", "name": "有个小点子", "meaning": "我想到一个可以讨论或验证的点子，先把它作为可能的方向提出。", "tone": "轻快、探索", "use_when": ["提出初步想法时", "邀请一起讨论一个方案时"], "avoid_when": ["点子不等于已经验证的结论或实施授权"]},
+        {"slug": "checkpoint", "name": "这一关过了", "meaning": "当前这个明确的小步骤已经核实完成，可以为这一步记一个小小的里程碑。", "tone": "雀跃、踏实", "use_when": ["已实际验证一个步骤的结果时"], "avoid_when": ["不能由一个步骤通过推断整个项目都已完成"]}
+      ]
+    },
+    {
+      "slug": "orbit-jelly", "name": "灵感水母 / Orbit Jelly", "style": "glass",
+      "description": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。 / A little luminous curiosity. A place for unfinished thoughts to take shape together.",
+      "scenario": ["探索", "灵感", "不确定", "exploration", "ideas", "uncertainty"],
+      "expressions": [
+        {"slug": "what-if", "name": "换个可能呢", "meaning": "我们可以试着从另一种可能性看这件事，先讨论，不急着作决定。", "tone": "好奇、开放", "use_when": ["脑暴或遇到思路局限时"], "avoid_when": ["不据此擅自推翻已确认的需求或修改方案"]},
+        {"slug": "connect", "name": "好像连上了", "meaning": "这两个想法或线索之间似乎存在联系，值得一起看看是否成立。", "tone": "欣喜、审慎", "use_when": ["发现潜在关联时"], "avoid_when": ["不把关联当作因果，也不把猜想当作事实"]},
+        {"slug": "uncertain", "name": "还不太确定", "meaning": "我对当前判断还没有足够把握，需要更多信息或验证才能确认。", "tone": "坦诚、平和", "use_when": ["证据不足或存在多个合理解释时"], "avoid_when": ["不以表情替代应该说明的具体不确定事项"]},
+        {"slug": "spark", "name": "灵感冒泡了", "meaning": "一个新想法刚刚浮现，我想把这份发现的兴奋分享给你。", "tone": "灵动、兴奋", "use_when": ["产生一个新角度或创意时"], "avoid_when": ["不暗示这个想法已经可行、正确或完成实施"]}
+      ]
+    },
+    {
+      "slug": "paper-goose", "name": "纸片鹅 / Paper Goose", "style": "paper-cut",
+      "description": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。 / A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections.",
+      "scenario": ["幽默", "提醒", "简化", "humor", "reminders", "clarity"],
+      "expressions": [
+        {"slug": "hold-on", "name": "鹅等一下", "meaning": "先等一下，我有一点需要补充或确认，希望暂缓眼前的讨论节奏。", "tone": "俏皮、温和", "use_when": ["需要打断补充信息时"], "avoid_when": ["不表示取消任务、撤回权限或终止后台进程"]},
+        {"slug": "too-much", "name": "信息有点满", "meaning": "这次信息量有点大，我想先抓住最关键的部分，再逐步展开。", "tone": "幽默、直接", "use_when": ["回复过长或细节过多时"], "avoid_when": ["不据此省略影响判断的重要风险或事实"]},
+        {"slug": "back-on-track", "name": "回到正题鹅", "meaning": "我们似乎有点偏离当前问题，我想把注意力带回已经明确的重点。", "tone": "俏皮、友善", "use_when": ["讨论跑题时", "需要重新聚焦既定目标时"], "avoid_when": ["不借此忽略用户刚提出的新需求或纠正"]},
+        {"slug": "surprise", "name": "竟然还能这样", "meaning": "这个结果或角度让我感到意外，我想轻松地表达这份惊讶。", "tone": "诙谐、惊喜", "use_when": ["遇到出乎意料的发现时"], "avoid_when": ["严肃事故或对方痛苦时不用玩笑弱化问题"]}
+      ]
+    }
+  ]
+}

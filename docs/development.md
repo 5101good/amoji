@@ -52,9 +52,9 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 
 见[贡献指南](../CONTRIBUTING.md)和[发布流程](release.md)。
 
-## 场景包内容贡献
+## 表情包内容贡献
 
-从[正式场景包](../assets/scenario-packs/README.md)和 `scripts/build-seed-scenarios.mjs` 开始。保留已确认语义和精确身份，复用许可明确的素材；说明原始语义语言、双向角色和示例性质。动作可选、不强制控制，关闭只停止后续应用而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。
+从[官方表情包](../assets/official-packs/README.md)和 `scripts/build-official-packs.mjs` 开始。保留已确认语义和精确身份，复用许可明确的素材；说明原始语义语言、双向角色和示例性质。动作可选、不强制控制，关闭只停止后续应用而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。
 
 ## Claude Mods
 

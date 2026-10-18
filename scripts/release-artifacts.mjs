@@ -97,17 +97,23 @@ export async function buildReleaseArtifacts() {
     for (const expression of pack.manifest.expressions) assert.equal(expression.rights.license, 'CC0-1.0', 'Built-in assets must retain their CC0 license');
   });
   await writeFile(resolve(destination, `amoji-base-library-${project.version}.amoji`), baseLibrary);
-  // Publish both explicit formats of the reviewed seed content alongside the
-  // plugin. They contain no profile state and must also meet market budgets.
-  for (const slug of ['make-it-clear', 'work-well-together', 'collaborate-comfortably']) {
-    for (const suffix of ['', '.expressions']) {
-      const bytes = await readFile(resolve(root, `assets/scenario-packs/${slug}${suffix}.amoji`));
+  // Official packs are coherent style collections; never include profile state.
+  const official = JSON.parse(await readFile(resolve(root, 'assets/official-packs/catalog.json'), 'utf8'));
+  for (const { slug, archive_sha256 } of official.packs) {
+      assert.match(slug, /^[a-z][a-z-]+$/);
+      const bytes = await readFile(resolve(root, `assets/official-packs/${slug}.amoji`));
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), archive_sha256);
       await withValidatedPack(bytes, async pack => {
-        assert.equal(pack.manifest.schema_version, suffix ? '0.1' : '0.2');
+        assert.equal(pack.manifest.schema_version, '0.2');
+        validatePublicFile(`official-packs/${slug}.manifest.json`, Buffer.from(JSON.stringify(pack.manifest)));
         for (const e of pack.manifest.expressions) assert.equal(e.rights.license, 'CC0-1.0');
       }, 'market');
-      await writeFile(resolve(destination, `amoji-${slug}-${project.version}${suffix}.amoji`), bytes);
-    }
+      await writeFile(resolve(destination, `amoji-${slug}-${project.version}.amoji`), bytes);
+  }
+  for (const file of ['LICENSE', 'provenance.json', 'generation.json']) {
+    const bytes = await readFile(resolve(root, `assets/official-packs/${file}`));
+    validatePublicFile(`official-packs/${file}`, bytes);
+    await writeFile(resolve(destination, `OFFICIAL_PACKS_${file}`), bytes);
   }
   for (const [source, name] of [['LICENSE', 'LICENSE'], ['NOTICE', 'NOTICE'], ['THIRD_PARTY.json', 'THIRD_PARTY.json'], ['assets/base-library/LICENSE', 'BASE_LIBRARY_LICENSE'], ['assets/base-library/provenance.json', 'BASE_LIBRARY_PROVENANCE.json']]) {
     await writeFile(resolve(destination, name), files.get(source));

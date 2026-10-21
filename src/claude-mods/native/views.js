@@ -1,3 +1,6 @@
+import { guidanceView } from './guidance.js';
+import { publisherView, scenarioView } from './publisher-view.js';
+import { marketView } from './market-view.js';
 import { wrapText } from "./text-layout.js";
 import { creationView } from "./creation-view.js";
 import { rasterPicture } from "./raster-picture.js";
@@ -87,6 +90,9 @@ export function pane($, e, s, makePicture) {
       : t(L(s, "预览不可用", "Preview unavailable"), true);
   const managerSections = [
     ["library", L(s, "表情库", "Library")],
+    ["market", L(s, "表情市场", "Expression market")],
+    ["publish", L(s, "分享与投稿", "Share and publish")],
+    ["guidance", L(s, "协作提示", "Collaboration guidance")],
     ["create", L(s, "创作与草稿", "Create and drafts")],
     ["settings", L(s, "AI 偏好", "AI preferences")],
     ["packs", L(s, "导入与导出", "Import and export")],
@@ -107,7 +113,15 @@ export function pane($, e, s, makePicture) {
     await load($, s);
   });
   let body;
-  if (s.tab === "settings") {
+  if (s.tab === "guidance") {
+    body=guidanceView($,s,{col,row,t,heading,button,Button});
+  } else if (s.tab === "scenario" && s.scenarioDraft) {
+    body=scenarioView($,s,{col,row,t,heading,button,input,select,picture,Link,Button});
+  } else if (s.tab === "publish") {
+    body=publisherView($,s,{col,row,t,heading,button,input,select,picture,Link,Button});
+  } else if (s.tab === "market") {
+    body=marketView($,s,{col,row,t,heading,button,input,select,picture,Link,Button});
+  } else if (s.tab === "settings") {
     const p = s.preferences;
     body = p
       ? col([
@@ -473,6 +487,7 @@ export function pane($, e, s, makePicture) {
           },
         ),
       ]),
+      button("detail-guidance",L(s,"查看可选协作提示","Optional collaboration guidance"),async()=>{s.guidanceExpression=x;await navigate($,s,"guidance");}),
       button("versions", L(s, "查看版本", "Show revisions"), async () => {
         s.revisions = await call($, s.context, "revisions", {
           assetId: x.asset_id,
@@ -600,6 +615,11 @@ export function pane($, e, s, makePicture) {
                 await load($, s);
               },
             ),
+            Object.keys(s.selected).length > 0 && button("create-pack", L(s,"组织为表情包","Create a pack"), async()=>{
+              s.scenarioDraft=await call($,s.context,"scenario",{method:"create",refs:Object.values(s.selected)});
+              s.scenarioPreview=false;s.scenarioReviewed=false;s.publicationFields=null;
+              await navigate($,s,"scenario");
+            }),
             Object.keys(s.selected).length > 0 &&
               button(
                 "export",

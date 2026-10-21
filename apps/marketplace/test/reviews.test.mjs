@@ -28,6 +28,37 @@ async function submitted(f, pack_id) {
   assert.equal(r.status, 201, await r.clone().text());
   return { ...v, s: (await r.json()).submission };
 }
+test("official creator identity controls discovery priority; names cannot impersonate it and release updates retain pins", async (t) => {
+  const f = await fixture(t);
+  const reviewer = await f.register("official-curator@example.test");
+  await f.db.prepare("UPDATE market_account SET role='reviewer' WHERE auth_user_id=(SELECT id FROM auth_user WHERE email='official-curator@example.test')").run();
+  const approve = async (s) => {
+    const r = await f.post(`/v1/review/submissions/${s.id}/decision`,
+      {decision: "approve", reason: "Verified test release"}, reviewer,
+      crypto.randomUUID(), {"if-match": `"${s.row_version}"`});
+    assert.equal(r.status, 200, await r.clone().text());
+  };
+  const community = await submitted(f);
+  const {id: owner} = await f.db.prepare("SELECT id FROM market_account WHERE auth_user_id=(SELECT id FROM auth_user WHERE email='one@example.test')").first();
+  await f.db.prepare("UPDATE market_account SET display_name='Amoji' WHERE id=?").bind(owner).run();
+  await approve(community.s);
+  // This is operator configuration, not creator-supplied manifest metadata.
+  await f.db.prepare("INSERT INTO market_official_creator(account_id,reason,created_at) VALUES(?,?,?)")
+    .bind(owner, "Official fixture publisher", Date.now()).run();
+  const official = await submitted(f);
+  await approve(official.s);
+  await f.db.prepare("UPDATE market_public_pack SET updated_at=9999999999999 WHERE pack_id=?").bind(community.s.pack_id).run();
+  let list = await (await get(f, "/v1/packs")).json();
+  assert.deepEqual(list.packs.map(p => p.pack_id), [official.s.pack_id, community.s.pack_id]);
+  await f.db.prepare("UPDATE market_public_pack SET priority=3 WHERE pack_id=?").bind(official.s.pack_id).run();
+  const updated = await submitted(f, official.s.pack_id);
+  await approve(updated.s);
+  const newerOfficial = await submitted(f);
+  await approve(newerOfficial.s);
+  list = await (await get(f, "/v1/packs")).json();
+  assert.deepEqual(list.packs.map(p => p.pack_id), [official.s.pack_id, newerOfficial.s.pack_id, community.s.pack_id]);
+  assert.equal(list.packs[0].release_id, updated.s.release_id);
+});
 test("four actors: revision, digest-bound approval, public discovery and retained exact releases", async (t) => {
   const f = await fixture(t);
   const reviewer = await f.register("reviewer@example.test"),

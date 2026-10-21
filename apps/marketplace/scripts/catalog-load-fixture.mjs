@@ -17,9 +17,10 @@ if(metadataOnly){
  const migration=await readFile(new URL('../migrations/0006-review-publish.sql',import.meta.url),'utf8');
  const auth=await readFile(new URL('../migrations/0001-auth.sql',import.meta.url),'utf8');
  const lifecycle=await readFile(new URL('../migrations/0008-moderation-lifecycle.sql',import.meta.url),'utf8');
+ const priority=await readFile(new URL('../migrations/0009-official-catalog.sql',import.meta.url),'utf8');
  // Preserve actual read schema and indexes; foreign keys constrain publication writes only.
  // This does not simulate 10000 publication workflows or authorization data.
- const schema=[...migration.split(';').filter(s=>/^CREATE (?:TABLE market_public_|INDEX market_public_order)/.test(s.trim())),...auth.split(';').filter(s=>/^CREATE (?:TABLE auth_rate_limit|INDEX auth_rate_limit_bucket)/.test(s.trim())),...lifecycle.split(';').filter(s=>s.trim().startsWith('ALTER TABLE market_public_release'))].map(s=>s.trim().replace(/ REFERENCES \w+\(\w+\)/g,'')+';').join('\n');
+ const schema=[...migration.split(';').filter(s=>/^CREATE (?:TABLE market_public_|INDEX market_public_order)/.test(s.trim())),...auth.split(';').filter(s=>/^CREATE (?:TABLE auth_rate_limit|INDEX auth_rate_limit_bucket)/.test(s.trim())),...lifecycle.split(';').filter(s=>s.trim().startsWith('ALTER TABLE market_public_release')),...priority.split(';').filter(s=>/^(?:ALTER TABLE market_public_pack|CREATE INDEX market_public_priority_order)/.test(s.trim()))].map(s=>s.trim().replace(/ REFERENCES \w+\(\w+\)/g,'')+';').join('\n');
  const inserts=sql.split(';\n').filter(s=>s.includes(' INSERT INTO market_public_')).join(';\n')+';\n';
  sql='-- ISOLATED READ PERFORMANCE ONLY; NOT PUBLICATION WORKFLOW.\n'+(start===1?schema+'\n':'')+inserts;
 }

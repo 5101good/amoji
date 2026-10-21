@@ -1,3 +1,5 @@
+import { guidance } from './guidance.js';
+import { executeMarketBridge } from './market.js';
 import type { ExpressionApplication } from "../application/expressions.js";
 import type { SharedClient } from "../shared-client.js";
 import { bindingContext, fail, nonempty, object } from "../shared-contract.js";
@@ -18,7 +20,7 @@ import { modelProjection } from "../projection.js";
 
 export async function executeBridge(
   app: ExpressionApplication,
-  client: Pick<SharedClient, "blobPath">,
+  client: Pick<SharedClient, "blobPath"> & Partial<SharedClient>,
   raw: unknown,
   options: { previewDirectory?: string; bundledPreviewDirectory?: string } = {},
 ): Promise<unknown> {
@@ -43,6 +45,9 @@ export async function executeBridge(
     } // A missing/corrupt image must never erase its frozen meaning.
   };
   switch (command) {
+    case "guidance": return guidance(client as SharedClient,context,args);
+    case "marketplace": case "publisher": case "scenario":
+      return executeMarketBridge(client as SharedClient, context, command, args, options);
     case "browse": {
       const filter = {
         query: args.query as string,

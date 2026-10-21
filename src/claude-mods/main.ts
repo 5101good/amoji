@@ -31,6 +31,7 @@ try {
       CREATE_DRAFT_CAPABILITY,
       LIBRARY_MANAGEMENT_CAPABILITY,
       PACKS_CAPABILITY,
+      "marketplace-v1", "publisher-v1", "versioned-packs-v1",
     ],
   });
   const result = await executeBridge(

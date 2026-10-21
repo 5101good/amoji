@@ -12,6 +12,14 @@ Worker secrets 为 `BETTER_AUTH_SECRET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS
 
 发布前记录当前 Worker version/deployment、D1 migrations、域名路由和客户端 SHA；失败时回退到上一 Worker version 并核对 `/v1/packs`、登录和上传来源。新增兼容表无需删除。DB5 客户端回退必须停止所有宿主/共享服务写入，导出新数据并恢复升级前一致性备份；禁止旧二进制直接打开 DB5，禁止手改 user_version。
 
+## 官方表情包排序
+
+公开目录、首页首屏、搜索与分页统一按「经典、办公、其他 Amoji 官方表情包、社区表情包」排序，同一优先级内按发布时间从新到旧排列。官方身份只取决于运营者维护的 `market_official_creator.account_id`，不会根据用户可编辑的名称、署名或素材来源推断；新官方表情包也必须通过独立审核。
+
+应用 `0009-official-catalog.sql` 后，运营者核对创作账号 ID，再将其登记到 `market_official_creator`，同时记录理由与时间。该账号后续获准发布的包自动获得优先级 `1`。已有包应通过 `market_upload_pack.owner` 核对归属后回填 `market_public_pack.priority`；经典设为 `3`、办公设为 `2`，其他官方包为 `1`，社区包为 `0`。更新同一个包会保留前两位的置顶顺序。撤销官方登记时同步重置该账号已有包的优先级；不要仅凭名字批量修改。
+
+目录游标包含优先级、更新时间和包 ID，客户端应当作不透明字符串使用。排序规则上线前生成的旧游标需要从第一页刷新。普通下架的内容不再出现在目录，也不再提供公开下载；仍保留历史与审核记录。
+
 ## 配额与诊断
 
 不启用 Workers Paid、Containers 或自动升配。免费资源共享于整个 Cloudflare 账号，应用额度不能证明账号仍有余额。至少每日核对 Workers/D1/R2/SQLite DO 实际用量、失败率和存储量；先停新上传，再诊断，不能靠升级套餐掩盖超限。

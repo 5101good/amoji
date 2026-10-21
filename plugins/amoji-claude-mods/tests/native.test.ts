@@ -855,3 +855,122 @@ test("窄栏滚到底时不足整行的最后一张表情也可点击", async ($
   expect(calls.filter(c => c.command === "browse").length).toBe(1);
   await ui.unmount();
 });
+
+test('市场预览不会安装，安装后可发送且只提交固定文字语义', async ($, on) => {
+  const calls:any[]=[]; let installed=false; const submitted:string[]=[];
+  const release={pack_id:'pack-1',release_id:'release-1',share_url:'https://amoji.ai-web.ai/packs/pack-1/releases/release-1',manifest:{name:'朋友们',version:1,scenario:['日常'],rights:{license:'CC0-1.0'},expressions:[{...expression,visual:{animated:false,primary:{sha256:'a'.repeat(64)}}}],actions:[]}};
+  backend(on,calls,false,()=> 'haiku',(r,result)=>{
+    if(r.command!=='marketplace')return result;
+    const {method}=r.args;
+    if(method==='operationId')return 'operation-1';
+    if(method==='local')return {installs:installed?[{release_id:release.release_id,manifest:release.manifest,refs:[expression]}]:[],collections:[]};
+    if(method==='search')return {packs:[release],stale:false,last_checked_at:'2026-10-20'};
+    if(method==='detail')return release;
+    if(method==='visual')return preview;
+    if(method==='install'){installed=true;return{status:'committed'};}
+    return {};
+  });
+  on('prompt.submit',($,e)=>{submitted.push(e.text);return{text:e.text};});
+  const ui=await $.ui.mount(pane);
+  await navigateTo(ui,'market');
+  await ui.press({key:'market-open:release-1'});
+  expect(calls.filter(c=>c.command==='marketplace'&&c.args.method==='install').length).toBe(0);
+  expect(await ui.find({type:'Text',text:'鼓励一起继续'})).toBeDefined();
+  await ui.press({key:'market-install'});
+  expect(installed).toBe(true);
+  expect(calls.find(c=>c.command==='marketplace'&&c.args.method==='install').args.args.release_id).toBe('release-1');
+  await ui.press({key:'market-send:rev-1'});
+  expect(submitted.length).toBe(1);
+  expect(submitted[0]).toContain('一起加油');
+  expect(submitted[0].includes('base64')).toBe(false);
+  await ui.unmount();
+});
+
+test('发布先设备授权并预览许可，上传与投稿分开确认，未知结果只核对原操作',async($,on)=>{
+ const calls:any[]=[];let authorized=false;
+ const pack={release_id:'release-local',name:'朋友们',version:1,scenario:['日常'],rights:{license:'CC0-1.0'},expressions:[expression],actions:[]};
+ let draft:any={id:'publication-1',version:1,step:1,state:'draft',source_release_id:pack.release_id,manifest:pack};
+ backend(on,calls,false,()=> 'haiku',(r,result)=>{
+  if(r.command==='scenario')return r.args.method==='previews'?{[expression.revision_id]:preview}:{packs:[pack],drafts:[]};
+  if(r.command!=='publisher')return result;
+  const {method,args}=r.args;
+  if(method==='drafts')return [draft];
+  if(method==='loginStatus')return {state:authorized?'authenticated':'signed_out'};
+  if(method==='beginLogin'){authorized=true;return{state:'pending',device_name:'Amoji Claude',user_code:'ABCD1234',verification_uri:'https://amoji.ai-web.ai/device'};}
+  if(method==='create')return draft;
+  if(method==='save'){draft={...draft,version:draft.version+1,step:args.step};return draft;}
+  if(method==='upload'){draft={...draft,state:'uploaded'};return draft;}
+  if(method==='submit'){draft={...draft,state:'unknown'};return{bridgeError:'PUBLISHER_OFFLINE'};}
+  if(method==='reconcile'){draft={...draft,state:'submitted',submission:{state:'pending'}};return draft;}
+  return {};
+ });
+ const ui=await $.ui.mount(pane);await navigateTo(ui,'publish');
+ await ui.press({key:'publish-login'});
+ expect(await ui.find({type:'Text',text:'ABCD1234'})).toBeDefined();
+ await ui.press({key:'publish-login-check'});
+ await ui.select({key:'publish-source',value:'release-local'});
+ await ui.press({key:'publish-create'});
+ await ui.press({key:'publish-next'});await ui.press({key:'publish-next'});
+ expect(calls.some(c=>c.command==='publisher'&&c.args.method==='upload')).toBe(false);
+ await ui.press({key:'publish-upload'});
+ expect(await ui.find({key:'publish-submit'})).toBeUndefined();
+ await ui.press({key:'publish-rights'});await ui.press({key:'publish-submit'});
+ expect(calls.filter(c=>c.command==='publisher'&&c.args.method==='submit').length).toBe(1);
+ await ui.press({key:'publish-reconcile'});
+ expect(calls.filter(c=>c.command==='publisher'&&c.args.method==='submit').length).toBe(1);
+ await ui.unmount();
+});
+
+test('协作提示只由用户选择后附加，安装和模型工具不能启用；关闭后传空快照',async($,on)=>{
+ const calls:any[]=[],contexts:any[]=[],origins:any[]=[];
+ const selection={release_id:'r1',action_id:'a1',action_revision_id:'ar1'};
+ const choice={selection,source:{pack_id:'p1',release_id:'r1',version:1,origin:'local'},action:{kind:'hook',scope:'conversation',effect_summary:'先给答案',conflict_group:'response-organization',template:'response-organization@1',config:{layout:'answer-first'}}};
+ backend(on,calls,false,()=> 'haiku',(r,result)=>{
+   if(r.command==='guidance')return r.args.method==='choices'?{rules:[choice],once:[]}:{text:JSON.stringify({actions:r.args.rules}),rules:r.args.rules,removed:0};
+   return result;
+ });
+ let forwarding=false;
+ // A nested Mods API stub is the host boundary; dispatch the admitted prompt
+ // through the engine event as Desktop does before returning its receipt.
+ on('prompt.submit',async(_host,e)=>{
+   if(!forwarding&&e.origin?.kind==='plugin'&&e.origin.name==='amoji'){
+     forwarding=true;try{return await $.prompt.submit({...e,wait:false});}finally{forwarding=false;}
+   }
+   contexts.push(e.context);origins.push(e.origin);return{text:e.text,context:e.context};
+ });
+ const ui=await $.ui.mount(pane);
+ await ui.press({key:'send:asset-1'});
+ expect(contexts[0]).toBeUndefined();
+ await navigateTo(ui,'guidance');
+ await ui.press({key:'guidance-enable:ar1'});
+ await navigateTo(ui,'picker');await ui.press({key:'send:asset-1'});
+ expect(origins[1]).toEqual({kind:'plugin',name:'amoji',asUser:true});
+ expect(JSON.parse(contexts[1][0]).actions.length).toBe(1);
+ await navigateTo(ui,'guidance');await ui.press({key:'guidance-clear'});
+ await navigateTo(ui,'picker');await ui.press({key:'send:asset-1'});
+ expect(JSON.parse(contexts[2][0]).actions.length).toBe(0);
+ await $.prompt.submit({text:'外部插件消息',asUser:true});
+ expect(contexts[3]).toBeUndefined();
+ await ui.unmount();
+});
+
+test('组织新表情包需重新核对修改后的内容，保存草稿不会自动投稿',async($,on)=>{
+ const calls:any[]=[];const manifest={name:'我的表情包',rights:{license:'仅供个人使用'},expressions:[expression],actions:[]};
+ let draft:any={draft_id:'pack-draft',version:1,manifest};
+ backend(on,calls,false,()=> 'haiku',(r,result)=>{
+  if(r.command!=='scenario')return result;
+  if(r.args.method==='create')return draft;
+  if(r.args.method==='save'){draft={...draft,version:draft.version+1,manifest:r.args.manifest};return draft;}
+  if(r.args.method==='preview')return draft.manifest;
+  if(r.args.method==='previews')return{[expression.revision_id]:preview};
+  return{packs:[],drafts:[draft]};
+ });
+ const ui=await $.ui.mount(pane);await navigateTo(ui,'library');await ui.press({key:'select-mode'});await ui.press({key:'select:asset-1'});await ui.press({key:'create-pack'});
+ expect(await ui.find({key:'scenario-confirm'})).toBeUndefined();
+ await ui.press({key:'scenario-preview'});await ui.press({key:'scenario-reviewed'});
+ expect(await ui.find({key:'scenario-confirm'})).toBeDefined();
+ await ui.input({key:'scenario-name',text:'新名称'});
+ expect(await ui.find({key:'scenario-confirm'})).toBeUndefined();
+ expect(calls.some(c=>c.command==='publisher')).toBe(false);
+ await ui.unmount();
+});

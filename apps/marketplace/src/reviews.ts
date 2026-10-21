@@ -229,8 +229,8 @@ export async function reviewRoute(
       );
       statements.push(
         env.DB.prepare(
-          `INSERT INTO market_public_pack(pack_id,release_id,updated_at) SELECT ?,?,? WHERE ${success} ON CONFLICT(pack_id) DO UPDATE SET release_id=excluded.release_id,updated_at=excluded.updated_at`,
-        ).bind(s.pack_id, s.release_id, now, s.id, marker),
+          `INSERT INTO market_public_pack(pack_id,release_id,updated_at,priority) SELECT ?,?,?,EXISTS(SELECT 1 FROM market_official_creator WHERE account_id=?) WHERE ${success} ON CONFLICT(pack_id) DO UPDATE SET release_id=excluded.release_id,updated_at=excluded.updated_at,priority=CASE WHEN excluded.priority=1 THEN max(market_public_pack.priority,1) ELSE 0 END`,
+        ).bind(s.pack_id, s.release_id, now, s.owner, s.id, marker),
       );
     }
     statements.push(

@@ -1,3 +1,4 @@
+import { MarketplacePublisher } from './marketplace-publisher.js';
 import { LocalAcquisition } from './local-acquisition.js';
 import { actionSelection } from './collaboration.js';
 import { createServer, type ServerResponse, type IncomingMessage } from 'node:http';
@@ -29,9 +30,13 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   try { store = await LibraryStore.open(directory, seed); }
   catch (error) { lock.close(); throw error; }
   const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji.ai-web.ai');
+  const publisher = new MarketplacePublisher(join(directory, 'marketplace-publisher'), {
+    scenarios: {getScenarioPack: async id => store.getScenarioPack(id)},
+    readBlob: async digest => readFile(await store.blobPath(digest)),
+  }, marketplace.origin);
   void marketplace.refreshRevocations({});
   const revocationTimer=setInterval(()=>void marketplace.refreshRevocations({}),15*60*1000);revocationTimer.unref();
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [SESSION_BINDINGS_CAPABILITY, 'marketplace-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [SESSION_BINDINGS_CAPABILITY, 'marketplace-v1', 'publisher-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -131,6 +136,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
     const context = (args: Record<string, unknown>): BindingContext => connection.bindings.get(nonempty(args.binding)) ?? fail('BINDING_UNAVAILABLE', '当前连接没有此绑定');
     let result: unknown;
     switch (method) {
+      case 'publisher': {const a=object(value,['method','args']);result=await publisher.call(nonempty(a.method),a.args);break;}
       case 'marketplace': {const a=object(value,['method','args']);const method=nonempty(a.method);if(!['search','detail','install','installStatus','collect','uncollect','remove','updateCheck','local','visual','refreshRevocations'].includes(method))fail('INVALID_ARGUMENT','未知市场操作');result=await marketplace[method as 'search'](a.args);break;}
       case 'issueClaudeTicket': result = claudeTickets.issue(value); break;
       case 'redeemClaudeTicket': result = claudeTickets.redeem(value); break;

@@ -1,3 +1,5 @@
+import { loadGuidance } from './guidance.js';
+import { refreshMarket, refreshPublisher } from './market.js';
 import { bridge, refOf, L, errorText } from "./transport.js";
 import { rememberMessage } from "./message-view.js";
 import { galleryWindow, WINDOW_LIMIT, BUFFER_LIMIT } from "./gallery.js";
@@ -83,6 +85,9 @@ export async function load($, s) {
     });
     s.collection = { ...s.galleryBuffer, items: s.galleryBuffer.items.slice(0, WINDOW_LIMIT) };
   }
+  if (s.tab === "guidance") await loadGuidance($,s,s.guidanceExpression);
+  if (s.tab === "market" && !s.marketRows) await refreshMarket($,s);
+  if (s.tab === "publish") await refreshPublisher($,s);
   if (s.tab === "create") s.currentModel = await $.session.model();
 }
 export async function loadGalleryWindow($, s, e) {
@@ -157,7 +162,7 @@ export async function open($) {
   });
   invalidate($);
 }
-export async function send($, s, expression, epoch) {
+export async function send($, s, expression, epoch, action) {
   if (s.viewAgentId || (epoch !== undefined && epoch !== s.pictureEpoch)) return;
   await perform($, s, async () => {
     const delivery = { name: expression.name, phase: "preparing" };
@@ -172,6 +177,7 @@ export async function send($, s, expression, epoch) {
       if (prepared.segments)
         rememberMessage(s, "human_to_ai:" + prepared.text, prepared.segments);
       delivery.text = prepared.text;
+      if(action)delivery.guidance={ref:refOf(expression),selection:action};
       delivery.phase = "submitting";
       let result;
       try {

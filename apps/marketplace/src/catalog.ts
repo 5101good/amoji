@@ -3,7 +3,6 @@ import { failure, reply, type UploadEnv } from "./upload-shared";
 import {
   mediaResponse,
   pageQuery,
-  nextCursor,
   submissionSnapshot,
 } from "./reviews";
 import type { Submission } from "./submissions";
@@ -22,6 +21,7 @@ type PublicRelease = {
   cover_sha256?: string;
   expression_count?: number;
   action_count?: number;
+  priority: number;
 };
 const project = (r: PublicRelease) => ({
   pack_id: r.pack_id,
@@ -85,16 +85,17 @@ export async function catalogRoute(
         filters.push("r.has_actions=?");
         values.push(actions === "true" ? 1 : 0);
       }
-      filters.push("(p.updated_at<? OR (p.updated_at=? AND p.pack_id<?))");
-      values.push(
-        cursor?.time ?? Number.MAX_SAFE_INTEGER,
-        cursor?.time ?? Number.MAX_SAFE_INTEGER,
-        cursor?.id ?? "",
-        limit + 1,
-      );
+      if (cursor) {
+        const priority = (cursor as typeof cursor & { priority?: number }).priority;
+        if (!Number.isInteger(priority) || priority! < 0 || priority! > 3)
+          throw Error("INVALID_QUERY");
+        filters.push("(p.priority,p.updated_at,p.pack_id)<(?,?,?)");
+        values.push(priority, cursor.time, cursor.id);
+      }
+      values.push(limit + 1);
       const rows = (
         await env.DB.prepare(
-          `SELECT coalesce(json_extract(r.manifest,'$.expressions[0].visual.poster.sha256'),json_extract(r.manifest,'$.expressions[0].visual.primary.sha256')) AS cover_sha256,json_array_length(r.manifest,'$.expressions') AS expression_count,coalesce(json_array_length(r.manifest,'$.actions'),0) AS action_count,r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.updated_at DESC,p.pack_id DESC LIMIT ?`,
+          `SELECT coalesce(json_extract(r.manifest,'$.expressions[0].visual.poster.sha256'),json_extract(r.manifest,'$.expressions[0].visual.primary.sha256')) AS cover_sha256,json_array_length(r.manifest,'$.expressions') AS expression_count,coalesce(json_array_length(r.manifest,'$.actions'),0) AS action_count,r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,p.priority,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.priority DESC,p.updated_at DESC,p.pack_id DESC LIMIT ?`,
         )
           .bind(...values)
           .all<PublicRelease>()
@@ -115,7 +116,11 @@ export async function catalogRoute(
             },
           };
         }),
-        cursor: nextCursor(rows, limit, "updated_at", "pack_id"),
+        cursor: rows.length > limit ? btoa(JSON.stringify({
+          priority: rows[limit - 1]!.priority,
+          time: rows[limit - 1]!.updated_at,
+          id: rows[limit - 1]!.pack_id,
+        })) : null,
       });
     }
     const match =

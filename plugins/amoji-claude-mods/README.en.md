@@ -38,6 +38,20 @@ The portable ZIP excludes node_modules and native binaries; locked dependencies 
 
 AI receives only the `search` and `emit` expression tools. Library management, file access and creation confirmation are not exposed as model tools. Meanings are data, never proof of completed work, permission grants or instructions to execute.
 
+## Expression market and sharing
+
+These additions are in the current source. The existing v1.1.0 Claude release ZIP does not contain the new entries; build from the current source to try them.
+
+1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
+2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
+3. Open **Share and publish**, connect your market account, verify the device code in your browser, then choose **I authorized it — check connection**. The plugin never receives your account password. Device credentials remain in the shared service's private local directory.
+4. Choose an imported 0.2 pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
+5. Review the description, license, optional guidance and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
+
+**Collaboration guidance** is separate from fixed meaning. Explicitly enable up to two predefined conversation rules and confirm replacements within the same group. An installed expression's details also offer one-time guidance when available. Each submission revalidates exact source revisions; removed sources are disabled. Only user messages in the current main conversation receive guidance, never grants to other plugins, schedules or subagents. Re-enable after restarting or switching conversations.
+
+Guidance is attached as user text through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance. Disabling it sends an empty guidance snapshot with subsequent user messages; existing model responses and historical context cannot be undone.
+
 ## Data and recovery
 
 Uses your local Amoji library, including dsh’s library, with messages isolated by host and session. Set `AMOJI_DATA_DIR` for an isolated test library or `AMOJI_NODE` for a specific Node 24 executable. Do not delete a database to fix compatibility problems.

@@ -12,6 +12,14 @@ Preserve existing `BETTER_AUTH_SECRET`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS
 
 Record Worker version/deployment, D1 migrations, routes and client digest. Roll back to the previous Worker version and recheck catalog, login and upload Origin. Keep additive compatible schema. Local DB5 downgrades require stopping every host/shared writer, exporting new data and restoring the consistent pre-upgrade backup. Never open DB5 using an old binary or edit user_version.
 
+## Official collection ordering
+
+The public directory, homepage SSR, search and pagination share this order: Classic, Office, other official Amoji collections, then community collections. Each group is ordered by newest publication first. Official status depends only on the operator-maintained `market_official_creator.account_id`, never an editable name, author credit or source URL. Official collections still require independent review.
+
+After applying `0009-official-catalog.sql`, verify the creator account ID and register it in `market_official_creator` with a reason and timestamp. Future approved publications from that account automatically receive priority `1`. Backfill existing collections only after checking ownership through `market_upload_pack.owner`: set `market_public_pack.priority` to `3` for Classic, `2` for Office, `1` for other official collections and `0` for community collections. New releases of an existing collection preserve its pin. When revoking an official designation, also reset priorities on its existing collections; never identify collections by name alone.
+
+Catalog cursors include priority, update time and pack ID; clients must treat them as opaque. Cursors created before this ordering change require a refresh from the first page. Unpublished releases disappear from discovery and stop serving public downloads while retaining history and audit records.
+
 ## Quotas and diagnostics
 
 Do not enable Workers Paid, Containers or automatic upgrades. Daily check actual Workers/D1/R2/SQLite DO shared usage, failures and storage. Application limits do not prove remaining account allowance. Stop new uploads before investigating exhaustion.

@@ -119,6 +119,41 @@ test("first catalog paint remains available without a static-template round trip
   assert.equal((await f.request("/app.js")).status, 503);
 });
 
+test("official priority is shared by SSR, filters and every cursor page without dropping newer community packs", async (t) => {
+  const f = await fixture(t);
+  const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  for (const [n, priority] of [[1, 3], [2, 2], [3, 1], [4, 1]]) {
+    await f.db.prepare("UPDATE market_public_pack SET priority=?,updated_at=0 WHERE pack_id=?")
+      .bind(priority, id(n)).run();
+  }
+  // A name and author copied by a community creator cannot pin the collection.
+  await f.db.prepare("UPDATE market_public_release SET author='Amoji',manifest=json_set(manifest,'$.name','经典 / Classic') WHERE pack_id=?").bind(id(21)).run();
+  const first = await (await f.request("/v1/packs")).json();
+  assert.deepEqual(first.packs.slice(0, 5).map(p => p.pack_id), [1, 2, 4, 3, 21].map(id));
+  const html = await (await f.request("/")).text();
+  // Each card links its image and heading to the same release.
+  const rowIds = [...new Set([...html.matchAll(/href="\/packs\/([^/]+)\/releases\//g)].map(m => m[1]))];
+  assert.deepEqual(rowIds.slice(0, 5), [1, 2, 4, 3, 21].map(id));
+  const seen = [];
+  let cursor = null;
+  do {
+    const r = await f.request("/v1/packs?limit=3" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""));
+    assert.equal(r.status, 200);
+    const page = await r.json();
+    seen.push(...page.packs.map(p => p.pack_id));
+    cursor = page.cursor;
+  } while (cursor);
+  assert.deepEqual(seen, [1, 2, 4, 3, ...Array.from({length:17}, (_, i) => 21 - i)].map(id));
+  const filtered = await (await f.request("/v1/packs?q=performance&scenario=explanation&actions=true")).json();
+  assert.deepEqual(filtered.packs.slice(0, 5).map(p => p.pack_id), [1, 2, 4, 3, 21].map(id));
+  await f.db.prepare("UPDATE market_public_release SET state='unpublished' WHERE pack_id=?").bind(id(1)).run();
+  assert.equal((await (await f.request("/v1/packs")).json()).packs[0].pack_id, id(2));
+  for (const priority of [-1, 4, "3", null]) {
+    const token = btoa(JSON.stringify({priority, time: 0, id: id(1)}));
+    assert.equal((await f.request("/v1/packs?cursor=" + encodeURIComponent(token))).status, 400);
+  }
+});
+
 test("workspace entries preserve their loading shell and locale without the asset service", async (t) => {
   const f = await fixture(t, true);
   for (const path of ["/?view=review", "/?authorization=fixture"]) {

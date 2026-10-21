@@ -132,6 +132,7 @@ export async function buildClaudeMods(
       "create-drafts-v1",
       "library-management-v1",
       "packs-v1",
+      "versioned-packs-v1", "marketplace-v1", "publisher-v1",
     ],
   };
   await writeFile(

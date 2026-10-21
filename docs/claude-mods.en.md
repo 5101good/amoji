@@ -4,7 +4,22 @@
 
 Targets **Claude Desktop → Code → local sessions**, using native AbovePrompt, Pane and message rendering with the shared local Amoji library. Ordinary Claude Chat/MCP Apps is a separate host surface and is not covered by this adapter.
 
-See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. The adapter exists in this source branch; the published v1.0.0 release still contains only dsh. Do not expect the Claude package in that old tag.
+See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. Version 1.1.0 includes the base Claude adapter. Market and publishing support are new in the current source and have not shipped in a new tagged release.
+
+## Expression market and sharing
+
+These additions are in the current source. The existing v1.1.0 Claude release ZIP does not contain the new entries; build from the current source to try them.
+
+1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
+2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
+3. Open **Share and publish**, connect your market account, verify the device code in your browser, then choose **I authorized it — check connection**. The plugin never receives your account password. Device credentials remain in the shared service's private local directory.
+4. Choose an imported 0.2 pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
+5. Review the description, license, optional guidance and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
+
+**Collaboration guidance** is separate from fixed meaning. Explicitly enable up to two predefined conversation rules and confirm replacements within the same group. An installed expression's details also offer one-time guidance when available. Each submission revalidates exact source revisions; removed sources are disabled. Only user messages in the current main conversation receive guidance, never grants to other plugins, schedules or subagents. Re-enable after restarting or switching conversations.
+
+Guidance is attached as user text through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance. Disabling it sends an empty guidance snapshot with subsequent user messages; existing model responses and historical context cannot be undone.
+
 
 ## Layer boundaries
 
@@ -87,3 +102,5 @@ The picker now remains open after sending to avoid Desktop’s empty expanded la
 A native file picker and animation playback remain outside the supported scope. Simulated controls, native rendering, hit testing and model replies require separate verification.
 
 Desktop can expire native Button handles during focus redraws, logging `ui_press not handled`. The redesigned entry, navigation and action controls retain native appearance and keyboard access, while a keyed Client captures complete pointer gestures and dispatches through the current page’s action map. Stale pages and forged actions are rejected. A Client fault restores native buttons; Enter remains available. Inputs and selects continue to use the host controls. See [Claude Code #99211](https://github.com/anthropics/claude-code/issues/99211).
+
+On 2026-10-20, the market extension was checked in an isolated local Claude Desktop project: live catalog, visual previews, installation, device pairing/cancellation and the local publishing draft entry. A Haiku 5.5 / Low turn confirmed an expression with one-time guidance, its right-aligned image, a model reply and the host attachment receipt. This pass did not authorize a real creator account or submit real public content on the user's behalf. Shared-publisher and native-interaction tests cover upload, submission, interrupted-operation recovery, withdrawal and revision paths.

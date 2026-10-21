@@ -137,4 +137,4 @@ npm run test:dsh
 
 ## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；表情包市场和协作动作目前仅支持 dsh。
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；当前源码新增 Claude 的市场浏览与安装、账号连接、分享投稿和可选协作提示；已发布的 v1.1.0 Claude ZIP 尚不含这部分，使用前请从当前源码构建。

@@ -141,6 +141,7 @@ export class SharedClient {
   async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
     return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
   }
+  publisher(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('publisher-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场投稿');return this.call('publisher',{method,args},300000);}
   marketplace(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('marketplace-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场');return this.call('marketplace',{method,args},60000);}
   private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化表情包');return this.call(method,params,60000);}
   createScenarioDraft(refs:ExpressionRef[]):Promise<ScenarioDraft>{return this.scenarioCall('createScenarioDraft',{refs});}

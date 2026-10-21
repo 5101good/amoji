@@ -137,4 +137,4 @@ Code and technical documentation use [MIT](LICENSE). Built-in artwork, fixed sem
 
 ## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; scenario marketplace and collaboration actions are currently dsh-only.
+[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; the current source also adds market browsing and installation, device pairing, publishing and optional collaboration guidance. These additions are not in the already-published v1.1.0 Claude ZIP; build from current source to use them.

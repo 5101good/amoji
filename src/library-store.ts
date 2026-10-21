@@ -578,7 +578,7 @@ export class LibraryStore {
     });
   }
   collaborationChoices(context: BindingContext, ref: ExpressionRef): ActionChoice[] {
-    if(context.host !== 'dsh') fail('CAPABILITY_UNAVAILABLE','动作仅支持 dsh');
+    if(!['dsh','claude-code'].includes(context.host)) fail('CAPABILITY_UNAVAILABLE','此宿主不支持动作');
     return this.listScenarioPacks().flatMap(pack => {
       const binding=pack.bindings.find(b=>b.expression.asset_id===ref.asset_id && b.expression.revision_id===ref.revision_id);
       if(!binding)return [];
@@ -589,7 +589,7 @@ export class LibraryStore {
     });
   }
   ruleChoices(context: BindingContext): RuleChoice[] {
-    if(context.host!=='dsh')fail('CAPABILITY_UNAVAILABLE','规则仅支持 dsh');
+    if(!['dsh','claude-code'].includes(context.host))fail('CAPABILITY_UNAVAILABLE','此宿主不支持规则');
     const packs=this.listScenarioPacks();
     return packs.flatMap(pack=>{
       const install=this.db.prepare('SELECT origin,state FROM local_installs WHERE release_id=?').get(pack.release_id) as {origin:string;state:string}|undefined;

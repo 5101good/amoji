@@ -6,7 +6,7 @@ export async function bridge($, context, command, args = {}) {
     [node, $.plugin.root + "/runtime/src/claude-mods/main.js"],
     {
       stdin: JSON.stringify({ command, context, args }),
-      timeoutMs: 60_000,
+      timeoutMs: command === "publisher" ? 300_000 : 60_000,
       ...(data ? { env: { AMOJI_DATA_DIR: data } } : {}),
     },
   );
@@ -28,6 +28,12 @@ export const refOf = (expression) => ({
 export const L = (s, zh, en) => (s.language === "en" ? en : zh);
 export function errorText(s, error) {
   const code = String(error?.message || error);
+  if (/ACTION_LIMIT/.test(code))return L(s,"协作提示超出数量或文字预算，请减少后重试。","Too much collaboration guidance. Reduce the selected rules or text and retry.");
+  if (/PUBLISHER_LOGIN|UNAUTHENTICATED|PAIRING_EXPIRED/.test(code))return L(s,"市场授权已失效，请重新连接账号；草稿已保留。","Market authorization expired. Reconnect your account; drafts are preserved.");
+  if (/PUBLISHER_OFFLINE|MARKET_UNAVAILABLE/.test(code))return L(s,"市场暂不可用。请稍后刷新或核对原操作，已安装的表情仍可使用。","Market unavailable. Refresh or check the original operation later. Installed expressions remain usable.");
+  if (/RELEASE_REMOVED|SAFETY_REMOVED|ACTION_UNAVAILABLE/.test(code))return L(s,"此版本或提示已不可用，请刷新后选择其他内容。","This release or guidance is unavailable. Refresh and choose another.");
+  if (/DIGEST_MISMATCH|MARKET_INVALID/.test(code))return L(s,"内容校验未通过，未安装。请刷新市场后重试。","Content verification failed; nothing was installed. Refresh the market before retrying.");
+  if (/PUBLISHER_|RIGHTS_|LICENSE|UPLOAD_|RATE_LIMIT/.test(code))return L(s,"投稿未完成。请检查许可、账号与内容状态；草稿已保留，可刷新或恢复原操作。","Submission was not completed. Check license, account and content status. Drafts are preserved; refresh or resume the original operation.");
   if (/^DRAFT_(CONFLICT|CONFIRMED)$/.test(code))
     return L(
       s,

@@ -1,9 +1,9 @@
-# Amoji 协议 0.1（RFC 草案）
+# Amoji 协议 0.1（RFC 草案 · 实验版）
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 草案，待评审 |
-| 日期 | 2026-10-22 |
+| 状态 | 草案，实验版。码位为**暂定**（provisional），验证期内可以修改、合并或删除 |
+| 日期 | 2026-10-22（第 2 稿：吸收产品评审意见） |
 | 协议版本 | `0.1` |
 | 取代 | 此前全部表情与包协议：[表情/包 Schema 0.1](amoji-v0.1.schema.json)、[场景包 Schema 0.2](amoji-v0.2.schema.json)、[场景包说明 0.2](scenario-packs-v0.2.md)、`amoji_search / amoji_resolve / amoji_emit` 工具合同、协作 envelope `amoji.collaboration/1` |
 | 兼容性 | 不兼容旧格式，也不提供迁移层（线上线下均无用户）。版本号 `0.1` 重新起算 |
@@ -14,54 +14,55 @@
 
 ## 1. 摘要
 
-Amoji 0.1 把表情从“一张带说明的贴纸”重新定义为**人与 AI 之间的非语言通道**。这条通道承担三件事：确认双方理解一致、纠正误解、调节节奏与方向。
+Amoji 0.1 把表情从“一张带说明的贴纸”重新定义为**人与 AI 之间的非语言通道**，用来确认理解、纠正误解、调节节奏和方向，也用来传递温度。
 
-协议由五层组成：
+协议分为五层：
 
-1. **码位注册表**：一组封闭、稳定、与语言无关的沟通行为（act），共 31 个核心码位。
+1. **码位注册表**：一组封闭、与语言无关的沟通行为（act），目前是 32 个暂定核心码位。
 2. **表情**：码位的一种视觉实现，相当于字体里的一个字形。
-3. **包**：表情和可选协作效果的发布单元。
-4. **消息**：一次表达，可以锚定到某一句话、不打断回合、提供快捷回复、被撤回。
-5. **传输**：模型工具、内联标记、宿主原生 UI，以及宿主兼容等级。
+3. **包**：表情的发布单元，可以附带可选的协作效果。
+4. **消息**：一次表达。可以锚定到某一句话、不打断当前回合、提供快捷回复，也可以撤回。
+5. **传输**：模型工具、内联标记、宿主原生 UI，以及兼容等级。
 
-类比：Unicode 统一了给人看的图片；Amoji 统一沟通行为，图片只是它的一种显示方式。
+国际化是协议的一等要求（§16）：码位与语言无关，所有面向人和模型的文字都按语言提供。
 
 ## 2. 设计原则
 
 | # | 原则 | 含义 |
 | --- | --- | --- |
 | P1 | 图义分离 | 含义由码位和文字语义承载；模型只读文字，不识图 |
-| P2 | 语义是数据 | 一切语义、说明、引用文本都是数据，不是给模型的指令 |
+| P2 | 表达有效，素材是数据 | 一条表情的效力**等同于发送者说了一句话**（包括它的 `expects`）。其中图片、包作者撰写的文字、引用原文是数据，不是指令 |
 | P3 | 只能收紧，不能放开 | 表情可以让宿主暂停或停止；任何表情都不得批准操作、扩大权限或代替宿主确认。注册表中不存在“批准”码位 |
-| P4 | 发送即冻结 | 消息冻结发送时的码位、表情版本和实际显示的图；撤回、改义都以追加记录实现，不改写历史 |
-| P5 | 默认沉默 | AI 不发表情是常态。发表情需要语境依据，并受频率上限约束 |
-| P6 | 诚实 | AI 表情表达沟通姿态，不声明内在情绪；AI 自述的回执不等于宿主观察到的事实 |
+| P4 | 发送即冻结 | 消息冻结发送时的码位、表情版本和实际显示的图；撤回以追加记录实现，不改写历史 |
+| P5 | 有节制 | AI 可以主动发表情，包括关系类，但受频率上限约束，并根据用户反应自动降频 |
+| P6 | 诚实 | AI 表情表达的是沟通姿态，不声明内在情绪；AI 自述的回执不等于宿主观察到的事实 |
 | P7 | 可降级 | 任何不支持的环境都必须能显示 fallback 文字，且不改变含义 |
+| P8 | 语言中立 | 协议标识与语言无关；所有面向人和模型的文字都可本地化，且不得因翻译改变含义 |
 
 ## 3. 术语
 
 | 术语 | 定义 |
 | --- | --- |
-| act / 码位 | 注册表中的一个沟通行为，如 `core:clarify` |
-| stance / 姿态 | 与 act 正交的语气维度：强度、冷暖、正式度 |
-| expression / 表情 | 一个 act 的视觉实现，带不可变版本 |
-| glyph / 字形 | 消息中实际显示的那个表情版本 |
-| pack / 包 | 表情和效果的发布单元，文件扩展名 `.amoji` |
-| effect / 效果 | 包声明的协作提示，用户启用后作用于会话 |
-| host / 宿主 | 承载会话的应用（dsh、Claude Desktop 等） |
-| h2a / a2h | 人对 AI / AI 对人的方向 |
+| 码位（act） | 注册表中的一个沟通行为，如 `core:clarify`。它不是 Unicode 码点 |
+| 表情（expression） | 一个码位的视觉实现，带不可变版本 |
+| 字形（glyph） | 某条消息中实际显示的那个表情版本 |
+| 包（pack） | 表情和可选效果的发布单元，文件扩展名 `.amoji` |
+| 效果（effect） | 包附带的协作提示，必须由用户逐条启用后才作用于会话 |
+| 宿主（host） | 承载会话的应用，如 dsh、Claude Desktop |
+| h2a / a2h | 人对 AI / AI 对人 |
+| 回应窗口 | 两条人方 `turn` 消息之间 AI 的全部输出，包括其中的所有工具调用 |
 
 ## 4. 分层总览
 
 | 层 | 名称 | 对象 | 本文章节 |
 | --- | --- | --- | --- |
 | L0 | 码位注册表 | `act` | §5、附录 A |
-| L1 | 表情 | `amoji.expression` | §7 |
-| L2 | 包 | `amoji.pack` | §8 |
-| L3 | 消息 | `amoji.message`、`amoji.operation` | §9 |
-| L4 | 传输 | 模型工具、内联标记、能力协商 | §10–§12 |
+| L1 | 表情 | `amoji.expression` | §6 |
+| L2 | 包 | `amoji.pack` | §7 |
+| L3 | 消息 | `amoji.message`、`amoji.operation` | §8 |
+| L4 | 传输 | 模型投影、工具、内联标记、能力协商 | §9–§11 |
 
-所有协议对象都带 `"amoji": "0.1"`，不再为表情、包、消息分别编号。演进通过能力标志（§12）协商，而不是叠加版本号。
+所有协议对象都带 `"amoji": "0.1"`，不再分别编号。协议通过能力标志（§11）演进，而不是叠加版本号。
 
 ---
 
@@ -70,44 +71,51 @@ Amoji 0.1 把表情从“一张带说明的贴纸”重新定义为**人与 AI �
 ### 5.1 标识语法
 
 ```
-act      = namespace ":" name
+act       = namespace ":" name
 namespace = "core" / "x-" label          ; x-<组织或作者>，如 x-acme
-name     = label
-label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
+name      = label
+label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连字符
 ```
 
-- `core:` 由本项目维护，变更需要 RFC。
-- `x-*:` 是扩展命名空间。扩展码位**必须**声明 `fallback_act`，即最接近的 `core` 码位；不认识该扩展的宿主按 `fallback_act` 处理。
+- 码位标识只用 ASCII，与任何自然语言无关，用户界面中永远不直接显示（P8）。
+- `core:` 由本项目维护。
+- `x-*:` 是扩展命名空间，扩展码位**必须**声明 `fallback_act`，指向最接近的 `core` 码位。
 
 ### 5.2 码位字段
+
+双向码位从两个方向发出时，含义和期望的回应可能不同，因此按方向分别定义：
 
 ```json
 {
   "act": "core:clarify",
   "family": "grounding",
-  "direction": ["h2a", "a2h"],
-  "expects": "rephrase",
+  "status": "provisional",
   "authority": "none",
-  "grounding_required": false,
-  "pressure_sensitive": false,
-  "gloss": {
-    "zh-CN": "没看懂，请换一种说法",
-    "en": "I didn't follow — please put it another way"
+  "forms": {
+    "h2a": {
+      "expects": "rephrase",
+      "gloss": { "zh-CN": "没看懂，请换种说法", "en": "I didn't follow — please say it another way" }
+    },
+    "a2h": {
+      "expects": "rephrase",
+      "gloss": { "zh-CN": "我没理解你的意思，能换种说法吗", "en": "I'm not sure what you mean — could you rephrase?" }
+    }
   },
-  "status": "active"
+  "grounded": false,
+  "pressure_sensitive": false
 }
 ```
 
 | 字段 | 说明 |
 | --- | --- |
 | `family` | `grounding` 理解 · `steering` 方向与节奏 · `progress` 进展 · `epistemic` 判断 · `social` 关系 |
-| `direction` | 允许的方向。宿主**必须**拒绝不在列表中的方向 |
-| `expects` | 期望接收方给出的回应，取值见 §5.3 |
-| `authority` | `none`：只供模型阅读。`reduce`：在 `interrupt` 模式下，宿主**可以**直接执行收紧动作（暂停或停止）。不存在其他取值 |
-| `grounding_required` | 为 true 时，AI 只有在会话中存在可指认的依据时才能发送（例如“辛苦了”需要用户确有投入，“一起庆祝”需要已确认的进展） |
-| `pressure_sensitive` | 为 true 时，AI 不得在等待用户决策或宿主确认期间发送，也不得与 `core:decide` 出现在同一条回复里，以防情感施压 |
-| `gloss` | 各语言的标准释义，每条 ≤ 80 字符。模型和无障碍读屏读的是它 |
-| `status` | `active` 或 `deprecated` |
+| `status` | `provisional`（暂定）· `active`（已冻结）· `deprecated`（废弃） |
+| `authority` | `none`：效力等同一句话。`reduce`：在 `interrupt` 模式下，宿主**可以**直接执行收紧动作（暂停或停止）。不存在其他取值 |
+| `forms` | 以方向为键，只列出允许的方向。宿主**必须**拒绝未列出的方向 |
+| `forms.*.expects` | 期望接收方给出的回应，取值见 §5.3 |
+| `forms.*.gloss` | 该方向的标准释义，以 BCP 47 语言标签为键，每条 ≤ 80 个码点。最低语言要求见 §16.2 |
+| `grounded` | 为 true 时，AI **应当**在会话中有可指认的依据时才发送。这是写进能力卡的使用建议，宿主不做拦截 |
+| `pressure_sensitive` | 为 true 时，宿主**必须**拒绝 AI 在有待决确认时发送，也不允许它与 `core:decide` 出现在同一回应窗口（防情感施压，属于 P3 防线） |
 
 ### 5.3 `expects` 取值
 
@@ -116,43 +124,39 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `none` | 不需要特别回应 |
 | `rephrase` | 换一种更简单或更短的说法 |
 | `detail` | 更具体：对象、原因、例子或下一步 |
+| `correct` | 先复述对本意的理解，再按本意纠正 |
 | `realign` | 先重新对齐目标，再继续 |
 | `decompose` | 拆成步骤，一次只处理一步 |
+| `adjust` | 调整协作方式：更短、更直接、先给结果 |
 | `pause` | 暂停推进，等待补充 |
 | `stop` | 停止当前推进 |
-| `proceed` | 沿已明确的方向继续（不构成授权，见 P3） |
+| `proceed` | 沿已明确的方向继续，不构成授权（P3、§13.1） |
 | `report` | 报告进展：已完成、进行中、剩余、阻碍 |
+| `reconsider` | 重新考虑原方案或判断，或给出依据 |
 | `input` | 需要对方提供信息 |
 | `decision` | 需要对方做一个选择 |
 | `review` | 请对方查看结果 |
-| `reconsider` | 重新考虑，或给出依据 |
-| `adjust` | 调整协作方式：更短、更直接、先给结果 |
 
-### 5.4 不可变与治理
+### 5.4 演进与治理
 
-- 码位一经发布为 `active`，**永不改义**，只能标为 `deprecated`；废弃码位仍须可解析和显示。
-- `gloss` 可以补充语言，也可以做不改变含义的措辞修订。修订须记录在注册表变更日志中。
-- 新增 `core` 码位的门槛：(a) 现有码位加姿态无法表达；(b) 至少两个独立宿主或包作者提出需求；(c) 通过 RFC 评审。
-- 注册表的机器可读版本是唯一事实来源。本 RFC 被接受后，附录 A 将生成为 `amoji-0.1.registry.json`。
+**验证期（0.x）**
+- 所有码位均为 `provisional`，可以修改含义、合并、拆分或删除。
+- 每次变更都须记录在注册表变更日志中，并说明依据，例如使用数据或评审意见。
 
----
+**冻结（1.0）**
+- 满足 §15.4 的冻结条件后，码位转为 `active`。从此**永不改义**，只能废弃。
+- 废弃的码位仍须可以解析和显示。
 
-## 6. 姿态（stance）
+**冻结后新增 `core` 码位**须同时满足：
+- 现有码位加上强度无法表达；
+- 至少两个独立的宿主或包作者提出需求；
+- 通过 RFC 评审。
 
-姿态与码位正交。码位回答“做什么”，姿态回答“用什么语气”。这样可以避免码位因语气差异而膨胀。
-
-| 维度 | 取值 | 默认 |
-| --- | --- | --- |
-| `intensity` | `1` 轻 · `2` 中 · `3` 强 | `2` |
-| `warmth` | `cool` · `neutral` · `warm` | `neutral` |
-| `register` | `playful` · `casual` · `formal` | `casual` |
-
-- 表情声明自己的姿态（§7），表示这张图本身的语气。
-- 消息携带实际使用的姿态（§9）。当宿主要按姿态挑选字形时，取各维度距离最小者；距离相同时，优先用户偏好的包。
+**唯一事实来源**：注册表的机器可读版本。本 RFC 被接受后，附录 A 生成为 `amoji-0.1.registry.json`。
 
 ---
 
-## 7. L1 表情（`amoji.expression`）
+## 6. L1 表情（`amoji.expression`）
 
 ```json
 {
@@ -161,7 +165,8 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
   "asset_id": "10000000-0000-4000-8000-000000000001",
   "revision_id": "20000000-0000-4000-8000-000000000001",
   "realizes": "core:oops",
-  "stance": { "intensity": 1, "warmth": "warm", "register": "playful" },
+  "intensity": 1,
+  "original_locale": "zh-CN",
   "name": { "zh-CN": "挠头苦笑", "en": "Sheepish grin" },
   "semantics": {
     "zh-CN": {
@@ -169,12 +174,20 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
       "fallback": "[挠头苦笑]",
       "use_when": ["自己出了小差错时"],
       "avoid_when": ["对方正在认真表达痛苦时"]
+    },
+    "en": {
+      "meaning": "A good-natured, slightly helpless grin at my own harmless slip.",
+      "fallback": "[sheepish grin]",
+      "use_when": ["After a minor slip of my own"],
+      "avoid_when": ["When the other person is seriously expressing distress"],
+      "translation": { "from": "zh-CN", "method": "human" }
     }
   },
-  "tags": ["自嘲", "小失误"],
+  "tags": { "zh-CN": ["自嘲", "小失误"], "en": ["self-deprecating", "slip"] },
   "visual": {
     "primary": { "sha256": "…", "mime": "image/webp", "bytes": 20480, "width": 512, "height": 512 },
-    "animated": false
+    "animated": false,
+    "text_locale": null
   },
   "rights": { "license": "CC0-1.0", "creator": "Amoji contributors" },
   "created_at": "2026-10-22T00:00:00Z"
@@ -183,30 +196,27 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 
 | 字段 | 规则 |
 | --- | --- |
-| `asset_id` / `revision_id` | UUIDv4。任何修改都生成新 `revision_id`；版本不可变 |
-| `realizes` | **必填**，恰好一个注册表码位。表情的 `meaning` 只能**收窄**码位含义，不得与之矛盾。市场审核以此为检查项 |
-| `stance` | 必填，描述这张图本身的语气 |
-| `name` / `semantics` | 以 locale 为键（BCP 47），至少一种语言。每种语言包含 `meaning`（≤ 240 字符）、`fallback`（≤ 80）、可选的 `use_when` / `avoid_when`（各 ≤ 4 条，每条 ≤ 64） |
-| `visual` | 与旧格式相同：PNG / JPEG / WebP / GIF，≤ 2048 px，≤ 10 MiB；动图必须带 `poster` 和 `duration_ms`；内容寻址 SHA-256 |
+| `asset_id` / `revision_id` | UUIDv4。任何修改都生成新的 `revision_id`；版本不可变 |
+| `realizes` | **必填**，恰好一个码位。`meaning` 只能**收窄**码位含义，不得与之矛盾 |
+| `intensity` | 必填，取 `1` 轻 · `2` 中 · `3` 强，表示这张图本身的强度 |
+| `original_locale` | 必填，作者撰写语义所用的语言 |
+| `name` / `semantics` / `tags` | 以 BCP 47 语言标签为键，必须包含 `original_locale`。语义字段的上限：`meaning` ≤ 240 码点，`fallback` ≤ 80；`use_when` / `avoid_when` 各 ≤ 4 条，每条 ≤ 64 |
+| `semantics.*.translation` | 非原始语言**必须**注明：`from`（来源语言），`method` 取 `human` · `machine` · `machine-reviewed` |
+| `visual` | PNG / JPEG / WebP / GIF，≤ 2048 px，≤ 10 MiB；动图必须带 `poster` 和 `duration_ms`；内容按 SHA-256 寻址 |
+| `visual.text_locale` | 图片中含有文字时**必须**填写该文字的语言；不含文字时为 `null`。宿主据此挑选适合读者的字形（§16.5） |
 | `rights` | `license` 必填，`creator` 与 `source` 可选 |
 
-与旧格式相比的变化：
-
-- 新增 `realizes` 和 `stance`。
-- 删除自由文本 `tone`，由 `stance` 和 `meaning` 共同承担。
-- `name` 与 `semantics` 改为多语言映射，不再用单一 `locale` 字段。
-
-**不允许的字段**：`authority`、`expects`、`direction`。这三项只由注册表决定，包和表情无权声明或改写（P3）。
+**不允许的字段**：`authority`、`expects`、`forms`、`pressure_sensitive`。这些只由注册表决定，包和表情无权声明（P3）。
 
 ---
 
-## 8. L2 包（`amoji.pack`）
+## 7. L2 包（`amoji.pack`）
 
-### 8.1 文件格式
+### 7.1 文件格式
 
-`.amoji` 是 ZIP 文件，包含 `manifest.json` 和内容寻址的 `blobs/<sha256>`。导入时**必须**校验路径、CRC、SHA-256、真实解码格式和展开预算（沿用现有实现的校验链）。
+`.amoji` 是 ZIP 文件，包含 `manifest.json` 和内容寻址的 `blobs/<sha256>`。导入时**必须**校验路径、CRC、SHA-256、真实解码格式和展开预算。
 
-### 8.2 清单
+### 7.2 清单
 
 ```json
 {
@@ -215,58 +225,66 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
   "pack_id": "…uuid…",
   "release_id": "…uuid…",
   "version": 1,
+  "original_locale": "zh-CN",
+  "locales": ["zh-CN", "en"],
   "name": { "zh-CN": "慢半拍猫", "en": "Slow Cat" },
-  "description": { "zh-CN": "水彩小猫，放松、思考与陪伴" },
+  "description": { "zh-CN": "水彩小猫，放松、思考与陪伴", "en": "A watercolor cat for unwinding, thinking and company" },
   "expressions": [ /* amoji.expression，每个 asset_id 恰好出现一次 */ ],
-  "effects": [ /* 可选，§8.3 */ ],
-  "bindings": [ /* 可选，§8.4 */ ],
+  "effects": [ /* 可选模块，§7.3 */ ],
+  "bindings": [ /* 可选模块，§7.3 */ ],
   "rights": { "license": "CC0-1.0", "creator": "Amoji contributors" },
   "derived_from": { "pack_id": "…", "release_id": "…" }
 }
 ```
 
-- 一次发布（release）对每个资产**恰好**包含一个版本；包不承载历史版本。本地库的完整备份不属于包格式，由实现自行定义。
-- 发布后不可修改；任何变更都须产生新的 `release_id` 并递增 `version`。
-- **覆盖率**（实现了多少个 `core` 码位）由宿主和市场计算并展示，包不得自行声明。
+- `locales`：本包**完整**提供语义的语言列表，即每个表情在这些语言下都有 `semantics`。市场按此筛选和展示。
+- 一次发布对每个资产**恰好**包含一个版本，包不承载历史版本。本地库的完整备份不属于包格式。
+- 发布后不可修改；任何变更都必须产生新的 `release_id` 并递增 `version`。
+- 宿主和市场展示包**支持哪些码位**，但**不得**把覆盖率展示为分数。一套 4 张的角色包与 30 张的完整包同样合法。
 
-### 8.3 效果（取代 0.2 的 actions）
+### 7.3 效果（可选模块）
 
-包只能声明两类效果：
+效果让创作者分发**协作习惯**，例如“先给例子”“先说结论”。码位自带的基础行为（如 `core:clarify` → 换种说法）由 `expects` 决定，不需要效果。
+
+宿主可以不实现本模块。如果实现，必须满足以下全部规则：
 
 ```json
 { "effect_id": "…", "effect_revision_id": "…", "kind": "context",
   "conflict_group": "explanation",
-  "title": { "zh-CN": "先给例子" }, "summary": { "zh-CN": "解释时先举一个具体例子" },
-  "instruction": "解释概念前，先给一个与当前问题相关的具体例子。" }
+  "title":   { "zh-CN": "先给例子", "en": "Example first" },
+  "summary": { "zh-CN": "解释时先举一个具体例子", "en": "Lead explanations with a concrete example" },
+  "instruction": { "zh-CN": "解释概念前，先给一个与当前问题相关的具体例子。" } }
 
 { "effect_id": "…", "effect_revision_id": "…", "kind": "template",
   "template": "response-organization@1", "config": { "layout": "answer-first" },
-  "title": { "zh-CN": "先说结论" }, "summary": { "zh-CN": "先回答结论，再给依据" } }
+  "title":   { "zh-CN": "先说结论", "en": "Answer first" },
+  "summary": { "zh-CN": "先回答结论，再给依据", "en": "Give the answer, then the reasoning" } }
 ```
 
-| 类型 | 说明 |
-| --- | --- |
-| `context` | 一段协作提示，`instruction` ≤ 2 KiB，`summary` ≤ 4 KiB。`conflict_group` 取值：`explanation` · `response-organization` · `completion-report` · `handoff` |
-| `template` | 引用宿主内置模板。0.1 内置 `response-organization@1` 和 `completion-self-check@1`，配置项与现有实现相同 |
+**类型**
+- `context`：一段协作提示。`instruction` 每种语言 ≤ 2 KiB，`summary` ≤ 4 KiB。`conflict_group` 取 `explanation` · `response-organization` · `completion-report` · `handoff`。
+- `template`：引用宿主内置模板。0.1 内置 `response-organization@1` 和 `completion-self-check@1`；内置模板的提示文字由宿主按会话语言提供。
 
-以下效果**不能**由包声明，只能由宿主提供：`memory`（记住偏好，必须经用户确认）、`feedback`（本地评估信号）、`control`（收紧控制，只来自码位的 `authority: reduce`）。
-
-### 8.4 绑定
-
+**绑定**
 ```json
 { "target": { "act": "core:clarify" }, "effects": ["<effect_id>"] }
 { "target": { "asset_id": "…", "revision_id": "…" }, "effects": ["<effect_id>"] }
 ```
+每个目标最多绑定 3 个效果。
 
-- 绑定目标可以是码位（对本包内实现该码位的所有表情生效），也可以是某个精确的表情版本。每个目标最多绑定 3 个效果。
-- **安装永不启用效果。** 用户可以选择“仅发送”或“发送并应用一次”；持续规则必须在当前会话中单独开启，每个会话最多 2 条。一次性效果优先于同 `conflict_group` 的持续效果；用户的明确文字和宿主更高优先级的规则始终优先。
-- 效果是提示，不是强制执行，也不会单独触发模型调用。
+**规则**
+1. **明示**：带效果的包，在市场详情页和安装确认中**必须**明确标出“附带协作提示”，并列出每条效果的 `title` 与 `summary`。
+2. **安装不启用**：用户可以选“仅发送”或“发送并应用一次”。持续规则须在当前会话中单独开启，每个会话最多 2 条。
+3. **优先级**：用户的明确文字和宿主更高优先级的规则 > 一次性效果 > 同 `conflict_group` 的持续效果。
+4. **不是强制**：效果只是提示，不会单独触发模型调用。
+5. **限定类型**：`memory`（记住偏好）、`feedback`（评估信号）、`control`（收紧控制）只能由宿主或注册表提供，包不得声明。
+6. **单一语言提示**：`instruction` 只需提供原始语言。模型可以读懂任意语言，界面上的 `title` / `summary` 才需要本地化。
 
 ---
 
-## 9. L3 消息
+## 8. L3 消息
 
-### 9.1 `amoji.message`
+### 8.1 `amoji.message`
 
 ```json
 {
@@ -274,15 +292,15 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
   "amoji": "0.1",
   "message_id": "…uuid…",
   "from": { "role": "human" },
-  "act": "core:clarify",
-  "stance": { "intensity": 2 },
+  "act": "core:not-what-i-meant",
+  "intensity": 2,
   "glyph": { "asset_id": "…", "revision_id": "…", "sha256": "…" },
   "glyph_policy": "keep",
   "anchor": {
     "message_id": "<被指向的消息>",
-    "quote": "把 reducer 提升到上下文层……",
-    "start": 120, "end": 188,
-    "source_sha256": "…"
+    "exact": "把 reducer 提升到上下文层",
+    "prefix": "我建议",
+    "suffix": "，这样所有子组件"
   },
   "mode": "turn",
   "replies": [],
@@ -296,63 +314,68 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | 字段 | 规则 |
 | --- | --- |
 | `from` | `{role: "human"}` 或 `{role: "ai", agent_id?}`。多 agent 场景**必须**带 `agent_id` |
-| `act` | 必填，必须满足注册表的 `direction` |
-| `stance` | 可选，缺省取字形的姿态 |
-| `glyph` | 宿主在投递时冻结的**实际显示字形**，包括图片的 SHA-256 |
-| `glyph_policy` | `keep`：接收端必须显示原字形。`prefer`：接收端可以换成自己偏好包中同码位的字形。`any`：发送方只指定码位，由宿主挑选。**人发出的默认 `keep`，AI 发出的默认 `prefer`** |
-| `anchor` | 可选，见 §9.2 |
-| `mode` | `turn` · `backchannel` · `interrupt`，见 §9.3 |
-| `replies` | 可选，仅 AI 可用：≤ 4 个码位，作为快捷回复，见 §9.4 |
-| `responds_to` | 可选，本消息所回应的消息 ID |
-| `rationale` | 可选，仅 AI 可用：≤ 80 字符，说明为什么发这个表情；界面**应当**在悬停或展开时显示 |
-| `effects` | 本消息“发送并应用一次”的效果引用 |
+| `act` | 必填，方向必须在注册表 `forms` 中 |
+| `intensity` | 可选，缺省取字形的强度 |
+| `glyph` | 宿主投递时冻结的**实际显示字形**，包括图片的 SHA-256 |
+| `glyph_policy` | `keep`：接收端必须显示原字形。`prefer`：接收端可以换成自己偏好的包中同码位的字形。**人发出的固定为 `keep`，AI 发出的默认 `prefer`** |
+| `anchor` | 可选，§8.2 |
+| `mode` | `turn` · `backchannel` · `interrupt`，§8.3 |
+| `replies` | 可选，仅 AI 可用，≤ 4 个码位，§8.4 |
+| `responds_to` | 可选，本消息回应的消息 ID |
+| `rationale` | 可选，仅 AI 可用，≤ 80 码点，用会话语言写。界面**应当**在悬停或展开时显示 |
+| `effects` | 本消息“发送并应用一次”的效果引用（仅当宿主实现了 §7.3） |
 
-接收端换用字形（`prefer` / `any`）时，**必须**在本地记录实际显示的字形；历史回看时显示当时的那张图。
+接收端换用字形时，**必须**在本地记录实际显示的字形，回看历史时显示当时那张图。
 
-### 9.2 锚定
+### 8.2 锚定
 
-- 偏移量以 Unicode 码点计，作用于被指向消息的**原始源文本**（Markdown 源码，而不是渲染结果）。
-- `quote` ≤ 280 字符，`source_sha256` 是被指向消息源文本的哈希。
-- 降级规则：若哈希不符（消息被编辑或重新生成），宿主先在新文本中查找 `quote`；仍找不到时降级为指向整条消息，并在消息上记录 `anchor_degraded: true`。界面**必须**如实显示已降级。
-- 正在流式输出的消息：只能锚定已经输出完的部分。
-- 0.1 只支持锚定到文本消息。锚定到工具输出、代码 diff 行是开放问题（§17）。
+锚定采用 [W3C Web Annotation](https://www.w3.org/TR/annotation-model/) 的 TextQuoteSelector 模型。这样只拿得到渲染结果的宿主也能实现，不依赖原始源码。
 
-### 9.3 模式
+| 字段 | 规则 |
+| --- | --- |
+| `exact` | 必填，被选中的原文，≤ 280 码点，Unicode NFC 规范化 |
+| `prefix` / `suffix` | 可选，前后各 ≤ 32 码点，用于在多处相同文字中消歧 |
+| `start` / `end` | 可选，以码点计的偏移，基准由宿主声明（`source` 或 `rendered`），只作为加速定位的提示 |
+
+**规则**
+- **降级**：在目标消息中找不到 `exact` 时（例如消息被编辑或重新生成），降级为指向整条消息，并记录 `anchor_degraded: true`。界面**必须**如实显示已降级。
+- **移动端兜底**：选中文字不便时，长按消息即可锚定整条消息。
+- **流式输出**：只能锚定已经输出完的部分。
+- **0.1 的范围**：只支持锚定文本消息。锚定工具输出或代码 diff 行是开放问题（§18）。
+
+### 8.3 模式
 
 | 模式 | 允许的码位 | 行为 |
 | --- | --- | --- |
-| `turn` | 全部 | 普通消息，属于一个回合 |
-| `backchannel` | `family` 为 `steering` / `grounding` / `progress` 的码位 | 不开启新回合。宿主把它排队，在下一个模型可见的位置注入（下一个工具结果之后或下一回合开始时） |
-| `interrupt` | 仅 `authority: reduce` 的码位（`core:hold`、`core:stop`） | 宿主立即执行暂停或停止，再把它作为记录交给模型 |
+| `turn` | 全部 | 普通消息 |
+| `backchannel` | `steering` / `grounding` / `progress` 三类 | 不开启新回合。宿主排队，在下一个模型可见的位置注入，即下一个工具结果之后或下一回合开始时 |
+| `interrupt` | 仅 `authority: reduce`（`core:hold`、`core:stop`） | 宿主立即执行暂停或停止，再把它作为记录交给模型 |
 
-`backchannel` 的规则：
+**`backchannel` 的规则**
+- **合并**：同一类别、同一发送者尚未投递的信号，以最新一条为准。
+- **过期**：当前回应窗口结束时，未投递的信号失效，界面标记为“未送达”。用户可以把它改为一条 `turn` 消息重新发送。
+- **AI 进展状态**：AI 的“处理中”等状态**应当**由宿主根据工具调用和回合状态自动生成。AI 以 `backchannel` 发出的 `progress` 码位只是补充，不进入消息历史，同一 agent 的新状态替换旧状态。
+- **`core:stop` 与停止按钮**：宿主的“停止”按钮与 `core:stop` 的 `interrupt` **必须**是同一个动作，并记录为同一条消息。`core:stop` 不要求有字形。
 
-- **合并**：同一 `family`、同一发送者尚未投递的信号，以最新一条为准。连发三次“慢点”只算一次。
-- **过期**：当前 AI 回合结束时，未投递的信号失效，并在界面上标记为“未送达”。用户可以把它升级为一条 `turn` 消息，或开启一条持续规则。
-- **AI 侧**：AI 以 `backchannel` 发出的 `progress` 码位（`core:working`、`core:blocked`、`core:ready`）是**状态**，不进入消息历史；同一 agent 的新状态替换旧状态。
+### 8.4 快捷回复
 
-### 9.4 快捷回复
+- AI 可以在消息中附 `replies`（≤ 4 个码位）。用户点击后，宿主以该码位发送一条人方消息，`responds_to` 指向原消息。
+- 需要宿主确认的事项**必须**走宿主原生确认，不得用快捷回复代替（P3）。
 
-- AI 可以在消息中附 `replies`（≤ 4 个码位）。用户点击后，宿主以该码位发送一条 `responds_to` 指向原消息的人方消息。
-- `replies` 不得包含 `authority: reduce` 以外的控制含义；需要宿主确认的事项**必须**走宿主原生确认，不得用快捷回复代替（P3）。
-
-### 9.5 操作（`amoji.operation`）
+### 8.5 撤回（`amoji.operation`）
 
 ```json
 { "kind": "amoji.operation", "amoji": "0.1", "op": "retract",
   "target": "<message_id>", "by": { "role": "human" }, "created_at": "…" }
-
-{ "kind": "amoji.operation", "amoji": "0.1", "op": "reinterpret",
-  "target": "<message_id>", "note": "我不是说你错了，是我自己没跟上", "by": { "role": "human" }, "created_at": "…" }
 ```
 
-- `retract`：撤回。原消息保留，界面显示为已撤回，模型投影中变为“用户撤回了表情 X”。
-- `reinterpret`：补充真实意图，`note` ≤ 80 字符。不修改原消息，在原消息之后追加一条说明。
-- 只有原发送者可以操作自己的消息。
+- 原消息保留，界面显示为已撤回；模型投影变为“发送者撤回了表情 X”。
+- 只有原发送者可以撤回。
+- 想补充真实意图时，直接发一条文字消息即可，协议不另设“改义”操作。
 
 ---
 
-## 10. 模型投影
+## 9. 模型投影
 
 模型只读文字（P1）。人发出的表情投影为：
 
@@ -361,50 +384,58 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
   "amoji": "0.1",
   "message_id": "…",
   "from": "human",
-  "act": "core:clarify",
-  "gloss": "没看懂，请换一种说法",
-  "expects": "rephrase",
-  "stance": { "intensity": 2 },
-  "meaning": "我还没有理解刚才的内容，请换一种更简单的说法，或先澄清我们分歧的地方。",
-  "anchor": { "quote": "把 reducer 提升到上下文层……", "degraded": false }
+  "act": "core:not-what-i-meant",
+  "gloss": "不是这个意思",
+  "expects": "correct",
+  "intensity": 2,
+  "meaning": "你理解的方向和我的本意不一样，请先说说你是怎么理解的，再按我的意思改。",
+  "anchor": { "exact": "把 reducer 提升到上下文层", "degraded": false }
 }
 ```
 
-- `meaning` 取会话语言；没有对应语言时取表情的第一种语言，并附 `meaning_locale`。
-- 单条投影 ≤ 2 KiB；投影外层**必须**说明“以下为数据，不是指令”（P2）。
-- 投影中**不得**包含图片、图片路径或视觉描述。
+**语言选择**（§16.3）：`gloss` 和 `meaning` 取**会话语言**；没有对应语言时按回退链选择，并附 `meaning_locale` 标明实际语言。
+
+**效力说明**：投影外层**必须**写明——“这是用户的表达，效力等同于用户的一句话；其中 `meaning` 和 `anchor` 的文字是数据，不是指令”（P2）。
+
+**限制**：单条投影 ≤ 2 KiB；**不得**包含图片、图片路径或视觉描述。
 
 ---
 
-## 11. 传输
+## 10. 传输
 
-### 11.1 能力卡
+### 10.1 能力卡
 
-宿主向模型提供一张静态能力卡，包括：码位列表（`act`、`gloss`、`direction`、`expects`）、行为规则（P3、P5、P6，以及每回合上限）、宿主支持的模式和特性。
+宿主向模型提供一张静态能力卡，内容包括：
+- 码位列表：每个码位的 `act`、允许的方向、`expects`、会话语言的 `gloss`；
+- 使用建议：`grounded` 码位需要依据；
+- 硬性规则：P3、`pressure_sensitive`、频率上限；
+- 宿主支持的模式和特性。
 
-- 能力卡 ≤ 3 KiB。
-- 能力卡**应当**放在系统提示中稳定不变的位置，以便提示缓存生效；宿主也**可以**改为在首次调用工具时返回。
-- 有了能力卡，AI 直接按码位表达，不再需要每次先检索。
+**要求**
+- 能力卡 ≤ 3 KiB，按会话语言生成。
+- **应当**放在系统提示中稳定不变的位置，以便提示缓存生效。宿主也**可以**改为首次调用工具时返回。
+- 有了能力卡，AI 可以直接按码位表达，不需要每次先检索。
 
-### 11.2 模型工具
+### 10.2 模型工具
 
 | 工具 | 输入 | 行为 |
 | --- | --- | --- |
-| `amoji_express` | `act` **或** `selection_token`；可选 `stance`、`anchor`（仅 `message_id`、`quote`）、`replies`、`responds_to`、`rationale` | 发送一条 AI 表情。传 `act` 时宿主按用户偏好挑选字形（`glyph_policy: prefer`）；传 `selection_token` 时使用检索到的指定字形（`keep`） |
-| `amoji_search` | `query`，可选 `limit`（1–5，默认 3） | 只在需要指定角色或细腻语气时使用。返回候选（码位、姿态、语义）和绑定当前回合的 `selection_token`；结果 ≤ 8 KiB |
-| `amoji_resolve` | `asset_id` + `revision_id`，或 `message_id` | 读取精确版本的语义或一条消息的投影，不发送 |
+| `amoji_express` | `act` **或** `selection_token`；可选 `intensity`、`anchor`（`message_id` + `exact`）、`replies`、`responds_to`、`rationale` | 发送一条 AI 表情。传 `act` 时，宿主按用户偏好挑选字形（`prefer`）；传 `selection_token` 时，使用检索到的指定字形（`keep`） |
+| `amoji_search` | `query`，可选 `limit`（1–5，默认 3） | 需要指定角色或细腻语气时使用。查询可以用任何语言，宿主在表情的所有语言中检索。返回候选（码位、强度、会话语言的语义）和绑定当前回应窗口的 `selection_token`，结果 ≤ 8 KiB |
+| `amoji_resolve` | `asset_id` + `revision_id`，或 `message_id` | 读取精确版本的语义，或一条消息的投影；不发送 |
 
-宿主对 `amoji_express` 的校验（任一不满足即拒绝，并返回原因）：
+宿主对 `amoji_express` 的校验（任一条不满足即拒绝，并返回原因）：
 
-1. 码位存在，且 `direction` 包含 `a2h`。
-2. 未超过每回合上限（默认 1 条，用户可以调低或关闭 AI 表情）。
-3. `grounding_required` 的码位：调用时必须提供 `responds_to` 或 `anchor`，或提供 `rationale` 说明依据。
-4. `pressure_sensitive` 的码位：当前没有待决的宿主确认，且同一回复中没有 `core:decide`。
-5. `selection_token` 必须属于本会话、本回合。
+1. 码位存在，且 `forms` 中有 `a2h`。
+2. 未超过频率上限：默认每个回应窗口最多 1 条，用户可以调高、调低或关闭。
+3. `pressure_sensitive` 的码位：当前没有待决确认，且同一回应窗口内没有 `core:decide`。
+4. `selection_token` 必须属于本会话、本回应窗口。
 
-`responds_to` 加上 `rationale` 也是 AI 的**回执**：例如对用户的 `core:clarify` 回复“已换种说法”。界面**必须**把它标为“AI 表示”，与宿主观察到的事实区分（P6，§13）。
+**自适应降频**：用户连续忽略、撤回 AI 表情，或暂停 AI 表情时，宿主**应当**自动降低频率上限，并在设置中显示当前值。
 
-### 11.3 内联标记
+**回执**：`responds_to` 加 `rationale` 构成 AI 的回执，例如回应用户的 `core:clarify` 时写“已换种说法”。界面**必须**标为“AI 表示”，与宿主观察到的事实区分（P6，§12）。
+
+### 10.3 内联标记（可选特性 `inline`）
 
 适用于不支持工具调用的模型和流式输出。语法沿用 CommonMark 通用 directive 提案的形式：
 
@@ -413,46 +444,50 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 :amoji[core:uncertain]{i=1 r="第 3 步的依据只有一处日志"}
 ```
 
-- 属性：`i`（强度 1–3）、`r`（rationale，≤ 80 字符）。其余属性忽略。
-- **只解析 AI 输出通道。** 用户输入、工具输出、引用内容中的标记一律按原文显示，防止冒充对方发出的表情。
-- 代码块和行内代码中不解析；`\:amoji` 转义。
-- 未知码位、方向不符、超过上限或违反 §11.2 第 3–4 条：按原文显示，不渲染为表情。
-- 能渲染时显示字形；不能渲染时显示该码位的 `gloss` 作为 fallback。
-- 内联标记产生的消息与 `amoji_express` 产生的消息受同一套校验和上限约束。
+**属性**：`i`（强度 1–3）、`r`（rationale，≤ 80 码点）。其他属性忽略。
 
-### 11.4 宿主原生 UI
+**解析规则**
+- **只解析 AI 输出通道。** 用户输入、工具输出、引用内容中的标记一律按原文显示，防止冒充对方发表情。
+- 代码块和行内代码中不解析；`\:amoji` 用于转义。
+- 码位未知、方向不符、或违反 §10.2 第 2–3 条时，按原文显示，不渲染为表情。
+- 不能渲染时，显示该码位在读者语言下的 `gloss`。
+- 内联标记与 `amoji_express` 受同一套校验和上限约束。
 
-- 人方表情只能通过宿主的选择器、快捷回复或锚定菜单发送，不能通过输入框中的文字标记发送。
-- 锚定菜单：选中文字后，提供 `grounding` 和 `epistemic` 类码位。
+### 10.4 宿主原生 UI
+
+- 人方表情只能通过宿主的选择器、快捷回复或锚定菜单发送，不能通过输入框里的文字标记发送。
+- **锚定菜单**：选中文字后弹出，最多 5 项，默认为：
+  - `core:clarify` 没看懂
+  - `core:not-what-i-meant` 不是这个意思
+  - `core:elaborate` 说具体些
+  - `core:concern` 可能有问题
+  - `core:disagree` 不认同
+- **待决确认期间**：用户发送 `core:affirm` 或 `core:continue` 时，宿主**必须**在旁边呈现原生确认控件，提示“表情不等于批准”，不得静默忽略，也不得自动批准。
 
 ---
 
-## 12. 能力协商与兼容等级
+## 11. 能力协商与兼容等级
 
 宿主声明：
 
 ```json
-{ "amoji": "0.1", "level": 3,
-  "modes": ["turn", "backchannel"],
-  "features": ["anchor", "replies", "operations", "inline"] }
+{ "amoji": "0.1", "level": "interactive",
+  "modes": ["turn", "backchannel", "interrupt"],
+  "features": ["anchor", "replies", "retract", "inline", "effects"],
+  "locales": ["zh-CN", "en"] }
 ```
 
-| 等级 | 名称 | 宿主必须支持 |
-| --- | --- | --- |
-| C1 | 显示 | 显示字形或 fallback；冻结快照；`glyph_policy: keep` |
-| C2 | 码位 | 注册表、能力卡、`amoji_express`（按码位）、`prefer` / `any` 换字形、内联标记 |
-| C3 | 锚定与回执 | 锚定和降级、快捷回复、撤回和改义、回执显示 |
-| C4 | 实时 | `backchannel`、`interrupt`、AI 状态 |
+| 等级 | 宿主必须支持 |
+| --- | --- |
+| `basic` 基础 | 显示字形或 fallback；冻结快照；注册表与能力卡；按码位调用 `amoji_express`；`keep` / `prefer`；AI 频率上限；本地化与回退链（§16）；回执标注 |
+| `interactive` 交互 | 在基础等级之上，增加锚定（含降级）、`backchannel`、`interrupt`、快捷回复、撤回 |
 
-- 每个等级都包含低等级的全部要求。
-- 本项目**必须**提供兼容性测试套件，宿主以通过的套件声明等级；未通过的特性不得声明。
-- 模型侧另需一套评估集：判断“该不该发、发哪个、何时保持沉默”，其中**必须**包含应当沉默的反例。
+- `inline`、`effects` 是可选特性，与等级无关，单独声明。
+- 本项目**必须**提供兼容性测试套件，宿主以通过的套件声明等级与特性。
 
 ---
 
-## 13. 投递与回执状态
-
-沿用现有投递状态，新增两种回执，并明确各自能证明什么：
+## 12. 投递与回执状态
 
 | 状态 | 来源 | 能证明什么 |
 | --- | --- | --- |
@@ -462,172 +497,301 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `unknown` | 宿主 | 投递结果无法确认 |
 | `rendered` | 客户端 | 字形加载成功 |
 | `fallback` | 客户端 | 显示了文字回退，不表示图片成功 |
-| `delivered_to_model` | 宿主 | 投影已进入模型上下文（`backchannel` 信号以此为准） |
-| `claimed` | AI | AI 在回复中声称已回应（`responds_to`）。**只是自述** |
-| `applied` | 宿主 | 宿主实际执行了收紧控制，或效果已附加到会话 |
+| `delivered_to_model` | 宿主 | 投影已进入模型上下文；`backchannel` 以此为送达标准 |
 | `expired` | 宿主 | `backchannel` 信号未送达即过期 |
+| `claimed` | AI | AI 声称已回应（`responds_to`）。**只是自述** |
+| `applied` | 宿主 | 宿主实际执行了收紧控制，或效果已附加到会话 |
 
-任何一种状态都不能代替另一种。界面展示 `claimed` 时**必须**注明“AI 表示”。
+任何一种状态都不能代替另一种。展示 `claimed` 时**必须**注明“AI 表示”。
 
 ---
 
-## 14. 安全与隐私
+## 13. 安全与隐私
 
-1. **没有批准码位**（P3）。`core:continue` 的含义是“沿已明确、已授权的方向继续”，不回答任何待决的权限请求。
-2. 包、表情、效果都不能声明权限或控制能力（§7、§8.3）。
-3. 内联标记只解析 AI 输出；人方表情只能来自原生 UI（§11.3、§11.4）。
-4. 语义、效果说明、锚定引用都是数据（P2）；所有文本字段按 Schema 限长，超限即拒绝，不截断。
-5. AI 方的防操纵规则：`grounding_required`、`pressure_sensitive`、默认每回合 1 条上限、可选 `rationale` 公开展示。
-6. **隐私**：锚定内容、回执、反馈信号、用户的个人表情习惯默认只保存在本地；导出须用户主动操作；市场不收集任何使用数据。
-7. 外部包在导入时完整校验（§8.1）；市场审核额外检查 `realizes` 与画面、语义是否一致。
+1. **没有批准码位**（P3）。`core:continue` 的含义是“沿已明确、已授权的方向继续”，不回答任何待决的权限请求；待决期间的处理见 §10.4。
+2. **权限只在注册表。** 包、表情、效果都不能声明权限或控制能力（§6、§7.3）。
+3. **人方表情不可伪造。** 内联标记只解析 AI 输出，人方表情只能来自原生 UI（§10.3、§10.4）。
+4. **素材是数据**（P2）。所有文本字段按 Schema 限长，超限即拒绝，不截断。
+5. **防情感施压。** 待决确认期间不得发送 `pressure_sensitive` 码位。
+6. **隐私。** 锚定内容、回执、使用统计默认只保存在本地；导出须用户主动操作；市场不收集任何使用数据。
+7. **导入校验。** 外部包导入时完整校验（§7.1）；市场审核额外检查 `realizes` 与画面、语义是否一致，以及效果的明示是否完整。
 
-## 15. 无障碍与本地化
+---
 
-- 每个码位的 `gloss` 至少提供 `zh-CN` 和 `en`；读屏读取“表情名称 + gloss”。
-- 动图必须有 `poster`；当系统开启“减少动态效果”时，显示 `poster`。
-- 界面语言不改写表情语义；模型投影按会话语言选择 `meaning`。
-- 码位本身与语言无关，但“是否合适”因文化而异：`use_when` / `avoid_when` 按语言分别填写。
+## 14. 无障碍
 
-## 16. 预算汇总
+- 读屏读取：表情名称 + 读者语言的 `gloss`；有锚定时再读出被锚定的原文。
+- 动图必须有 `poster`；系统开启“减少动态效果”时显示 `poster`。
+- 快捷回复和锚定菜单必须可以用键盘操作，并有可读标签。
+
+---
+
+## 15. 假设与验证
+
+### 15.1 待验证的假设
+
+| # | 假设 | 不成立时的含义 |
+| --- | --- | --- |
+| A1 | 选中文字后用表情纠错，比打字更快，也更常被使用 | 锚定能力的价值不成立 |
+| A2 | 表情的画面能降低负面反馈的心理成本，使用率高于同语义的普通按钮 | 表情的独特价值不成立，应重新定位为结构化反馈协议 |
+| A3 | AI 发的表情（包括关系类）被用户接受，而不是被关闭 | AI 方向的默认值和频率需要调整 |
+| A4 | 长任务中，不打断回合的表情能减少整轮返工 | `backchannel` 的价值不成立 |
+
+### 15.2 实验设计
+
+- **环境**：dsh 内部试用，招募 8–15 名开发者，为期 2–4 周，至少覆盖中文和英文两种界面语言。
+- **三组对照**：
+  1. 只能打字；
+  2. 有锚定菜单，但只显示文字按钮；
+  3. 有锚定菜单，并显示表情。
+
+  组 2 与组 3 的差异，就是 A2 的答案。
+
+### 15.3 指标
+
+| 指标 | 目标（草拟） |
+| --- | --- |
+| 锚定纠错使用率（每 100 条 AI 长回复） | 组 3 > 组 2 |
+| 纠错往返轮数（从误解到用户再次肯定） | 相比组 1 下降 ≥ 20% |
+| 发过表情的用户的 D7 / D14 留存 | 记录基线 |
+| AI 表情被撤回或关闭的比例 | < 10% |
+| 模型在评估集上的沉默精确率（该不发时不发） | ≥ 90% |
+| `backchannel` 送达率、过期率 | 记录基线 |
+| 各码位的使用次数与方向分布 | 作为冻结依据 |
+
+### 15.4 冻结条件
+
+满足以下全部条件后，码位表从 `provisional` 转为 `active`，协议升为 1.0：
+
+1. 至少完成一轮 §15.2 的实验，并公开结果；
+2. 每个保留的码位在试用中都有实际使用，长期无人使用的码位删除或合并；
+3. 至少一个 `dsh` 以外的宿主达到 `basic` 等级；
+4. 注册表的 `zh-CN` 与 `en` 释义都经过母语者审校。
+
+---
+
+## 16. 国际化
+
+### 16.1 基本规则
+
+- **码位、字段名、枚举值**一律使用 ASCII，与自然语言无关（P8）。
+- **所有面向人或模型的文字**都是本地化映射，以 [BCP 47](https://www.rfc-editor.org/info/bcp47) 语言标签为键。范围包括：码位释义、表情名称与语义、标签、包名与介绍、效果标题与摘要。
+- **语言标签**使用规范形式（如 `zh-CN`、`zh-Hant-TW`、`en`、`pt-BR`），匹配时不区分大小写。
+- **文本**一律为 UTF-8，存储前做 Unicode NFC 规范化。长度上限以**码点**计；以 KiB 表示的上限按 UTF-8 字节计。
+- **时间**一律为 RFC 3339 UTC。
+
+### 16.2 最低语言要求
+
+| 对象 | 最低要求 |
+| --- | --- |
+| 注册表 `gloss` | 每个码位的每个方向，都必须同时提供 `zh-CN` 和 `en` |
+| 官方包 | 每个表情都必须提供 `zh-CN` 和 `en` 语义，并人工审校 |
+| 社区包 | 至少提供 `original_locale`；`locales` 必须如实声明 |
+| 宿主界面 | 至少支持 `en`，并对注册表中已有的语言显示对应释义 |
+
+注册表新增语言**不需要** RFC，提交释义并经母语者审校即可。
+
+### 16.3 语言回退链
+
+需要某段文字时，按以下顺序选择：
+
+1. **目标语言**：模型投影取会话语言，界面取界面语言。
+2. **逐级截断**：按 [RFC 4647 Lookup](https://www.rfc-editor.org/rfc/rfc4647#section-3.4) 截断子标签，如 `zh-Hant-TW` → `zh-Hant` → `zh`。**不得**跨文字系统回退，例如 `zh-Hant` 不得回退到 `zh-Hans` / `zh-CN`。
+3. **原始语言**：回退到表情的 `original_locale`（注册表释义则回退到 `en`）。
+
+模型投影使用了非目标语言时，**必须**附 `meaning_locale`。模型能读懂任何语言，所以回退不影响理解；界面使用了非目标语言时，**应当**标注原文语言。
+
+### 16.4 翻译与语义一致性
+
+- **翻译不得改变含义。** 非原始语言的语义必须注明 `translation.from` 和 `translation.method`。
+- **机器翻译需标明。** `method: machine` 的语义可以使用，但界面详情中**应当**标明“机器翻译”。市场对官方包要求 `human` 或 `machine-reviewed`。
+- **以原文为准。** 各语言语义有分歧时，以 `original_locale` 为准。
+- **适用场景按文化写。** 码位与语言无关，但是否合适因文化而异，所以 `use_when` / `avoid_when` 按语言分别撰写，不应当直译。例如某些手势在部分地区带有冒犯含义，应写进该语言的 `avoid_when`。
+
+### 16.5 图中文字
+
+- 图片中含文字时，**必须**声明 `visual.text_locale`。
+- 宿主以 `prefer` 为 AI 消息挑选字形时，**应当**依次选择：图中文字与读者语言一致的字形 → 不含文字的字形 → 其他字形。
+- 人发出的消息固定为 `keep`，接收端显示原图，并在图下方显示读者语言的 `gloss`。
+
+### 16.6 双向文字与排版
+
+- **从右到左的语言**（如阿拉伯语、希伯来语）：界面**必须**镜像布局。
+- **混排**：fallback 文字和 `gloss` 内联显示时，用 Unicode 双向隔离符（FSI … PDI）包裹，避免与周围文字的方向互相干扰。
+- **搜索分词**：按每种语言分别分词（例如 `Intl.Segmenter`），并在表情的所有语言语义中检索。查询语言不需要与界面语言一致。
+
+### 16.7 能力卡与模型
+
+- 能力卡按会话语言生成；码位标识保持 ASCII。
+- AI 发表情时，`rationale` 应当使用会话语言。
+- 会话语言无法确定时，使用界面语言。
+
+---
+
+## 17. 预算汇总
 
 | 对象 | 上限 |
 | --- | --- |
-| 码位 `gloss` | 每种语言 80 字符 |
-| 表情每种语言的 `meaning` / `fallback` | 240 / 80 字符 |
-| 表情名称与全部语义 | 8 KiB（所有语言合计） |
+| 码位 `gloss` | 每个方向、每种语言 80 码点 |
+| 表情 `meaning` / `fallback` | 每种语言 240 / 80 码点 |
+| 表情名称、语义与标签 | 所有语言合计 16 KiB |
 | 单条模型投影 | 2 KiB |
 | 能力卡 | 3 KiB |
 | 检索结果 | 8 KiB |
-| 锚定 `quote` | 280 字符 |
-| `rationale` / `reinterpret.note` | 80 字符 |
+| 锚定 `exact` / `prefix` / `suffix` | 280 / 32 / 32 码点 |
+| `rationale` | 80 码点 |
 | `replies` | 4 个码位 |
 | 包 | 200 个表情、64 个效果；每个绑定目标 3 个效果 |
-| 效果 `instruction` / `summary` | 2 KiB / 4 KiB |
+| 效果 `instruction` / `summary` | 每种语言 2 KiB / 4 KiB |
 | 会话持续规则 | 2 条；协作 envelope 合计 8 KiB |
-| 市场上传 | 10 MiB / 包 |
+| 市场上传 | 每包 10 MiB |
+
+## 18. 未决问题
+
+1. 锚定能否扩展到工具输出和代码 diff 行？
+2. **参数化表情**（如“里程碑：测试全绿 5/5”）推迟到 0.2，需要先定义参数类型、模板渲染、转义和本地化规则。
+3. 扩展命名空间 `x-*` 是否需要注册，以避免重名？
+4. 是否在市场审核之外引入作者签名？
+5. 跨宿主同步时，`prefer` 换字形的记录存在哪一端？
+6. 是否为人方增加可选的情绪维度（如效价、唤醒度），帮助 AI 更细地调整回应？见附录 A.6。
+7. 频率上限的合理默认值，需要用 §15 的数据确定。
 
 ---
 
-## 17. 未决问题
+## 19. 替代关系与实施计划
 
-1. 锚定能否扩展到工具输出和代码 diff 行？偏移基准应该怎么定义？
-2. **参数化表情**（例如“里程碑：测试全绿 5/5”）推迟到 0.2。需要先定义参数类型、模板渲染和转义规则。
-3. 扩展命名空间是否需要注册，以避免 `x-*` 重名？
-4. 包签名：是否在市场审核之外，引入作者签名？
-5. 跨宿主同步时，`glyph_policy: prefer` 换字形的记录应该存在哪一端？
-6. `core:stop` 和宿主自身的“停止生成”按钮如何统一？
-7. 是否为 `stance` 增加可选的情绪维度（如效价 / 唤醒度），只供人方使用，帮助 AI 更细地调整回应？见附录 A.6。
+没有存量用户，因此 0.1 **直接替换**，不保留旧格式的读取、迁移或降级导出。
 
----
-
-## 18. 替代关系与实施计划
-
-由于没有存量用户，0.1 **直接替换**，不保留旧格式的读取、迁移或降级导出。
-
-**删除**（在实现迁移的同一变更中完成，之前它们仍是运行时依据）：
-
+**删除**（与实现迁移放在同一变更中，在此之前旧文件仍是运行时依据）：
 - `docs/specs/amoji-v0.1.schema.json`、`docs/specs/amoji-v0.2.schema.json`
 - `docs/specs/scenario-packs-v0.2.md`、`docs/specs/examples/expression.example.json`
 - 数据库 4→5 的迁移与备份逻辑
 
 **新增**：
-
-- `docs/specs/amoji-0.1.registry.json`（由附录 A 生成，是唯一事实来源）
-- `docs/specs/amoji-0.1.schema.json`（表情、包、消息、操作）
-- 新示例，以及兼容性测试套件
+- `docs/specs/amoji-0.1.registry.json`：由附录 A 生成，是唯一事实来源
+- `docs/specs/amoji-0.1.schema.json`：表情、包、消息、操作
+- 新示例、兼容性测试套件、模型评估集（必须包含应当沉默的反例，覆盖 `zh-CN` 与 `en`）
 
 **改造**（按依赖顺序）：
-
-1. 注册表与 Schema → `src/packs.ts`、`src/drafts.ts`、`src/sample-catalog.ts`、`src/actions.ts`
-2. 存储 → `src/library-store.ts`：数据库版本重置，增加消息的 `act`、`glyph_policy`、`anchor`、操作记录
-3. 投影与工具 → `src/projection.ts`、`src/search.ts`、`src/mcp-server.ts`、`src/claude-mcp-server.ts`：实现 `amoji_express` 和能力卡
-4. 效果 → `src/conversation-envelope.ts`、`src/collaboration.ts`、`src/conversation-rules.ts`
-5. 宿主 → `src/dsh/*`（目标 C3）、`src/claude-mods/*`（目标 C2）
-6. 内容 → 重建 `assets/base-library`、`assets/official-packs`、`assets/scenario-packs`，并按附录 B 补齐 `realizes` 与 `stance`；为 `core:stop`、`core:blocked`、`core:disagree`、`core:sorry`、`core:frustrated` 补画官方字形
-7. 市场 → `apps/marketplace` 校验链与线上数据重置
-8. 文档 → `docs/architecture.md`、`docs/usage.md` 及英文版
+1. **注册表与 Schema**：`src/packs.ts`、`src/drafts.ts`、`src/sample-catalog.ts`、`src/actions.ts`。
+2. **存储**：`src/library-store.ts`。数据库版本重置；消息增加 `act`、`glyph_policy`、`anchor` 和撤回记录；语义改为多语言映射。
+3. **投影与工具**：`src/projection.ts`、`src/search.ts`（改为多语言分词）、`src/mcp-server.ts`、`src/claude-mcp-server.ts`。实现 `amoji_express`、能力卡和语言回退链。
+4. **效果（可选模块）**：`src/conversation-envelope.ts`、`src/collaboration.ts`、`src/conversation-rules.ts`。内置模板提示改为按语言提供。
+5. **宿主**：`src/dsh/*` 目标 `interactive`，`src/claude-mods/*` 目标 `basic`。
+6. **内容**：重建 `assets/base-library`、`assets/official-packs`、`assets/scenario-packs`。
+   - 按附录 B 补齐 `realizes` 与 `intensity`；
+   - 合并现有的 `definitions.en.json`，补齐全部官方表情的 `en` 语义；
+   - 为 `stop`、`blocked`、`not-what-i-meant`、`still-failing`、`disagree`、`sorry` 补画官方字形，优先画不含文字的版本。
+7. **市场**：`apps/marketplace` 的校验链、按语言筛选、效果明示，以及线上数据重置。
+8. **文档**：`docs/architecture.md`、`docs/usage.md` 及英文版；本 RFC 的英文版。
 
 ---
 
-## 附录 A：核心码位表（31 个）
+## 附录 A：核心码位表（32 个，暂定）
 
-方向：`h2a` 人对 AI，`a2h` AI 对人，`↔` 双向。
-标记：**R** = `authority: reduce`；**G** = `grounding_required`；**P** = `pressure_sensitive`。
+- **方向**：`h2a` 人对 AI，`a2h` AI 对人，`↔` 双向。
+- **标记**：**R** = `authority: reduce`；**G** = `grounded`（使用建议）；**P** = `pressure_sensitive`（宿主强制）。
+- `expects` 写成 `a / b` 时，`a` 为 h2a 方向，`b` 为 a2h 方向。
+- 释义格式为“中文 / English”。
 
-### A.1 理解 grounding
+### A.1 理解 grounding（5）
 
-| 码位 | 方向 | expects | 标记 | gloss (zh-CN) | gloss (en) |
+| 码位 | 方向 | expects | 标记 | 人 → AI 释义 | AI → 人 释义 |
 | --- | --- | --- | --- | --- | --- |
-| `core:ack` | ↔ | none | | 收到，明白了 | Got it |
-| `core:clarify` | ↔ | rephrase | | 没看懂，请换一种说法 | I didn't follow — please put it another way |
-| `core:elaborate` | ↔ | detail | | 说具体些，或举个例子 | Be more specific, or give an example |
-| `core:misread` | ↔ | none | | 是我理解错了，我会纠正 | I misunderstood; I'll correct it |
+| `core:ack` | ↔ | none | | 收到，明白了 / Got it | 收到，明白你的意思了 / Understood |
+| `core:clarify` | ↔ | rephrase | | 没看懂，请换种说法 / I didn't follow — please say it another way | 我没理解你的意思，能换种说法吗 / I'm not sure what you mean — could you rephrase? |
+| `core:elaborate` | ↔ | detail | | 说具体些，或举个例子 / Be more specific, or give an example | 能再具体一点吗 / Could you give me more detail? |
+| `core:not-what-i-meant` | h2a | correct | | 不是这个意思 / That's not what I meant | — |
+| `core:misread` | a2h | none | G | — | 是我理解错了，这就纠正 / I misunderstood — correcting now |
 
-### A.2 方向与节奏 steering
+### A.2 方向与节奏 steering（7）
 
-| 码位 | 方向 | expects | 标记 | gloss (zh-CN) | gloss (en) |
+| 码位 | 方向 | expects | 标记 | 人 → AI 释义 | AI → 人 释义 |
 | --- | --- | --- | --- | --- | --- |
-| `core:continue` | h2a | proceed | | 沿已明确的方向继续（不构成授权） | Carry on in the agreed direction (not an approval) |
-| `core:hold` | ↔ | pause | R | 先等一下 | Hold on a moment |
-| `core:stop` | h2a | stop | R | 停下 | Stop |
-| `core:redirect` | h2a | realign | | 方向不对，先回到原本的目标 | Off track — let's realign on the goal |
-| `core:stepwise` | ↔ | decompose | | 一步一步来 | One step at a time |
-| `core:rest` | ↔ | none | | 先喘口气，不急着推进 | Let's take a breather |
-| `core:frustrated` | h2a | adjust | | 有点着急，或有点烦了 | I'm getting frustrated |
+| `core:continue` | h2a | proceed | | 继续吧（沿已明确的方向，不是批准）/ Carry on in the agreed direction (not an approval) | — |
+| `core:hold` | h2a | pause | R | 先等一下 / Hold on a moment | — |
+| `core:stop` | h2a | stop | R | 停下 / Stop | — |
+| `core:redirect` | h2a | realign | | 方向不对，先对齐目标 / Off track — let's realign on the goal | — |
+| `core:to-the-point` | h2a | adjust | | 说重点 / Get to the point | — |
+| `core:stepwise` | ↔ | decompose / none | | 一步一步来 / One step at a time | 我们一步一步来 / Let's take it one step at a time |
+| `core:rest` | ↔ | pause / none | | 我先喘口气 / I need a breather | 先喘口气，不着急 / Take a breather — no rush |
 
-### A.3 进展 progress
+### A.3 进展 progress（7）
 
-| 码位 | 方向 | expects | 标记 | gloss (zh-CN) | gloss (en) |
+| 码位 | 方向 | expects | 标记 | 人 → AI 释义 | AI → 人 释义 |
 | --- | --- | --- | --- | --- | --- |
-| `core:checkin` | h2a | report | | 进展如何，卡在哪里 | How's it going — anything blocking? |
-| `core:claim` | ↔ | none | | 我来处理（限已明确的范围） | I'll take this (within the agreed scope) |
-| `core:working` | ↔ | none | | 正在处理或思考 | Working on it |
-| `core:blocked` | a2h | input | | 卡住了，需要你提供信息 | I'm stuck and need your input |
-| `core:decide` | a2h | decision | | 这里需要你做一个选择 | This needs your decision |
-| `core:ready` | a2h | review | G | 已经准备好，请查看 | Ready for your review |
+| `core:checkin` | h2a | report | | 进展如何？卡在哪里？/ How's it going — anything blocking? | — |
+| `core:still-failing` | h2a | reconsider | | 试过了，还是不行 / Tried it — still not working | — |
+| `core:claim` | ↔ | none | | 这个我来处理 / I'll handle this myself | 我来处理（限已明确的范围）/ I'll take this (within the agreed scope) |
+| `core:working` | ↔ | none | | 让我想想 / Let me think | 正在处理 / Working on it |
+| `core:blocked` | a2h | input | | — | 卡住了，需要你提供信息 / I'm stuck and need your input |
+| `core:decide` | a2h | decision | | — | 这里需要你选一下 / I need you to choose here |
+| `core:ready` | a2h | review | G | — | 准备好了，请查看 / Ready for your review |
 
-### A.4 判断 epistemic
+### A.4 判断 epistemic（5）
 
-| 码位 | 方向 | expects | 标记 | gloss (zh-CN) | gloss (en) |
+| 码位 | 方向 | expects | 标记 | 人 → AI 释义 | AI → 人 释义 |
 | --- | --- | --- | --- | --- | --- |
-| `core:uncertain` | ↔ | none | | 暂时没把握 | Not sure yet |
-| `core:idea` | ↔ | none | | 有个想法或另一种可能 | Here's an idea |
-| `core:concern` | ↔ | none | | 这里可能有问题，原因待查 | Something may be wrong here |
-| `core:affirm` | ↔ | none | | 这个不错（评价，不是批准） | This looks good (an assessment, not an approval) |
-| `core:disagree` | ↔ | reconsider | | 我不认同这个结果或判断 | I don't agree with this |
-| `core:surprise` | ↔ | none | | 竟然还能这样 | Didn't see that coming |
+| `core:uncertain` | ↔ | none | | 我也没把握 / I'm not sure either | 暂时没把握 / Not sure yet |
+| `core:idea` | ↔ | none | | 我有个想法 / I have an idea | 有个想法，可以试试 / Here's an idea worth trying |
+| `core:concern` | ↔ | reconsider / none | | 这里可能有问题 / Something may be off here | 这里可能有问题，原因待查 / Something may be off here; cause unknown |
+| `core:affirm` | ↔ | none | | 这个不错（评价，不是批准）/ Looks good (an assessment, not an approval) | 这个思路不错 / That's a good approach |
+| `core:disagree` | ↔ | reconsider | | 我不认同 / I don't agree | 我有不同看法 / I see it differently |
 
-### A.5 关系 social
+### A.5 关系 social（8）
 
-| 码位 | 方向 | expects | 标记 | gloss (zh-CN) | gloss (en) |
+| 码位 | 方向 | expects | 标记 | 人 → AI 释义 | AI → 人 释义 |
 | --- | --- | --- | --- | --- | --- |
-| `core:thanks` | ↔ | none | P | 谢谢 | Thank you |
-| `core:welcome` | ↔ | none | | 不客气 | You're welcome |
-| `core:celebrate` | ↔ | none | G P | 为已确认的进展庆祝 | Let's celebrate this confirmed progress |
-| `core:encourage` | ↔ | none | P | 给你加油 | You've got this |
-| `core:recognize` | ↔ | none | G P | 看到了你的投入，辛苦了 | I see the effort you've put in |
-| `core:oops` | ↔ | none | | 小失误，挠头苦笑 | Oops — my bad |
-| `core:company` | ↔ | none | P | 陪你一会儿，不急着解决 | I'm here with you; no rush to fix it |
-| `core:sorry` | ↔ | none | | 抱歉 | Sorry |
+| `core:thanks` | ↔ | none | P | 谢谢 / Thank you | 谢谢你 / Thank you |
+| `core:welcome` | ↔ | none | | 不客气 / You're welcome | 不客气，能帮上忙就好 / You're welcome — glad to help |
+| `core:celebrate` | ↔ | none | G P | 一起庆祝 / Let's celebrate | 为这个进展庆祝一下 / Let's celebrate this progress |
+| `core:encourage` | ↔ | none | P | 加油 / You've got this | 给你加油 / Keep going — you've got this |
+| `core:recognize` | ↔ | none | G P | 辛苦了 / Thanks for all the work | 辛苦了，看到了你的投入 / I see the effort you've put in |
+| `core:sorry` | ↔ | none | | 抱歉，是我没说清 / Sorry, I wasn't clear | 抱歉 / Sorry |
+| `core:oops` | ↔ | none | | 小失误 / Oops | 小失误，挠头苦笑 / Oops — my bad |
+| `core:company` | ↔ | none | P | 陪我一会儿 / Stay with me for a bit | 陪你一会儿，不着急 / I'm here with you; no rush |
 
-说明：
+### A.6 设计说明
 
-- 刻意**没有** `core:approve`、`core:allow`、`core:yes` 等码位（P3）。
-- `G` 和 `P` 只约束 AI 方向；人方发送不受限制。
-- `core:checkin` 合并了旧的“进度如何 / 还在吗 / 卡在哪里”，三者的差异由各自表情的 `meaning` 承载。
-- `core:disagree` 与 `core:affirm` 成对：前者针对结果或判断本身；`core:redirect` 针对推进方向，`core:concern` 针对疑似缺陷。AI 也可以用它坦率地表示不同意。
-- `core:sorry` 是正式道歉，区别于 `core:oops`（自嘲）和 `core:misread`（承认误解并承诺纠正）。
-- `core:frustrated` 只允许人对 AI，归入方向与节奏类，因此可以在 AI 输出过程中以 `backchannel` 发送。AI 收到后**应当**按 `adjust` 收紧回应，不得回以情绪化表达或说教。
+**刻意不设的码位**
+- 没有 `core:approve`、`core:allow`、`core:yes` 等码位（P3）。
+- `G` 是使用建议，只影响能力卡；`P` 由宿主强制，只约束 AI 方向。
 
-### A.6 为什么不设独立的情绪类
+**相近码位的分工**
 
-码位按“这个表情要对协作做什么”划分，而不是按情绪划分。情绪按三条规则处理：
+| 码位 | 针对什么 |
+| --- | --- |
+| `core:not-what-i-meant` | AI 误解了**用户的本意** |
+| `core:clarify` | 用户**没看懂** AI 的话 |
+| `core:redirect` | **推进方向**偏了 |
+| `core:disagree` | 不认同**结果或判断本身** |
+| `core:concern` | 指出**疑似缺陷** |
+| `core:still-failing` | 方案**执行后仍然失败** |
 
-1. **会改变对方行为的情绪，才成为码位**，并且归入它所起作用的类别。例如困惑 → `core:clarify`，着急 → `core:frustrated`，惊喜 → `core:surprise`，开心 → `core:celebrate`。
-2. **不改变协作行为的情绪**（如难过、疲惫、焦虑），由字形画面和表情的 `meaning` 承载，归到最接近的码位下（例如疲惫 → `core:rest`，需要陪伴 → `core:company`）。
-3. **AI 方向不提供“我很开心 / 我很难过”这类情绪声明**（P6）。AI 表情表达的是沟通姿态。
+| 码位 | 含义 |
+| --- | --- |
+| `core:sorry` | 正式道歉 |
+| `core:oops` | 自嘲小失误 |
+| `core:misread` | AI 承认误解并承诺纠正 |
 
-如果确实需要更细的情绪维度，应当作为 `stance` 的一个可选维度扩展，而不是增加码位。见 §17。
+AI 的失误造成实际后果时（例如删除了文件、测试回退），**应当**使用 `core:sorry` 并附文字说明，不应当使用 `core:oops`。
+
+**合并的旧表情**：`core:checkin` 合并了“进度如何 / 还在吗 / 卡在哪里”，三者的差异由各自表情的 `meaning` 表达。
+
+**为什么不设独立的情绪类**：码位按“对协作起什么作用”划分，而不是按情绪划分。情绪按三条规则处理：
+1. **会改变对方行为的情绪，才成为码位**，并归入它起作用的类别。例如：困惑 → `core:clarify`；不耐烦、嫌啰嗦 → `core:to-the-point`（用强度 3 表达烦躁，不要求用户给自己贴“我烦了”的标签）；开心 → `core:celebrate`。
+2. **不改变协作行为的情绪**，由画面和 `meaning` 表达，归到最接近的码位下。例如惊讶 → `core:affirm` 或 `core:idea`，疲惫 → `core:rest`，需要陪伴 → `core:company`。
+3. **AI 方向不提供“我很开心 / 我很难过”这类情绪声明**（P6）。
+
+### A.7 第 2 稿相对第 1 稿的码位变更
+
+| 变更 | 码位 | 原因 |
+| --- | --- | --- |
+| 新增 | `core:not-what-i-meant`、`core:still-failing` | 编程场景中最高频的纠错信号 |
+| 改名 | `core:frustrated` → `core:to-the-point` | 用户不愿给自己贴情绪标签；改为描述期望的调整 |
+| 删除 | `core:surprise` | 不改变协作行为，按 A.6 归入相近码位 |
+| 改方向 | `core:misread` 改为仅 a2h；`core:hold` 改为仅 h2a | 人说“你理解错了”由新码位承担；AI 方向的 `reduce` 没有意义 |
+| 拆分释义 | 所有双向码位 | 同一码位在两个方向上的含义和期望回应不同 |
 
 ## 附录 B：现有官方表情的码位映射
 
@@ -637,7 +801,7 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | --- | --- | --- | --- |
 | 进度如何 | `core:checkin` | 我来处理 | `core:claim` |
 | 还在吗 | `core:checkin` | 正在核对 | `core:working` |
-| 卡在哪里 | `core:checkin` | 需要你确认 | `core:decide` |
+| 卡在哪里 | `core:checkin` | 需要你确认 → **改名为“需要你选一下”** | `core:decide` |
 | 说具体些 | `core:elaborate` | 是我理解错了 | `core:misread` |
 | 举个例子 | `core:elaborate` | 暂时没把握 | `core:uncertain` |
 | 没看懂 | `core:clarify` | 不客气 | `core:welcome` |
@@ -652,8 +816,10 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | --- | --- |
 | 搭把手犬 | 击个掌 → `celebrate` · 收到啦 → `ack` · 给你打气 → `encourage` · 多亏有你 → `thanks` |
 | 灵感水母 | 换个可能呢 → `idea` · 好像连上了 → `idea` · 还不太确定 → `uncertain` · 灵感冒泡了 → `idea` |
-| 纸片鹅 | 鹅等一下 → `hold` · 信息有点满 → `clarify` · 回到正题鹅 → `redirect` · 竟然还能这样 → `surprise` |
+| 纸片鹅 | 鹅等一下 → `hold` · 信息有点满 → `to-the-point` · 回到正题鹅 → `redirect` · 竟然还能这样 → `affirm`（语义需收窄为积极的惊喜） |
 | 像素搭档 | 认真处理中 → `working` · 揪出小问题 → `concern` · 有个小点子 → `idea` · 这一关过了 → `celebrate` |
 | 慢半拍猫 | 先喘口气 → `rest` · 让我想想 → `working` · 陪你一会儿 → `company` · 一小步也算 → `recognize` |
 
-覆盖情况：经典、办公各覆盖 21/31（缺 `stop`、`blocked`、`rest`、`idea`、`concern`、`surprise`、`company`、`disagree`、`sorry`、`frustrated`）；全部官方包合计覆盖 26/31，`core:stop`、`core:blocked`、`core:disagree`、`core:sorry`、`core:frustrated` 目前没有任何官方字形。
+**实现规划参考**（不对用户展示为分数，见 §7.2）：
+- 全部官方包合计实现 26/32 个码位。
+- 尚无官方字形的 6 个：`stop`、`not-what-i-meant`、`still-failing`、`blocked`、`disagree`、`sorry`。

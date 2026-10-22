@@ -1,5 +1,7 @@
 # 场景包 0.2 / Scenario packs 0.2
 
+> **已被取代**：本协议将由 [Amoji 协议 0.1（RFC 草案）](amoji-0.1-rfc.md) 整体替换，并在实现迁移完成后删除。迁移前它仍是运行时依据。
+
 本地管理页的“导入与导出”可从所选的已确认表情创建场景草稿，编辑名称、场景、说明、许可及可选动作，保存草稿、重开、预览并确认保存。纯视觉包保持空 `actions` / `bindings`。确认后的发布不可修改；固定表情版本和历史始终保持原值。
 
 In Import and export, create a scenario draft from confirmed expressions, edit its description and license, optionally add instructions or built-in habits, save/resume, preview, and confirm. Visual-only packs have empty actions/bindings. Confirmed releases and expression revisions are immutable.

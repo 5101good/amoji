@@ -3,6 +3,7 @@ import { refreshMarket, refreshPublisher } from './market.js';
 import { bridge, refOf, L, errorText } from "./transport.js";
 import { rememberMessage } from "./message-view.js";
 import { galleryWindow, WINDOW_LIMIT, BUFFER_LIMIT } from "./gallery.js";
+import { supportsRichText } from "./ui-kit.js";
 const sessions = new Map();
 let sequence = 0;
 export async function state($) {
@@ -31,11 +32,38 @@ export async function state($) {
       advanced: false,
     });
   const current = sessions.get(id);
-  current.languageRead ??= $.settings.read().then(settings => {
-    current.language = /^(en\b|english)/i.test(String(settings.language || "")) ? "en" : "zh";
+  current.languageRead ??= $.settings.read().then(async settings => {
+    current.language = await languageOf($, settings);
   }).catch(() => {});
-  await current.languageRead;
+  current.richRead ??= Promise.resolve().then(() => $.session.version()).then(info => {
+    current.rich = supportsRichText(info?.version);
+  }).catch(() => { current.rich = false; });
+  await Promise.all([current.languageRead, current.richRead]);
   return current;
+}
+// Claude Code's `language` setting decides when present. Without it, the
+// system's languages do: the locale variables, then macOS's preferred list.
+// Desktop's own interface language is not visible to Mods.
+const pickLanguage = value => /^(zh|chinese|中文)/i.test(value) ? "zh" : /^(en|english)/i.test(value) ? "en" : null;
+let systemLanguage;
+export async function languageOf($, settings) {
+  const chosen = String(settings?.language || "").trim();
+  if (chosen) return /^(en\b|english)/i.test(chosen) ? "en" : "zh";
+  systemLanguage ??= (async () => {
+    // Mods lists the variables a module reads, so each name is a literal.
+    const locales = await Promise.all([$.env.get("LC_ALL"), $.env.get("LC_MESSAGES"), $.env.get("LANG")]
+      .map(read => read.catch(() => "")));
+    for (const value of locales) {
+      const found = pickLanguage(String(value || ""));
+      if (found) return found;
+    }
+    try {
+      const result = await $.process.run(["defaults", "read", "-g", "AppleLanguages"], { timeoutMs: 3000 });
+      const first = /[("\s]*"?([A-Za-z-]+)/.exec(String(result.stdout || "").replace(/^\(/, ""))?.[1] || "";
+      return result.exitCode === 0 ? pickLanguage(first) || "en" : "zh";
+    } catch { return "zh"; }
+  })();
+  return systemLanguage;
 }
 export function invalidate($) {
   $.ui.invalidate("ui.render");
@@ -66,8 +94,7 @@ export async function perform($, s, action) {
 }
 export async function load($, s) {
   const settings = await $.settings.read();
-  const lang = String(settings.language || "");
-  s.language = /^(en\b|english)/i.test(lang) ? "en" : "zh";
+  s.language = await languageOf($, settings);
   if (!s.preferences) s.preferences = await bridge($, s.context, "settings");
   if (
     (s.tab === "picker" || s.tab === "library") &&
@@ -188,6 +215,7 @@ export async function send($, s, expression, epoch, action) {
       if (result?.drop !== undefined) throw new Error("SUBMIT_DROPPED");
       if (result?.text !== prepared.text) throw new Error("SUBMIT_UNKNOWN");
       delivery.phase = "waiting";
+      s.recent = [expression.asset_id, ...(s.recent || []).filter(id => id !== expression.asset_id)].slice(0, 6);
       // Keep the native pane open: Desktop's expanded layout does not expose
       // a reliable collapse API. Programmatic close can strand an empty tile.
     } catch (error) {
@@ -214,6 +242,7 @@ export async function changePreference($, s, key, value) {
         limit: BUFFER_LIMIT, library: s.tab === "library", archived: s.archived } } : {}),
     });
     s.preferences = browsing ? result.preferences : result;
+    if (key === "appearance") s.bandItems = null;
     if (browsing) {
       s.windowRequest = null;
       if (result.collection) {

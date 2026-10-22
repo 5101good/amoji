@@ -1,0 +1,691 @@
+{
+  "kind": "amoji.registry",
+  "amoji": "0.1",
+  "status": "provisional",
+  "acts": [
+    {
+      "act": "core:ack",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "收到，明白了",
+            "en": "Got it"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "收到，明白你的意思了",
+            "en": "Understood"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:clarify",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "rephrase",
+          "gloss": {
+            "zh-CN": "没看懂，请换种说法",
+            "en": "I didn't follow — please say it another way"
+          }
+        },
+        "a2h": {
+          "expects": "rephrase",
+          "gloss": {
+            "zh-CN": "我没理解你的意思，能换种说法吗",
+            "en": "I'm not sure what you mean — could you rephrase?"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:elaborate",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "detail",
+          "gloss": {
+            "zh-CN": "说具体些，或举个例子",
+            "en": "Be more specific, or give an example"
+          }
+        },
+        "a2h": {
+          "expects": "detail",
+          "gloss": {
+            "zh-CN": "能再具体一点吗",
+            "en": "Could you give me more detail?"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:not-what-i-meant",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "correct",
+          "gloss": {
+            "zh-CN": "不是这个意思",
+            "en": "That's not what I meant"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:misread",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "是我理解错了，这就纠正",
+            "en": "I misunderstood — correcting now"
+          }
+        }
+      },
+      "grounded": true,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:continue",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "proceed",
+          "gloss": {
+            "zh-CN": "继续吧（沿已明确的方向，不是批准）",
+            "en": "Carry on in the agreed direction (not an approval)"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:hold",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "reduce",
+      "forms": {
+        "h2a": {
+          "expects": "pause",
+          "gloss": {
+            "zh-CN": "先等一下",
+            "en": "Hold on a moment"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:stop",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "reduce",
+      "forms": {
+        "h2a": {
+          "expects": "stop",
+          "gloss": {
+            "zh-CN": "停下",
+            "en": "Stop"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:redirect",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "realign",
+          "gloss": {
+            "zh-CN": "方向不对，先对齐目标",
+            "en": "Off track — let's realign on the goal"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:to-the-point",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "adjust",
+          "gloss": {
+            "zh-CN": "说重点",
+            "en": "Get to the point"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:stepwise",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "decompose",
+          "gloss": {
+            "zh-CN": "一步一步来",
+            "en": "One step at a time"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "我们一步一步来",
+            "en": "Let's take it one step at a time"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:rest",
+      "family": "steering",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "pause",
+          "gloss": {
+            "zh-CN": "我先喘口气",
+            "en": "I need a breather"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "先喘口气，不着急",
+            "en": "Take a breather — no rush"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:checkin",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "report",
+          "gloss": {
+            "zh-CN": "进展如何？卡在哪里？",
+            "en": "How's it going — anything blocking?"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:still-failing",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "reconsider",
+          "gloss": {
+            "zh-CN": "试过了，还是不行",
+            "en": "Tried it — still not working"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:claim",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "这个我来处理",
+            "en": "I'll handle this myself"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "我来处理（限已明确的范围）",
+            "en": "I'll take this (within the agreed scope)"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:working",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "让我想想",
+            "en": "Let me think"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "正在处理",
+            "en": "Working on it"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:blocked",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "a2h": {
+          "expects": "input",
+          "gloss": {
+            "zh-CN": "卡住了，需要你提供信息",
+            "en": "I'm stuck and need your input"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:decide",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "a2h": {
+          "expects": "decision",
+          "gloss": {
+            "zh-CN": "这里需要你选一下",
+            "en": "I need you to choose here"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:ready",
+      "family": "progress",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "a2h": {
+          "expects": "review",
+          "gloss": {
+            "zh-CN": "准备好了，请查看",
+            "en": "Ready for your review"
+          }
+        }
+      },
+      "grounded": true,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:uncertain",
+      "family": "epistemic",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "我也没把握",
+            "en": "I'm not sure either"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "暂时没把握",
+            "en": "Not sure yet"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:idea",
+      "family": "epistemic",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "我有个想法",
+            "en": "I have an idea"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "有个想法，可以试试",
+            "en": "Here's an idea worth trying"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:concern",
+      "family": "epistemic",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "reconsider",
+          "gloss": {
+            "zh-CN": "这里可能有问题",
+            "en": "Something may be off here"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "这里可能有问题，原因待查",
+            "en": "Something may be off here; cause unknown"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:affirm",
+      "family": "epistemic",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "这个不错（评价，不是批准）",
+            "en": "Looks good (an assessment, not an approval)"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "这个思路不错",
+            "en": "That's a good approach"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:disagree",
+      "family": "epistemic",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "reconsider",
+          "gloss": {
+            "zh-CN": "我不认同",
+            "en": "I don't agree"
+          }
+        },
+        "a2h": {
+          "expects": "reconsider",
+          "gloss": {
+            "zh-CN": "我有不同看法",
+            "en": "I see it differently"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:thanks",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "谢谢",
+            "en": "Thank you"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "谢谢你",
+            "en": "Thank you"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": true
+    },
+    {
+      "act": "core:welcome",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "不客气",
+            "en": "You're welcome"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "不客气，能帮上忙就好",
+            "en": "You're welcome — glad to help"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:celebrate",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "一起庆祝",
+            "en": "Let's celebrate"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "为这个进展庆祝一下",
+            "en": "Let's celebrate this progress"
+          }
+        }
+      },
+      "grounded": true,
+      "pressure_sensitive": true
+    },
+    {
+      "act": "core:encourage",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "加油",
+            "en": "You've got this"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "给你加油",
+            "en": "Keep going — you've got this"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": true
+    },
+    {
+      "act": "core:recognize",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "辛苦了",
+            "en": "Thanks for all the work"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "辛苦了，看到了你的投入",
+            "en": "I see the effort you've put in"
+          }
+        }
+      },
+      "grounded": true,
+      "pressure_sensitive": true
+    },
+    {
+      "act": "core:sorry",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "抱歉，是我没说清",
+            "en": "Sorry, I wasn't clear"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "抱歉",
+            "en": "Sorry"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:oops",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "小失误",
+            "en": "Oops"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "小失误，挠头苦笑",
+            "en": "Oops — my bad"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:company",
+      "family": "social",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "陪我一会儿",
+            "en": "Stay with me for a bit"
+          }
+        },
+        "a2h": {
+          "expects": "none",
+          "gloss": {
+            "zh-CN": "陪你一会儿，不着急",
+            "en": "I'm here with you; no rush"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": true
+    }
+  ]
+}

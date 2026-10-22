@@ -152,7 +152,7 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
 - 至少两个独立的宿主或包作者提出需求；
 - 通过 RFC 评审。
 
-**唯一事实来源**：注册表的机器可读版本。本 RFC 被接受后，附录 A 生成为 `amoji-0.1.registry.json`。
+**唯一事实来源**：验证期内以附录 A 为准，`scripts/build-act-registry.mjs` 从它生成 [`amoji-0.1.registry.json`](amoji-0.1.registry.json) 和创作 skill 中的副本，测试会检查三者一致。冻结后改以注册表文件为唯一事实来源。
 
 ---
 
@@ -166,6 +166,7 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
   "revision_id": "20000000-0000-4000-8000-000000000001",
   "realizes": "core:oops",
   "intensity": 1,
+  "directions": ["h2a", "a2h"],
   "original_locale": "zh-CN",
   "name": { "zh-CN": "挠头苦笑", "en": "Sheepish grin" },
   "semantics": {
@@ -199,8 +200,9 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
 | `asset_id` / `revision_id` | UUIDv4。任何修改都生成新的 `revision_id`；版本不可变 |
 | `realizes` | **必填**，恰好一个码位。`meaning` 只能**收窄**码位含义，不得与之矛盾 |
 | `intensity` | 必填，取 `1` 轻 · `2` 中 · `3` 强，表示这张图本身的强度 |
+| `directions` | 可选，这张图适合的方向，必须是码位 `forms` 的非空子集；缺省为码位的全部方向。宿主据此决定它出现在人方选择器，还是供 AI 挑选字形 |
 | `original_locale` | 必填，作者撰写语义所用的语言 |
-| `name` / `semantics` / `tags` | 以 BCP 47 语言标签为键，必须包含 `original_locale`。语义字段的上限：`meaning` ≤ 240 码点，`fallback` ≤ 80；`use_when` / `avoid_when` 各 ≤ 4 条，每条 ≤ 64 |
+| `name` / `semantics` / `tags` | 以 BCP 47 语言标签为键，必须包含 `original_locale`。上限：`name` ≤ 40 码点；`meaning` ≤ 240，`fallback` ≤ 80；`use_when` / `avoid_when` 各 ≤ 4 条，每条 ≤ 64；`tags` 每种语言 ≤ 8 个，每个 ≤ 32 |
 | `semantics.*.translation` | 非原始语言**必须**注明：`from`（来源语言），`method` 取 `human` · `machine` · `machine-reviewed` |
 | `visual` | PNG / JPEG / WebP / GIF，≤ 2048 px，≤ 10 MiB；动图必须带 `poster` 和 `duration_ms`；内容按 SHA-256 寻址 |
 | `visual.text_locale` | 图片中含有文字时**必须**填写该文字的语言；不含文字时为 `null`。宿主据此挑选适合读者的字形（§16.5） |
@@ -237,6 +239,7 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
 }
 ```
 
+- `name` 每种语言 ≤ 60 码点，`description` ≤ 280 码点。
 - `locales`：本包**完整**提供语义的语言列表，即每个表情在这些语言下都有 `semantics`。市场按此筛选和展示。
 - 一次发布对每个资产**恰好**包含一个版本，包不承载历史版本。本地库的完整备份不属于包格式。
 - 发布后不可修改；任何变更都必须产生新的 `release_id` 并递增 `version`。
@@ -633,7 +636,9 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
 | 对象 | 上限 |
 | --- | --- |
 | 码位 `gloss` | 每个方向、每种语言 80 码点 |
-| 表情 `meaning` / `fallback` | 每种语言 240 / 80 码点 |
+| 表情 `name` / `meaning` / `fallback` | 每种语言 40 / 240 / 80 码点 |
+| 表情 `tags` | 每种语言 8 个，每个 32 码点 |
+| 包 `name` / `description` | 每种语言 60 / 280 码点 |
 | 表情名称、语义与标签 | 所有语言合计 16 KiB |
 | 单条模型投影 | 2 KiB |
 | 能力卡 | 3 KiB |
@@ -668,7 +673,8 @@ label     = 1*32( %x61-7A / DIGIT / "-" ) ; 小写 ASCII 字母、数字、连�
 - 数据库 4→5 的迁移与备份逻辑
 
 **新增**：
-- `docs/specs/amoji-0.1.registry.json`：由附录 A 生成，是唯一事实来源
+- `docs/specs/amoji-0.1.registry.json`：已由 `scripts/build-act-registry.mjs` 从附录 A 生成；本 RFC 被接受后改为唯一事实来源
+- `plugins/amoji-studio`：表情包创作 skill，内置本协议核心规格、注册表和打包校验脚本，让 AI 生成整套 `.amoji` 制品
 - `docs/specs/amoji-0.1.schema.json`：表情、包、消息、操作
 - 新示例、兼容性测试套件、模型评估集（必须包含应当沉默的反例，覆盖 `zh-CN` 与 `en`）
 

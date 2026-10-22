@@ -1,0 +1,10 @@
+{
+  "name": "amoji-studio",
+  "version": "0.1.0",
+  "description": "Create complete Amoji 0.1 expression packs (.amoji): plan acts, write multilingual semantics, brief the art, then build and validate the pack.",
+  "author": { "name": "Amoji contributors" },
+  "homepage": "https://github.com/5101good/amoji",
+  "repository": "https://github.com/5101good/amoji",
+  "license": "MIT",
+  "keywords": ["amoji", "expressions", "skill", "sticker-pack", "i18n"]
+}

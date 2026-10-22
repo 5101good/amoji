@@ -1,5 +1,6 @@
 import { bridge, L, refOf, errorText } from './transport.js';
-import { state, send, invalidate } from './controller.js';
+import { localized } from './ui-kit.js';
+import { state, send, invalidate, navigate } from './controller.js';
 const same=(a,b)=>a.release_id===b.release_id&&a.action_id===b.action_id&&a.action_revision_id===b.action_revision_id;
 export async function loadGuidance($,s,expression) {
   s.guidanceExpression=expression||null;
@@ -34,33 +35,61 @@ export async function applyGuidance($,e,next) {
   invalidate($);
   return result;
 }
+// Predefined rule templates in the words a person reads; never raw JSON.
+export function actionText(s,a) {
+  const tr=(zh,en)=>L(s,zh,en);
+  if(a.kind==='instruction')return a.instruction;
+  if(a.template==='completion-self-check@1')return tr('结束时说明已完成什么、验证依据和尚未知道的事项。','At completion, report what was done, the evidence and what remains unknown.');
+  if(a.template==='response-organization@1')return ({
+    'answer-first':tr('先给答案，再说明依据。','Answer first, then the evidence.'),
+    concise:tr('简明回答，保留必要依据。','Be concise and keep the necessary evidence.'),
+    'example-first':tr('先给例子，再解释。','Give an example before explaining.'),
+  })[a.config?.layout]||a.effect_summary;
+  return a.effect_summary;
+}
+
 export function guidanceView($,s,k) {
-  const {col,row,t,heading,button,Button}=k,tr=(zh,en)=>L(s,zh,en),choices=s.guidanceChoices||{rules:[],once:[]};
+  const {col,row,button,Button,ui,inner}=k,tr=(zh,en)=>L(s,zh,en),choices=s.guidanceChoices||{rules:[],once:[]};
+  const active=(s.activeGuidance||[]);
+  const receipt=s.guidanceReceipt&&({attached:['success',tr('最近一条消息已附加提示','Guidance was attached to the latest message')],
+    failed:['error',tr('最近一条消息未能附加提示','Guidance could not be attached to the latest message')],
+    rejected:['error',tr('最近一条消息被拒绝','The latest message was rejected')],
+    unknown:['warning',tr('未能核实最近一条消息是否附加了提示','Could not verify whether guidance was attached')]})[s.guidanceReceipt];
   return col([
-    heading(tr('让协作更合拍','Make collaboration feel right')),
-    t(tr('提示是你给 AI 的文字建议，不授予工具权限，也不保证模型遵从。只对当前会话中之后的用户消息附加；重启或换会话需重新启用。','Guidance is your text suggestion to AI, not tool permission or guaranteed behavior. It accompanies subsequent user messages here. Re-enable after restarting or switching conversations.'),true),
-    button('guidance-refresh',tr('刷新可用提示','Refresh available guidance'),()=>loadGuidance($,s,s.guidanceExpression)),
-    s.guidanceTouched&&button('guidance-clear',tr('停用全部提示','Disable all guidance'),async()=>{s.activeGuidance=[];s.guidanceTouched=true;s.guidanceReceipt=null;}),
-    s.guidanceReceipt&&t(tr('最近一次附加状态：','Last attachment status: ')+tr(({attached:'已附加',failed:'未能附加',rejected:'消息被拒绝',unknown:'未能核实'})[s.guidanceReceipt]||s.guidanceReceipt,s.guidanceReceipt),true),
+    ui.caption(tr('提示是你给 AI 的文字建议，不授予工具权限，也不保证模型遵从。只对当前会话中之后的用户消息附加；重启或换会话需重新启用。','Guidance is your text suggestion to AI, not tool permission or guaranteed behavior. It accompanies subsequent user messages here. Re-enable after restarting or switching conversations.')),
+    receipt&&ui.status(receipt[0],receipt[1]),
+    row([
+      ui.badge(active.length?'success':'info',active.length?tr(`已启用 ${active.length} / 2 条`,`${active.length} of 2 enabled`):tr('未启用持续提示','No rules enabled')),
+      button('guidance-refresh',tr('刷新','Refresh'),()=>loadGuidance($,s,s.guidanceExpression)),
+      s.guidanceTouched&&active.length>0&&button('guidance-clear',tr('全部停用','Disable all'),async()=>{s.activeGuidance=[];s.guidanceTouched=true;s.guidanceReceipt=null;}),
+    ]),
+    choices.rules.length>0&&ui.section(tr(`对话规则 · ${choices.rules.length}`,`CONVERSATION RULES · ${choices.rules.length}`)),
     ...choices.rules.map(c=>{
-      const active=(s.activeGuidance||[]).some(r=>same(r,c.selection));
-      const conflict=choices.rules.find(other=>(s.activeGuidance||[]).some(r=>same(r,other.selection))&&other.action.conflict_group===c.action.conflict_group&&!same(other.selection,c.selection));
-      return col([heading(c.action.effect_summary),t(tr('当前会话 · ','Current conversation · ')+c.source.origin+' · v'+c.source.version,true),
-        t(JSON.stringify({template:c.action.template,config:c.action.config})),
-        t(tr('来源版本：','Source release: ')+c.source.release_id,true),
-        conflict&&t(tr('将替换：','Will replace: ')+conflict.action.effect_summary),
-        button('guidance-enable:'+c.selection.action_revision_id,tr(active?'停用这条提示':conflict?'确认替换并启用':'启用这条提示',active?'Disable this guidance':conflict?'Replace and enable':'Enable this guidance'),async()=>{
-          const keep=(s.activeGuidance||[]).filter(r=>!same(r,c.selection)&&(!conflict||!same(r,conflict.selection)));
-          if(!active&&keep.length>=2)throw new Error('ACTION_LIMIT');
-          s.activeGuidance=active?keep:[...keep,c.selection];s.guidanceTouched=true;s.guidanceReceipt=null;
-        },!active),
-      ]);
+      const on=active.some(r=>same(r,c.selection));
+      const conflict=choices.rules.find(other=>active.some(r=>same(r,other.selection))&&other.action.conflict_group===c.action.conflict_group&&!same(other.selection,c.selection));
+      return ui.card({key:'guidance-card:'+c.selection.action_revision_id,selected:on,gap:0,children:[
+        row([ui.label(localized(s,c.action.effect_summary)),on&&ui.badge('success',tr('✓ 已启用','✓ On'))]),
+        ui.body(localized(s,actionText(s,c.action)),inner),
+        ui.meta([tr('来自 ','From ')+c.source.origin,'v'+c.source.version],inner),
+        conflict&&ui.tone('warning',tr('启用后将替换：','Enabling replaces: ')+localized(s,conflict.action.effect_summary),inner),
+        button('guidance-enable:'+c.selection.action_revision_id,tr(on?'停用':conflict?'替换并启用':'启用',on?'Disable':conflict?'Replace and enable':'Enable'),async()=>{
+          const keep=active.filter(r=>!same(r,c.selection)&&(!conflict||!same(r,conflict.selection)));
+          if(!on&&keep.length>=2)throw new Error('ACTION_LIMIT');
+          s.activeGuidance=on?keep:[...keep,c.selection];s.guidanceTouched=true;s.guidanceReceipt=null;
+        },!on),
+      ]});
     }),
-    !choices.rules.length&&t(tr('尚无可用的持续提示。可从市场安装带协作提示的表情包。','No conversation guidance is available. Install a pack with guidance from the market.')),
-    s.guidanceExpression&&choices.once.length>0&&heading(tr('为这张表情选择提示：','Choose guidance for: ')+s.guidanceExpression.name),
-    ...choices.once.map(c=>col([
-      heading(c.action.effect_summary),t(tr('仅本次表达 · ','This expression only · ')+c.source.origin,true),t(c.action.instruction),
-      Button({key:'guidance-once:'+c.selection.action_revision_id,label:tr('附带这条提示发送','Send with this guidance'),onPress:()=>send($,s,s.guidanceExpression,undefined,c.selection)}),
-    ])),
+    !choices.rules.length&&ui.card({children:[
+      ui.label(tr('还没有可用的对话规则','No conversation rules yet'),inner),
+      ui.caption(tr('从表情市场安装带协作提示的表情包后，就能在这里启用。','Install a pack with guidance from the market to enable it here.'),inner),
+      button('guidance-market',tr('去表情市场','Open the market'),()=>navigate($,s,'market')),
+    ]}),
+    s.guidanceExpression&&choices.once.length>0&&ui.heading(tr('随「','Send “')+s.guidanceExpression.name+tr('」一起发送','” with guidance')),
+    ...choices.once.map(c=>ui.card({key:'guidance-once-card:'+c.selection.action_revision_id,gap:0,children:[
+      ui.label(localized(s,c.action.effect_summary),inner),
+      ui.body(localized(s,c.action.instruction),inner),
+      ui.meta([tr('仅本次表达','This expression only'),c.source.origin],inner),
+      Button({key:'guidance-once:'+c.selection.action_revision_id,label:tr('附带这条提示发送','Send with this guidance'),variant:'primary',onPress:()=>send($,s,s.guidanceExpression,undefined,c.selection)}),
+    ]})),
   ]);
 }

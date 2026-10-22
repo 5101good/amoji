@@ -1,4 +1,5 @@
 import { L } from "./transport.js";
+import { LINE, SURFACE } from "./ui-kit.js";
 import { edit, suggest, invalidate, save, newDraft, call, perform } from "./controller.js";
 
 // Workflow matches dsh's workbench; file access and native controls stay here.
@@ -44,9 +45,9 @@ export function creationView($, e, s, u) {
     fields.semantics.fallback && t(L(s, "图片无法显示时：", "Text fallback: ") + fields.semantics.fallback, true),
   ]);
   const artwork = col([
-    d.preview ? picture(d.preview, d.fields.name) : Box({ width: 12, height: 5,
-      borderStyle: "round", borderColor: "gray", alignItems: "center", justifyContent: "center",
-      children: [Text({ children: [L(s, "配一张图", "Add artwork")], dimColor: true })] }),
+    d.preview ? picture(d.preview, d.fields.name) : Box({ width: 14, height: 6,
+      borderStyle: "round", borderColor: LINE, backgroundColor: SURFACE, alignItems: "center", justifyContent: "center",
+      children: [Text({ children: [L(s, "＋ 配一张图", "＋ Add artwork")], dimColor: true })] }),
     input("image-path", L(s, "表情图片", "Artwork"), s.imagePath,
       value => edit(s, () => { s.imagePath = value; }),
       L(s, "粘贴图片路径，也可以稍后添加", "Paste an image path, or add it later")),

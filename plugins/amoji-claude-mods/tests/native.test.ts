@@ -27,19 +27,23 @@ const preview =
 const pictureClient = async (ui: any) => (await ui.findAll({ type: "Client" })).find((node: any) => node.props.module.endsWith("picture-input.js"));
 async function navigateTo(ui: any, tab: string, startDraft = true) {
   if (tab === "picker") { await ui.press({ key: "tab:picker" }); return; }
-  if (!(await ui.find({ key: "manager-section" }))) await ui.press({ key: "tab:library" });
-  await ui.select({ key: "manager-section", value: tab });
+  if (!(await ui.find({ key: "tab:market" }))) await ui.press({ key: "tab:library" });
+  await ui.press({ key: "tab:" + tab });
   if (tab === "create" && startDraft && !(await ui.find({ key: "intent" }))) await ui.press({ key: "new-draft" });
 }
+// The first test probes whether this engine draws size and weight; every later
+// test then mounts the hierarchy that engine would draw in Desktop.
+let engineVersion = "2.1.296";
 function backend(
   on: any,
   calls: any[],
   failSend = false,
   model = () => "haiku",
   respond = (request: any, result: any) => result,
-  language = "中文",
+  language: string | null = "中文",
+  env: Record<string, string> = {},
 ) {
-  on("env.get", () => ({ value: undefined }));
+  on("env.get", ($: any, e: any) => ({ value: env[e.name] }));
   on("clock.now", () => ({ value: 1000 }));
   on("ui.close", () => ({ value: undefined }));
   on("ui.open", () => ({ value: { isPlaced: true } }));
@@ -47,6 +51,7 @@ function backend(
   on("session.id", () => ({ value: "native-test" }));
   on("session.turns", () => ({ value: 1 }));
   on("session.model", () => ({ value: model() }));
+  try { on("session.version", () => ({ value: { version: engineVersion } })); } catch {}
   on("settings.read", () => ({ value: { language } }));
   on("process.run", async ($: any, e: any) => {
     const request = JSON.parse(e.init.stdin);
@@ -137,6 +142,22 @@ function backend(
     };
   });
 }
+test("探测引擎排版能力", async ($, on) => {
+  engineVersion = "2.1.304";
+  backend(on, []);
+  try {
+    const ui = await $.ui.mount(pane);
+    const title = await ui.find({ type: "Text", text: "用表情表达" });
+    expect(title.props.size).toBe("heading");
+    expect(title.props.weight).toBe("semibold");
+    await ui.unmount();
+  } catch (error) {
+    // Older engines refuse the rich tree; Amoji then reports their version.
+    if (!/"size" is not allowed/.test(String(error))) throw error;
+    engineVersion = "2.1.296";
+  }
+});
+
 test("原生入口、图片和一次点击纯文字提交", async ($, on) => {
   const calls: any[] = [];
   backend(on, calls);
@@ -156,7 +177,8 @@ test("原生入口、图片和一次点击纯文字提交", async ($, on) => {
   const ui = await $.ui.mount(pane);
   expect(await ui.find({ key: "send:asset-1" })).toBeDefined();
   expect(await pictureClient(ui)).toBeDefined();
-  expect(await ui.find({ type: "Svg" })).toBeUndefined();
+  expect(await ui.find({ type: "Markdown" })).toBeUndefined();
+  expect((await ui.find({ type: "Svg" })).props.source).toContain(preview);
   await ui.press({ key: "send:asset-1" });
   expect(sent).toContain("一起加油");
   expect(sent.includes("base64")).toBe(false);
@@ -492,7 +514,7 @@ test("先加载再打开侧栏，界面渲染不重复启动 Node", async ($, on
   expect(calls.some((c) => c.command === "browse")).toBe(true);
   const ui = await $.ui.mount(pane);
   expect(await pictureClient(ui)).toBeDefined();
-  expect(await ui.find({ type: "Svg" })).toBeUndefined();
+  expect(await ui.find({ type: "Svg" })).toBeDefined();
   expect(calls.length).toBe(count);
   await ui.unmount();
   await entry.unmount();
@@ -519,11 +541,12 @@ test("完整可见窗口在预算内绘制且不出现分页控件", async ($, o
   );
   const ui = await $.ui.mount({ ...pane, viewport: { columns: 52, rows: 40 } });
   expect((await ui.findAll({ type: "Client" })).filter(node => node.props.module.endsWith("picture-input.js")).length).toBe(20);
-  expect((await ui.findAll({ type: "Svg" })).length).toBe(0);
   expect(await ui.find({ key: "previous" })).toBeUndefined();
   expect(await ui.find({ key: "next" })).toBeUndefined();
-  // Full 2x raster data fits the native Markdown text budget without clipping.
-  expect((await ui.findAll({ type: "Markdown", text: "![一起加油](data:image/avif;base64," + "A".repeat(4468) + ")" })).length).toBe(20);
+  // Every visible sticker carries its full 2x raster, unclipped.
+  const stickers = await ui.findAll({ type: "Svg" });
+  expect(stickers.filter((n: any) => n.props.source.includes("data:image/avif;base64," + "A".repeat(4468) + '"')).length).toBe(20);
+  expect(await ui.find({ type: "Markdown" })).toBeUndefined();
   await ui.unmount();
 });
 
@@ -734,12 +757,19 @@ test("子代理视图不向主会话误发，首次入口跟随英文配置", as
   const calls: any[] = [];
   backend(on, calls, false, () => "haiku", (_request, result) => result, "English");
   const entry = await $.ui.mount({ plugin: "amoji", component: "AbovePrompt", surface: "desktop", props: {} });
-  expect(await entry.find({ key: "amoji-open", text: /Expressions/ })).toBeDefined();
+  expect(await entry.find({ key: "amoji-open", text: /Amoji/ })).toBeDefined();
+  expect(await entry.find({ type: "Svg" })).toBeDefined();
   await entry.unmount();
+  const text = await $.ui.mount({ plugin: "amoji", component: "AbovePrompt", surface: "terminal", props: {} });
+  expect(await text.find({ key: "amoji-open", text: /Expressions/ })).toBeDefined();
+  await text.unmount();
+  // The band reads its quick strip once; the subagent pane reads nothing.
+  expect(calls.every(c => c.command === "browse")).toBe(true);
+  const before = calls.length;
   const ui = await $.ui.mount({ ...pane, props: { ...pane.props, view: { agentId: "child" } } });
   expect(await ui.find({ type: "Text", text: /main conversation/ })).toBeDefined();
   expect(await pictureClient(ui)).toBeUndefined();
-  expect(calls.length).toBe(0);
+  expect(calls.length).toBe(before);
   await ui.unmount();
 });
 
@@ -782,7 +812,7 @@ test("导航 Client 在焦点重绘间保留完整点击，旧页面控件不会
   await ui.redraw({ ...pane.props, isFocused: false });
   await ui.redraw({ ...pane.props, isFocused: true });
   await ui.pointer({ in: key, type: "up", x: 3, y: 0, button: "left" });
-  expect(await ui.find({ key: "manager-section" })).toBeDefined();
+  expect(await ui.find({ key: "tab:market" })).toBeDefined();
   expect(calls.filter(c => c.command === "createDraft").length).toBe(0);
   await ui.post({ action: "press" }, { in: key }).catch(() => {});
   expect(calls.filter(c => c.command === "createDraft").length).toBe(0);
@@ -795,7 +825,7 @@ test("选择器与管理分层，画风和场景筛选保留搜索，发送保�
     ? { ...result, categories: ["进度", "反馈"] } : result);
   on("prompt.submit", ($, e) => ({ text: e.text }));
   const ui = await $.ui.mount(pane);
-  expect(await ui.find({ key: "manager-section" })).toBeUndefined();
+  expect(await ui.find({ key: "tab:market" })).toBeUndefined();
   await ui.press({ key: "appearance:office" });
   expect(calls.find(c => c.command === "updateSettings").args.preferences.appearance).toBe("office");
   await ui.input({ key: "search", text: "鼓励" });
@@ -864,7 +894,9 @@ test('市场预览不会安装，安装后可发送且只提交固定文字语�
     const {method}=r.args;
     if(method==='operationId')return 'operation-1';
     if(method==='local')return {installs:installed?[{release_id:release.release_id,manifest:release.manifest,refs:[expression]}]:[],collections:[]};
-    if(method==='search')return {packs:[release],stale:false,last_checked_at:'2026-10-20'};
+    // Search rows are summaries: counts and author, never the full manifest.
+    if(method==='search')return {packs:[{pack_id:release.pack_id,release_id:release.release_id,author:'Amoji',expression_count:1,action_count:0,
+      manifest:{name:release.manifest.name,description:'',scenario:release.manifest.scenario,version:release.manifest.version}}],stale:false,last_checked_at:'2026-10-20'};
     if(method==='detail')return release;
     if(method==='visual')return preview;
     if(method==='install'){installed=true;return{status:'committed'};}
@@ -873,6 +905,8 @@ test('市场预览不会安装，安装后可发送且只提交固定文字语�
   on('prompt.submit',($,e)=>{submitted.push(e.text);return{text:e.text};});
   const ui=await $.ui.mount(pane);
   await navigateTo(ui,'market');
+  expect(await ui.find({type:'Text',text:/Amoji · 1 个表情/})).toBeDefined();
+  expect(await ui.find({type:'Text',text:'\n'})).toBeUndefined();
   await ui.press({key:'market-open:release-1'});
   expect(calls.filter(c=>c.command==='marketplace'&&c.args.method==='install').length).toBe(0);
   expect(await ui.find({type:'Text',text:'鼓励一起继续'})).toBeDefined();
@@ -942,6 +976,8 @@ test('协作提示只由用户选择后附加，安装和模型工具不能启�
  await ui.press({key:'send:asset-1'});
  expect(contexts[0]).toBeUndefined();
  await navigateTo(ui,'guidance');
+ expect(await ui.find({type:'Text',text:'先给答案，再说明依据。'})).toBeDefined();
+ expect(await ui.find({type:'Text',text:/"template"|response-organization@1/})).toBeUndefined();
  await ui.press({key:'guidance-enable:ar1'});
  await navigateTo(ui,'picker');await ui.press({key:'send:asset-1'});
  expect(origins[1]).toEqual({kind:'plugin',name:'amoji',asUser:true});
@@ -973,4 +1009,87 @@ test('组织新表情包需重新核对修改后的内容，保存草稿不会�
  expect(await ui.find({key:'scenario-confirm'})).toBeUndefined();
  expect(calls.some(c=>c.command==='publisher')).toBe(false);
  await ui.unmount();
+});
+
+test("旧引擎只用粗体与暗色表达层级", async ($, on) => {
+  const current = engineVersion;
+  engineVersion = "2.1.296";
+  try {
+    backend(on, []);
+    const ui = await $.ui.mount(pane);
+    const title = await ui.find({ type: "Text", text: "用表情表达" });
+    expect(title.props.size).toBeUndefined();
+    expect(await ui.find({ type: "Text", text: /固定语义/ })).toBeDefined();
+    await ui.unmount();
+  } finally { engineVersion = current; }
+});
+
+test("详情把固定语义分栏呈现，空结果给出创建入口", async ($, on) => {
+  const calls: any[] = [];
+  let empty = false;
+  backend(on, calls, false, () => "haiku", (request, result) =>
+    request.command === "browse" && empty ? { items: [], total: 0, offset: 0, categories: [] } : result);
+  const ui = await $.ui.mount(pane);
+  await navigateTo(ui, "library");
+  await ui.press({ key: "details:asset-1" });
+  expect(await ui.find({ type: "Text", text: "鼓励一起继续" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "文字回退" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "内置" })).toBeDefined();
+  await ui.press({ key: "detail-back" });
+  empty = true;
+  await ui.input({ key: "search", text: "不存在" });
+  expect(await ui.find({ type: "Text", text: "没有找到「不存在」" })).toBeDefined();
+  expect(await ui.find({ key: "empty-create" })).toBeDefined();
+  expect(await ui.find({ key: "clear-search" })).toBeDefined();
+  await ui.unmount();
+});
+
+for (const surface of ["desktop", "terminal"] as const)
+test(`各页面在 ${surface} 都能完整绘制`, async ($, on) => {
+  backend(on, [], false, () => "haiku", (r, result) => {
+    if (r.command === "marketplace") return r.args.method === "local" ? { installs: [], collections: [] } : { packs: [], stale: false };
+    if (r.command === "publisher") return r.args.method === "drafts" ? [] : { state: "signed_out" };
+    if (r.command === "scenario") return { packs: [], drafts: [] };
+    if (r.command === "guidance") return { rules: [], once: [] };
+    return result;
+  });
+  const ui = await $.ui.mount({ ...pane, surface });
+  for (const tab of ["library", "market", "publish", "guidance", "create", "settings", "packs", "picker"]) {
+    await navigateTo(ui, tab, false);
+    expect(await ui.find({ key: "tab:picker" }) || await ui.find({ key: "tab:library" })).toBeDefined();
+  }
+  await navigateTo(ui, "library");
+  await ui.press({ key: "details:asset-1" });
+  expect(await ui.find({ key: "detail-back" })).toBeDefined();
+  await ui.unmount();
+});
+
+test("输入框上方的表情条可直接发送，发送中隐藏表情条并显示状态", async ($, on) => {
+  const calls: any[] = [];
+  const sent: string[] = [];
+  backend(on, calls);
+  on("prompt.submit", ($, e) => { sent.push(e.text); return { text: e.text }; });
+  const band = await $.ui.mount({ plugin: "amoji", component: "AbovePrompt", surface: "desktop", props: {} });
+  await band.redraw();
+  const strip = (await band.findAll({ type: "Client" })).filter((n: any) => n.props.module.endsWith("picture-input.js"));
+  expect(strip.length).toBe(1);
+  // The fixed meaning waits, hidden, for the pointer on its sticker.
+  expect(await band.find({ type: "Text", text: "鼓励一起继续" })).toBeDefined();
+  const key = strip[0].props.key as string;
+  await band.resize({ in: key, columns: 4, rows: 2 });
+  await band.pointer({ in: key, type: "down", x: 1, y: 0, button: "left" });
+  await band.pointer({ in: key, type: "up", x: 1, y: 0, button: "left" });
+  expect(sent.length).toBe(1);
+  expect(sent[0]).toContain("一起加油");
+  await band.redraw();
+  expect(await band.find({ type: "Text", text: /等待/ })).toBeDefined();
+  expect((await band.findAll({ type: "Client" })).filter((n: any) => n.props.module.endsWith("picture-input.js")).length).toBe(0);
+  await band.unmount();
+});
+
+test("未设置 language 时按系统语言显示界面", async ($, on) => {
+  backend(on, [], false, () => "haiku", (_request, result) => result, null, { LANG: "en_US.UTF-8" });
+  const ui = await $.ui.mount(pane);
+  expect(await ui.find({ type: "Text", text: "Say it with an expression" })).toBeDefined();
+  await ui.unmount();
 });

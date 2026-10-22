@@ -9,8 +9,10 @@ export function controls($, e, s) {
   const context = site === "AbovePrompt" ? "entry" :
     s.tab === "create" ? `${s.tab}:${s.step}:${s.draft?.draft_id || ""}:${s.draft?.version || 0}:${s.editEpoch}:${s.reviewed}` :
     `${s.tab}:${s.detail?.expression.asset_id || ""}:${s.detail?.version || 0}:${s.transfer || ""}:${!!s.selecting}`;
-  return (props) => {
-    const native = Button(props);
+  // `lead` (a mark or icon) is drawn before the button and shares its press.
+  return ({ lead, ...props }) => {
+    const button = Button(props);
+    const native = lead ? Box({ flexDirection: "row", alignItems: "center", gap: 0, children: [lead, button] }) : button;
     if (e.surface !== "desktop" || !Client || s.controlFault) return native;
     const key = `control:${site}:${context}:${props.key}`;
     if (!s.busy) targets.set(key, props.onPress);

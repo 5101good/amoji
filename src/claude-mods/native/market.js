@@ -3,7 +3,19 @@ export function marketCall($,s,method,args={}) { return bridge($,s.context,'mark
 export function publisherCall($,s,method,args={}) { return bridge($,s.context,'publisher',{method,args}); }
 export async function refreshMarket($,s,search=true) {
   s.marketLocal=await marketCall($,s,'local');
-  if(search)s.marketRows=await marketCall($,s,'search',{query:s.marketQuery||'',...(s.marketFilters||{})});
+  if(search){s.marketRows=await marketCall($,s,'search',{query:s.marketQuery||'',...(s.marketFilters||{})});loadCovers($,s);}
+}
+// Covers arrive after the list: a first download can take seconds, and the
+// list must not wait for it. Each cover is fetched once per session.
+export function loadCovers($,s) {
+  s.marketCovers??={};
+  for(const p of s.marketRows?.packs||[]){
+    if(!p.cover?.sha256||p.release_id in s.marketCovers)continue;
+    s.marketCovers[p.release_id]=null;
+    marketCall($,s,'visual',{pack_id:p.pack_id,release_id:p.release_id,digest:p.cover.sha256})
+      .then(v=>{s.marketCovers[p.release_id]=v;$.ui.invalidate('ui.render');})
+      .catch(()=>{});
+  }
 }
 export async function showRelease($,s,pack_id,release_id) {
   const release=await marketCall($,s,'detail',{pack_id,...(release_id?{release_id}:{})});

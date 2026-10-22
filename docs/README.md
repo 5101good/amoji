@@ -10,6 +10,9 @@
 | 安装、升级、备份和故障恢复 | [dsh 安装指南](dsh-installation.md) |
 | 发送表情、创作、偏好、导入导出 | [使用指南](usage.md) |
 | 理解固定语义、版本和投递状态 | [架构与协议](architecture.md) |
+| 评审下一代表情协议（将取代现有协议） | [Amoji 协议 0.1 RFC 草案](specs/amoji-0.1-rfc.md) |
+| 让 AI 创作整套 0.1 表情包 | [Amoji Studio 创作 skill](../plugins/amoji-studio/README.md) |
+| 0.1 的验证与实施材料（待排期） | [待排期输入](plans/amoji-0.1-backlog.md) |
 | 本地构建、测试和贡献 | [开发指南](development.md)、[贡献指南](../CONTRIBUTING.md) |
 | 了解兼容范围与未验证项 | [发布与已知限制](release.md) |
 | 阅读 1.0 发布正文 | [v1.0.0](releases/v1.0.0.md) |

@@ -30,6 +30,8 @@ Show the act through **body language**, not props or text:
 | --- | --- |
 | ack | Small nod or a check gesture (thumbs-up is not universal) |
 | clarify | Head tilt, question-mark posture, squinting at a page |
+| elaborate | Leaning in, magnifying glass on a blurry note |
+| example | Holding up a single small object or card to show |
 | not-what-i-meant | Gentle "no, no" hand wave, pointing to another direction |
 | continue | Forward-walking pose, rolling hand gesture |
 | hold | Palm out, calm "one moment" |

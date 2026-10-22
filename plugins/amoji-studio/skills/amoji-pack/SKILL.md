@@ -36,7 +36,7 @@ Refuse or redirect requests to imitate existing copyrighted characters, brands o
 
 ### 2. Plan the acts
 
-1. Run `amoji_pack.py acts --locale <lang>` to see the 32 core acts with their directions and expected responses.
+1. Run `amoji_pack.py acts --locale <lang>` to see the core acts in the current registry revision, with their directions and expected responses.
 2. Pick the acts that fit the size and the character's personality. A character pack does not need every act.
 3. **Show the plan as a table and get the user's confirmation before generating any art**, because art is the expensive step. Columns: slug, act, name, one-line meaning, intensity.
 

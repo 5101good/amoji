@@ -2,7 +2,7 @@
 
 This file condenses the parts of the Amoji 0.1 protocol that a pack author needs. The full RFC lives at `docs/specs/amoji-0.1-rfc.md` in the Amoji repository. `registry.json` beside this file is the machine-readable act registry, and the build script reads it directly.
 
-The protocol is **experimental**: acts are `provisional` and may still change. If the script says an act does not exist, trust the script.
+The protocol is **experimental**: acts are `provisional` and may still change between registry revisions (`registry.json` → `revision`). If the script says an act does not exist, trust the script.
 
 ## Principles that affect authors
 
@@ -21,7 +21,7 @@ Each act has a `family` and allowed directions: `h2a` (person → AI) and `a2h` 
 
 | Family | Purpose | Acts |
 | --- | --- | --- |
-| grounding | Did we understand each other? | ack, clarify, elaborate, not-what-i-meant, misread |
+| grounding | Did we understand each other? | ack, clarify, elaborate, example, not-what-i-meant, misread |
 | steering | Direction and pace | continue, hold, stop, redirect, to-the-point, stepwise, rest |
 | progress | Where the work is | checkin, still-failing, claim, working, blocked, decide, ready |
 | epistemic | Judgements | uncertain, idea, concern, affirm, disagree |

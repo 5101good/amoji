@@ -46,7 +46,9 @@ function parseRegistry(markdown) {
     });
   }
   if (new Set(acts.map(a => a.act)).size !== acts.length) throw new Error('Duplicate act in Appendix A');
-  return { kind: 'amoji.registry', amoji: '0.1', status: 'provisional', acts };
+  const revision = /^注册表修订：(\S+)$/m.exec(appendix)?.[1];
+  if (!revision) throw new Error('Registry revision line not found in Appendix A');
+  return { kind: 'amoji.registry', amoji: '0.1', revision, status: 'provisional', acts };
 }
 
 const registry = `${JSON.stringify(parseRegistry(await readFile(rfc, 'utf8')), null, 2)}\n`;

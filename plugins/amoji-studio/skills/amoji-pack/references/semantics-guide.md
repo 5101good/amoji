@@ -9,8 +9,8 @@ The semantics are what the AI actually reads. A beautiful picture with vague sem
 | Set | Acts |
 | --- | --- |
 | Starter (8) | ack, clarify, not-what-i-meant, continue, thanks, celebrate, uncertain, oops |
-| Collaboration (16) | Starter + elaborate, redirect, to-the-point, still-failing, working, blocked, affirm, encourage |
-| Complete (31) | Every act except `stop`. The host's own stop button covers it; add `stop` only if the user wants art for it |
+| Collaboration (16) | Starter + elaborate, example, redirect, to-the-point, still-failing, blocked, affirm, concern |
+| Complete | Every act except `stop`. The host's own stop button covers it; add `stop` only if the user wants art for it |
 
 ### Character packs
 
@@ -35,7 +35,7 @@ The same act may appear more than once with different intensity or nuance. For e
 
 ### Rules for `meaning`
 
-- **Narrow the act; never change it.** For `core:clarify` you may say "please give me a simpler version with an example". You may not turn it into "I disagree".
+- **Narrow the act; never change it.** For `core:clarify` you may say "please say it more simply, in plain words". You may not turn it into "I disagree", and you may not ask for an example: that is `core:example`.
 - **No approval language.** Even for `core:continue` and `core:affirm`, never write "I approve", "go ahead and run it", "允许执行" or similar. Write "carry on in the direction we already agreed" instead.
 - **AI-facing honesty.** If the AI may send the picture (`a2h` is in its directions), describe a stance, not a feeling:
   - Good: "I can see how much effort went into this."

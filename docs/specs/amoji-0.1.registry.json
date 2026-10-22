@@ -1,6 +1,7 @@
 {
   "kind": "amoji.registry",
   "amoji": "0.1",
+  "revision": "0.1-r3",
   "status": "provisional",
   "acts": [
     {
@@ -60,8 +61,8 @@
         "h2a": {
           "expects": "detail",
           "gloss": {
-            "zh-CN": "说具体些，或举个例子",
-            "en": "Be more specific, or give an example"
+            "zh-CN": "说具体些",
+            "en": "Be more specific"
           }
         },
         "a2h": {
@@ -69,6 +70,30 @@
           "gloss": {
             "zh-CN": "能再具体一点吗",
             "en": "Could you give me more detail?"
+          }
+        }
+      },
+      "grounded": false,
+      "pressure_sensitive": false
+    },
+    {
+      "act": "core:example",
+      "family": "grounding",
+      "status": "provisional",
+      "authority": "none",
+      "forms": {
+        "h2a": {
+          "expects": "example",
+          "gloss": {
+            "zh-CN": "举个例子",
+            "en": "Give me an example"
+          }
+        },
+        "a2h": {
+          "expects": "example",
+          "gloss": {
+            "zh-CN": "能举个例子吗",
+            "en": "Could you give me an example?"
           }
         }
       },

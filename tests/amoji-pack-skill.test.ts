@@ -22,7 +22,8 @@ test('act registry copies match Appendix A of the RFC', () => {
 test('registry keeps the protocol invariants', async () => {
   const registry = JSON.parse(await readFile(resolve(root, 'docs/specs/amoji-0.1.registry.json'), 'utf8'));
   const acts: Array<{ act: string; authority: string; forms: Record<string, { gloss: Record<string, string> }> }> = registry.acts;
-  assert.equal(acts.length, 32);
+  assert.equal(registry.revision, '0.1-r3');
+  assert.equal(acts.length, 33);
   assert.ok(!acts.some(a => /approve|allow|yes/.test(a.act)), 'no approval act exists');
   assert.deepEqual(acts.filter(a => a.authority === 'reduce').map(a => a.act).sort(), ['core:hold', 'core:stop']);
   for (const a of acts) for (const [direction, form] of Object.entries(a.forms)) {

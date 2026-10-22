@@ -18,7 +18,7 @@ Amoji 0.1 把表情从“一张带说明的贴纸”重新定义为**人与 AI �
 
 协议由五层组成：
 
-1. **码位注册表**：一组封闭、稳定、与语言无关的沟通行为（act），共 28 个核心码位。
+1. **码位注册表**：一组封闭、稳定、与语言无关的沟通行为（act），共 31 个核心码位。
 2. **表情**：码位的一种视觉实现，相当于字体里的一个字形。
 3. **包**：表情和可选协作效果的发布单元。
 4. **消息**：一次表达，可以锚定到某一句话、不打断回合、提供快捷回复、被撤回。
@@ -125,6 +125,8 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `input` | 需要对方提供信息 |
 | `decision` | 需要对方做一个选择 |
 | `review` | 请对方查看结果 |
+| `reconsider` | 重新考虑，或给出依据 |
+| `adjust` | 调整协作方式：更短、更直接、先给结果 |
 
 ### 5.4 不可变与治理
 
@@ -514,6 +516,7 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 4. 包签名：是否在市场审核之外，引入作者签名？
 5. 跨宿主同步时，`glyph_policy: prefer` 换字形的记录应该存在哪一端？
 6. `core:stop` 和宿主自身的“停止生成”按钮如何统一？
+7. 是否为 `stance` 增加可选的情绪维度（如效价 / 唤醒度），只供人方使用，帮助 AI 更细地调整回应？见附录 A.6。
 
 ---
 
@@ -540,13 +543,13 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 3. 投影与工具 → `src/projection.ts`、`src/search.ts`、`src/mcp-server.ts`、`src/claude-mcp-server.ts`：实现 `amoji_express` 和能力卡
 4. 效果 → `src/conversation-envelope.ts`、`src/collaboration.ts`、`src/conversation-rules.ts`
 5. 宿主 → `src/dsh/*`（目标 C3）、`src/claude-mods/*`（目标 C2）
-6. 内容 → 重建 `assets/base-library`、`assets/official-packs`、`assets/scenario-packs`，并按附录 B 补齐 `realizes` 与 `stance`；为 `core:stop`、`core:blocked` 补画官方字形
+6. 内容 → 重建 `assets/base-library`、`assets/official-packs`、`assets/scenario-packs`，并按附录 B 补齐 `realizes` 与 `stance`；为 `core:stop`、`core:blocked`、`core:disagree`、`core:sorry`、`core:frustrated` 补画官方字形
 7. 市场 → `apps/marketplace` 校验链与线上数据重置
 8. 文档 → `docs/architecture.md`、`docs/usage.md` 及英文版
 
 ---
 
-## 附录 A：核心码位表（28 个）
+## 附录 A：核心码位表（31 个）
 
 方向：`h2a` 人对 AI，`a2h` AI 对人，`↔` 双向。
 标记：**R** = `authority: reduce`；**G** = `grounding_required`；**P** = `pressure_sensitive`。
@@ -570,6 +573,7 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `core:redirect` | h2a | realign | | 方向不对，先回到原本的目标 | Off track — let's realign on the goal |
 | `core:stepwise` | ↔ | decompose | | 一步一步来 | One step at a time |
 | `core:rest` | ↔ | none | | 先喘口气，不急着推进 | Let's take a breather |
+| `core:frustrated` | h2a | adjust | | 有点着急，或有点烦了 | I'm getting frustrated |
 
 ### A.3 进展 progress
 
@@ -590,6 +594,7 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `core:idea` | ↔ | none | | 有个想法或另一种可能 | Here's an idea |
 | `core:concern` | ↔ | none | | 这里可能有问题，原因待查 | Something may be wrong here |
 | `core:affirm` | ↔ | none | | 这个不错（评价，不是批准） | This looks good (an assessment, not an approval) |
+| `core:disagree` | ↔ | reconsider | | 我不认同这个结果或判断 | I don't agree with this |
 | `core:surprise` | ↔ | none | | 竟然还能这样 | Didn't see that coming |
 
 ### A.5 关系 social
@@ -603,12 +608,26 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | `core:recognize` | ↔ | none | G P | 看到了你的投入，辛苦了 | I see the effort you've put in |
 | `core:oops` | ↔ | none | | 小失误，挠头苦笑 | Oops — my bad |
 | `core:company` | ↔ | none | P | 陪你一会儿，不急着解决 | I'm here with you; no rush to fix it |
+| `core:sorry` | ↔ | none | | 抱歉 | Sorry |
 
 说明：
 
 - 刻意**没有** `core:approve`、`core:allow`、`core:yes` 等码位（P3）。
 - `G` 和 `P` 只约束 AI 方向；人方发送不受限制。
 - `core:checkin` 合并了旧的“进度如何 / 还在吗 / 卡在哪里”，三者的差异由各自表情的 `meaning` 承载。
+- `core:disagree` 与 `core:affirm` 成对：前者针对结果或判断本身；`core:redirect` 针对推进方向，`core:concern` 针对疑似缺陷。AI 也可以用它坦率地表示不同意。
+- `core:sorry` 是正式道歉，区别于 `core:oops`（自嘲）和 `core:misread`（承认误解并承诺纠正）。
+- `core:frustrated` 只允许人对 AI，归入方向与节奏类，因此可以在 AI 输出过程中以 `backchannel` 发送。AI 收到后**应当**按 `adjust` 收紧回应，不得回以情绪化表达或说教。
+
+### A.6 为什么不设独立的情绪类
+
+码位按“这个表情要对协作做什么”划分，而不是按情绪划分。情绪按三条规则处理：
+
+1. **会改变对方行为的情绪，才成为码位**，并且归入它所起作用的类别。例如困惑 → `core:clarify`，着急 → `core:frustrated`，惊喜 → `core:surprise`，开心 → `core:celebrate`。
+2. **不改变协作行为的情绪**（如难过、疲惫、焦虑），由字形画面和表情的 `meaning` 承载，归到最接近的码位下（例如疲惫 → `core:rest`，需要陪伴 → `core:company`）。
+3. **AI 方向不提供“我很开心 / 我很难过”这类情绪声明**（P6）。AI 表情表达的是沟通姿态。
+
+如果确实需要更细的情绪维度，应当作为 `stance` 的一个可选维度扩展，而不是增加码位。见 §17。
 
 ## 附录 B：现有官方表情的码位映射
 
@@ -637,4 +656,4 @@ label    = 1*32( %x61-7A / DIGIT / "-" ) ; 小写字母、数字、连字符
 | 像素搭档 | 认真处理中 → `working` · 揪出小问题 → `concern` · 有个小点子 → `idea` · 这一关过了 → `celebrate` |
 | 慢半拍猫 | 先喘口气 → `rest` · 让我想想 → `working` · 陪你一会儿 → `company` · 一小步也算 → `recognize` |
 
-覆盖情况：经典、办公各覆盖 21/28（缺 `stop`、`blocked`、`rest`、`idea`、`concern`、`surprise`、`company`）；全部官方包合计覆盖 26/28，只有 `core:stop` 和 `core:blocked` 目前没有任何官方字形。
+覆盖情况：经典、办公各覆盖 21/31（缺 `stop`、`blocked`、`rest`、`idea`、`concern`、`surprise`、`company`、`disagree`、`sorry`、`frustrated`）；全部官方包合计覆盖 26/31，`core:stop`、`core:blocked`、`core:disagree`、`core:sorry`、`core:frustrated` 目前没有任何官方字形。

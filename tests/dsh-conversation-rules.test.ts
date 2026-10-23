@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fixture } from './helpers/dsh-correlated.js';
 export async function hooks(c:any,ref:any){
- let d=await c.createScenarioDraft([ref]);
- const actions=[...['answer-first','concise','example-first'].map(layout=>({template:'response-organization@1',config:{layout},conflict_group:'response-organization'})),{template:'completion-self-check@1',config:{evidence:'required',unknowns:'explicit'},conflict_group:'completion-report'}].map(x=>({...x,action_id:randomUUID(),action_revision_id:randomUUID(),kind:'hook',scope:'conversation',locale:'zh-CN',effect_summary:'当前会话文字指导',rights:{license:'CC0-1.0'}}));
- d=await c.saveScenarioDraft(d.draft_id,d.version,{...d.manifest,actions});await c.confirmScenarioDraft(d.draft_id,d.version);
- return actions.map(a=>({release_id:d.manifest.release_id,action_id:a.action_id,action_revision_id:a.action_revision_id}));
+ let d=await c.createPackDraft([ref]);const text=(v:string)=>Object.fromEntries(d.manifest.locales.map((l:string)=>[l,v]));
+ const effects=[...['answer-first','concise','example-first'].map(layout=>({template:'response-organization@1',config:{layout}})),{template:'completion-self-check@1',config:{evidence:'required',unknowns:'explicit'}}].map(x=>({...x,effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'template',title:text('当前会话文字指导'),summary:text('当前会话文字指导')}));
+ d=await c.savePackDraft(d.draft_id,d.version,{...d.manifest,effects});const pack=await c.confirmPackDraft(d.draft_id,d.version);
+ return effects.map(a=>({release_id:pack.release_id,effect_id:a.effect_id,effect_revision_id:a.effect_revision_id}));
 }
+const own=(choices:any[],release:string)=>choices.filter((c:any)=>c.selection.release_id===release);
 test('规则公开RPC仅显式启用，精确来源、CAS明确替换与逐条全部停用',async t=>{
  const f=await fixture(t);const choices=await hooks(f.c,f.ref);
  const read=()=>f.call('collaboration.rules',{}) as Promise<any>;
- let state=await read();assert.equal(state.generation,0);assert.equal(state.choices.length,4);assert.equal(state.rules.length,0);
+ let state=await read();assert.equal(state.generation,0);assert.equal(own(state.choices,choices[0]!.release_id).length,4);assert.equal(state.rules.length,0);
  state=await f.call('collaboration.enable',{selection:choices[0],generation:0,replace:null});
  assert.equal(state.rules[0].status,'configured');assert.equal(state.rules[0].source.release_id,choices[0]!.release_id);
  await assert.rejects(f.call('collaboration.enable',{selection:choices[1],generation:0,replace:choices[0]}),/RULE_STALE/);
@@ -19,7 +20,7 @@ test('规则公开RPC仅显式启用，精确来源、CAS明确替换与逐条�
  state=await f.call('collaboration.enable',{selection:choices[1],generation:1,replace:choices[0]});
  state=await f.call('collaboration.enable',{selection:choices[3],generation:state.generation,replace:null});
  assert.equal(state.rules.filter((r:any)=>r.enabled).length,2);
- state=await f.call('collaboration.disable',{selection:choices[1],generation:state.generation});assert.equal(state.rules.find((r:any)=>r.selection.action_id===choices[1]!.action_id).status,'disabled');
+ state=await f.call('collaboration.disable',{selection:choices[1],generation:state.generation});assert.equal(state.rules.find((r:any)=>r.selection.effect_id===choices[1]!.effect_id).status,'disabled');
  state=await f.call('collaboration.disableAll',{generation:state.generation});assert.ok(state.rules.every((r:any)=>r.status==='disabled'));assert.equal(f.host.provider.requests.length,0);
 });
 
@@ -43,9 +44,9 @@ test('真实driver：三种layout、完成自检、刷新恢复、逐条停用�
 });
 test('真实driver：一次性同组覆盖一回合，下一输入恢复持续偏好',async t=>{
  const f=await fixture(t);const choices=await hooks(f.c,f.ref);await f.call('collaboration.enable',{selection:choices[0],generation:0,replace:null});
- let d=await f.c.createScenarioDraft([f.ref]);const action={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'instruction' as const,scope:'turn' as const,locale:'zh-CN',effect_summary:'一次性简短',conflict_group:'response-organization' as const,instruction:'ONLY THIS TURN',rights:{license:'CC0-1.0'}};
- d=await f.c.saveScenarioDraft(d.draft_id,d.version,{...d.manifest,actions:[action],bindings:[{expression:f.ref,actions:[{action_id:action.action_id,action_revision_id:action.action_revision_id}]}]});await f.c.confirmScenarioDraft(d.draft_id,d.version);
- await f.apply({ref:f.ref,requestId:'once',action:{...action,release_id:d.manifest.release_id}});await f.live.whenIdle();assert.equal(snapshots(f.live).at(-1).rules.length,0);assert.equal(snapshots(f.live).at(-1).instruction.instruction,'ONLY THIS TURN');
+ let d=await f.c.createPackDraft([f.ref]);const text=(v:string)=>Object.fromEntries(d.manifest.locales.map(l=>[l,v]));const effect={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'context' as const,title:text('一次性简短'),summary:text('一次性简短'),conflict_group:'response-organization' as const,instruction:text('ONLY THIS TURN')};
+ d=await f.c.savePackDraft(d.draft_id,d.version,{...d.manifest,effects:[effect],bindings:[{target:f.ref,effects:[effect.effect_id]}]});const pack=await f.c.confirmPackDraft(d.draft_id,d.version);
+ await f.apply({ref:f.ref,requestId:'once',effect:{release_id:pack.release_id,effect_id:effect.effect_id,effect_revision_id:effect.effect_revision_id}});await f.live.whenIdle();assert.equal(snapshots(f.live).at(-1).rules.length,0);assert.equal(snapshots(f.live).at(-1).instruction.instruction,'ONLY THIS TURN');
  f.live.followup(input('next'));await f.live.whenIdle();assert.equal(f.host.provider.requests.length,2);assert.equal(snapshots(f.live).at(-1).rules.length,1);assert.equal(snapshots(f.live).at(-1).instruction,null);
 });
 test('真实driver：两个模板工具续答停用、自然结束不追加请求，取消不报附加',async t=>{
@@ -77,16 +78,16 @@ test('停用后插件重载必须在下一真实输入覆盖旧快照，不唤�
 
 test('公开存储更新/移除停用精确版本；浏览、AI发送和安装不授权',async t=>{
  const f=await fixture(t);const choices=await hooks(f.c,f.ref);await f.call('collaboration.enable',{selection:choices[0],generation:0,replace:null});
- const {exportManifest}=await import('../src/packs.js');const {readFile}=await import('node:fs/promises');const original=await f.c.getScenarioPack(choices[0]!.release_id);
- const pack={...original,release_id:randomUUID(),version:2,actions:original.actions.map(a=>({...a,action_revision_id:randomUUID()}))};
+ const {exportManifest}=await import('../src/packs.js');const {readFile}=await import('node:fs/promises');const original=await f.c.getPack(choices[0]!.release_id);
+ const pack={...original,release_id:randomUUID(),version:2,effects:original.effects!.map(a=>({...a,effect_revision_id:randomUUID()}))};
  const bytes=await exportManifest(pack,async b=>readFile(await f.c.blobPath(b.sha256)));await f.c.importPack(bytes);
  let state:any=await f.call('collaboration.rules',{});assert.equal(state.rules[0].enabled,false);assert.equal(state.rules[0].reason,'source-unavailable');assert.equal(state.rules[0].selection.release_id,original.release_id);
  const newChoice=state.choices.find((r:any)=>r.selection.release_id===pack.release_id);
  state=await f.call('collaboration.enable',{selection:newChoice.selection,generation:state.generation,replace:null});
- await f.c.removeScenarioPack(pack.release_id);state=await f.call('collaboration.rules',{});assert.ok(state.rules.every((r:any)=>!r.enabled));assert.equal(state.choices.length,0);assert.equal(f.host.provider.requests.length,0);
+ await f.c.removePack(pack.release_id);state=await f.call('collaboration.rules',{});assert.ok(state.rules.every((r:any)=>!r.enabled));assert.equal(own(state.choices,pack.release_id).length+own(state.choices,original.release_id).length,0);assert.equal(f.host.provider.requests.length,0);
  assert.ok((await f.c.list()).some(e=>e.asset_id===f.ref.asset_id),'removal preserves independent local expressions');
  const binding=await f.c.bind({host:'dsh',hostInstanceId:'profile',sessionId:'other',turnId:'turn:1'});assert.equal((await f.c.rules(binding)).rules.length,0);
- const candidates=await f.c.search(binding,'',1).catch(()=>f.c.search(binding,'好',1));if(candidates.candidates[0])await f.c.emit(binding,candidates.candidates[0].selection_token);
+ const candidates=await f.c.search(binding,'庆祝',1);assert.equal((await f.c.express(binding,{selection_token:candidates.candidates[0]!.selection_token})).status,'sent');
  assert.equal((await f.c.rules(binding)).rules.length,0);
 });
 test('真实driver：完成尾部修改两模板不延长回合；suppression如实unsupported',async t=>{
@@ -107,7 +108,7 @@ test('会话/profile隔离与fork/import不继承规则；超限启用被拒绝'
  const imported=(await f.host.ctx.agents.create({sessionId:SessionId('imported'),seed,agentOptions:{provider:'amoji-recording',model:'no-network-no-cost'}})).agent;
  const other=(await f.host.create('other')).agent;for(const a of [fork,imported,other]){assert.equal((await f.bridge.rules(a.id)).rules.length,0);a.followup(input('new'));await a.whenIdle();assert.equal(snapshots(a).filter((s:any)=>s.scope.session===a.id).length,0);}
  const foreign=new DshCollaboration(f.host.ctx,f.runtime,'other-profile');t.after(()=>foreign.dispose());assert.equal((await foreign.rules('session')).rules.length,0);
- const temp=await (await import('./helpers/dsh-native.js')).nativeHost();const br=new DshCollaboration(temp.ctx,f.runtime,'\u0001'.repeat(1024));t.after(async()=>{br.dispose();await temp.close();});const huge=(await temp.create('\u0001'.repeat(500))).agent;await assert.rejects(br.change(huge.id,{kind:'enable',selection:choices[0],generation:0,replace:null}),/ACTION_LIMIT/);assert.equal((await br.rules(huge.id)).rules.length,0);
+ const temp=await (await import('./helpers/dsh-native.js')).nativeHost();const br=new DshCollaboration(temp.ctx,f.runtime,'\u0001'.repeat(1024));t.after(async()=>{br.dispose();await temp.close();});const huge=(await temp.create('\u0001'.repeat(500))).agent;await assert.rejects(br.change(huge.id,{kind:'enable',selection:choices[0],generation:0,replace:null}),/EFFECT_LIMIT/);assert.equal((await br.rules(huge.id)).rules.length,0);
 });
 test('真实JSONL冷启动恢复UUID规则；复制profile与同ID清空历史不继承',async t=>{
  const f=await fixture(t);const choices=await hooks(f.c,f.ref);const {join}=await import('node:path');const {cp,rm}=await import('node:fs/promises');const {loadProfileIdentity}=await import('../src/dsh/profile-identity.js');const {nativeHost}=await import('./helpers/dsh-native.js');const {SessionId}=await import('@deepseek-ai/dsh-session/types');

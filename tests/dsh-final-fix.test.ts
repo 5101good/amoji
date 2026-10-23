@@ -15,11 +15,14 @@ import { DraftEditor, Fields } from '../src/dsh/draft-editor.js';
 import { management } from '../src/dsh/host-management.js';
 import { DshAdapter, visualMeta } from '../src/dsh/host.js';
 import { LibraryStore } from '../src/library-store.js';
-import { SampleCatalog } from '../src/sample-catalog.js';
+import { builtin } from './helpers/builtin-expressions.js';
+import { SEEDS } from './helpers/store-runtime.js';
+import { expressionText } from '../src/protocol/index.js';
+import type { StoredMessage } from '../src/messages.js';
 import { validateDraftFields, type Draft, type DraftFields } from '../src/drafts.js';
 async function waitFor(check:()=>boolean){for(let i=0;i<100&&!check();i++)await act(async()=>{await new Promise(r=>setTimeout(r,10));});assert.ok(check(),'等待界面完成异步I/O');}
-const seed=new URL('../assets/samples/',import.meta.url);
-const [e,other]=(await SampleCatalog.load(seed)).all();assert.ok(e&&other);
+const library=await builtin();const [e,other]=library.expressions;assert.ok(e&&other);
+const name=(x:typeof e)=>expressionText(x,'zh-CN').name;
 async function fixture(t:TestContext){
  const dom=new JSDOM('<div id="root"></div>');const old={window:globalThis.window,document:globalThis.document,FileReader:globalThis.FileReader};
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,FileReader:dom.window.FileReader,IS_REACT_ACT_ENVIRONMENT:true});
@@ -28,15 +31,15 @@ async function fixture(t:TestContext){
  const button=(s:string)=>[...dom.window.document.querySelectorAll('button')].find(b=>b.textContent===s)!;
  return {dom,root,button,click:async(s:string)=>{assert.ok(button(s),s);await act(async()=>button(s).click());},input:async(label:string,value:string,scope:ParentNode=dom.window.document)=>{const el=scope.querySelector<HTMLInputElement|HTMLTextAreaElement>(`[aria-label="${label}"]`)??[...scope.querySelectorAll('label')].find(v=>v.textContent?.startsWith(label))?.querySelector<HTMLInputElement|HTMLTextAreaElement>('input,textarea');assert.ok(el,label);await act(()=>{el.value=value;el.dispatchEvent(new dom.window.Event('input',{bubbles:true}));});}};
 }
-async function storeFixture(t:TestContext){const dir=await mkdtemp(join(tmpdir(),'amoji-final-'));const store=await LibraryStore.open(dir,seed);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});return store;}
+async function storeFixture(t:TestContext){const dir=await mkdtemp(join(tmpdir(),'amoji-final-'));const store=await LibraryStore.open(dir,SEEDS);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});return store;}
 for(const timing of ['lost','inflight'] as const)test(`final I1 ${timing} A→B→A 保留原投递身份`,async t=>{
  const f=await fixture(t);const submits:any[]=[];let finish!:()=>void;let recovered=false;let observed=false;
- const message={message_id:'original',direction:'human_to_ai',revision:e,presentation:'pending'} as any;
+ const message={message_id:'original',binding_id:'b',registry_revision:'0.1-r3',from:{role:'human'},direction:'human_to_ai',act:e.realizes,intensity:2,revision:e,glyph_policy:'keep',mode:'turn',created_at:'',presentation:'pending'} as StoredMessage;
  const row={message,meta:visualMeta(message),host:{requestId:'amoji:original',status:'unknown'}};
  const rpc=createRpc({connection:{rpc:{call:async(_c:string,endpoint:string,p:any,signal:AbortSignal)=>{
-  // The public picker now checks optional actions before click-to-send. These
+  // The public picker checks optional effects before click-to-send. These
   // fixtures are pure expressions; exercise delivery recovery after that read.
-  if(endpoint==='amoji/actions')return {ok:true,value:[]};
+  if(endpoint==='amoji/effects')return {ok:true,value:[]};
   if(endpoint==='amoji/submit'){submits.push(structuredClone(p));if(submits.length===1){if(timing==='inflight')await new Promise<void>((resolve,reject)=>{finish=resolve;signal.addEventListener('abort',()=>reject(signal.reason),{once:true});});throw new TypeError('lost');}return {ok:true,value:row};}
   if(endpoint==='amoji/reconnect'){recovered=true;return {ok:true,value:null};}
   if(endpoint==='amoji/history')return {ok:true,value:[{...row,host:{...row.host,status:observed?'observed':'unknown'}}]};
@@ -45,23 +48,23 @@ for(const timing of ['lost','inflight'] as const)test(`final I1 ${timing} A→B�
   throw new Error(endpoint);
  }}}} as any);
  const Picker=createComponents(rpc).Picker;const render=async(s:string)=>act(()=>f.root.render(React.createElement(Picker,{sessionId:s})));
- await render('A');await f.click('表情');await f.click(e.name);await render('B');assert.equal(!!f.button('重试原请求'),false);await render('A');await f.click('表情');
+ await render('A');await f.click('表情');await f.click(name(e));await render('B');assert.equal(!!f.button('重试原请求'),false);await render('A');await f.click('表情');
  assert.ok(f.dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')?.textContent?.includes(e.revision_id),'返回必须保留原版本');
- assert.equal(f.button('重试原请求').disabled,true);assert.ok(!f.button(other.name)||f.button(other.name).disabled);
- await f.click('重新连接并核对');assert.equal(submits.length,1);assert.equal(f.button(other.name).disabled,true);
+ assert.equal(f.button('重试原请求').disabled,true);assert.ok(!f.button(name(other))||f.button(name(other)).disabled);
+ await f.click('重新连接并核对');assert.equal(submits.length,1);assert.equal(f.button(name(other)).disabled,true);
  await f.click('重试原请求');assert.equal(submits.length,2);assert.deepEqual(submits[1],submits[0]);assert.equal(submits[0].sessionId,'A');
- observed=true;await f.click('核对投递状态');assert.equal(f.button(other.name).disabled,false);finish?.();
+ observed=true;await f.click('核对投递状态');assert.equal(f.button(name(other)).disabled,false);finish?.();
 });
 test('final I2 原生Fields清空可选项后真实保存预览确认；必填仍严格',async t=>{
- const f=await fixture(t),store=await storeFixture(t);const original=store.list()[0]!;const before=structuredClone(original);
- let fields:DraftFields={name:original.name,semantics:{...original.semantics,tone:'轻快'},tags:['标签'],rights:{...original.rights,creator:'作者',source:'来源'}};
+ const f=await fixture(t),store=await storeFixture(t);const original=store.list()[0]!;const before=structuredClone(original);const zh=original.semantics['zh-CN']!;
+ let fields:DraftFields={realizes:original.realizes,intensity:original.intensity,original_locale:original.original_locale,name:original.name,semantics:{...original.semantics,'zh-CN':{...zh,use_when:['场景'],avoid_when:['边界']}},tags:{'zh-CN':['标签']},rights:{...original.rights,creator:'作者',source:'来源'},text_locale:original.visual.text_locale};
  function Form(){const [v,set]=useState(fields);return React.createElement(Fields,{value:v,onChange:value=>{fields=value;set(value);}});}
  await act(()=>f.root.render(React.createElement(Form)));
- for(const label of ['语气','作者','来源','标签（每行一项）'])await f.input(label,'');
- assert.equal('tone' in fields.semantics,false);assert.equal('creator' in fields.rights,false);assert.equal('source' in fields.rights,false);assert.deepEqual(fields.tags,[]);
+ for(const label of ['适用场景（每行一项）','作者','来源','标签（每行一项）'])await f.input(label,'');
+ assert.equal('use_when' in fields.semantics['zh-CN']!,false);assert.deepEqual(fields.semantics['zh-CN']!.avoid_when,['边界']);assert.equal('creator' in fields.rights,false);assert.equal('source' in fields.rights,false);assert.equal(fields.tags,undefined);
  const d=store.startRevisionDraft({asset_id:original.asset_id,revision_id:original.revision_id},store.getEntry(original.asset_id).version),saved=await store.saveDraft(d.draft_id,d.version,fields);
  await store.previewDraft(saved.draft_id,saved.version);const created=await store.confirmDraft(saved.draft_id,saved.version);assert.deepEqual(created.semantics,fields.semantics);assert.deepEqual(store.resolve(original),before);
- for(const key of ['meaning','fallback'] as const)assert.throws(()=>validateDraftFields({...fields,semantics:{...fields.semantics,[key]:''}}));
+ for(const key of ['meaning','fallback'] as const)assert.throws(()=>validateDraftFields({...fields,semantics:{...fields.semantics,'zh-CN':{...fields.semantics['zh-CN']!,[key]:''}}}));
  assert.throws(()=>validateDraftFields({...fields,rights:{...fields.rights,license:''}}));
 });
 for(const lost of ['saveDraft','confirmDraft'] as const)test(`final I3 实际RPC ${lost} 已落库丢响应冻结输入，核对不重放`,async t=>{
@@ -74,7 +77,7 @@ for(const lost of ['saveDraft','confirmDraft'] as const)test(`final I3 实际RPC
  }}}} as any);
  await act(()=>f.root.render(React.createElement(DraftEditor,{rpc,sessionId:'s',initial,onCreated(){}})));
  await f.input('名称','保留本次填写');
- const bytes=await readFile(new URL(`blobs/${other.visual.primary.sha256}`,seed));const upload=f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="上传表情图片"]')!;
+ const bytes=library.bytes(other.visual.primary.sha256);const upload=f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="上传表情图片"]')!;
  Object.defineProperty(upload,'files',{value:[new f.dom.window.File([new Uint8Array(bytes)],'own.png')]});
  await act(async()=>{upload.dispatchEvent(new f.dom.window.Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,100));});
  assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,false,'上传读取已完成');
@@ -82,12 +85,12 @@ for(const lost of ['saveDraft','confirmDraft'] as const)test(`final I3 实际RPC
  await waitFor(()=>!!f.dom.window.document.querySelector('[role=alert], [aria-label="图文确认预览"]'));
  if(lost==='confirmDraft'){await act(()=>f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('确认加入表情库');await waitFor(()=>!!f.dom.window.document.querySelector('[role=alert]'));}
  assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,true,'未知写入必须冻结');
- assert.equal(store.getDraft(initial.draft_id).fields.name,'保留本次填写');assert.equal(store.getDraft(initial.draft_id).visual!.primary.sha256,other.visual.primary.sha256);
+ assert.equal(store.getDraft(initial.draft_id).fields.name['zh-CN'],'保留本次填写');assert.equal(store.getDraft(initial.draft_id).visual!.primary.sha256,other.visual.primary.sha256);
  const count=calls.length;await rpc.reconnect!('s');assert.equal(calls.length,count);assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,true,'重连不能代替核对');
  await f.click('核对当前状态');assert.equal(calls.filter(c=>c.method===lost).length,1);assert.equal(calls.at(-1).args.draft_id,initial.draft_id);
  assert.equal(f.dom.window.document.querySelector('fieldset')!.disabled,lost==='confirmDraft');
  assert.deepEqual(store.resolve(original),original);
- if(lost==='saveDraft'){await f.click('保存草稿');await waitFor(()=>!f.dom.window.document.querySelector('fieldset')!.disabled);const retried=calls.at(-1).args;assert.equal(retried.version,initial.version+1);assert.equal(retried.upload,bytes.toString('base64'));assert.equal(retried.fields.name,'保留本次填写');}
+ if(lost==='saveDraft'){await f.click('保存草稿');await waitFor(()=>!f.dom.window.document.querySelector('fieldset')!.disabled);const retried=calls.at(-1).args;assert.equal(retried.version,initial.version+1);assert.equal(retried.upload,bytes.toString('base64'));assert.equal(retried.fields.name['zh-CN'],'保留本次填写');}
 });
 test('final I3 只读/预览传输分类和结构化业务错误不混淆',async()=>{
  let business=false;const rpc=createRpc({connection:{rpc:{call:async()=>{if(business)return {ok:false,error:{code:'DRAFT_CONFLICT',message:'冲突',details:{current:{version:7}}}};throw new TypeError('lost');}}}} as any);
@@ -95,8 +98,8 @@ test('final I3 只读/预览传输分类和结构化业务错误不混淆',async
  business=true;await assert.rejects(rpc.management('s','saveDraft',{} as any),(e:any)=>e.code==='DRAFT_CONFLICT'&&e.current.version===7);
 });
 test('final M3 保存后迟到建议、核对与冲突续编后旧候选不可采用',async t=>{
- const f=await fixture(t);let draft:Draft={draft_id:'final-suggestions',version:1,updated_at:'now',fields:{name:e.name,semantics:e.semantics,rights:e.rights},visual:e.visual};let deliver!:(v:any)=>void;let deferred=true;
- const suggestion={fields:{...draft.fields,semantics:{...draft.fields.semantics,tone:'语气'},tags:['标签']},notice:'建议'};
+ const f=await fixture(t);const {text_locale,...visual}=e.visual;let draft:Draft={draft_id:'final-suggestions',version:1,updated_at:'now',mode:'create',fields:{realizes:e.realizes,intensity:e.intensity,original_locale:e.original_locale,name:e.name,semantics:e.semantics,rights:e.rights,text_locale},visual};let deliver!:(v:any)=>void;let deferred=true;
+ const {rights:_rights,text_locale:_text,...suggested}=draft.fields;const suggestion={fields:{...suggested,semantics:{...suggested.semantics,'zh-CN':{...suggested.semantics['zh-CN']!,avoid_when:['边界']}},tags:{'zh-CN':['标签']}},notice:'建议'};
  const rpc:any={management:async(_s:string,method:string,args:any)=>{
   if(method==='listSuggestionModels')return{models:[{provider:'p',model:'flash',name:'Flash'}],current:{provider:'p',model:'flash'}};
   if(method==='suggestAiText')return deferred?new Promise(r=>{deliver=r;}):suggestion;
@@ -109,8 +112,8 @@ test('final M3 保存后迟到建议、核对与冲突续编后旧候选不可�
  await act(()=>f.root.render(React.createElement(DraftEditor,{rpc,sessionId:'s',initial:draft,onCreated(){}})));
  await act(async()=>{});await f.input('文字意图','感谢帮忙');
  await f.click('AI 生成文字建议');await f.click('保存草稿');await act(()=>deliver(suggestion));assert.equal(!!f.button('采用建议'),false,'保存改变版本，迟到建议不能出现');
- deferred=false;await f.click('AI 生成文字建议');const candidate=f.dom.window.document.querySelector('[aria-label="待选建议"]')!;await f.input('语气','',candidate);await f.input('标签（每行一项）','',candidate);await f.click('采用建议');
- assert.equal((f.dom.window.document.querySelector('[aria-label="语气"]') as HTMLTextAreaElement).value,'');
+ deferred=false;await f.click('AI 生成文字建议');const candidate=f.dom.window.document.querySelector('[aria-label="待选建议"]')!;await f.input('避免场景（每行一项）','',candidate);await f.input('标签（每行一项）','',candidate);await f.click('采用建议');
+ assert.equal((f.dom.window.document.querySelector('[aria-label="避免场景（每行一项）"]') as HTMLTextAreaElement).value,'');assert.equal((f.dom.window.document.querySelector('[aria-label="标签（每行一项）"]') as HTMLTextAreaElement).value,'');
  const conflict=async()=>{await f.click('保存并预览');await act(()=>f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));await act(()=>f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());await f.click('AI 生成文字建议');await f.click('确认加入表情库');assert.ok(f.button('采用建议'));};
  await conflict();await f.click('核对当前状态');assert.equal(!!f.button('采用建议'),false,'核对版本后旧候选不能采用');
  await conflict();await f.click('基于当前版本继续，保留本次填写');assert.equal(!!f.button('采用建议'),false,'续编改变draft身份，旧候选不能采用');
@@ -123,8 +126,9 @@ test('final M1 实际tarball的兼容manage首页和静态资源可用',async t=
  for(const match of html.matchAll(/(?:src|href)="(\/[^"#]+)"/g)){const resource=await fetch(new URL(match[1]!,url));assert.equal(resource.status,200,match[1]!);}
  assert.ok(info.files.some((v:any)=>v.path==='web/index.html'));
 });
-test('final 模型可见选择说明包含发送视角、无匹配文字回退和limit合同',()=>{
- const adapter=new DshAdapter({effect(){}} as any,{} as any,'tool-documentation');const search=adapter.tool('amoji_search'),emit=adapter.tool('amoji_emit');
- assert.match(search.description,/默认\s*3/);assert.match(search.description,/1[–—-]5/);assert.match(search.description,/AI.*用户/);assert.match(search.description,/主体.*对象/);assert.match(search.description,/无合适.*文字/);assert.match(emit.description,/AI.*用户/);
- assert.deepEqual(Object.keys(search.parameters!),['query','limit']);
+test('final 模型可见工具说明包含码位优先、文字回退、非授权和limit合同',()=>{
+ const adapter=new DshAdapter({effect(){}} as any,{} as any,'tool-documentation');const search=adapter.tool('amoji_search'),express=adapter.tool('amoji_express');
+ assert.match(search.description,/默认\s*3/);assert.match(search.description,/1[–—-]5/);assert.match(search.description,/selection_token/);assert.match(search.description,/任何语言/);
+ assert.match(express.description,/不是授权/);assert.match(express.description,/用文字/);assert.match(express.description,/原因码/);assert.match(express.description,/core:decide/);
+ assert.deepEqual(Object.keys(search.parameters!),['query','limit']);assert.ok(['act','selection_token','intensity'].every(key=>key in express.parameters!));
 });

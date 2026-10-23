@@ -7,14 +7,18 @@
 AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励与关怀，也能成为人和 AI 之间自然的表达。
 
 <p align="center">
-  <img src="assets/samples/source/celebrate.png" alt="一起庆祝" width="140" />
-  <img src="assets/samples/source/wry.png" alt="挠头苦笑" width="140" />
-  <img src="assets/samples/encourage-poster.png" alt="给你加油" width="140" />
+  <img src="assets/official-packs/images/classic/celebrate.png" alt="一起庆祝" width="140" />
+  <img src="assets/official-packs/images/classic/wry.png" alt="挠头苦笑" width="140" />
+  <img src="assets/official-packs/images/classic/encourage-poster.png" alt="给你加油" width="140" />
 </p>
+
+## Amoji 0.1 协议
+
+当前源码实现 [Amoji 0.1](docs/specs/amoji-0.1-rfc.md)：每个表情实现注册表中的一个**码位**（如 `core:uncertain`「暂时没把握」），表情包提供图片与多语言固定语义，可选的**效果**是用户明确启用的文字协作提示。AI 按码位表达，宿主按你的首选表情包选图。0.1 取代此前的全部格式，1.x 的 `.amoji` 包不能直接导入；已发布的 1.1 仍使用旧格式，下一个版本将采用 0.1。
 
 ## 表情包市场
 
-1.1 新增[审核制市场](https://amoji.ai-web.ai)、三套表情包、可选的一次性协作提示与两种会话规则。在 dsh「表情 → 市场」安装；安装不会自动启用动作。参阅[运营与恢复说明](docs/marketplace-operations.md)。
+[审核制市场](https://amoji.ai-web.ai)提供表情包的浏览、安装和独立收藏。在 dsh「表情 → 市场」安装；安装不会启用任何效果。参阅[运营与恢复说明](docs/marketplace-operations.md)。
 
 ## 为什么我们需要它
 
@@ -31,7 +35,7 @@ Amoji 想让这种能力更普遍。你用一张图表达感受与意图，AI �
 | 面向谁 | 读到什么 | 用来做什么 |
 | --- | --- | --- |
 | 人 | 表情的图像、动作与神态 | 感受语气，快速表达 |
-| AI | 明确的含义、语气、适用与避免场景 | 理解意图，判断是否适合回应 |
+| AI | 码位、明确的含义、适用与避免场景 | 理解意图，判断是否适合回应 |
 
 传统表情主要依靠观看者理解画面。Amoji 在视觉内容之外，为每张图附上一份**可以直接读取的语义约定**。例如，同样是“挠头”，它可以表达困惑、自嘲或尴尬；创作者可以明确这张表情想表达哪一种意思。
 
@@ -47,7 +51,7 @@ Amoji 想让这种能力更普遍。你用一张图表达感受与意图，AI �
 | 现有证据还不足 | AI → 你：暂时没把握 | 目前还不能给出有把握的判断，需要进一步说明不确定在哪里。 |
 | 你已经为这件事付出很多 | AI → 你：辛苦了 | 我注意到了你投入的时间与努力。 |
 
-表情可以和解释、结果一起出现，让一句回应有更清楚的语气。你也可以选择更克制的办公画风，调整 AI 使用表情的频率，或暂停 AI 表情回应。
+表情可以和解释、结果一起出现，让一句回应有更清楚的语气。你可以把更克制的办公表情包设为首选，限制每次回答最多几张 AI 表情、按类别关闭，或暂停 AI 表情回应。表情只表达沟通姿态，不是授权，也不证明任务完成。
 
 ## 这带来了什么
 
@@ -61,17 +65,17 @@ Amoji 想让这种能力更普遍。你用一张图表达感受与意图，AI �
 
 Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**1.0 从 dsh 的原生交互开始**，把选择、发送、理解和管理放进同一个工作流：
 
-- **原生双向表情**：输入区点选即发送，AI 通过文字工具检索和选用，图片直接显示在会话中。
-- **经典与办公画风**：相同的 24 种语义、共 48 个资产，覆盖人向 AI 表达和 AI 回应人的场景。
+- **原生双向表情**：输入区点选即发送；AI 工作时，纠偏类表情作为信号送达，「先等一下」可直接让 AI 停下。AI 按码位表达，图片直接显示在会话中。
+- **经典与办公两套官方表情包**：各 24 个表情、实现相同的 22 个码位，覆盖人向 AI 表达和 AI 回应人的场景。
 - **一个输入框辅助创作**：描述想表达的意思，选择宿主模型生成文字建议；默认使用当前会话模型，由你采用、修改和确认。
 - **本地个人表情库**：草稿、版本、归档、个人副本、完整包导入导出，以及 AI 使用偏好。
-- **中英界面**：跟随 dsh 的语言设置。界面翻译不会改写表情本身的语义，内置语义目前为中文。
+- **中英界面与双语语义**：界面跟随 dsh 的语言设置；内置表情同时提供中文原文和英文语义，每种翻译都标明来源。
 
 <details>
-<summary>看看实际界面：经典画风、办公画风与固定语义</summary>
+<summary>看看实际界面：经典、办公表情包与固定语义（截图来自 1.1）</summary>
 
-![经典画风](adapters/dsh/screenshots/classic.png)
-![办公画风](adapters/dsh/screenshots/office.png)
+![经典表情包](adapters/dsh/screenshots/classic.png)
+![办公表情包](adapters/dsh/screenshots/office.png)
 ![AI 读取的固定语义](adapters/dsh/screenshots/meaning.png)
 
 </details>
@@ -102,7 +106,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## 使用
 
-在选择器中搜索并点选表情即可发送；详情按钮用于先阅读固定语义。在“管理表情”中切换画风、调整 AI 语气与频率、管理自己的素材。AI 表情可独立暂停。
+在选择器中搜索并点选表情即可发送；详情按钮用于先阅读固定语义。选择器中点选的表情包会成为首选，AI 表情也随之换图。在“管理表情”中设置 AI 表情的数量与类别、管理自己的素材与表情包。AI 表情可独立暂停。
 
 创作时描述“谁对谁说、什么情境、想表达什么、什么语气”，选择模型后生成建议。Amoji 只向所选模型发送文字意图和生成指令，不发送图片或会话历史。生成按宿主所配置模型的规则计费；也可以完全手工填写。建议不会自动保存或入库。
 
@@ -116,9 +120,9 @@ Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch 
 
 ## 一起丰富这套表达
 
-[七套官方表情包](assets/official-packs/README.md)：经典与办公各 24 个表情，以及全新的慢半拍猫、搭把手犬、像素搭档、灵感水母、纸片鹅。选择喜欢的角色，让感谢、鼓励、专注和灵感拥有不同的表达方式。
+[七套官方表情包](assets/official-packs/README.md)：经典与办公各 24 个表情，以及慢半拍猫、搭把手犬、像素搭档、灵感水母、纸片鹅。选择喜欢的角色，让感谢、鼓励、专注和灵感拥有不同的表达方式。
 
-我们希望通过开放的格式和开源实现，让更多人参与定义 AI 时代的表情：它们可以温暖、幽默，也可以严肃、克制。欢迎分享真实协作中的表达需求、创作新的画风与语义，或帮助我们改进交互和宿主适配。
+我们希望通过开放的格式和开源实现，让更多人参与定义 AI 时代的表情：它们可以温暖、幽默，也可以严肃、克制。欢迎分享真实协作中的表达需求、创作新的表情包与语义，或帮助我们改进交互和宿主适配。
 
 你可以从[试用 Amoji](#安装)、[提出建议](https://github.com/5101good/amoji/issues)或[贡献代码与素材](CONTRIBUTING.md)开始。
 
@@ -133,8 +137,8 @@ npm run test:dsh
 
 `test:dsh` 会构建插件并检查锁定的 dsh npm 合同。构建输出为 `adapters/dsh`。[开发指南](docs/development.md)、[架构与协议](docs/architecture.md)、[贡献指南](CONTRIBUTING.md)和[安全政策](SECURITY.md)说明开发、验证与报告问题的方法。
 
-代码和技术文档使用 [MIT](LICENSE)；内置基础表情视觉、固定语义及生成提示使用 [CC0-1.0](assets/base-library/LICENSE)。生成来源见[基础库说明](assets/base-library/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。
+代码和技术文档使用 [MIT](LICENSE)；官方表情包的视觉、固定语义及生成提示使用 [CC0-1.0](assets/official-packs/LICENSE)，来源见[官方表情包说明](assets/official-packs/README.md)。第三方依赖、用户素材保留各自许可，见 [NOTICE](NOTICE)。
 
 ## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；当前源码新增 Claude 的市场浏览与安装、账号连接、分享投稿和可选协作提示；已发布的 v1.1.0 Claude ZIP 尚不含这部分，使用前请从当前源码构建。
+[原生 Code 适配指南](docs/claude-mods.md)：双向表情、个人库、创建与偏好。1.1 提供独立 ZIP，适用于 Claude Desktop Code 页签的本地会话；当前源码采用 Amoji 0.1，并新增市场浏览与安装、账号连接、分享投稿和可选协作提示。已发布的 v1.1.0 Claude ZIP 尚不含这部分，使用前请从当前源码构建。

@@ -7,14 +7,18 @@
 AI-native expressions: people see the artwork; AI reads its fixed meaning. A shared way to express gratitude, uncertainty, encouragement, and care.
 
 <p align="center">
-  <img src="assets/samples/source/celebrate.png" alt="Celebrating together" width="140" />
-  <img src="assets/samples/source/wry.png" alt="A sheepish smile" width="140" />
-  <img src="assets/samples/encourage-poster.png" alt="Cheering you on" width="140" />
+  <img src="assets/official-packs/images/classic/celebrate.png" alt="Celebrating together" width="140" />
+  <img src="assets/official-packs/images/classic/wry.png" alt="A sheepish smile" width="140" />
+  <img src="assets/official-packs/images/classic/encourage-poster.png" alt="Cheering you on" width="140" />
 </p>
+
+## The Amoji 0.1 protocol
+
+The current source implements [Amoji 0.1](docs/specs/amoji-0.1-rfc.md). Every expression realizes one **act** from a shared registry (for example `core:uncertain`, “I'm not sure yet”). Packs provide artwork and fixed meanings in several languages; optional **effects** are text guidance that a person explicitly enables. AI expresses an act, and the host picks the artwork from your preferred packs. Version 0.1 replaces every earlier format, so 1.x `.amoji` packs cannot be imported directly. The published 1.1 release still uses the earlier format; the next release adopts 0.1.
 
 ## Expression marketplace
 
-Version 1.1 adds the [reviewed marketplace](https://amoji.ai-web.ai), three expression packs, optional turn instructions and two conversation rule templates. Install from Expressions → Marketplace in dsh; installation never activates actions. See [operations and recovery](docs/marketplace-operations.en.md).
+The [reviewed marketplace](https://amoji.ai-web.ai) offers packs to browse, install or collect individually. Install from Expressions → Marketplace in dsh; installation never enables an effect. See [operations and recovery](docs/marketplace-operations.en.md).
 
 ## Why we are building this
 
@@ -31,7 +35,7 @@ One expression supports two ways of reading it:
 | Reader | What they receive | What it helps them do |
 | --- | --- | --- |
 | People | Artwork, gestures, and facial expressions | Feel the tone and express themselves quickly |
-| AI | Explicit meaning, tone, and guidance on when to use or avoid it | Understand intent and choose an appropriate response |
+| AI | The act, an explicit meaning, and guidance on when to use or avoid it | Understand intent and choose an appropriate response |
 
 Traditional stickers primarily rely on a viewer interpreting the picture. Amoji adds an **explicit, directly readable meaning** alongside the artwork. A character scratching its head might convey confusion, self-deprecation, or embarrassment; its creator can specify which meaning this expression carries.
 
@@ -47,7 +51,7 @@ Users can write that meaning themselves or ask AI for a suggestion, then edit, r
 | The evidence is still insufficient | AI → you: I'm not sure yet | There is not enough evidence for a confident judgment; the uncertainty needs explaining. |
 | You have put substantial effort into something | AI → you: You've worked hard | I recognize the time and effort you have invested. |
 
-An expression can accompany an explanation or result, making the tone clearer. You can choose the more restrained Office artwork, adjust how often AI uses expressions, or pause AI expression replies.
+An expression can accompany an explanation or result, making the tone clearer. You can make the more restrained Office pack your first choice, limit how many AI expressions one answer may carry, turn off whole families, or pause AI expression replies. An expression states a stance; it is not an approval and does not prove that work is done.
 
 ## What this makes possible
 
@@ -61,14 +65,14 @@ An expression can accompany an explanation or result, making the tone clearer. Y
 
 Our vision is an expression system that can travel across models and clients. **Version 1.0 starts with native dsh integration**, bringing selection, sending, interpretation, and library management into one workflow:
 
-- **Native expressions in both directions:** click to send from the composer; AI searches and chooses through text tools. Images appear directly in the conversation.
-- **Classic and Office artwork:** the same 24 meanings across 48 assets, covering both human-to-AI expression and AI replies.
+- **Native expressions in both directions:** click to send from the composer. While AI is working, steering expressions arrive as signals and “Hold on” stops the turn. AI expresses an act, and images appear directly in the conversation.
+- **Classic and Office official packs:** 24 expressions each, realizing the same 22 acts for both human-to-AI expression and AI replies.
 - **One field to start creating:** describe your intent and choose a host model for wording suggestions, defaulting to the current conversation model. You adopt, edit, and confirm the result.
 - **A local personal library:** drafts, revisions, archiving, personal copies, complete pack import/export, and AI usage preferences.
-- **Chinese and English UI:** follows dsh's language setting without rewriting stored expression semantics. Built-in meanings are currently Chinese; the examples above explain them in English.
+- **Chinese and English, UI and meaning:** the UI follows dsh's language setting; built-in expressions carry their Chinese original and an English meaning, each translation labeled with how it was made.
 
 <details>
-<summary>See Amoji in dsh: Classic, Office, and fixed meanings</summary>
+<summary>See Amoji in dsh: Classic, Office, and fixed meanings (screenshots from 1.1)</summary>
 
 ![Classic expressions](adapters/dsh/screenshots/classic.png)
 ![Office expressions](adapters/dsh/screenshots/office.png)
@@ -102,7 +106,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## Use
 
-Search and click an expression to send it, or use its details button to read the fixed meaning first. Open Manage expressions to change appearance, AI tone and frequency, and personal content. AI expressions can be paused independently.
+Search and click an expression to send it, or use its details button to read the fixed meaning first. The pack you choose in the picker becomes your preferred pack, and AI expressions switch to it too. Open Manage expressions to set how many AI expressions to allow and which families, and to manage your own content and packs. AI expressions can be paused independently.
 
 When creating an expression, describe the sender, recipient, situation, intended meaning, and tone, then select a model and generate a suggestion. Only your text intent and generation instructions go to that model, without artwork or conversation history. Provider charges follow your host model configuration. Manual entry is also available. Suggestions never automatically save or enter the library.
 
@@ -118,7 +122,7 @@ Linux, Windows, and other dsh versions have not completed live host acceptance. 
 
 Explore [seven official expression packs](assets/official-packs/README.en.md): Classic and Office with 24 expressions each, plus Slow Cat, Good Dog, Pixel Pal, Orbit Jelly and Paper Goose. Choose a character for gratitude, encouragement, focus or a spark of inspiration.
 
-Through an open format and an open-source implementation, we want more people to help define expression in the age of AI. That expression can be warm or playful, serious or restrained. Share a need from your own collaboration, create new artwork and meanings, or help improve the interaction and host integrations.
+Through an open format and an open-source implementation, we want more people to help define expression in the age of AI. That expression can be warm or playful, serious or restrained. Share a need from your own collaboration, create new packs and meanings, or help improve the interaction and host integrations.
 
 Start by [trying Amoji](#install), [sharing an idea](https://github.com/5101good/amoji/issues), or [contributing code and assets](CONTRIBUTING.en.md).
 
@@ -133,8 +137,8 @@ npm run test:dsh
 
 `test:dsh` builds the plugin and checks pinned dsh npm contracts. Output is written to `adapters/dsh`. Read [development](docs/development.en.md), [architecture and protocol](docs/architecture.en.md), [contributing](CONTRIBUTING.en.md), and [security](SECURITY.en.md).
 
-Code and technical documentation use [MIT](LICENSE). Built-in artwork, fixed semantics, and generation prompts use [CC0-1.0](assets/base-library/LICENSE); see [asset provenance](assets/base-library/README.en.md). Third-party dependencies and user content retain their own licenses; see [NOTICE](NOTICE).
+Code and technical documentation use [MIT](LICENSE). Official pack artwork, fixed semantics, and generation prompts use [CC0-1.0](assets/official-packs/LICENSE); see [the official packs](assets/official-packs/README.en.md) for provenance. Third-party dependencies and user content retain their own licenses; see [NOTICE](NOTICE).
 
 ## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; the current source also adds market browsing and installation, device pairing, publishing and optional collaboration guidance. These additions are not in the already-published v1.1.0 Claude ZIP; build from current source to use them.
+[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; the current source adopts Amoji 0.1 and adds market browsing and installation, device pairing, publishing and optional collaboration guidance. These additions are not in the already-published v1.1.0 Claude ZIP; build from current source to use them.

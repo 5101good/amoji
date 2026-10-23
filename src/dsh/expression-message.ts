@@ -5,13 +5,18 @@ import type { StoredMessage } from '../messages.js';
  * The text a human expression contributes to the model context. Pause/stop interrupts the
  * host already executed since the previous turn travel with it as records (RFC §8.3).
  */
-export function expressionMessageText(message: StoredMessage, history: readonly StoredMessage[] = []): string {
+export function expressionMessageText(message: StoredMessage, history: readonly StoredMessage[] = [], told: ReadonlySet<string> = new Set()): string {
   const index = history.findIndex(m => m.message_id === message.message_id);
   const earlier = index < 0 ? history : history.slice(0, index);
   const lastTurn = earlier.map(m => m.from.role === 'human' && m.mode !== 'interrupt').lastIndexOf(true);
   const interrupts = earlier.slice(lastTurn + 1).filter(m => m.mode === 'interrupt' && m.applied && !m.retracted_at);
   const records = interrupts.length ? `\n此前用户在 AI 工作时执行了：${JSON.stringify(interrupts.map(m => messageProjection(m)))}` : '';
-  return `${humanExpressionText(message)}${records}`;
+  // A withdrawn expression the host already took must be withdrawn in the model's view too (RFC §8.6):
+  // it rides the first later prompt unless a retraction prompt for it was already sent.
+  const withdrawn = earlier.filter(m => m.direction === 'human_to_ai' && m.retracted_at && m.dsh_submission && !told.has(m.message_id)
+    && !earlier.some(n => n.dsh_submission && n.created_at > m.retracted_at!));
+  const retractions = withdrawn.length ? `\n此前用户撤回了：${JSON.stringify(withdrawn.map(m => messageProjection(m)))}` : '';
+  return `${humanExpressionText(message)}${records}${retractions}`;
 }
 
 /** Only remove our exact known text block, never other user content or attachments. */

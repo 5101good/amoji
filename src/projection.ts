@@ -52,6 +52,11 @@ export function choiceText(m: StoredMessage, locale?: string): string {
   return `用户在 AI 的决策中做出了选择（选择只表达偏好，不构成授权）：\n${JSON.stringify(messageProjection(m, locale))}`;
 }
 
+/** Text a host places in the model context when the person withdraws an expression it already holds (RFC §8.6). */
+export function retractionText(m: StoredMessage, locale?: string): string {
+  return `用户撤回了之前的表情，请不要再依据它行事：\n${JSON.stringify(messageProjection(m, locale))}`;
+}
+
 export interface CardOptions { locale?: string; preferences: Preferences; modes: string[]; features: string[] }
 /** Static capability card (RFC §10.1); stable so prompt caching can reuse it. */
 export function capabilityCard({ locale, preferences, modes, features }: CardOptions): string {

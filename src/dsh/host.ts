@@ -7,7 +7,7 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { management, failure, installPackRoutes } from './host-management.js';
 import { PanelServer } from '../panel-server.js';
 import { expressionMessageText } from './expression-message.js';
-import { choiceText } from '../projection.js';
+import { choiceText, retractionText } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { runModelTool, EXPRESS_DESCRIPTION } from '../model-tools.js';
 import { actGloss, backchannelEligible, humanSendable, interruptEligible, type ExpressionRef, type Mode } from '../protocol/index.js';
@@ -198,7 +198,15 @@ export class DshAdapter {
     if (method === 'history') return this.rows(sessionId, events);
     if (method === 'retract') {
       if (!this.runtime.retract) fail('CAPABILITY_UNAVAILABLE', '当前服务不支持撤回');
-      await this.runtime.retract(context, nonempty(args.messageId)); return this.rows(sessionId, events);
+      const message = await this.runtime.retract(context, nonempty(args.messageId));
+      // A person's expression the host already took stays in the model's context; say so while it is working.
+      // When idle the retraction rides the next prompt (expressionMessageText), so no new turn is started for it.
+      const session = await this.session(sessionId, signal);
+      if (message.dsh_submission && message.mode !== 'interrupt' && this.openTurn(session) !== undefined) {
+        await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji-retract:${message.message_id}`, mode: 'steer', content: [{ type: 'text', text: retractionText(message) }] }, signal);
+        await this.flush(session);
+      }
+      return this.rows(sessionId, await this.inspect(sessionId, signal));
     }
     if (method === 'choose') return this.choose(sessionId, nonempty(args.messageId), nonempty(args.option), signal);
     if (method === 'visual') {
@@ -303,7 +311,8 @@ export class DshAdapter {
       } else {
         if (message.effect_intent) this.collaboration!.dispatched(sessionId, message);
         const history = await this.runtime.messages(context);
-        const result = await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji:${message.message_id}`, mode: message.mode === 'backchannel' ? 'steer' : 'queue', content: [{ type: 'text', text: expressionMessageText(message, history) }] }, signal);
+        const told = new Set((await this.inspect(sessionId, signal)).flatMap(e => { const id = e.type.startsWith('user/') ? record(record(e.data).source).rpcId : undefined; return typeof id === 'string' && id.startsWith('amoji-retract:') ? [id.slice('amoji-retract:'.length)] : []; }));
+        const result = await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji:${message.message_id}`, mode: message.mode === 'backchannel' ? 'steer' : 'queue', content: [{ type: 'text', text: expressionMessageText(message, history, told) }] }, signal);
         signal.throwIfAborted();
         if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
         // A signal that missed its turn starts the next one: it was promoted, never dropped.

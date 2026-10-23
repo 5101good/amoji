@@ -537,3 +537,27 @@ test('选择器目录与检索只给人能发送的表情', async t => {
   const found = await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: 'core:ack', limit: 5 }, signal()) as Expression[];
   assert.ok(found.every(e => actAllows(e.realizes, 'h2a')));
 });
+test('撤回与同码位信号合并对模型可见：工作中立即告知，空闲时随下一条一起带上', async t => {
+  const f = await setup(t);
+  const send = (act: string, requestId: string) => f.adapter.rpc('amoji/submit', { sessionId: f.a.id, input: { act }, requestId }, signal()) as Promise<HistoryEntry>;
+  const retract = (messageId: string) => f.adapter.rpc('amoji/retract', { sessionId: f.a.id, messageId }, signal());
+  f.exec(f.a); // the AI is working: a turn is open
+  const first = await send('core:clarify', 'r-1'); assert.equal(first.message.mode, 'backchannel');
+  const second = await send('core:clarify', 'r-2');
+  const history = await f.runtime.messages({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.a.id });
+  assert.ok(history.find(m => m.message_id === first.message.message_id)!.retracted_at, '尚未送达的同码位信号只保留最新');
+  const secondPrompt = f.prompts.find(p => p.requestId === `amoji:${second.message.message_id}`)!;
+  assert.match(secondPrompt.content[0]!.text, /此前用户撤回了/); assert.match(secondPrompt.content[0]!.text, new RegExp(first.message.message_id));
+  // Explicit retraction while the AI works reaches it at once.
+  const third = await send('core:redirect', 'r-3');
+  await retract(third.message.message_id);
+  const told = f.prompts.find(p => p.requestId === `amoji-retract:${third.message.message_id}`)!;
+  assert.match(told.content[0]!.text, /撤回/); assert.match(told.content[0]!.text, new RegExp(third.message.message_id));
+  // Idle: no prompt of its own (it would start a turn); the record rides the next expression.
+  f.turns.clear();
+  const idle = await send('core:thanks', 'r-4'); const before = f.prompts.length;
+  await retract(idle.message.message_id);
+  assert.equal(f.prompts.length, before);
+  const next = await send('core:ack', 'r-5');
+  assert.match(f.prompts.find(p => p.requestId === `amoji:${next.message.message_id}`)!.content[0]!.text, new RegExp(`此前用户撤回了.*${idle.message.message_id}`));
+});

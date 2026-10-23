@@ -7,11 +7,17 @@ import { DraftEditor } from '../src/dsh/draft-editor.js';
 import { LibraryControls } from '../src/dsh/library-controls.js';
 import { Manager } from '../src/dsh/manager.js';
 import { createRpc } from '../src/dsh/media.js';
-import { SampleCatalog } from '../src/sample-catalog.js';
-import type { Draft } from '../src/drafts.js';
-const expressions = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all();
-const a = expressions[0]!, b = expressions[1]!;
-const base: Draft = { draft_id: 'fix', version: 1, updated_at: 'now', fields: { name: a.name, semantics: a.semantics, rights: a.rights }, visual: a.visual };
+import { builtin } from './helpers/builtin-expressions.js';
+import { SEEDS } from './helpers/store-runtime.js';
+import { DEFAULT_PREFERENCES } from '../src/library-management.js';
+import { expressionText, type Expression } from '../src/protocol/index.js';
+import type { Draft, DraftFields } from '../src/drafts.js';
+const library = await builtin();
+const a = library.expressions[0]!, b = library.expressions[1]!;
+const name = (e: Expression) => expressionText(e, 'zh-CN').name;
+const fieldsOf = (e: Expression): DraftFields => ({ realizes: e.realizes, intensity: e.intensity, original_locale: e.original_locale, name: e.name, semantics: e.semantics, rights: e.rights, text_locale: e.visual.text_locale });
+const { text_locale: _textLocale, ...visual } = a.visual;
+const base: Draft = { draft_id: 'fix', version: 1, updated_at: 'now', mode: 'create', fields: fieldsOf(a), visual };
 async function fixture(t: TestContext) {
   const dom = new JSDOM('<div id="root"></div>');
   const old = { window: globalThis.window, document: globalThis.document, FileReader: globalThis.FileReader };
@@ -48,10 +54,10 @@ test('fix1 条目B读取期间不能操作A详情，失败不出现混合对象'
     if (method === 'listRevisions') return args.asset_id === a.asset_id ? [a] : new Promise((_r, r) => { reject = r; });
     mutations.push(args);
   } };
-  await React.act(async () => f.root.render(React.createElement(LibraryControls, { rpc, sessionId: 's', entries: [a, b].map(expression => ({ expression, origin: 'imported' as const, version: 1, archived: false })), refresh: async () => {}, onDraft() {}, refs: [], setRefs() {} })));
-  await React.act(async () => f.button(a.name).click());
+  await React.act(async () => f.root.render(React.createElement(LibraryControls, { rpc, sessionId: 's', entries: [a, b].map(expression => ({ expression, origin: 'imported' as const, pack_id: null, version: 1, archived: false })), refresh: async () => {}, onDraft() {}, refs: [], setRefs() {} })));
+  await React.act(async () => f.button(name(a)).click());
   assert.ok(f.button('归档表情'));
-  await React.act(async () => f.button(b.name).click());
+  await React.act(async () => f.button(name(b)).click());
   assert.equal(!!f.dom.window.document.querySelector('[aria-label="版本与条目操作"]'), false);
   await React.act(() => reject(new Error('版本读取失败')));
   assert.equal(!!f.button('归档表情'), false);
@@ -92,10 +98,10 @@ test('fix1 上传保存后ENTRY_CONFLICT续编仍保存本次图片', async t =>
   assert.equal(saves.at(-1).upload, original, '新基准草稿必须迁移已保存的本次图片');
 });
 test('fix1 Manager保存草稿立即更新列表名称且保留编辑输入', async t => {
-  const f = await fixture(t); const initial = { ...base, draft_id: 'rename', fields: { ...base.fields, name: '' } };
+  const f = await fixture(t); const initial = { ...base, draft_id: 'rename', fields: { ...base.fields, name: { 'zh-CN': '', en: '' } } };
   const rpc: any = { management: async (_s: string, method: string, args: any) => {
-    if (method === 'listEntries' || method === 'listDrafts') return [];
-    if (method === 'getSettings') return { version: 1, style: 'neutral', frequency: 'restrained', paused: false };
+    if (method === 'listEntries' || method === 'listDrafts' || method === 'listPackDrafts' || method === 'listPacks') return [];
+    if (method === 'getSettings') return { version: 1, ...DEFAULT_PREFERENCES };
     if (method === 'createDraft') return initial;
     if (method === 'saveDraft') return { ...initial, version: 2, fields: args.fields };
   } };
@@ -111,7 +117,7 @@ test('fix1 Manager保存草稿立即更新列表名称且保留编辑输入', as
 });
 
 test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版本确认', async t => {
-  const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+  const { mkdtemp, rm } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const { startSharedService } = await import('../src/shared-service.js');
@@ -119,11 +125,11 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
   const { ConnectedRuntime } = await import('../src/adapter-runtime.js');
   const { management } = await import('../src/dsh/host-management.js');
   const directory = await mkdtemp(join(tmpdir(), 'amoji-d4-fix1-'));
-  const service = await startSharedService(directory, new URL('../assets/samples/', import.meta.url));
+  const service = await startSharedService(directory, SEEDS);
   const client = await SharedClient.connect({ directory });
   t.after(async () => { await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
-  const originalBytes = await readFile(new URL(`../assets/samples/blobs/${a.visual.primary.sha256}`, import.meta.url));
-  const myBytes = await readFile(new URL(`../assets/samples/blobs/${b.visual.primary.sha256}`, import.meta.url));
+  const originalBytes = library.bytes(a.visual.primary.sha256);
+  const myBytes = library.bytes(b.visual.primary.sha256);
   const seed = await client.createDraft();
   const saved = await client.saveDraft(seed.draft_id, seed.version, base.fields, originalBytes.toString('base64'));
   const personal = await client.confirmDraft(saved.draft_id, saved.version);
@@ -134,7 +140,7 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
   let created: typeof personal | undefined;
   await React.act(() => f.root.render(React.createElement(DraftEditor, { rpc, sessionId: 'fixture', initial: editing, onCreated(value) { created = value; } })));
   const input = f.dom.window.document.querySelector<HTMLInputElement>('[aria-label="上传表情图片"]')!;
-  Object.defineProperty(input, 'files', { value: [new f.dom.window.File([myBytes], 'my-picture.png')] });
+  Object.defineProperty(input, 'files', { value: [new f.dom.window.File([new Uint8Array(myBytes)], 'my-picture.png')] });
   await React.act(async () => { input.dispatchEvent(new f.dom.window.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 10)); });
   const waitFor = async (ready: () => boolean) => {
     for (let attempt = 0; attempt < 100 && !ready(); attempt++) await React.act(async () => { await new Promise(r => setTimeout(r, 10)); });
@@ -144,7 +150,7 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
   await React.act(() => f.button('保存并预览').click());
   await waitFor(() => !!f.dom.window.document.querySelector('[aria-label="图文确认预览"] img'));
   const concurrent = await client.startRevisionDraft({ asset_id: personal.asset_id, revision_id: personal.revision_id }, entry.version);
-  const competing = await client.saveDraft(concurrent.draft_id, concurrent.version, { ...base.fields, name: '其他客户端更新' });
+  const competing = await client.saveDraft(concurrent.draft_id, concurrent.version, { ...base.fields, name: { ...base.fields.name, 'zh-CN': '其他客户端更新' } });
   await client.confirmDraft(competing.draft_id, competing.version);
   await React.act(() => f.dom.window.document.querySelector('[aria-label="图文确认预览"] img')!.dispatchEvent(new f.dom.window.Event('load')));
   await React.act(() => f.dom.window.document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
@@ -166,10 +172,10 @@ test('fix1 真实共享服务冲突续编保留上传图片hash并完成新版�
 test('已确认草稿可直接切换新编辑，不误报未保存内容', async t => {
   const f = await fixture(t); let created = 0; const confirmed = { ...base, draft_id: 'done', confirmed: a };
   const rpc: any = { management: async (_s:string, method:string,args:any) => {
-    if(method==='listEntries') return [];
+    if(method==='listEntries'||method==='listPackDrafts'||method==='listPacks') return [];
     if(method==='listDrafts') return [confirmed];
     if(method==='getDraft') return confirmed;
-    if(method==='getSettings') return {version:1,preferences:{style:'neutral',frequency:'restrained',paused:false}};
+    if(method==='getSettings') return {version:1,...DEFAULT_PREFERENCES};
     if(method==='createDraft') {created++;return {...base,draft_id:'new-edit'};}
   } };
   let confirmations=0; f.dom.window.confirm=()=>{confirmations++;return false;};
@@ -182,7 +188,7 @@ test('已确认草稿可直接切换新编辑，不误报未保存内容', async
 test('草稿下拉切换保留未保存输入，不需要先结束编辑',async t=>{
  const f=await fixture(t);const drafts=[{...base,draft_id:'switch-a'},{...base,draft_id:'switch-b'}];let saves=0;
  const rpc:any={management:async(_s:string,method:string,args:any)=>{
-  if(method==='listEntries')return[];if(method==='listDrafts')return drafts;
+  if(method==='listEntries'||method==='listPackDrafts'||method==='listPacks')return[];if(method==='listDrafts')return drafts;
   if(method==='getDraft')return drafts.find(d=>d.draft_id===args.draft_id);
   if(method==='listSuggestionModels')return{models:[],current:null};
   if(method==='saveDraft')saves++;

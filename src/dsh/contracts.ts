@@ -15,8 +15,8 @@ export interface DshExecution { agent?: DshAgent; callId: string; rootCallId?: s
 export type RpcResult<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string; details: object } };
 export interface ToolOptions {
   name: string; description: string;
-  /** dsh-tools ParameterSchemaSpec: per-property value schemas, `required: true` per property. */
-  parameters: Record<string, Record<string, unknown>>;
+  /** Per-property value schemas with `required: true` per property, as defineTool accepts them. */
+  parameters: import('@deepseek-ai/dsh-tools').ParameterSchemaSpec;
   output: { schema: { type: 'json' }; render(args: unknown, value: unknown): { type: 'text'; text: string }[]; presentationMeta?(args: unknown, value: unknown): JsonValue };
   execute(args: unknown, exec: DshExecution): Promise<JsonValue>;
 }

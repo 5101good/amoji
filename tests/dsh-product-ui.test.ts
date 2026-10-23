@@ -7,11 +7,14 @@ import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots';
 import { createComponents, type ClientPort } from '../src/dsh/client.js';
 import { mountUserMessages } from '../src/dsh/messages.js';
 import { expressionMessageText } from '../src/dsh/expression-message.js';
-import { SampleCatalog } from '../src/sample-catalog.js';
+import { builtin, messageOf, zh } from './helpers/builtin-expressions.js';
+import { DEFAULT_PREFERENCES } from '../src/library-management.js';
 import { visualMeta } from '../src/dsh/host.js';
 import type { DshRpc } from '../src/dsh/contracts.js';
-const expressions = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all();
+const expressions = (await builtin()).expressions;
 const expression = expressions[0]!;
+const name = (e = expression) => zh(e).name;
+const accepted = (id = 'sent') => ({ meta: { messageId: id }, message: { message_id: id }, host: { status: 'accepted' } }) as any;
 async function fixture(t: TestContext) {
  const dom = new JSDOM('<div id="root"></div><button id="outside">外部控件</button>');
  const old = {window:globalThis.window, document:globalThis.document};
@@ -39,76 +42,77 @@ for(const mode of ['toggle','escape','outside','outsideClick','focusOutside','cl
 });
 test('列表图片和名称一次点选即发送，详情是独立可访问按钮',async t=>{
  const f=await fixture(t);const Picker=createComponents(f.rpc).Picker;
- let calls=0;f.rpc.submit=async()=>{calls++;return {meta:{messageId:'sent'},host:{status:'accepted'}} as any;};
+ let calls=0;f.rpc.submit=async()=>{calls++;return accepted();};
  await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
  const image=f.panel()!.querySelector('img')!;const tile=image.closest('button');
- assert.ok(tile,'图片整体可点击');assert.equal(tile.getAttribute('aria-label'),expression.name);
+ assert.ok(tile,'图片整体可点击');assert.equal(tile.getAttribute('aria-label'),name());
  assert.equal(tile.querySelector('button'),null);
- assert.ok(f.button(`查看 ${expression.name} 详情`));
+ assert.ok(f.button(`查看 ${name()} 详情`));
  await act(async()=>{image.click();await new Promise(r=>setTimeout(r,0));});assert.equal(calls,1);assert.ok(!f.panel());
 });
 test('快速双击只提交一次，宿主接纳后收起弹层',async t=>{
  const f=await fixture(t);let count=0;
- let release!:()=>void;f.rpc.submit=async()=>{count++;await new Promise<void>(r=>release=r);return {meta:{messageId:'sent'},host:{status:'accepted'}} as any;};
+ let release!:()=>void;f.rpc.submit=async()=>{count++;await new Promise<void>(r=>release=r);return accepted();};
  const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));
- await f.click('表情');const tile=f.button(expression.name);await act(async()=>{tile.click();tile.click();await Promise.resolve();});assert.equal(count,1);await act(async()=>{release();await new Promise(r=>setTimeout(r,0));});assert.ok(!f.panel(),'发送后关闭');
+ await f.click('表情');const tile=f.button(name());await act(async()=>{tile.click();tile.click();await Promise.resolve();});assert.equal(count,1);await act(async()=>{release();await new Promise(r=>setTimeout(r,0));});assert.ok(!f.panel(),'发送后关闭');
 });
-test('选择器切换办公画风立即 CAS 保存并刷新 catalog',async t=>{
- const f=await fixture(t);const classic={...expression,name:'经典问候',tags:['amoji:appearance:classic','amoji:family:greeting']};const office={...expressions[1]!,name:'办公问候',tags:['amoji:appearance:office','amoji:family:greeting']};
- let settings={version:1,style:'neutral' as const,frequency:'restrained' as const,paused:false,appearance:'classic' as const};let catalogs=0;
- f.rpc.catalog=async()=>{catalogs++;return settings.appearance==='classic'?[classic]:[office];};
+const packOf=(pack_id:string,label:string,e:typeof expression)=>({pack_id,release_id:pack_id,version:1,name:{'zh-CN':label},original_locale:'zh-CN',assets:[e.asset_id]});
+test('选择器切换表情包立即 CAS 保存为首选包并只显示该包',async t=>{
+ const f=await fixture(t);const classic=expressions[0]!,office=expressions[1]!;
+ let settings={version:1,...DEFAULT_PREFERENCES,preferred_packs:['classic','office']};
+ f.rpc.catalog=async()=>[classic,office];f.rpc.packs=async()=>[packOf('classic','经典',classic),packOf('office','办公',office)];
  f.rpc.management=async(_session:string,method:string,args:any)=>{if(method==='getSettings')return settings as any;if(method==='updateSettings'){assert.equal(args.version,1);settings={...settings,...args.preferences,version:2};return settings as any;}throw new Error(method);};
- const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(classic.name));
- await f.click('办公');assert.equal(settings.appearance,'office');assert.ok(f.button(office.name));assert.ok(catalogs>=2);
+ const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(name(classic)));assert.ok(!f.button(name(office)),'默认显示首选包');
+ await f.click('办公');assert.deepEqual(settings.preferred_packs,['office','classic']);assert.equal(settings.version,2);assert.ok(f.button(name(office)));assert.ok(!f.button(name(classic)));
 });
-test('画风 CAS 冲突后同步最新设置与 catalog',async t=>{
- const f=await fixture(t);const classic={...expression,name:'冲突前经典',tags:['amoji:appearance:classic','amoji:family:conflict']};const office={...expressions[1]!,name:'冲突后办公',tags:['amoji:appearance:office','amoji:family:conflict']};
- let remote={version:1,style:'neutral' as const,frequency:'restrained' as const,paused:false,appearance:'classic' as 'classic'|'office'};
- f.rpc.catalog=async()=>remote.appearance==='classic'?[classic]:[office];
+test('表情包 CAS 冲突后同步最新设置并保留当前筛选',async t=>{
+ const f=await fixture(t);const classic=expressions[0]!,office=expressions[1]!;
+ let remote={version:1,...DEFAULT_PREFERENCES,preferred_packs:['classic','office']};
+ f.rpc.catalog=async()=>[classic,office];f.rpc.packs=async()=>[packOf('classic','经典',classic),packOf('office','办公',office)];
  f.rpc.management=async(_session:string,method:string)=>{if(method==='getSettings')return remote as any;if(method==='updateSettings')throw Object.assign(new Error('设置冲突'),{code:'SETTINGS_CONFLICT',current:remote});throw new Error(method);};
- const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(classic.name));
- remote={...remote,version:2,appearance:'office'};await f.click('办公');
- assert.equal(f.button('办公').getAttribute('aria-pressed'),'true');assert.ok(f.button(office.name));assert.ok(!f.button(classic.name));assert.match(f.dom.window.document.body.textContent!,/设置冲突/);
+ const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');assert.ok(f.button(name(classic)));
+ remote={...remote,version:2,preferred_packs:['office','classic']};await f.click('办公');
+ assert.equal(f.button('办公').getAttribute('aria-pressed'),'true');assert.ok(f.button(name(office)));assert.ok(!f.button(name(classic)));assert.match(f.dom.window.document.body.textContent!,/设置冲突/);
 });
 for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保留额外文字与附件':'没有重复语义气泡'}`,async t=>{
- const f=await fixture(t);const meta=visualMeta({message_id:'m',revision:expression} as any);
- f.rpc.history=async()=>[{message:{message_id:'m',direction:'human_to_ai',revision:expression},meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
+ const f=await fixture(t);const message=messageOf(expression,'m');const meta=visualMeta(message);
+ f.rpc.history=async()=>[{message,meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
  const core=new SlotCore();core.register({name:'root',children:{'conversation.chat.node':{kind:'keyed',scope:'session'}}} as any,()=>null);
  const Original=(p:any)=>React.createElement('div',{'data-original':true},JSON.stringify(p.node.data.content));
  core.register({name:'conversation.chat.node',key:'user'} as any,Original);
  const release=mountUserMessages(core as unknown as ClientPort['slots'],f.rpc);t.after(release);
  const View=core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
- const content=[{type:'text',text:expressionMessageText(expression)},...(mixed?[{type:'text',text:'普通文字不能丢失'},{type:'image',url:'attachment.png'}]:[])];
+ const content=[{type:'text',text:expressionMessageText(message)},...(mixed?[{type:'text',text:'普通文字不能丢失'},{type:'image',url:'attachment.png'}]:[])];
  await act(async()=>f.root.render(React.createElement(View,{sessionId:'s',node:{data:{content,seq:1,source:{kind:'user',rpcId:'amoji:m'}}}})));
  assert.equal(f.dom.window.document.querySelectorAll('img').length,1);
  const native=f.dom.window.document.querySelector('[data-original]');
- if(mixed){assert.ok(native);assert.match(native.textContent!,/普通文字不能丢失/);assert.match(native.textContent!,/attachment.png/);assert.ok(!native.textContent!.includes(expression.semantics.meaning));}
+ if(mixed){assert.ok(native);assert.match(native.textContent!,/普通文字不能丢失/);assert.match(native.textContent!,/attachment.png/);assert.ok(!native.textContent!.includes(zh(expression).meaning));}
  else assert.ok(!native,'纯表情无需额外宿主文字气泡');
  assert.ok(f.dom.window.document.querySelector('details'),'语义仍可主动查看');
 });
 test('协作类别只过滤当前列表，切换后不会发送隐藏的旧选择',async t=>{
- const f=await fixture(t);const progress={...expressions[0]!,tags:['协作:进度']};const feedback={...expressions[1]!,tags:['协作:反馈']};
- f.rpc.catalog=async()=>[progress,feedback];const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
- await f.click('进度');assert.ok(f.button(progress.name));assert.ok(!f.button(feedback.name));await f.click(`查看 ${progress.name} 详情`);assert.ok(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'));
- await f.click('反馈');assert.ok(f.button(feedback.name));assert.ok(!f.button(progress.name));assert.equal(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'),null);
+ const f=await fixture(t);const progress=expressions.find(e=>e.realizes==='core:checkin')!;const grounding=expressions.find(e=>e.realizes==='core:elaborate')!;
+ f.rpc.catalog=async()=>[progress,grounding];const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
+ await f.click('进展');assert.ok(f.button(name(progress)));assert.ok(!f.button(name(grounding)));await f.click(`查看 ${name(progress)} 详情`);assert.ok(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'));
+ await f.click('理解');assert.ok(f.button(name(grounding)));assert.ok(!f.button(name(progress)));assert.equal(f.panel()!.querySelector('[aria-label="固定语义与精确版本"]'),null);
 });
 
 test('纯表情仍保留宿主引用标签和技能信息',async t=>{
- const f=await fixture(t);const meta=visualMeta({message_id:'m',revision:expression} as any);
- f.rpc.history=async()=>[{message:{message_id:'m',direction:'human_to_ai',revision:expression},meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
+ const f=await fixture(t);const message=messageOf(expression,'m');const meta=visualMeta(message);
+ f.rpc.history=async()=>[{message,meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
  const core=new SlotCore();core.register({name:'root',children:{'conversation.chat.node':{kind:'keyed',scope:'session'}}} as any,()=>null);
  const Original=(p:any)=>React.createElement('div',{'data-original':true},JSON.stringify(p.node.data));
  core.register({name:'conversation.chat.node',key:'user'} as any,Original);
  const release=mountUserMessages(core as unknown as ClientPort['slots'],f.rpc);t.after(release);
  const View=core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
- await act(async()=>f.root.render(React.createElement(View,{sessionId:'s',node:{data:{content:[{type:'text',text:expressionMessageText(expression)}],referenceLabels:['引用的对话'],skillNames:['project-skill'],seq:1,source:{kind:'user',rpcId:'amoji:m'}}}})));
- const native=f.dom.window.document.querySelector('[data-original]');assert.ok(native);assert.match(native.textContent!,/引用的对话/);assert.match(native.textContent!,/project-skill/);assert.ok(!native.textContent!.includes(expression.semantics.meaning));
+ await act(async()=>f.root.render(React.createElement(View,{sessionId:'s',node:{data:{content:[{type:'text',text:expressionMessageText(message)}],referenceLabels:['引用的对话'],skillNames:['project-skill'],seq:1,source:{kind:'user',rpcId:'amoji:m'}}}})));
+ const native=f.dom.window.document.querySelector('[data-original]');assert.ok(native);assert.match(native.textContent!,/引用的对话/);assert.match(native.textContent!,/project-skill/);assert.ok(!native.textContent!.includes(zh(expression).meaning));
 });
 
 test('低高度选择器使用完整视口并让发送操作独立于可滚动详情',async t=>{
  const f=await fixture(t);Object.defineProperty(f.dom.window,'innerHeight',{value:320,configurable:true});Object.defineProperty(f.dom.window,'innerWidth',{value:568,configurable:true});
  const Picker=createComponents(f.rpc).Picker;await act(()=>f.root.render(React.createElement(Picker,{sessionId:'s'})));await f.click('表情');
  const panel=f.panel() as HTMLElement;assert.equal(panel.style.height,'296px');assert.equal(panel.style.top,'12px');
- await f.click(`查看 ${expression.name} 详情`);assert.ok(panel.querySelector('[aria-label="固定语义与精确版本"]'));
+ await f.click(`查看 ${name()} 详情`);assert.ok(panel.querySelector('[aria-label="固定语义与精确版本"]'));
  assert.match(panel.textContent!,/点击即发送/);
 });

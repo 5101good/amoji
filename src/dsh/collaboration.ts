@@ -57,7 +57,7 @@ export class DshCollaboration {
   validate(sessionId:string,choice:EffectChoice,ref:ExpressionRef):void{
     this.context.authorize(this.agent(sessionId));
     try{collaborationEnvelope(this.profile,sessionId,Number.MAX_SAFE_INTEGER,this.context.checkpoint(this.agent(sessionId)).rules,this.instruction(choice,ref));}
-    catch{fail('ACTION_LIMIT','完整动作上下文超过 8 KiB，可明确选择仅发送');}
+    catch{fail('EFFECT_LIMIT','完整效果上下文超过 8 KiB，可明确选择仅发送');}
   }
   async prepare(sessionId:string,message:StoredMessage):Promise<void>{
     const intent=message.effect_intent;if(!intent)return;

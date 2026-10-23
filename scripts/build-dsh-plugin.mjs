@@ -10,9 +10,9 @@ const manifest = JSON.parse(await readFile(`${out}/package.json`, 'utf8'));
 await rm(`${out}/runtime`, { recursive: true, force: true });
 await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
-// Every host-independent core module (the protocol directory included) runs inside the plugin's service.
+// Every host-independent core module (protocol and application included) runs inside the plugin's service.
 for (const name of await readdir(`${root}/dist/src`)) if (name.endsWith('.js')) await cp(`${root}/dist/src/${name}`, `${out}/runtime/src/${name}`);
-await cp(`${root}/dist/src/protocol`, `${out}/runtime/src/protocol`, { recursive: true });
+for (const dir of ['protocol', 'application']) await cp(`${root}/dist/src/${dir}`, `${out}/runtime/src/${dir}`, { recursive: true });
 await cp(`${root}/web`, `${out}/web`, { recursive: true });
 // Host-side dsh modules are the .ts sources; .tsx files are bundled into client.js below.
 for (const name of await readdir(`${root}/src/dsh`)) if (name.endsWith('.ts')) await cp(`${root}/dist/src/dsh/${name.replace(/\.ts$/, '.js')}`, `${out}/runtime/src/dsh/${name.replace(/\.ts$/, '.js')}`);

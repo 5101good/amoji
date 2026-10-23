@@ -21,12 +21,10 @@ export const errorEnglish: Record<string, string> = {
   INVALID_BODY: "The marketplace request is invalid. Check the selected content and try again.",
   NOT_FOUND: "The original marketplace operation or resource was not found.",
 
-  ACTION_LIMIT: 'The action exceeds the allowed UTF-8 budget. Shorten it and try again.',
+  EFFECT_LIMIT: 'The complete effect context exceeds 8 KiB. Choose send-only or a shorter effect.',
   SEMANTIC_LIMIT: 'Fixed semantics exceed the separate 4 KiB budget.',
-  ACTION_CONFLICT: 'Only one recurring rule is allowed per preference group.',
-  ACTION_REVISION_CONFLICT: 'An immutable action revision has conflicting content.',
   RELEASE_CONFLICT: 'This release identity or version already identifies different content.',
-  PACK_NOT_FOUND: 'This exact scenario release was not found.',
+  PACK_NOT_FOUND: 'This exact pack release was not found.',
   DRAFT_FINALIZED: 'This release is saved and immutable. Create a new draft.',
   MIGRATION_FAILED: 'Database migration failed. The previous database has been preserved.',
 

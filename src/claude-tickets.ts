@@ -55,7 +55,7 @@ export class ClaudeTickets {
 
 function toolName(value: unknown): string {
   const name = nonempty(value);
-  if (!/^mcp__plugin_amoji_amoji__amoji_(search|resolve|emit|pick)$/.test(name)) fail('INVALID_ARGUMENT', '不是 Amoji Claude 插件工具');
+  if (!/^mcp__plugin_amoji_amoji__amoji_(express|search|resolve|pick)$/.test(name)) fail('INVALID_ARGUMENT', '不是 Amoji Claude 插件工具');
   return name;
 }
 function digest(value: unknown): string {

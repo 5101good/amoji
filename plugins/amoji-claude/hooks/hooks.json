@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "^mcp__plugin_amoji_amoji__amoji_(search|resolve|emit|pick)$",
+        "matcher": "^mcp__plugin_amoji_amoji__amoji_(express|search|resolve|pick)$",
         "hooks": [
           {
             "type": "command",

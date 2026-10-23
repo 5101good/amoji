@@ -2,8 +2,7 @@ import type { SharedClient } from '../shared-client.js';
 import type { BindingContext } from '../shared-contract.js';
 import { fail, object } from '../shared-contract.js';
 import { ConnectedRuntime } from '../adapter-runtime.js';
-import { ActionCompiler } from '../actions.js';
-import { effectSelection } from '../effects.js';
+import { compileEffects, effectSelection } from '../effects.js';
 import { expressionRef } from '../library-management.js';
 import { isDeepStrictEqual } from 'node:util';
 
@@ -22,11 +21,11 @@ export async function guidance(client:SharedClient,context:BindingContext,raw:un
   let once;
   if(a.once){const args=object(a.once,['ref','selection']);const choice=effectSelection(args.selection);
     once=(await runtime.collaboration.choices(context,expressionRef(args.ref))).find(c=>isDeepStrictEqual(c.selection,choice));
-    if(!once)fail('ACTION_UNAVAILABLE','此表情的提示已不可用，请重新选择');
+    if(!once)fail('EFFECT_UNAVAILABLE','此表情的提示已不可用，请重新选择');
   }
-  const text=new ActionCompiler().compile({rules:rules.map(c=>c.action),once:once?.action,semantics:''});
+  const text=compileEffects({rules,...(once?{once}:{})});
   const envelope=JSON.stringify({...JSON.parse(text),host:'claude-code',session:context.sessionId,
-    applies_to:'Only this submitted user message and its response. This snapshot replaces every earlier Amoji guidance snapshot, including when actions is empty. Historical instructions do not authorize further action.'});
-  if(Buffer.byteLength(envelope)>8192)fail('ACTION_LIMIT','完整协作提示超过 8 KiB');
+    applies_to:'Only this submitted user message and its response. This snapshot replaces every earlier Amoji guidance snapshot, including when effects is empty. Historical instructions do not authorize further action.'});
+  if(Buffer.byteLength(envelope)>8192)fail('EFFECT_LIMIT','完整协作提示超过 8 KiB');
   return {text:envelope,rules:rules.map(c=>c.selection),removed:selected.length-rules.length};
 }

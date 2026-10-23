@@ -1,6 +1,6 @@
 import { loadGuidance } from './guidance.js';
 import { refreshMarket, refreshPublisher } from './market.js';
-import { bridge, refOf, L, errorText } from "./transport.js";
+import { bridge, refOf, L, errorText, uiLocale, view } from "./transport.js";
 import { rememberMessage } from "./message-view.js";
 import { galleryWindow, WINDOW_LIMIT, BUFFER_LIMIT } from "./gallery.js";
 import { supportsRichText } from "./ui-kit.js";
@@ -14,7 +14,7 @@ export async function state($) {
       language: "zh",
       tab: "picker",
       query: "",
-      category: "全部",
+      category: "all",
       page: 0,
       archived: false,
       busy: false,
@@ -156,7 +156,7 @@ export async function navigate($, s, tab) {
   s.drafts = null;
   s.collection = null;
   s.query = tab === "picker" ? s.pickerSearch?.query || "" : "";
-  s.category = tab === "picker" ? s.pickerSearch?.category || "全部" : "全部";
+  s.category = tab === "picker" ? s.pickerSearch?.category || "all" : "all";
   s.page = 0;
   s.error = "";
   s.notice = "";
@@ -192,7 +192,7 @@ export async function open($) {
 export async function send($, s, expression, epoch, action) {
   if (s.viewAgentId || (epoch !== undefined && epoch !== s.pictureEpoch)) return;
   await perform($, s, async () => {
-    const delivery = { name: expression.name, phase: "preparing" };
+    const delivery = { name: view(s, expression).name, phase: "preparing" };
     s.delivery = delivery;
     invalidate($);
     try {
@@ -200,9 +200,12 @@ export async function send($, s, expression, epoch, action) {
       const prepared = await bridge($, s.context, "receive", {
         ref: refOf(expression),
         requestId,
+        locale: uiLocale(s),
+        ...(s.note?.trim() ? { note: s.note.trim() } : {}),
       });
+      s.note = "";
       if (prepared.segments)
-        rememberMessage(s, "human_to_ai:" + prepared.text, prepared.segments);
+        rememberMessage(s, "human_to_ai:" + uiLocale(s) + ":" + prepared.text, prepared.segments);
       delivery.text = prepared.text;
       if(action)delivery.guidance={ref:refOf(expression),selection:action};
       delivery.phase = "submitting";
@@ -230,30 +233,15 @@ export async function send($, s, expression, epoch, action) {
     }
   });
 }
-export async function changePreference($, s, key, value) {
-  if (s.preferences?.[key] === value) return;
+/** Edits one amoji.preferences field (RFC §11.6); `change` returns the next preferences object. */
+export async function changePreference($, s, change) {
   await perform($, s, async () => {
-    const { style, frequency, paused, appearance, version } = s.preferences;
-    const browsing = key === "appearance" && (s.tab === "picker" || s.tab === "library");
-    const result = await bridge($, s.context, "updateSettings", {
-      version,
-      preferences: { style, frequency, paused, appearance, [key]: value },
-      ...(browsing ? { browse: { query: s.query, category: s.category, offset: 0,
-        limit: BUFFER_LIMIT, library: s.tab === "library", archived: s.archived } } : {}),
-    });
-    s.preferences = browsing ? result.preferences : result;
-    if (key === "appearance") s.bandItems = null;
-    if (browsing) {
-      s.windowRequest = null;
-      if (result.collection) {
-        s.galleryBuffer = result.collection;
-        s.collection = { ...result.collection, items: result.collection.items.slice(0, WINDOW_LIMIT) };
-      } else {
-        s.collection = null;
-        s.galleryBuffer = null;
-        throw new Error("BRIDGE_UNAVAILABLE");
-      }
-    }
+    const { version, ...current } = s.preferences;
+    const next = change(current);
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    s.preferences = await bridge($, s.context, "updateSettings", { version, preferences: next });
+    s.bandItems = null;
+    s.collection = null;
     s.notice = s.tab === "picker" ? "" : L(s, "已保存", "Saved");
   });
 }
@@ -293,7 +281,7 @@ export async function save($, s, preview = false) {
 export async function forkLocalDraft($, s) {
   const fields = JSON.parse(JSON.stringify(s.draft.fields));
   const imageHash = s.copyImageHash || s.draft.visual?.primary.sha256;
-  const fresh = await bridge($, s.context, "createDraft");
+  const fresh = await bridge($, s.context, "createDraft", { locale: uiLocale(s) });
   // Keep the new identity immediately: a later save failure must retry this draft,
   // never overwrite the conflicting original or silently create another copy.
   s.draft = { ...fresh, fields };
@@ -325,7 +313,7 @@ export async function revise($, s, item) {
   } else await start();
 }
 export async function newDraft($, s) {
-  s.draft = await bridge($, s.context, "createDraft");
+  s.draft = await bridge($, s.context, "createDraft", { locale: uiLocale(s) });
   s.step = "idea";
   s.intent = "";
   s.suggestion = null;
@@ -351,7 +339,7 @@ export async function suggest($, s) {
   invalidate($);
   try {
     const request = await bridge($, s.context, "suggestionRequest", {
-      intent: s.intent,
+      intent: s.intent, locale: s.draft.fields.original_locale,
     });
     if (controller.signal.aborted) return;
     const model =
@@ -373,7 +361,7 @@ export async function suggest($, s) {
       return;
     if (!reply.isAnswered) throw new Error("SUGGESTION_FAILED");
     const fields = await bridge($, s.context, "parseSuggestion", {
-      text: reply.text,
+      text: reply.text, locale: s.draft.fields.original_locale,
     });
     if (
       !controller.signal.aborted &&

@@ -1,12 +1,12 @@
-import { bridge, L, refOf } from './transport.js';
-import { actionText } from './guidance.js';
+import { bridge, L, refOf, view, local, gloss } from './transport.js';
+import { effectText } from './guidance.js';
 import { perform, navigate, invalidate } from './controller.js';
 import { publisherCall, refreshPublisher, openPublication, savePublication, publicationAction } from './market.js';
 export async function publicationPreview($,s) {
-  const pack=s.publicationFields||s.scenarioDraft?.manifest;
+  const pack=s.publicationFields||s.packDraft?.manifest;
   if(!pack)return;
   const expressions=pack.expressions.slice((s.publicationPage||0)*4,(s.publicationPage||0)*4+4);
-  s.publicationPreviews=await bridge($,s.context,'scenario',{method:'previews',refs:expressions.map(refOf)});
+  s.publicationPreviews=await bridge($,s.context,'packs',{method:'previews',refs:expressions.map(refOf)});
 }
 export async function openDraft($,s,d) {
   openPublication(s,d);if(d.step===3||d.state!=='draft')await publicationPreview($,s);
@@ -15,22 +15,22 @@ function previewContent($,s,k,pack) {
   const {col,row,button,showcase,ui,inner,besideWidth}=k,tr=(zh,en)=>L(s,zh,en);
   const page=s.publicationPage||0,pages=Math.ceil(pack.expressions.length/4);
   return col([
-    ui.title(pack.name),pack.description&&ui.body(pack.description),
-    ui.meta([pack.rights.license,pack.rights.creator,tr(`${pack.expressions.length} 个表情`,`${pack.expressions.length} expressions`)]),
+    ui.title(local(s,pack.name,pack.original_locale)),ui.body(local(s,pack.description,pack.original_locale)),
+    ui.meta([pack.rights.license,pack.rights.creator,pack.locales.join(' · '),tr(`${pack.expressions.length} 个表情`,`${pack.expressions.length} expressions`)]),
     pack.rights.source&&ui.caption(pack.rights.source),
-    ...pack.expressions.slice(page*4,page*4+4).map(e=>ui.card({key:'publish-item:'+e.revision_id,children:[
-      showcase(s.publicationPreviews?.[e.revision_id],e.name,[
-        ui.label(e.name),ui.body(e.semantics.meaning,besideWidth(12)),
-        ui.mono([e.semantics.fallback!==e.name&&e.semantics.fallback,e.semantics.tone,e.semantics.locale].filter(Boolean).join(' · ')),
+    ...pack.expressions.slice(page*4,page*4+4).map(e=>{const x=view(s,e);return ui.card({key:'publish-item:'+e.revision_id,children:[
+      showcase(s.publicationPreviews?.[e.revision_id],x.name,[
+        ui.label(x.name),ui.body(x.meaning,besideWidth(12)),
+        ui.mono([gloss(s,e.realizes,e.directions?.[0]),x.fallback!==x.name&&x.fallback,Object.keys(e.semantics).join('/')].filter(Boolean).join(' · ')),
         ui.mono([e.rights?.license,e.rights?.creator].filter(Boolean).join(' · ')),
       ]),
-    ]})),
+    ]});}),
     pages>1&&row([
       page>0&&button('publish-prev-image',tr('‹ 上一页','‹ Previous'),async()=>{s.publicationPage--;await publicationPreview($,s);}),
       ui.caption(`${page+1} / ${pages}`),
       page+1<pages&&button('publish-next-image',tr('下一页 ›','Next ›'),async()=>{s.publicationPage=page+1;await publicationPreview($,s);}),
     ]),
-    ...pack.actions.map(a=>ui.card({gap:0,children:[ui.label(a.effect_summary,inner),ui.body(actionText(s,a),inner)]})),
+    ...(pack.effects||[]).map(a=>ui.card({gap:0,children:[ui.label(local(s,a.title,pack.original_locale),inner),ui.body(effectText(s,a,pack.original_locale),inner)]})),
   ]);
 }
 export function publisherView($,s,k) {
@@ -59,15 +59,15 @@ export function publisherView($,s,k) {
     ui.card({children:[
       ui.label(tr('新的投稿','New submission')),
       select('publish-source',tr('选择已确认的本地表情包','Choose a confirmed local pack'),s.publishSource||'',
-        [['',tr('选择表情包','Choose a pack')],...(s.scenarios?.packs||[]).map(p=>[p.release_id,p.name+' · v'+p.version])],x=>perform($,s,async()=>{s.publishSource=x;})),
+        [['',tr('选择表情包','Choose a pack')],...(s.packs?.packs||[]).map(p=>[p.release_id,local(s,p.name,p.original_locale)+' · v'+p.version])],x=>perform($,s,async()=>{s.publishSource=x;})),
       row([s.publishSource&&button('publish-create',tr('开始投稿','Prepare submission'),async()=>openDraft($,s,await publisherCall($,s,'create',{release_id:s.publishSource})),true),
         button('publish-choose',tr('从表情库组织新包','Create a pack from your library'),async()=>{await navigate($,s,'library');s.selecting=true;s.selected={};})]),
       ui.caption(tr('也可以导入 .amoji 表情包后投稿。','You can also import an .amoji pack before submitting.'),inner),
     ]}),
-    ((s.publishDrafts||[]).length>0||(s.scenarios?.drafts||[]).some(d=>!d.saved))&&ui.heading(tr('进行中','In progress')),
+    ((s.publishDrafts||[]).length>0||(s.packs?.drafts||[]).length>0)&&ui.heading(tr('进行中','In progress')),
     ...(s.publishDrafts||[]).map(p=>{const state=p.submission?.state||p.state;return row([
-      button('publish-resume:'+p.id,p.manifest.name,()=>openDraft($,s,p)),ui.badge(tone(state),label(state))]);}),
-    ...(s.scenarios?.drafts||[]).filter(d=>!d.saved).map(d=>row([button('scenario-resume:'+d.draft_id,d.manifest.name,async()=>{s.scenarioDraft=JSON.parse(JSON.stringify(d));s.scenarioPreview=false;s.scenarioReviewed=false;s.publicationFields=null;await navigate($,s,'scenario');}),
+      button('publish-resume:'+p.id,local(s,p.manifest.name,p.manifest.original_locale),()=>openDraft($,s,p)),ui.badge(tone(state),label(state))]);}),
+    ...(s.packs?.drafts||[]).map(d=>row([button('pack-resume:'+d.draft_id,local(s,d.manifest.name,d.manifest.original_locale),async()=>{s.packDraft=JSON.parse(JSON.stringify(d));s.packPreview=false;s.packReviewed=false;s.publicationFields=null;await navigate($,s,'pack');}),
       ui.badge('info',tr('整理中','Organizing'))])),
     button('publish-refresh',tr('刷新草稿与连接','Refresh drafts and connection'),()=>refreshPublisher($,s)),
     d&&v&&ui.card({selected:true,children:[
@@ -75,18 +75,20 @@ export function publisherView($,s,k) {
       ui.caption(steps.map((name,i)=>(i+1===d.step?'● ':'○ ')+name).join('   '),inner),
       d.state==='draft'&&col([
         d.step===1&&col([
-          input('publish-name',tr('表情包名称','Pack name'),v.name,x=>{v.name=x;}),
-          input('publish-description',tr('介绍','Description'),v.description||'',x=>{v.description=x;}),
+          ...v.locales.flatMap(l=>[
+            input('publish-name:'+l,tr('表情包名称','Pack name')+' · '+l,v.name[l]||'',x=>{v.name={...v.name,[l]:x};}),
+            input('publish-description:'+l,tr('介绍','Description')+' · '+l,v.description[l]||'',x=>{v.description={...v.description,[l]:x};}),
+          ]),
           select('publish-license',tr('公开分发许可','Distribution license'),v.rights.license,['CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0'].map(x=>[x,x]),x=>{v.rights.license=x;}),
           input('publish-creator',tr('署名','Attribution'),v.rights.creator||'',x=>{v.rights.creator=x;}),
           input('publish-source-url',tr('许可来源','License source'),v.rights.source||'',x=>{v.rights.source=x;}),
         ]),
         d.step===2&&col([
           ui.caption(tr('选择要一起分享的协作提示，使用者仍需自行启用。','Choose guidance to share. Recipients must still enable it themselves.'),inner),
-          ...(s.scenarios?.packs.find(p=>p.release_id===d.source_release_id)?.actions||[]).map(a=>check('publish-action:'+a.action_revision_id,s.publicationActions.includes(a.action_revision_id),a.effect_summary,async()=>{
-            s.publicationActions=s.publicationActions.includes(a.action_revision_id)?s.publicationActions.filter(x=>x!==a.action_revision_id):[...s.publicationActions,a.action_revision_id];
+          ...(s.packs?.packs.find(p=>p.release_id===d.source_release_id)?.effects||[]).map(a=>check('publish-effect:'+a.effect_revision_id,s.publicationEffects.includes(a.effect_revision_id),local(s,a.title,v.original_locale),async()=>{
+            s.publicationEffects=s.publicationEffects.includes(a.effect_revision_id)?s.publicationEffects.filter(x=>x!==a.effect_revision_id):[...s.publicationEffects,a.effect_revision_id];
           })),
-          !v.actions.length&&ui.body(tr('这个包只包含表情。','This pack contains expressions only.'),inner),
+          !(v.effects||[]).length&&ui.body(tr('这个包只包含表情。','This pack contains expressions only.'),inner),
         ]),
         row([d.step<3&&button('publish-next',tr('保存并继续','Save and continue'),()=>next(d.step+1),true),d.step>1&&button('publish-back',tr('上一步','Back'),()=>next(d.step-1)),button('publish-save',tr('保存草稿','Save draft'),()=>next(d.step))]),
       ]),
@@ -108,27 +110,31 @@ export function publisherView($,s,k) {
     ]}),
   ]);
 }
-export function scenarioView($,s,k) {
-  const {col,row,button,input,select,ui}=k,tr=(zh,en)=>L(s,zh,en),d=s.scenarioDraft,v=d.manifest;
-  const save=async()=>{s.scenarioReviewed=false;s.scenarioDraft=await bridge($,s.context,'scenario',{method:'save',id:d.draft_id,version:d.version,manifest:v});};
+export function packView($,s,k) {
+  const {col,row,button,input,select,ui}=k,tr=(zh,en)=>L(s,zh,en),d=s.packDraft,v=d.manifest;
+  const save=async()=>{s.packReviewed=false;s.packDraft=await bridge($,s.context,'packs',{method:'save',id:d.draft_id,version:d.version,manifest:v});};
+  const changed=()=>{s.packReviewed=false;s.packPreview=false;invalidate($);};
   return col([
     ui.title(tr('组织表情包','Create an expression pack')),
     ui.caption(tr(`已选 ${v.expressions.length} 个表情。图片与固定语义保持原样；先确认本地包，再选择是否投稿。`,`${v.expressions.length} expressions selected. Images and meanings stay unchanged. Confirm your local pack before choosing to submit it.`)),
-    input('scenario-name',tr('名称','Name'),v.name,x=>{v.name=x;s.scenarioReviewed=false;s.scenarioPreview=false;invalidate($);}),
-    input('scenario-description',tr('介绍','Description'),v.description||'',x=>{v.description=x;s.scenarioReviewed=false;s.scenarioPreview=false;invalidate($);}),
-    select('scenario-license',tr('包许可','Pack license'),v.rights.license,['仅供个人使用','CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0'].map(x=>[x,x==='仅供个人使用'?tr(x,'Personal use only'):x]),x=>{v.rights.license=x;s.scenarioReviewed=false;s.scenarioPreview=false;invalidate($);}),
-    input('scenario-creator',tr('署名','Attribution'),v.rights.creator||'',x=>{v.rights.creator=x;s.scenarioReviewed=false;s.scenarioPreview=false;invalidate($);}),
-    row([button('scenario-save',tr('保存草稿','Save draft'),async()=>{await save();s.notice=tr('表情包草稿已保存。','Pack draft saved.');}),
-      button('scenario-preview',tr('预览全部内容','Preview all content'),async()=>{await save();await bridge($,s.context,'scenario',{method:'preview',id:s.scenarioDraft.draft_id,version:s.scenarioDraft.version});s.scenarioPreview=true;s.publicationFields=null;s.publicationPage=0;await publicationPreview($,s);})]),
-    s.scenarioPreview&&col([
+    ui.caption(tr('包的语言：','Pack languages: ')+v.locales.join(' · ')),
+    ...v.locales.flatMap(l=>[
+      input('pack-name:'+l,tr('名称','Name')+' · '+l,v.name[l]||'',x=>{v.name={...v.name,[l]:x};changed();}),
+      input('pack-description:'+l,tr('介绍','Description')+' · '+l,v.description[l]||'',x=>{v.description={...v.description,[l]:x};changed();}),
+    ]),
+    select('pack-license',tr('包许可','Pack license'),v.rights.license,['仅供个人使用 / Personal use only','CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0'].map(x=>[x,x]),x=>{v.rights.license=x;changed();}),
+    input('pack-creator',tr('署名','Attribution'),v.rights.creator||'',x=>{v.rights.creator=x;changed();}),
+    row([button('pack-save',tr('保存草稿','Save draft'),async()=>{await save();s.notice=tr('表情包草稿已保存。','Pack draft saved.');}),
+      button('pack-preview',tr('预览全部内容','Preview all content'),async()=>{await save();await bridge($,s.context,'packs',{method:'preview',id:s.packDraft.draft_id,version:s.packDraft.version});s.packPreview=true;s.publicationFields=null;s.publicationPage=0;await publicationPreview($,s);})]),
+    s.packPreview&&col([
       previewContent($,s,k,v),
-      button('scenario-reviewed',(s.scenarioReviewed?'☑ ':'☐ ')+tr('已核对图片、语义和许可','I reviewed images, meanings and licenses'),async()=>{s.scenarioReviewed=!s.scenarioReviewed;}),
-      s.scenarioReviewed&&button('scenario-confirm',tr('确认并准备分享','Confirm and prepare to share'),async()=>{
-        if(!s.scenarioReviewed||!s.scenarioPreview)return;
-        const pack=await bridge($,s.context,'scenario',{method:'confirm',id:s.scenarioDraft.draft_id,version:s.scenarioDraft.version,reviewed:true});
-        s.scenarioDraft=null;await navigate($,s,'publish');s.publishSource=pack.release_id;
+      button('pack-reviewed',(s.packReviewed?'☑ ':'☐ ')+tr('已核对图片、语义和许可','I reviewed images, meanings and licenses'),async()=>{s.packReviewed=!s.packReviewed;}),
+      s.packReviewed&&button('pack-confirm',tr('确认并准备分享','Confirm and prepare to share'),async()=>{
+        if(!s.packReviewed||!s.packPreview)return;
+        const pack=await bridge($,s.context,'packs',{method:'confirm',id:s.packDraft.draft_id,version:s.packDraft.version,reviewed:true});
+        s.packDraft=null;await navigate($,s,'publish');s.publishSource=pack.release_id;
       },true),
     ]),
-    button('scenario-close',tr('稍后继续','Continue later'),async()=>{s.scenarioDraft=null;await navigate($,s,'publish');}),
+    button('pack-close',tr('稍后继续','Continue later'),async()=>{s.packDraft=null;await navigate($,s,'publish');}),
   ]);
 }

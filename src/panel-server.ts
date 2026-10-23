@@ -1,3 +1,4 @@
+import { REGISTRY, actGloss } from './protocol/index.js';
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -7,6 +8,9 @@ import type { AdapterRuntime } from './adapter-runtime.js';
 import { searchExpressions } from './search.js';
 
 import { draftVersion, type DraftFields } from './drafts.js';
+
+/** Acts a human can author or send, with their zh-CN gloss, for the panel's act picker. */
+const PANEL_ACTS = REGISTRY.acts.filter(a => a.status !== 'deprecated').map(a => ({ act: a.act, family: a.family, gloss: actGloss(a.act, a.forms.h2a ? 'h2a' : 'a2h', 'zh-CN').text }));
 
 interface PendingPick { id: string; finish: (result: StoredMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
@@ -104,7 +108,7 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context), acts: PANEL_ACTS }); return;
     }
     if (req.method === 'GET' && url.pathname === '/api/drafts') {
       this.json(res, 200, { drafts: this.runtime.creation ? await this.runtime.creation.listDrafts() : [] }); return;

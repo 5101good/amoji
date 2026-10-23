@@ -10,6 +10,21 @@ let searchVersion = 0;
 let renderVersion = 0;
 let disposed = false;
 const hostLabel = (snapshot = state) => snapshot?.host === 'claude-code' ? 'Claude Code' : snapshot?.host === 'dsh' ? 'dsh' : 'Codex';
+// One language view of localized protocol text (RFC §16.3 lookup, falling back to the original language).
+const UI_LOCALE = 'zh-CN';
+function pick(map, original) {
+  if (!map) return undefined;
+  const keys = Object.keys(map);
+  const find = tag => keys.find(key => key.toLowerCase() === tag.toLowerCase());
+  const parts = UI_LOCALE.split('-');
+  while (parts.length) { const match = find(parts.join('-')); if (match) return map[match]; parts.pop(); }
+  return map[find(original ?? '') ?? keys[0]];
+}
+function view(e) {
+  const semantics = pick(e.semantics, e.original_locale) ?? { meaning: '', fallback: '' };
+  return { name: pick(e.name, e.original_locale) ?? '', meaning: semantics.meaning, fallback: semantics.fallback, use_when: semantics.use_when ?? [], avoid_when: semantics.avoid_when ?? [], tags: pick(e.tags, e.original_locale) ?? [] };
+}
+const actLabel = act => state?.acts?.find(entry => entry.act === act)?.gloss ?? act;
 const blobs = new Map();
 const blobLoads = new Map();
 const objectUrls = new Set();
@@ -78,7 +93,7 @@ function beginRender() {
 async function picture(expression, messageId, pausedSnapshot = paused, lifecycle = { current: () => !disposed, report: effect => effect() }) {
   const image = document.createElement('img');
   let output = image;
-  image.alt = expression.semantics.fallback;
+  image.alt = view(expression).fallback;
   const blob = pausedSnapshot && expression.visual.poster ? expression.visual.poster : expression.visual.primary;
   let reported = false;
   const report = presentation => {
@@ -88,7 +103,7 @@ async function picture(expression, messageId, pausedSnapshot = paused, lifecycle
   };
   const fallback = reason => {
     if (!lifecycle.current()) return;
-    const text = document.createElement('div'); text.className = 'placeholder'; text.setAttribute('role', 'alert'); text.textContent = `${expression.semantics.fallback} · ${reason}`;
+    const text = document.createElement('div'); text.className = 'placeholder'; text.setAttribute('role', 'alert'); text.textContent = `${view(expression).fallback} · ${reason}`;
     if (image.parentNode) image.replaceWith(text); else output = text;
     report('fallback');
   };
@@ -103,17 +118,17 @@ async function picture(expression, messageId, pausedSnapshot = paused, lifecycle
 function text(tag, value, className) { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; }
 function definition(expression) {
   const details = document.createElement('details');
-  details.append(text('summary', '查看完整固定语义与版本'), text('pre', JSON.stringify({ asset_id: expression.asset_id, revision_id: expression.revision_id, name: expression.name, semantics: expression.semantics }, null, 2)));
+  details.append(text('summary', '查看完整固定语义与版本'), text('pre', JSON.stringify({ asset_id: expression.asset_id, revision_id: expression.revision_id, realizes: expression.realizes, intensity: expression.intensity, name: expression.name, semantics: expression.semantics }, null, 2)));
   return details;
 }
 function preview(snapshot = state) {
   $('preview').replaceChildren();
   if (!selected) { $('preview').append(text('p', '选一个表情，看看它想表达什么。')); }
   else {
-    $('preview').append(text('h2', selected.name), text('p', selected.semantics.meaning));
-    if (selected.semantics.tone) $('preview').append(text('p', selected.semantics.tone, 'avoid'));
-    if (selected.semantics.use_when?.length) $('preview').append(text('p', `适用于：${selected.semantics.use_when.join('；')}`, 'avoid'));
-    if (selected.semantics.avoid_when?.length) $('preview').append(text('p', `不适用于：${selected.semantics.avoid_when.join('；')}`, 'avoid'));
+    const v = view(selected);
+    $('preview').append(text('h2', v.name), text('p', v.meaning), text('p', `码位：${actLabel(selected.realizes)} · ${selected.realizes}`, 'avoid'));
+    if (v.use_when.length) $('preview').append(text('p', `适用于：${v.use_when.join('；')}`, 'avoid'));
+    if (v.avoid_when.length) $('preview').append(text('p', `不适用于：${v.avoid_when.join('；')}`, 'avoid'));
     $('preview').append(definition(selected));
   }
   $('send').disabled = !selected || !snapshot?.pending_pick;
@@ -129,8 +144,14 @@ async function render() {
   if (!snapshot.messages.length) history.append(text('p', '还没有表情。\n一点心意，从这里开始。', 'empty'));
   for (const message of snapshot.messages) {
     const article = document.createElement('article'); article.className = 'message';
-    article.append(text('span', message.direction === 'human_to_ai' ? '你 → AI' : 'AI → 你', 'direction'), await picture(message.revision, message.message_id, pausedSnapshot, round), text('p', message.revision.semantics.meaning), text('small', message.message_id.slice(0, 8)));
-    article.append(definition(message.revision));
+    article.append(text('span', message.direction === 'human_to_ai' ? '你 → AI' : 'AI → 你', 'direction'));
+    // A text-only act (no glyph) still shows its registry gloss.
+    if (message.revision) article.append(await picture(message.revision, message.message_id, pausedSnapshot, round));
+    article.append(text('p', message.revision ? view(message.revision).meaning : actLabel(message.act)));
+    if (message.note) article.append(text('p', message.note, 'avoid'));
+    if (message.state === 'retracted') article.append(text('p', '已撤回', 'avoid'));
+    article.append(text('small', message.message_id.slice(0, 8)));
+    if (message.revision) article.append(definition(message.revision));
     history.append(article);
   }
   if (!round.current()) return;
@@ -151,7 +172,7 @@ async function buildCatalog(expressions, pausedSnapshot, current) {
   const fragment = document.createDocumentFragment();
   for (const expression of expressions) {
     const button = document.createElement('button'); button.className = 'sticker'; button.dataset.revision = expression.revision_id; button.setAttribute('aria-pressed', 'false');
-    button.append(await picture(expression, undefined, pausedSnapshot, { current, report: effect => effect() }), text('span', expression.name, 'name'));
+    button.append(await picture(expression, undefined, pausedSnapshot, { current, report: effect => effect() }), text('span', view(expression).name, 'name'));
     button.onclick = () => { selected = expression; preview(); };
     fragment.append(button);
   }
@@ -245,26 +266,39 @@ async function draftOperation(operation) {
 }
 async function draftList() {
   const { drafts } = await api('drafts');
-  $('draft-list').replaceChildren(...drafts.map(item => { const option = document.createElement('option'); option.value = item.draft_id; option.textContent = item.fields.name || '未命名草稿'; return option; }));
+  $('draft-list').replaceChildren(...drafts.map(item => { const option = document.createElement('option'); option.value = item.draft_id; option.textContent = view(item.fields).name || '未命名草稿'; return option; }));
   if (draft && drafts.some(item => item.draft_id === draft.draft_id)) $('draft-list').value = draft.draft_id;
   draftControls();
+}
+// The form edits the draft's original language; other languages already in the draft are kept as they are.
+function fillDraftForm(fields) {
+  const lang = fields.original_locale, own = fields.semantics[lang] ?? { meaning: '', fallback: '' };
+  for (const [id, value] of Object.entries({ act: fields.realizes, intensity: String(fields.intensity ?? 2), name: fields.name[lang], locale: lang, meaning: own.meaning, fallback: own.fallback, use: own.use_when?.join('\n'), avoid: own.avoid_when?.join('\n'), tags: fields.tags?.[lang]?.join('\n') })) $('draft-' + id).value = value ?? '';
 }
 function loadDraft(value) {
   invalidateSuggestion();
   draft = value; uploadFile = undefined; invalidateDraftPreview();
   const fields = draft.fields;
-  for (const [id, value] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n'), license: fields.rights.license, creator: fields.rights.creator, source: fields.rights.source })) $('draft-' + id).value = value ?? '';
+  fillDraftForm(fields);
+  for (const [id, value] of Object.entries({ license: fields.rights.license, creator: fields.rights.creator, source: fields.rights.source })) $('draft-' + id).value = value ?? '';
   $('draft-file').value = ''; $('draft-preview').hidden = true; draftControls();
 }
 function draftInput() {
-  const semantics = { locale: $('draft-locale').value, meaning: $('draft-meaning').value, fallback: $('draft-fallback').value };
-  if ($('draft-tone').value !== '') semantics.tone = $('draft-tone').value;
+  const lang = $('draft-locale').value;
+  const base = draft?.fields ?? { semantics: {}, name: {} };
+  const semantics = { meaning: $('draft-meaning').value, fallback: $('draft-fallback').value };
   if ($('draft-use').value !== '') semantics.use_when = $('draft-use').value.split('\n');
   if ($('draft-avoid').value !== '') semantics.avoid_when = $('draft-avoid').value.split('\n');
   const rights = { license: $('draft-license').value };
   if ($('draft-creator').value !== '') rights.creator = $('draft-creator').value;
   if ($('draft-source').value !== '') rights.source = $('draft-source').value;
-  return { name: $('draft-name').value, semantics, rights, ...($('draft-tags').value === '' ? {} : { tags: $('draft-tags').value.split('\n') }) };
+  const tags = { ...base.tags };
+  if ($('draft-tags').value === '') delete tags[lang]; else tags[lang] = $('draft-tags').value.split('\n');
+  return {
+    realizes: $('draft-act').value, intensity: Number($('draft-intensity').value), ...(base.directions ? { directions: base.directions } : {}),
+    original_locale: lang, name: { ...base.name, [lang]: $('draft-name').value }, semantics: { ...base.semantics, [lang]: semantics },
+    ...(Object.keys(tags).length ? { tags } : {}), rights, text_locale: base.text_locale ?? null,
+  };
 }
 async function saveDraft() {
   let upload;
@@ -324,7 +358,7 @@ async function renderDraftPreview() {
   };
   visual.addEventListener('load', loaded);
   visual.addEventListener('error', () => { if (current()) { invalidateDraftPreview(); $('draft-status').textContent = '浏览器无法显示预览，请检查素材后重试。'; draftControls(); } });
-  $('draft-preview').replaceChildren(visual, text('h2', checked.fields.name), text('pre', JSON.stringify({ semantics: checked.fields.semantics, rights: checked.fields.rights }, null, 2)), text('p', '请确认此图像与固定语义相符。'));
+  $('draft-preview').replaceChildren(visual, text('h2', view(checked.fields).name), text('pre', JSON.stringify({ realizes: checked.fields.realizes, intensity: checked.fields.intensity, semantics: checked.fields.semantics, rights: checked.fields.rights }, null, 2)), text('p', '请确认此图像与固定语义相符。'));
   if (checked.visual.animated) {
     const motion = text('button', draftPreviewPaused ? '播放预览动图' : '暂停预览动图');
     motion.type = 'button'; motion.id = 'draft-motion'; motion.setAttribute('aria-pressed', String(draftPreviewPaused));
@@ -348,24 +382,24 @@ function invalidateSuggestion(message) {
   if (message && hadSuggestion) $('suggestion-status').textContent = message;
 }
 function suggestionValue() {
-  const fields = pendingSuggestion.value.fields;
+  const fields = pendingSuggestion.value.fields, lang = fields.original_locale;
+  const semantics = {
+    meaning: $('suggestion-result-meaning').value,
+    fallback: $('suggestion-result-fallback').value,
+    ...($('suggestion-result-use').value === '' ? {} : { use_when: $('suggestion-result-use').value.split('\n') }),
+    ...($('suggestion-result-avoid').value === '' ? {} : { avoid_when: $('suggestion-result-avoid').value.split('\n') }),
+  };
   return {
-    name: $('suggestion-result-name').value,
-    semantics: {
-      locale: fields.semantics.locale,
-      meaning: $('suggestion-result-meaning').value,
-      fallback: $('suggestion-result-fallback').value,
-      ...($('suggestion-result-tone').value === '' ? {} : { tone: $('suggestion-result-tone').value }),
-      ...($('suggestion-result-use').value === '' ? {} : { use_when: $('suggestion-result-use').value.split('\n') }),
-      ...($('suggestion-result-avoid').value === '' ? {} : { avoid_when: $('suggestion-result-avoid').value.split('\n') }),
-    },
-    ...($('suggestion-result-tags').value === '' ? {} : { tags: $('suggestion-result-tags').value.split('\n') }),
+    realizes: fields.realizes, intensity: fields.intensity, original_locale: lang,
+    name: { [lang]: $('suggestion-result-name').value }, semantics: { [lang]: semantics },
+    ...($('suggestion-result-tags').value === '' ? {} : { tags: { [lang]: $('suggestion-result-tags').value.split('\n') } }),
   };
 }
 function showSuggestion(value, context) {
   pendingSuggestion = { value, context };
-  const fields = value.fields;
-  for (const [id, item] of Object.entries({ name: fields.name, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n') })) $('suggestion-result-' + id).value = item ?? '';
+  const v = view(value.fields);
+  for (const [id, item] of Object.entries({ name: v.name, meaning: v.meaning, fallback: v.fallback, use: v.use_when.join('\n'), avoid: v.avoid_when.join('\n'), tags: v.tags.join('\n') })) $('suggestion-result-' + id).value = item ?? '';
+  $('suggestion-result-act').textContent = `建议码位：${actLabel(value.fields.realizes)} · ${value.fields.realizes}`;
   $('suggestion-result').hidden = false;
   $('suggestion-status').textContent = value.notice;
 }
@@ -394,8 +428,7 @@ $('cancel-suggestion').onclick = () => { invalidateSuggestion('已放弃建议�
 $('reject-suggestion').onclick = () => { invalidateSuggestion('已拒绝这条建议，原有内容保持不变。'); draftControls(); };
 $('apply-suggestion').onclick = () => {
   if (!suggestionIsCurrent() || suggestionBusy || draftBusy || pendingSave || !draft || draft.confirmed) return;
-  const fields = suggestionValue();
-  for (const [id, item] of Object.entries({ name: fields.name, locale: fields.semantics.locale, meaning: fields.semantics.meaning, fallback: fields.semantics.fallback, tone: fields.semantics.tone, use: fields.semantics.use_when?.join('\n'), avoid: fields.semantics.avoid_when?.join('\n'), tags: fields.tags?.join('\n') })) $('draft-' + id).value = item ?? '';
+  fillDraftForm(suggestionValue());
   invalidateSuggestion('已采用到草稿表单；保存、预览和确认仍需你明确操作。');
   invalidateDraftPreview(); draftControls();
 };
@@ -414,6 +447,7 @@ $('confirm-draft').onclick = () => {
   });
 };
 await refresh();
+$('draft-act').replaceChildren(...[['', '选择这张表情实现的码位'], ...(state?.acts ?? []).map(entry => [entry.act, `${entry.gloss} · ${entry.act}`])].map(([value, label]) => { const option = document.createElement('option'); option.value = value; option.textContent = label; return option; }));
 if (state?.creation_available) {
   $('creator').hidden = false;
   $('suggestion-workbench').hidden = !state.suggestion_available;

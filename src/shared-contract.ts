@@ -52,7 +52,7 @@ export function nonempty(value: unknown): string {
 export function bindingContext(value: unknown): BindingContext {
   const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId', 'turnOrdinal'], ['host', 'sessionId']);
   if (!['codex', 'claude-code', 'dsh'].includes(String(c.host))) fail('INVALID_ARGUMENT', '未知宿主');
-  // Session-only bindings serve human input and history. AI search/emit require a real turn.
+  // Session-only bindings serve human input and history. AI search/express require a real turn.
 
   if (c.turnOrdinal !== undefined && (c.turnId === undefined || !Number.isSafeInteger(c.turnOrdinal) || (c.turnOrdinal as number) < 1)) fail('INVALID_ARGUMENT', '需要可信正整数回合序号');
   return { ...(c.turnOrdinal === undefined ? {} : { turnOrdinal: c.turnOrdinal as number }), host: c.host as BindingContext['host'], hostInstanceId: c.hostInstanceId === undefined ? 'local' : nonempty(c.hostInstanceId), sessionId: nonempty(c.sessionId), ...(c.turnId === undefined ? {} : { turnId: nonempty(c.turnId) }) };

@@ -50,3 +50,8 @@ export function useText() {
     return translate(key, values);
   };
 }
+/** The UI language as a BCP 47 tag, for choosing semantics and glosses (RFC §16.3). */
+export function useUiLocale(): string {
+  const t = useText();
+  return t('语言') === 'Language' ? 'en' : 'zh-CN';
+}

@@ -5,6 +5,7 @@ import { fail } from "../shared-contract.js";
 import { actEntry, searchableText, type ExpressionRef, type Family } from "../protocol/index.js";
 import type { LibraryEntry } from "../library-management.js";
 import type { ExpressInput, ReceiveInput } from "../library-store.js";
+import { runModelTool } from "../model-tools.js";
 
 export const PAGE_SIZE = 6;
 /** Picker categories are act families (RFC §5.2). */
@@ -132,6 +133,12 @@ export class ExpressionApplication {
     if (!context.turnId)
       return Promise.reject(new Error("TURN_REQUIRED: AI 发送需要真实回合"));
     return this.expressions.express(context, input);
+  }
+  /** AI-side model tools (amoji_express / amoji_search / amoji_resolve); AI sending needs a real turn. */
+  async tool(context: BindingContext, name: string, args: Record<string, unknown>, locale?: string) {
+    if (!context.turnId)
+      return Promise.reject(new Error("TURN_REQUIRED: AI 表情需要真实回合"));
+    return runModelTool(this.expressions, context, name, args, locale);
   }
   async confirmDraft(id: string, version: number, reviewed: boolean) {
     if (reviewed !== true)

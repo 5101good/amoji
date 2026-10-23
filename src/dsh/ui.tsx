@@ -1,4 +1,5 @@
-import { useText, errorMessage } from './i18n.js';
+import { useText, useUiLocale, errorMessage } from './i18n.js';
+import { expressionText } from '../protocol/index.js';
 import React from 'react';
 import type { Expression } from '../protocol/index.js';
 import type { DshRpc } from './contracts.js';
@@ -7,7 +8,8 @@ import { AmojiImage } from './media.js';
 export function CloseIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>; }
 export function SmileIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="9"/><path d="M8 14s1 3 4 3 4-3 4-3"/><path d="M8 8v2m8-2v2"/></svg>; }
 export function ExpressionTile({rpc,sessionId,expression,selected,disabled,onSelect}:{rpc:DshRpc;sessionId:string;expression:Expression;selected:boolean;disabled?:boolean;onSelect:()=>void}) {
- return <button type="button" className="amoji-expression-tile" aria-label={expression.name} aria-pressed={selected} title={expression.semantics.meaning} disabled={disabled} onClick={onSelect}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{expression.name}</span></button>;
+ const text=expressionText(expression,useUiLocale());
+ return <button type="button" className="amoji-expression-tile" aria-label={text.name} aria-pressed={selected} title={text.meaning} lang={text.locale} disabled={disabled} onClick={onSelect}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{text.name}</span></button>;
 }
 
 export const styles = `
@@ -82,7 +84,7 @@ export function Conflict({error,onRefresh}:{error:unknown;onRefresh?:()=>void}) 
  let message=raw.replace(/^(?:[A-Z][A-Z_]+[:：]\s*)+/,'');
  if(e.current!==undefined)message='这项内容已被其他操作更新，请核对后继续。';
  else if(code==='INVALID_SCHEMA'){
-  const field=/data\/name\b/.test(raw)?'名称':/\/semantics\/meaning\b/.test(raw)?'固定含义':/\/semantics\/fallback\b/.test(raw)?'文字回退':undefined;
+  const field=/[./]name\b/.test(raw)?'名称':/semantics[./][^/.:]+[./]meaning\b/.test(raw)?'固定含义':/semantics[./][^/.:]+[./]fallback\b/.test(raw)?'文字回退':/realizes/.test(raw)?'码位':undefined;
   message=field?t('请检查“{field}”：不能为空，内容长度需符合要求。',{field:t(field)}):'表情信息不完整或格式有误，请检查名称、固定含义、文字回退和来源。';
  }else if(code==='MEDIA_REQUIRED')message='请先上传表情图片，再进行图文预览。';
  const displayed=t(e.current!==undefined||code==='INVALID_SCHEMA'||code==='MEDIA_REQUIRED'?message:errorMessage(e,message));

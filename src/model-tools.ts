@@ -41,7 +41,7 @@ export function expressedResult(message: StoredMessage, locale?: string): Record
 }
 
 /** Shared execution for amoji_express / amoji_search / amoji_resolve across MCP hosts. */
-export async function runModelTool(runtime: AdapterRuntime, context: BindingContext, name: string, args: Record<string, unknown>, locale?: string): Promise<{ result: Record<string, unknown>; message?: StoredMessage }> {
+export async function runModelTool(runtime: Pick<AdapterRuntime, 'search' | 'messages' | 'catalog' | 'express'>, context: BindingContext, name: string, args: Record<string, unknown>, locale?: string): Promise<{ result: Record<string, unknown>; message?: StoredMessage }> {
   if (name === 'amoji_search') return { result: { ...(await runtime.search(context, args.query as string, args.limit as number | undefined, locale)) } };
   if (name === 'amoji_resolve') {
     if (typeof args.message_id === 'string') {

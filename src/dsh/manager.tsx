@@ -1,11 +1,11 @@
 import {Publisher} from './publisher-ui.js';
 import {Marketplace} from './marketplace.js';
 import {RuleControls} from './rule-controls.js';
-import { useText } from './i18n.js';
+import { useText, useUiLocale } from './i18n.js';
 import React,{useEffect,useRef,useState} from 'react';
 import type {Draft} from '../drafts.js';
 import type {LibraryEntry} from '../library-management.js';
-import type {Expression,ExpressionRef} from '../protocol/index.js';
+import {expressionText,type Expression,type ExpressionRef} from '../protocol/index.js';
 import type {DshRpc} from './contracts.js';
 import {DraftEditor,discardEditor} from './draft-editor.js';
 import {LibraryControls} from './library-controls.js';
@@ -13,7 +13,7 @@ import {Preferences} from './preferences.js';
 import {PackControls} from './pack-controls.js';
 import {Conflict,Styles,CloseIcon} from './ui.js';
 export function Manager({rpc,sessionId,currentSessionId,open,onClose,onChanged,initialTab}:{rpc:DshRpc;sessionId:string;currentSessionId:string;open:boolean;initialTab?:string;onClose:()=>void;onChanged:(e?:Expression)=>void}){
- const t=useText();
+ const t=useText();const ui=useUiLocale();
  const dialog=useRef<HTMLDialogElement>(null);const [tab,setTab]=useState('library'),[entries,setEntries]=useState<LibraryEntry[]>([]),[drafts,setDrafts]=useState<Draft[]>([]),[draft,setDraft]=useState<Draft>(),[refs,setRefs]=useState<ExpressionRef[]>([]),[error,setError]=useState<unknown>();
  const refresh=async()=>{const [e,d]=await Promise.all([rpc.management(sessionId,'listEntries',{}),rpc.management(sessionId,'listDrafts',{})]);setEntries(e);setDrafts(d);onChanged();};
  useEffect(()=>{void refresh().catch(setError);},[]);
@@ -26,7 +26,7 @@ export function Manager({rpc,sessionId,currentSessionId,open,onClose,onChanged,i
  <div className="amoji-manager-layout"><nav className="amoji-manager-nav" aria-label={t("管理分类")}>{[['library',t("表情库")],['market',t("表情市场")],['publish',t('发布到市场')],['create',t("创作与草稿")],['rules',t("当前会话规则")],['preferences',t("AI 偏好")],['packs',t("导入与导出")]].map(([key,label])=><button key={key} type="button" aria-pressed={tab===key} onClick={()=>{setTab(key!);setError(undefined);}}>{label}</button>)}<div className="amoji-nav-bottom">{rpc.reconnect&&<button className="quiet" type="button" onClick={()=>void rpc.reconnect!(sessionId).then(refresh).then(()=>setError(undefined)).catch(setError)}>{t("重新连接共享库")}</button>}<a href="https://github.com/5101good/amoji" target="_blank" rel="noopener noreferrer" aria-label={t("在 GitHub 上查看 Amoji")} style={{display:"block",fontSize:11,color:"var(--amoji-muted)",padding:"8px 12px"}}>GitHub ↗</a></div></nav><main className="amoji-manager-content">
 
  <div hidden={tab!=='library'}><LibraryControls rpc={rpc} sessionId={sessionId} entries={entries} refresh={refresh} onDraft={d=>{if(draft&&!draft.confirmed&&draft.draft_id!==d.draft_id){setError(new Error('当前编辑内容已保留。请先保存并结束当前编辑，再从草稿列表打开新建的编辑草稿。'));void refresh().catch(setError);return;}setDraft(d);setTab('create');}} refs={refs} setRefs={setRefs}/></div>
- <div hidden={tab!=='create'} className="amoji-create-page"><aside className="amoji-draft-switcher"><button type="button" onClick={()=>{setError(undefined);void rpc.management(sessionId,'createDraft',{}).then(d=>{setDraft(d);setDrafts(v=>[d,...v]);}).catch(setError);}}>{t("新建表情")}</button><label><span>{t("草稿")}</span><select aria-label={t("选择草稿")} value={draft?.draft_id??''} onChange={event=>{const id=event.currentTarget.value;if(!id)return;setError(undefined);void rpc.management(sessionId,'getDraft',{draft_id:id}).then(setDraft).catch(setError);}}><option value="">{t('选择已保存草稿（{count}）',{count:drafts.length})}</option>{drafts.map(d=><option key={d.draft_id} value={d.draft_id}>{d.fields.name||t("未命名草稿")}</option>)}</select></label>{draft&&<button type="button" aria-label={t("结束当前编辑")} onClick={()=>{if(draft.confirmed||window.confirm(t('结束当前编辑？已保存草稿会保留，未保存输入将放弃。'))){discardEditor(draft.draft_id);setDraft(undefined);void refresh().catch(setError);}}}>{t("关闭编辑")}</button>}</aside>{draft?<DraftEditor key={draft.draft_id} rpc={rpc} sessionId={sessionId} initial={draft} onCreated={created} onSaved={saved=>setDrafts(rows=>rows.some(row=>row.draft_id===saved.draft_id)?rows.map(row=>row.draft_id===saved.draft_id?saved:row):[saved,...rows])}/>:<div className="amoji-create-empty"><h3>{t("把你的表达，做成表情。")}</h3><p>{t("从一句想说的话开始，让 AI 帮你整理成表情含义。")}</p><p className="muted">{t("选择上方草稿继续，或新建一个表情。")}</p></div>}</div>
+ <div hidden={tab!=='create'} className="amoji-create-page"><aside className="amoji-draft-switcher"><button type="button" onClick={()=>{setError(undefined);void rpc.management(sessionId,'createDraft',{}).then(d=>{setDraft(d);setDrafts(v=>[d,...v]);}).catch(setError);}}>{t("新建表情")}</button><label><span>{t("草稿")}</span><select aria-label={t("选择草稿")} value={draft?.draft_id??''} onChange={event=>{const id=event.currentTarget.value;if(!id)return;setError(undefined);void rpc.management(sessionId,'getDraft',{draft_id:id}).then(setDraft).catch(setError);}}><option value="">{t('选择已保存草稿（{count}）',{count:drafts.length})}</option>{drafts.map(d=><option key={d.draft_id} value={d.draft_id}>{expressionText(d.fields,ui).name||t("未命名草稿")}</option>)}</select></label>{draft&&<button type="button" aria-label={t("结束当前编辑")} onClick={()=>{if(draft.confirmed||window.confirm(t('结束当前编辑？已保存草稿会保留，未保存输入将放弃。'))){discardEditor(draft.draft_id);setDraft(undefined);void refresh().catch(setError);}}}>{t("关闭编辑")}</button>}</aside>{draft?<DraftEditor key={draft.draft_id} rpc={rpc} sessionId={sessionId} initial={draft} onCreated={created} onSaved={saved=>setDrafts(rows=>rows.some(row=>row.draft_id===saved.draft_id)?rows.map(row=>row.draft_id===saved.draft_id?saved:row):[saved,...rows])}/>:<div className="amoji-create-empty"><h3>{t("把你的表达，做成表情。")}</h3><p>{t("从一句想说的话开始，让 AI 帮你整理成表情含义。")}</p><p className="muted">{t("选择上方草稿继续，或新建一个表情。")}</p></div>}</div>
  {tab==='publish'&&<Publisher rpc={rpc} sessionId={sessionId}/>}
  {tab==='market'&&<Marketplace key={currentSessionId} rpc={rpc} sessionId={currentSessionId} onChanged={()=>void refresh().catch(setError)}/>}
  {tab==='rules'&&<RuleControls key={currentSessionId} rpc={rpc} sessionId={currentSessionId}/>}

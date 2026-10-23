@@ -254,6 +254,63 @@ export async function send($, s, expression, epoch, action) {
     }
   });
 }
+/** Decisions and quick replies the AI is waiting on; a failed read leaves the composer strip as it was. */
+export async function loadCards($, s) {
+  try {
+    const cards = await bridge($, s.context, "pending", { locale: uiLocale(s) });
+    s.cards = Array.isArray(cards) ? cards : [];
+  } catch {
+    s.cards ??= [];
+  }
+  invalidate($);
+}
+// A saved answer and its delivery are separate: `s.unsent` keeps the text of an
+// answer the conversation has not confirmed, so one press retries delivery only.
+async function deliver($, s, name, text) {
+  const delivery = { name, phase: "submitting", text };
+  s.delivery = delivery;
+  invalidate($);
+  try {
+    let result;
+    try {
+      result = await $.prompt.submit({ text, asUser: true });
+    } catch {
+      throw new Error("SUBMIT_UNKNOWN");
+    }
+    if (result?.drop !== undefined) throw new Error("SUBMIT_DROPPED");
+    if (result?.text !== text) throw new Error("SUBMIT_UNKNOWN");
+    s.unsent = null;
+    delivery.phase = "waiting";
+  } catch (error) {
+    s.unsent = { name, text };
+    delivery.phase = "error";
+    delivery.error = errorText(s, error);
+    throw error;
+  }
+}
+export async function answer($, s, card, option) {
+  if (s.viewAgentId) return;
+  await perform($, s, async () => {
+    const chosen = card.options.find(o => o.id === option);
+    const saved = await bridge($, s.context, "choose", { messageId: card.messageId, option, locale: uiLocale(s) });
+    s.cards = (s.cards || []).filter(c => c.messageId !== card.messageId);
+    await deliver($, s, chosen?.label || option, saved.text);
+  });
+}
+export async function quickReply($, s, card, reply) {
+  if (s.viewAgentId) return;
+  await perform($, s, async () => {
+    const requestId = `${s.context.sessionId}:${await $.clock.now()}:${++sequence}`;
+    const prepared = await bridge($, s.context, "receive", { act: reply.act, respondsTo: card.messageId, requestId, locale: uiLocale(s) });
+    s.cards = (s.cards || []).filter(c => c.messageId !== card.messageId);
+    if (prepared.segments) rememberMessage(s, "human_to_ai:" + uiLocale(s) + ":" + prepared.text, prepared.segments);
+    await deliver($, s, reply.label, prepared.text);
+  });
+}
+export async function retryUnsent($, s) {
+  if (!s.unsent || s.viewAgentId) return;
+  await perform($, s, () => deliver($, s, s.unsent.name, s.unsent.text));
+}
 /** Edits one amoji.preferences field (RFC §11.6); `change` returns the next preferences object. */
 export async function changePreference($, s, change) {
   await perform($, s, async () => {

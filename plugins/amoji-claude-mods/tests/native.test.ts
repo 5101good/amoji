@@ -405,6 +405,27 @@ test("宿主拒绝提交时显示错误，不宣称发送成功", async ($, on) 
   expect(await ui.find({ type: "Text", text: /未接受/ })).toBeDefined();
   await ui.unmount();
 });
+test("AI 的决策出现在输入区上方；作答保存后投递失败可只重发，不再次保存", async ($, on) => {
+  const calls: any[] = [];
+  const card = { kind: "expression", messageId: "ai-1", act: "core:decide", gloss: "Needs a choice", name: "Needs a choice", meaning: "", fallback: "", rationale: "两种做法都可行",
+    options: [{ id: "a", label: "方案甲" }, { id: "b", label: "方案乙" }], replies: [{ act: "core:thanks", label: "谢谢" }], animated: false, preview: null };
+  backend(on, calls, false, () => "haiku", (request, result) => request.command === "pending" ? [card]
+    : request.command === "choose" ? { messageId: "ai-1", text: "用户做出了选择：方案甲", segments: [] } : result);
+  let drop = true; const submitted: string[] = [];
+  on("prompt.submit", ($, e) => { submitted.push(e.text); if (drop) return { drop: "blocked by test" }; return { text: e.text }; });
+  const entry = await $.ui.mount({ plugin: "amoji", component: "AbovePrompt", surface: "terminal", props: {} });
+  expect(await entry.find({ type: "Text", text: /两种做法都可行/ })).toBeDefined();
+  expect(await entry.find({ key: "reply:ai-1:core:thanks" })).toBeDefined();
+  await entry.press({ key: "decide:ai-1:a" });
+  expect(await entry.find({ type: "Text", text: /还没送达/ })).toBeDefined();
+  expect(calls.filter(c => c.command === "choose").length).toBe(1);
+  drop = false;
+  await entry.press({ key: "amoji-unsent-retry" });
+  expect(calls.filter(c => c.command === "choose").length).toBe(1);
+  expect(submitted).toEqual(["用户做出了选择：方案甲", "用户做出了选择：方案甲"]);
+  expect(await entry.find({ type: "Text", text: /还没送达/ })).toBeUndefined();
+  await entry.unmount();
+});
 test("当前回合结束后拒绝 AI 工具；不接受模型提供的会话定位", async ($, on) => {
   const calls: any[] = [];
   backend(on, calls);
@@ -778,7 +799,7 @@ test("子代理视图不向主会话误发，首次入口跟随英文配置", as
   expect(await text.find({ key: "amoji-open", text: /Expressions/ })).toBeDefined();
   await text.unmount();
   // The band reads its quick strip once; the subagent pane reads nothing.
-  expect(calls.every(c => c.command === "browse")).toBe(true);
+  expect(calls.every(c => c.command === "browse" || c.command === "pending")).toBe(true);
   const before = calls.length;
   const ui = await $.ui.mount({ ...pane, props: { ...pane.props, view: { agentId: "child" } } });
   expect(await ui.find({ type: "Text", text: /main conversation/ })).toBeDefined();

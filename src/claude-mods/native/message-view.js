@@ -42,6 +42,8 @@ export function messageView($, e, s, segments, human) {
             ] : []),
             Text({ children: [segment.name || segment.fallback], dimColor: true }),
             ...(segment.note ? [Text({ children: [segment.note] })] : []),
+            ...(segment.rationale ? [Text({ children: [segment.rationale], dimColor: true })] : []),
+            ...(segment.options ? [Text({ children: [segment.options.map(o => o.label).join(" · ")], dimColor: true })] : []),
           ],
         })),
     ],

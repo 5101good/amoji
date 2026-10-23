@@ -13,6 +13,7 @@ import type { StoredMessage } from "../messages.js";
 import { amojiTools } from "../model-tools.js";
 import { cachedThumbnailImage } from "./thumbnail.js";
 import { humanText, messageMarker, renderSegments } from "./messages.js";
+import { choiceText } from "../projection.js";
 import { readBoundedFile, writeNewFile } from "./files.js";
 import {
   parseSuggestion,
@@ -54,6 +55,8 @@ export async function executeBridge(
       kind: "expression" as const, messageId: message.message_id, act: message.act, gloss,
       name: text?.name ?? gloss, meaning: text?.meaning ?? gloss, fallback: text?.fallback ?? gloss,
       ...(message.note ? { note: message.note } : {}),
+      ...(message.rationale ? { rationale: message.rationale } : {}),
+      ...(message.options ? { options: message.options, ...(message.choice ? { choice: message.choice } : {}) } : {}),
       animated: message.revision?.visual.animated ?? false,
       preview: await preview(message.revision?.visual),
     };
@@ -101,9 +104,25 @@ export async function executeBridge(
       }
     }
     case "receive": {
-      const message = await app.receive(context, expressionRef(args.ref), nonempty(args.requestId),
-        typeof args.note === "string" && args.note.trim() ? { note: args.note.trim() } : {});
+      const extras = {
+        ...(typeof args.note === "string" && args.note.trim() ? { note: args.note.trim() } : {}),
+        ...(args.respondsTo === undefined ? {} : { responds_to: nonempty(args.respondsTo) }),
+      };
+      const message = args.act === undefined
+        ? await app.receive(context, expressionRef(args.ref), nonempty(args.requestId), extras)
+        : await app.receiveAct(context, nonempty(args.act), nonempty(args.requestId), extras);
       return { messageId: message.message_id, text: humanText(message, locale), segments: [await segment(message)] };
+    }
+    case "pending": {
+      // Decisions and quick replies the AI is waiting on, shaped for the native composer strip.
+      return Promise.all((await app.pending(context)).map(async (message) => ({
+        ...(await segment(message)),
+        replies: (message.replies ?? []).map((act) => ({ act, label: actGloss(act, "h2a", locale).text })),
+      })));
+    }
+    case "choose": {
+      const message = await app.choose(context, nonempty(args.messageId), nonempty(args.option));
+      return { messageId: message.message_id, text: choiceText(message, locale), segments: [await segment(message)] };
     }
     case "search":
       return app.search(context, nonempty(args.query));

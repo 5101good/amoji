@@ -12,7 +12,7 @@ export const PAGE_SIZE = 6;
 export const FAMILY_ORDER: Family[] = ["grounding", "steering", "progress", "epistemic", "social"];
 export type ExpressionPort = Pick<
   AdapterRuntime,
-  "catalog" | "search" | "express" | "messages" | "receive"
+  "catalog" | "search" | "express" | "messages" | "receive" | "choose"
 >;
 export type LibraryPort = Pick<
   SharedClient,
@@ -133,6 +133,22 @@ export class ExpressionApplication {
   }
   receive(context: BindingContext, ref: ExpressionRef, requestId: string, extras: Omit<ReceiveInput, "ref"> = {}) {
     return this.expressions.receive(context, { ...extras, ref: { asset_id: ref.asset_id, revision_id: ref.revision_id } }, requestId);
+  }
+  /** A person's expression named by act alone, such as a quick reply to an AI expression. */
+  receiveAct(context: BindingContext, act: string, requestId: string, extras: Omit<ReceiveInput, "ref" | "act"> = {}) {
+    return this.expressions.receive(context, { ...extras, act }, requestId);
+  }
+  choose(context: BindingContext, messageId: string, option: string) {
+    if (!this.expressions.choose) fail("CAPABILITY_UNAVAILABLE", "当前服务不支持决策作答");
+    return this.expressions.choose(context, messageId, option);
+  }
+  /** AI expressions this session still waits on: unanswered decisions and unused quick replies (newest last). */
+  async pending(context: BindingContext) {
+    const history = await this.expressions.messages(context);
+    const answered = new Set(history.flatMap((m) => (m.direction === "human_to_ai" && m.responds_to && !m.retracted_at ? [m.responds_to] : [])));
+    return history
+      .filter((m) => m.direction === "ai_to_human" && !m.retracted_at && !m.choice && !answered.has(m.message_id) && (m.options?.length || m.replies?.length))
+      .slice(-3);
   }
   history(context: BindingContext) {
     return this.expressions.messages(context);

@@ -7,7 +7,7 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { management, failure, installPackRoutes } from './host-management.js';
 import { PanelServer } from '../panel-server.js';
 import { expressionMessageText } from './expression-message.js';
-import { messageProjection } from '../projection.js';
+import { choiceText } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { runModelTool, EXPRESS_DESCRIPTION } from '../model-tools.js';
 import { actGloss, backchannelEligible, humanSendable, interruptEligible, type ExpressionRef, type Mode } from '../protocol/index.js';
@@ -259,7 +259,7 @@ export class DshAdapter {
     const message = await this.runtime.choose(context, messageId, option);
     const requestId = `amoji-choice:${messageId}`;
     if (!(await this.inspect(sessionId, signal)).some(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === requestId)) {
-      const text = `用户在 AI 的决策中做出了选择（选择只表达偏好，不构成授权）：\n${JSON.stringify(messageProjection(message))}`;
+      const text = choiceText(message);
       await this.ctx.sessionController.prompt({ sessionId, requestId, mode: this.openTurn(session) === undefined ? 'queue' : 'steer', content: [{ type: 'text', text }] }, signal);
       await this.flush(session);
     }

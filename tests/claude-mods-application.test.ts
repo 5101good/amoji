@@ -496,3 +496,30 @@ test("窄栏语义完整换行，不截断固定内容", async () => {
   assert.ok(wrapText("PNG / JPG / WebP / GIF · 10 MiB", 28).includes("MiB"));
   assert.equal(wrapText("仅根据文字生成，按所选模型计费。", 32).includes("\n。"), false);
 });
+
+test("Claude 桥接呈现待决策与快捷回复，作答只保存一次并返回给模型的偏好文字", async (t) => {
+  const { app, client, context } = await setup(t);
+  const turn = { ...context, turnId: "real-turn", turnOrdinal: 1 };
+  const sent = await app.express(turn, {
+    act: "core:decide", rationale: "两种做法都可行", replies: ["core:thanks"],
+    options: [{ id: "a", label: "方案甲" }, { id: "b", label: "方案乙" }],
+  });
+  assert.ok(sent.status === "sent", JSON.stringify(sent));
+  const run = (command: string, args: Record<string, unknown> = {}) => executeBridge(app, client, { context, command, args }) as Promise<any>;
+  const [card] = await run("pending");
+  assert.equal(card.messageId, sent.message.message_id);
+  assert.equal(card.rationale, "两种做法都可行");
+  assert.deepEqual(card.options.map((o: { id: string }) => o.id), ["a", "b"]);
+  assert.equal(card.replies[0].act, "core:thanks");
+  const answered = await run("choose", { messageId: card.messageId, option: "a" });
+  assert.match(answered.text, /不构成授权/); assert.match(answered.text, /方案甲/);
+  assert.equal((await run("choose", { messageId: card.messageId, option: "a" })).text, answered.text, "同一选项可安全重取文字以重发");
+  await assert.rejects(run("choose", { messageId: card.messageId, option: "b" }), /ALREADY_CHOSEN/);
+  assert.deepEqual(await run("pending"), [], "已作答不再待决");
+  const second = await app.express({ ...turn, turnId: "next", turnOrdinal: 2 }, { act: "core:celebrate", replies: ["core:thanks"] });
+  assert.ok(second.status === "sent", JSON.stringify(second));
+  const [open] = await run("pending");
+  const reply = await run("receive", { act: "core:thanks", respondsTo: open.messageId, requestId: "reply-1" });
+  assert.match(reply.text, /core:thanks/);
+  assert.deepEqual(await run("pending"), [], "已回应的快捷回复不再显示");
+});

@@ -1,5 +1,5 @@
 import { applyGuidance } from './guidance.js';
-import { state, load, loadGalleryWindow, open, send, call, invalidate, perform, navigate } from "./controller.js";
+import { state, load, loadGalleryWindow, open, send, call, invalidate, perform, navigate, loadCards, answer, quickReply, retryUnsent } from "./controller.js";
 import { L, errorText, refOf, uiLocale, view } from "./transport.js";
 import { pane } from "./views.js";
 import { controls } from "./controls.js";
@@ -8,6 +8,7 @@ import { stickerPicture, stickerPixels } from "./raster-picture.js";
 import { ACCENT, SURFACE } from "./ui-kit.js";
 import { MARK_TILE_SVG, DIVIDER_SVG } from "./brand.js";
 import { bandItems, BAND_LIMIT } from "./band.js";
+import { decisionStrip } from "./decisions.js";
 
 const turns = new Map();
 let definitions;
@@ -63,6 +64,7 @@ export function register(on) {
         s.delivery = null;
         invalidate($);
       }
+      void loadCards($, s);
     }
     return next(e);
   });
@@ -90,12 +92,13 @@ export function register(on) {
         .catch(() => { s.bandItems = []; })
         .finally(() => { s.bandRequest = null; });
     }
+    if (!s.cards && !s.cardsRequest) s.cardsRequest = loadCards($, s).finally(() => { s.cardsRequest = null; });
     s.bandTargets = new Map();
     const items = bandItems(s);
     const d = s.delivery;
     const tone = !d ? null : d.phase === "error" ? "error" : d.phase === "waiting" ? "success" : ACCENT;
     const strip = e.surface === "desktop" && !d && !s.bandFault && items.length > 0;
-    return Box({
+    const row = Box({
       flexDirection: "row", alignItems: "center", gap: 1, width: "100%", position: "relative",
       flexWrap: strip ? "nowrap" : "wrap",
       children: [
@@ -141,6 +144,8 @@ export function register(on) {
         ] })] : []),
       ],
     });
+    const waiting = decisionStrip($, e, s, Button);
+    return waiting.length ? Box({ flexDirection: "column", gap: 1, width: "100%", children: [...waiting, row] }) : row;
   });
   on("ui.render", { component: "Pane" }, async ($, e, next) => {
     if (
@@ -295,6 +300,7 @@ export function register(on) {
         const definition = (await toolDefinitions($)).find(tool => tool.name === name);
         const input = Object.fromEntries(Object.keys(definition?.inputSchema.properties ?? {}).filter(key => e[key] !== undefined).map(key => [key, e[key]]));
         const result = await call($, { ...s.context, ...turn }, "tool", { name, input, locale: uiLocale(s) });
+        if (name === "express") void loadCards($, s);
         return { result: JSON.stringify(result) };
       } catch (error) {
         return { deny: errorText(s, error) };

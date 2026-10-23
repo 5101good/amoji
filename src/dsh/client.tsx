@@ -5,7 +5,7 @@ import { aiExpressionDefinition, AiExpressions } from './ai-messages.js';
 import { Manager } from './manager.js';
 import { Styles, CloseIcon, SmileIcon, ExpressionTile } from './ui.js';
 import React, { useEffect, useRef, useState } from 'react';
-import { actEntry, actGloss, expressionText, localizedText, type Expression, type Family } from '../protocol/index.js';
+import { actEntry, actGloss, expressionText, localizedText, type Expression, type Family } from '../protocol/browser.js';
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import { PickerPopover } from './picker-popover.js';
 import { FAMILY_LABELS } from './labels.js';

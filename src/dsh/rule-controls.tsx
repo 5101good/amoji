@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import type {DshRpc} from './contracts.js';
 import type {RuleChoice,RuleView} from '../conversation-rules.js';
 import {ruleConflictGroup} from '../conversation-rules.js';
-import {localizedText} from '../protocol/index.js';
+import {localizedText} from '../protocol/browser.js';
 import {useText,useUiLocale} from './i18n.js';
 import {errorText} from './media.js';
 const ruleStatus = {disabled:'已停用',configured:'已配置，等待触发',attached:'文字已附加，不代表模型遵从',failed:'应用失败',unsupported:'当前宿主不支持'} as const;

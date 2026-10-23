@@ -1,5 +1,6 @@
-import { localized, type Effect, type EffectRef } from './protocol/index.js';
-import { fail, nonempty, object } from './shared-contract.js';
+import { localized, type Effect, type EffectRef } from './protocol/browser.js';
+import { fail } from './errors.js';
+import { nonempty, object } from './arguments.js';
 import type { CollaborationCheckpoint, CollaborationReceipt } from './dsh/collaboration-context.js';
 
 /** One exact effect revision inside one exact pack release. */

@@ -1,5 +1,5 @@
 import { useText, useUiLocale, AmojiLocaleProvider, type AmojiLocale, type TextMessage } from './i18n.js';
-import { actGloss, expressionText } from '../protocol/index.js';
+import { actGloss, expressionText } from '../protocol/browser.js';
 import React, { useEffect, useState } from 'react';
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ClientPort } from './client.js';

@@ -5,7 +5,7 @@ import { useText, useUiLocale } from './i18n.js';
 import React,{useEffect,useRef,useState} from 'react';
 import type {Draft} from '../drafts.js';
 import type {LibraryEntry} from '../library-management.js';
-import {expressionText,type Expression,type ExpressionRef} from '../protocol/index.js';
+import {expressionText,type Expression,type ExpressionRef} from '../protocol/browser.js';
 import type {DshRpc} from './contracts.js';
 import {DraftEditor,discardEditor} from './draft-editor.js';
 import {LibraryControls} from './library-controls.js';

@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import type {Binding,ConflictGroup,Effect,Expression,ExpressionRef,Pack} from '../protocol/index.js';
-import {REGISTRY,actGloss,expressionText,localizedText} from '../protocol/index.js';
+import type {Binding,ConflictGroup,Effect,Expression,ExpressionRef,Pack} from '../protocol/browser.js';
+import {REGISTRY,actGloss,expressionText,localizedText} from '../protocol/browser.js';
 import type {PackDraft} from '../library-store.js';
 import type {DshRpc} from './contracts.js';
 import {useText,useUiLocale} from './i18n.js';

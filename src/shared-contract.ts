@@ -1,5 +1,7 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { fail } from './errors.js';
+import { object, nonempty } from './arguments.js';
 
 /** Amoji 0.1 protocol surface: act-based expression, notes, anchors, signals, decisions. */
 export const PROTOCOL_CAPABILITY = 'amoji-0.1';
@@ -24,10 +26,7 @@ export interface ClaudeHookInvocation { sessionId: string; promptId: string; inv
 export interface ClaudeTicketRequest { ticket: string; toolName: string; argumentsDigest: string; invocationId?: string }
 export interface ClaudeTicketContext { context: BindingContext; invocationId: string }
 
-export class ServiceError extends Error {
-  constructor(readonly code: string, message: string, readonly current?: unknown) { super(`${code}：${message}`); }
-}
-export function fail(code: string, message: string, current?: unknown): never { throw new ServiceError(code, message, current); }
+export { ServiceError, fail } from './errors.js';
 
 /** The historical macOS directory remains the default so old local image URLs survive. */
 export function dataDirectory(platform = process.platform, home = homedir(), env = process.env): string {
@@ -39,16 +38,7 @@ export function dataDirectory(platform = process.platform, home = homedir(), env
 export function sessionKey(context: BindingContext): string {
   return JSON.stringify([context.host, context.hostInstanceId ?? 'local', context.sessionId]);
 }
-export function object(value: unknown, keys: string[], required = keys): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('INVALID_ARGUMENT', '需要对象参数');
-  const record = value as Record<string, unknown>;
-  if (Object.keys(record).some(key => !keys.includes(key)) || required.some(key => !(key in record))) fail('INVALID_ARGUMENT', '参数字段不合法；不接受语义覆盖或任意目标');
-  return record;
-}
-export function nonempty(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > 1024) fail('INVALID_ARGUMENT', '需要非空文字');
-  return value;
-}
+export { object, nonempty } from './arguments.js';
 export function bindingContext(value: unknown): BindingContext {
   const c = object(value, ['host', 'hostInstanceId', 'sessionId', 'turnId', 'turnOrdinal'], ['host', 'sessionId']);
   if (!['codex', 'claude-code', 'dsh'].includes(String(c.host))) fail('INVALID_ARGUMENT', '未知宿主');

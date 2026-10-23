@@ -1,7 +1,7 @@
 import { useText, useUiLocale } from './i18n.js';
 import React,{useEffect,useState} from 'react';
 import type {PersonalSettings} from '../library-management.js';
-import {actGloss,humanActs,localizedText,type Family} from '../protocol/index.js';
+import {actGloss,humanActs,localizedText,type Family} from '../protocol/browser.js';
 import type {DshRpc,PackSummary} from './contracts.js';
 import {Conflict} from './ui.js';
 import {FAMILY_LABELS} from './labels.js';

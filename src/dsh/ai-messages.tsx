@@ -1,6 +1,6 @@
 import { useText, useUiLocale } from './i18n.js';
 import React, { useEffect, useState } from 'react';
-import { actGloss } from '../protocol/index.js';
+import { actGloss } from '../protocol/browser.js';
 import type { StoredMessage } from '../messages.js';
 import type {ConversationNodeDefinition} from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type {ChatConversationViewNode} from '@deepseek-ai/dsh-client-ui-chat/client';

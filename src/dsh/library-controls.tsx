@@ -1,7 +1,7 @@
 import { useText, useUiLocale } from './i18n.js';
 import React,{useEffect,useLayoutEffect,useState,useRef} from 'react';
 import type {LibraryEntry} from '../library-management.js';
-import {expressionText,localizedText,searchableText,type Expression,type ExpressionRef} from '../protocol/index.js';
+import {expressionText,localizedText,searchableText,type Expression,type ExpressionRef} from '../protocol/browser.js';
 import type {Draft} from '../drafts.js';
 import type {DshRpc,PackSummary} from './contracts.js';
 import {AmojiImage,sameRef} from './media.js';

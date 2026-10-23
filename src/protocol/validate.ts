@@ -1,6 +1,6 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import schema from '../../docs/specs/amoji-0.1.schema.json' with { type: 'json' };
-import { fail } from '../shared-contract.js';
+import { fail } from '../errors.js';
 import { actAllows, findAct, backchannelEligible, interruptEligible, REGISTRY } from './registry.js';
 import type { Expression, Operation, Pack, Preferences, ProtocolMessage, Sender } from './types.js';
 import { LIMITS, Problems as RuleProblems, checkExpressionRules, checkNfc, checkPackRules } from './rules.js';

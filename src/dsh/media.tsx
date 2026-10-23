@@ -1,8 +1,8 @@
 import { useText, useUiLocale, errorMessage, type TextMessage } from './i18n.js';
-import { actGloss, expressionText } from '../protocol/index.js';
+import { actGloss, expressionText } from '../protocol/browser.js';
 import { rpcError } from './management-rpc.js';
 import React, { useEffect, useState } from 'react';
-import type { ExpressionRef } from '../protocol/index.js';
+import type { ExpressionRef } from '../protocol/browser.js';
 import type { ClientPort } from './client.js';
 import type { DshRpc, VisualData, VisualMeta } from './contracts.js';
 interface SessionProps { sessionId: string }

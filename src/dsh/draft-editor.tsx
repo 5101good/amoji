@@ -3,7 +3,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import type {SuggestionModel} from './ai-suggestions.js';
 import type {Draft,DraftFields} from '../drafts.js';
 import type {DshRpc} from './contracts.js';
-import {REGISTRY,actGloss,expressionText,findAct,type Direction,type Expression,type Family,type Intensity,type Semantics,type Translation} from '../protocol/index.js';
+import {REGISTRY,actGloss,expressionText,findAct,type Direction,type Expression,type Family,type Intensity,type Semantics,type Translation} from '../protocol/browser.js';
 import {FAMILY_LABELS} from './labels.js';
 import {Conflict} from './ui.js';
 const FAMILIES:Family[]=['grounding','steering','progress','epistemic','social'];

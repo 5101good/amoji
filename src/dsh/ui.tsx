@@ -1,7 +1,7 @@
 import { useText, useUiLocale, errorMessage } from './i18n.js';
-import { expressionText } from '../protocol/index.js';
+import { expressionText } from '../protocol/browser.js';
 import React from 'react';
-import type { Expression } from '../protocol/index.js';
+import type { Expression } from '../protocol/browser.js';
 import type { DshRpc } from './contracts.js';
 import { AmojiImage } from './media.js';
 

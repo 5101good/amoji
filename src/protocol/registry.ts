@@ -1,5 +1,5 @@
 import registryJson from '../../docs/specs/amoji-0.1.registry.json' with { type: 'json' };
-import { fail } from '../shared-contract.js';
+import { fail } from '../errors.js';
 import { lookupLocale } from './locale.js';
 import type { ActEntry, Direction, Family, Registry } from './types.js';
 

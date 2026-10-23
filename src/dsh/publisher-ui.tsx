@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import type {DshRpc} from './contracts.js';
-import {expressionText,localizedText,type Pack} from '../protocol/index.js';
+import {expressionText,localizedText,type Pack} from '../protocol/browser.js';
 import type {PublisherDraft} from './publisher.js';
 import {useText,useUiLocale} from './i18n.js';
 import {Conflict} from './ui.js';

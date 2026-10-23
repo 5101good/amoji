@@ -9,7 +9,7 @@ import { ConnectedRuntime } from '../src/adapter-runtime.js';
 import { DshAdapter, installDsh } from '../src/dsh/host.js';
 import type { DshEvent, DshExecution, DshSession, HostPort, ToolOptions, HistoryEntry, VisualData } from '../src/dsh/contracts.js';
 import type { StoredMessage } from '../src/messages.js';
-import type { Expression } from '../src/protocol/index.js';
+import { actAllows, humanSendable, type Expression } from '../src/protocol/index.js';
 import { SEEDS } from './helpers/store-runtime.js';
 import { fields } from './helpers/fixtures.js';
 const toolModule = new URL('../.cache/dsh-source/tools.mjs', import.meta.url).href;
@@ -142,7 +142,7 @@ test('打包 Host 入口真实加载、连接同一个服务并经 Connection RP
   const previous = process.env.AMOJI_DATA_DIR; const previousDsh=process.env.DSH_HOME; process.env.DSH_HOME=join(f.directory,'dsh-profile'); process.env.AMOJI_DATA_DIR = f.directory;
   try {
     await plugin.apply(f.ctx); assert.ok(plugin.inject.includes('connection')); assert.ok(f.tools.has('amoji_express'));
-    const result = await handler!('amoji/catalog', { sessionId: f.a.id }, signal()) as { ok: boolean; value: unknown[] }; assert.equal(result.ok, true); assert.equal(result.value.length, (await f.client.list()).length);
+    const result = await handler!('amoji/catalog', { sessionId: f.a.id }, signal()) as { ok: boolean; value: unknown[] }; assert.equal(result.ok, true); assert.equal(result.value.length, (await f.client.list()).filter(humanSendable).length);
     const searched = await handler!('amoji/search', { sessionId: f.a.id, query: '苦笑', limit: 5 }, signal()) as { ok: boolean; value: Expression[] }; assert.equal(searched.ok, true); assert.equal(searched.value[0]!.name['zh-CN'], '挠头苦笑');
     const denied = await handler!('amoji/catalog', { sessionId: 'unknown-session' }, signal()) as { ok: boolean }; assert.equal(denied.ok, false);
   } finally {
@@ -354,7 +354,7 @@ test('真实 Connection 允许网关 /api interceptor 与 Amoji exact routes 共
   const call = (endpoint: string, payload: unknown, method = endpoint) => handler.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture-rpc', method, payload }) }));
   assert.equal((await (await call('session/native', {})).json()).result.value, 'native gateway');
   const catalog = await (await call('amoji/catalog', { sessionId: f.a.id })).json();
-  assert.equal(catalog.type, 'server-response'); assert.equal(catalog.rpcId, 'fixture-rpc'); assert.equal(catalog.result.value.length, (await f.client.list()).length);
+  assert.equal(catalog.type, 'server-response'); assert.equal(catalog.rpcId, 'fixture-rpc'); assert.equal(catalog.result.value.length, (await f.client.list()).filter(humanSendable).length);
   assert.equal((await call('amoji/catalog', {}, 'session/native')).status, 400);
   for (const dispose of cleanup.reverse()) await dispose();
   assert.equal((await call('amoji/catalog', { sessionId: f.a.id })).status, 404);
@@ -489,7 +489,7 @@ test('两个适配器争用同一请求只有一个原生 prompt，重连 RPC �
   for (let i = 0; i < 30 && !f.client.signal.aborted; i++) await new Promise(r => setTimeout(r, 10));
   await assert.rejects(f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()), /CONNECTION_CLOSED/);
   await f.adapter.rpc('amoji/reconnect', { sessionId: f.a.id }, signal());
-  assert.equal((await f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()) as unknown[]).length, (await f.client.list()).length);
+  assert.equal((await f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()) as unknown[]).length, (await f.client.list()).filter(humanSendable).length);
   const original = await f.adapter.rpc('amoji/submit', request, signal()) as HistoryEntry;
   assert.equal(original.meta.messageId, rows[0]!.meta.messageId); assert.equal(f.prompts.length, 1);
   await cancelled;
@@ -512,4 +512,28 @@ test('AI建议RPC先核对会话，模型默认读取待用选择；生成不发
  const result=await adapter.rpc('amoji/management',{sessionId:f.a.id,method:'suggestAiText',args},signal()) as any;
  assert.equal(result.method,'dsh-llm-v1');assert.equal(calls,1);assert.equal(f.prompts.length,0);assert.equal(f.a.snapshotEvents().length,events);assert.deepEqual(await f.client.list(),before);
  const defaultModels=await adapter.rpc('amoji/management',{sessionId:f.b.id,method:'listSuggestionModels',args:{}},signal()) as any;assert.deepEqual(defaultModels.current,{provider:'p',model:'default'});
+});
+test('决策选择投递失败后可按原请求重试：已保存与已送达是两个状态', async t => {
+  const f = await setup(t);
+  const emitted = await f.call('amoji_express', { act: 'core:decide', options: [{ id: 'a', label: '方案甲' }, { id: 'b', label: '方案乙' }], rationale: '需要你定方向' }, f.exec(f.a, 'decide-call')) as { meta: { messageId: string } };
+  const id = emitted.meta.messageId; const choose = (option: string) => f.adapter.rpc('amoji/choose', { sessionId: f.a.id, messageId: id, option }, signal()) as Promise<HistoryEntry[]>;
+  const prompt = f.ctx.sessionController.prompt; let fail = true;
+  f.ctx.sessionController.prompt = async (request, s) => { if (fail) { fail = false; throw new Error('host unavailable'); } return prompt(request, s); };
+  await assert.rejects(choose('a'), /host unavailable/);
+  const saved = (await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[]).find(r => r.message.message_id === id)!;
+  assert.equal(saved.message.choice!.option, 'a'); assert.equal(saved.host!.status, 'prepared'); assert.equal(f.prompts.length, 0);
+  await assert.rejects(choose('b'), /ALREADY_CHOSEN/);
+  await choose('a');
+  assert.equal(f.prompts.length, 1); assert.equal(f.prompts[0]!.requestId, `amoji-choice:${id}`); assert.match(f.prompts[0]!.content[0]!.text, /方案甲/);
+  f.a.append('user/message', { id: 'host-choice', source: { kind: 'user', rpcId: `amoji-choice:${id}` } });
+  const again = await choose('a'); assert.equal(f.prompts.length, 1, '已观察到就不再重发');
+  assert.equal(again.find(r => r.message.message_id === id)!.host!.status, 'observed');
+});
+test('选择器目录与检索只给人能发送的表情', async t => {
+  const f = await setup(t);
+  const catalog = await f.adapter.rpc('amoji/catalog', { sessionId: f.a.id }, signal()) as Expression[];
+  assert.ok(catalog.length > 0); assert.ok(catalog.every(e => actAllows(e.realizes, 'h2a') && (e.directions ?? ['h2a']).includes('h2a')));
+  assert.ok((await f.runtime.catalog.all()).some(e => !actAllows(e.realizes, 'h2a')), '完整目录仍含只由 AI 发出的表情');
+  const found = await f.adapter.rpc('amoji/search', { sessionId: f.a.id, query: 'core:ack', limit: 5 }, signal()) as Expression[];
+  assert.ok(found.every(e => actAllows(e.realizes, 'h2a')));
 });

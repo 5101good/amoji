@@ -20,7 +20,7 @@ import { thumbnailImage, cachedThumbnailImage } from "../src/claude-mods/thumbna
 import { readBoundedFile, writeNewFile } from "../src/claude-mods/files.js";
 import { executeBridge } from "../src/claude-mods/bridge.js";
 import { HUMAN_EXPRESSION_NOTICE } from "../src/projection.js";
-import { actEntry } from "../src/protocol/index.js";
+import { actAllows, actEntry } from "../src/protocol/index.js";
 import { SEEDS } from "./helpers/store-runtime.js";
 import { fields as draftFixture } from "./helpers/fixtures.js";
 
@@ -208,8 +208,8 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
     context,
     args: { query: "", page: 99 },
   });
-  assert.equal(result.page, 7, "an out-of-range page converges on the last page of 48");
-  assert.equal(result.items.length, 6);
+  assert.equal(result.page, 6, "an out-of-range page converges on the last page of the 40 expressions a person can send");
+  assert.equal(result.items.length, 4);
   for (const item of result.items) {
     assert.match(item.preview, /^data:image\/avif;base64,/);
     const pixels = Buffer.from(item.preview.split(",")[1], "base64");
@@ -221,7 +221,8 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
     command: "browse", context, args: { query: "", offset: 1, limit: 2 },
   });
   assert.equal(window.offset, 1);
-  assert.equal(window.total, 48);
+  assert.equal(window.total, 40);
+  assert.ok(!(await app.browseWindow({ query: "", offset: 0, limit: 100 })).items.some((x: any) => !actAllows(x.expression.realizes, "h2a")), "选择器不展示人不能发出的表情");
   const first: any = await executeBridge(app, client, { command: "browse", context, args: { query: "", offset: 0, limit: 3 } });
   assert.deepEqual(window.items.map((x: any) => x.expression.asset_id), first.items.slice(1).map((x: any) => x.expression.asset_id));
   await assert.rejects(app.browseWindow({ query: "", offset: -1, limit: 2 }), /INVALID_ARGUMENT/);

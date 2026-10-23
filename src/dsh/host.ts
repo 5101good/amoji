@@ -10,7 +10,7 @@ import { expressionMessageText } from './expression-message.js';
 import { messageProjection } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { runModelTool, EXPRESS_DESCRIPTION } from '../model-tools.js';
-import { actGloss, backchannelEligible, interruptEligible, type ExpressionRef, type Mode } from '../protocol/index.js';
+import { actGloss, backchannelEligible, humanSendable, interruptEligible, type ExpressionRef, type Mode } from '../protocol/index.js';
 import { fail, nonempty, object, type BindingContext } from '../shared-contract.js';
 import type { AdapterRuntime } from '../adapter-runtime.js';
 import type { ReceiveInput } from '../library-store.js';
@@ -116,7 +116,12 @@ export class DshAdapter {
     if (this.collaboration && messages.some(m => m.effect_intent)) await this.session(sessionId, this.lifecycle);
     return Promise.all(messages.map(async message => {
       const effect = message.effect_intent ? (this.collaboration ? await this.collaboration.receipt(sessionId, message) : { status: 'unsupported' as const, reason: 'host-context-unavailable' }) : undefined;
-      if (message.direction !== 'human_to_ai') return { message, meta: visualMeta(message), host: null };
+      if (message.direction !== 'human_to_ai') {
+        if (!message.choice) return { message, meta: visualMeta(message), host: null };
+        const choiceId = `amoji-choice:${message.message_id}`;
+        const answered = events.find(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === choiceId);
+        return { message, meta: visualMeta(message), host: { status: answered ? 'observed' as const : 'prepared' as const, requestId: choiceId, ...(answered ? { hostMessageId: nonempty(record(answered.data).id), seq: answered.seq } : {}) } };
+      }
       const requestId = `amoji:${message.message_id}`;
       const user = events.find(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === requestId);
       // A steering signal that the agent claimed during its turn reached the model there.
@@ -187,9 +192,9 @@ export class DshAdapter {
       if (!this.runtime.collaboration || !this.collaboration) fail('CAPABILITY_UNAVAILABLE', '当前宿主不支持协作效果，可明确选择仅发送');
       return this.runtime.collaboration.choices(context, refOf(args.ref));
     }
-    if (method === 'catalog') return this.runtime.catalog.all();
+    if (method === 'catalog') return (await this.runtime.catalog.all()).filter(humanSendable);
     if (method === 'packs') return this.packs();
-    if (method === 'search') return searchExpressions(await this.runtime.catalog.all(), args.query as string, args.limit === undefined ? 3 : Number(args.limit));
+    if (method === 'search') return searchExpressions((await this.runtime.catalog.all()).filter(humanSendable), args.query as string, args.limit === undefined ? 3 : Number(args.limit));
     if (method === 'history') return this.rows(sessionId, events);
     if (method === 'retract') {
       if (!this.runtime.retract) fail('CAPABILITY_UNAVAILABLE', '当前服务不支持撤回');
@@ -249,11 +254,13 @@ export class DshAdapter {
   private async choose(sessionId: string, messageId: string, option: string, signal: AbortSignal): Promise<HistoryEntry[]> {
     if (!this.runtime.choose) fail('CAPABILITY_UNAVAILABLE', '当前服务不支持决策作答');
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
-    const before = (await this.runtime.messages(context)).find(m => m.message_id === messageId);
+    // The saved choice and its delivery to the model are separate facts: a retry of the same
+    // option re-sends under the same request id until the host shows the user message.
     const message = await this.runtime.choose(context, messageId, option);
-    if (!before?.choice) {
+    const requestId = `amoji-choice:${messageId}`;
+    if (!(await this.inspect(sessionId, signal)).some(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === requestId)) {
       const text = `用户在 AI 的决策中做出了选择（选择只表达偏好，不构成授权）：\n${JSON.stringify(messageProjection(message))}`;
-      await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji-choice:${messageId}`, mode: this.openTurn(session) === undefined ? 'queue' : 'steer', content: [{ type: 'text', text }] }, signal);
+      await this.ctx.sessionController.prompt({ sessionId, requestId, mode: this.openTurn(session) === undefined ? 'queue' : 'steer', content: [{ type: 'text', text }] }, signal);
       await this.flush(session);
     }
     return this.rows(sessionId, await this.inspect(sessionId, signal));

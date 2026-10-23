@@ -1,4 +1,4 @@
-import { REGISTRY, actGloss } from './protocol/index.js';
+import { REGISTRY, actGloss, humanSendable } from './protocol/index.js';
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -108,7 +108,7 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context), acts: PANEL_ACTS }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: (await this.runtime.catalog.all()).filter(humanSendable), messages: await this.runtime.messages(session.context), acts: PANEL_ACTS }); return;
     }
     if (req.method === 'GET' && url.pathname === '/api/drafts') {
       this.json(res, 200, { drafts: this.runtime.creation ? await this.runtime.creation.listDrafts() : [] }); return;
@@ -116,7 +116,7 @@ export class PanelServer {
     if (req.method === 'GET' && url.pathname === '/api/search') {
       try {
         const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 3;
-        this.json(res, 200, { expressions: searchExpressions(await this.runtime.catalog.all(), url.searchParams.get('query') ?? '', limit) });
+        this.json(res, 200, { expressions: searchExpressions((await this.runtime.catalog.all()).filter(humanSendable), url.searchParams.get('query') ?? '', limit) });
       } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '搜索参数不合法' }); }
       return;
     }

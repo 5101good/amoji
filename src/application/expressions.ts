@@ -2,7 +2,7 @@ import type { AdapterRuntime } from "../adapter-runtime.js";
 import type { SharedClient } from "../shared-client.js";
 import type { BindingContext } from "../shared-contract.js";
 import { fail } from "../shared-contract.js";
-import { actEntry, searchableText, type ExpressionRef, type Family } from "../protocol/index.js";
+import { actEntry, humanSendable, searchableText, type ExpressionRef, type Family } from "../protocol/index.js";
 import type { LibraryEntry } from "../library-management.js";
 import type { ExpressInput, ReceiveInput } from "../library-store.js";
 import { runModelTool } from "../model-tools.js";
@@ -119,6 +119,7 @@ export class ExpressionApplication {
         input.library
           ? entry.archived === !!input.archived
           : !entry.archived &&
+            humanSendable(entry.expression) &&
             visible!.has(
               `${entry.expression.asset_id}:${entry.expression.revision_id}`,
             ),

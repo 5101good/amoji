@@ -25,6 +25,10 @@ export function backchannelEligible(act: string): boolean {
   const entry = ACTS.get(act);
   return !!entry && !!entry.forms.h2a && entry.family !== 'social';
 }
+/** Whether a person may send this expression: the act has an h2a form and the expression does not limit itself to a2h (RFC §8). */
+export function humanSendable(expression: { realizes: string; directions?: readonly Direction[] }): boolean {
+  return actAllows(expression.realizes, 'h2a') && (expression.directions ?? ['h2a', 'a2h']).includes('h2a');
+}
 export function interruptEligible(act: string): boolean { return ACTS.get(act)?.authority === 'reduce' && actAllows(act, 'h2a'); }
 export function humanActs(): ActEntry[] { return REGISTRY.acts.filter(entry => entry.forms.h2a && entry.status !== 'deprecated'); }
 export function aiActs(): ActEntry[] { return REGISTRY.acts.filter(entry => entry.forms.a2h && entry.status !== 'deprecated'); }

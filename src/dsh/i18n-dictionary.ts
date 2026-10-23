@@ -3,6 +3,7 @@ export const english = {
   "AI 表示": "The AI says",
   "需要你选一下": "Your choice is needed",
   "已选择：{label}": "Chose: {label}",
+  "已选择：{label}，但尚未送达 AI，可再点一次重试": "Chose: {label}, but it has not reached the AI yet. Click again to retry.",
   "选择只表达你的偏好，不是批准；也可以直接用文字回答。": "Choosing only states your preference, not an approval; you can also reply in words.",
   "快捷回复": "Quick replies",
   "快捷表达": "Quick expressions",

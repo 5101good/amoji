@@ -1,12 +1,16 @@
-/** Draft edits create new identities; unchanged expressions retain their exact references. */
+/**
+ * Draft edits create new identities; unchanged expressions retain their exact
+ * references. An edited expression records the revision it came from in its
+ * rights source (Amoji 0.1 has no per-expression derivation field), and
+ * bindings that targeted it follow the new identity.
+ */
 export function buildSnapshot(
   input: any,
   original: any,
   identity: { pack_id: string; release_id: string; version: number },
 ) {
   const m = structuredClone(input),
-    expressionRefs = new Map<string, any>(),
-    actionRefs = new Map<string, any>();
+    expressionRefs = new Map<string, any>();
   const stable = (v: any): string =>
     JSON.stringify(v, (_k, x) =>
       x && typeof x === "object" && !Array.isArray(x)
@@ -22,55 +26,20 @@ export function buildSnapshot(
       (o: any) => o.asset_id === e.asset_id && o.revision_id === e.revision_id,
     );
     if (!old || stable(old) === stable(e)) continue;
-    const ref = { asset_id: e.asset_id, revision_id: e.revision_id };
+    const key = e.asset_id + ":" + e.revision_id;
+    const source = `amoji:expression/${e.asset_id}/${e.revision_id}`;
     e.asset_id = crypto.randomUUID();
     e.revision_id = crypto.randomUUID();
-    e.derived_from = ref;
-    expressionRefs.set(ref.asset_id + ":" + ref.revision_id, {
-      asset_id: e.asset_id,
-      revision_id: e.revision_id,
-    });
+    e.rights.source = e.rights.source ? `${e.rights.source}\n${source}` : source;
+    expressionRefs.set(key, { asset_id: e.asset_id, revision_id: e.revision_id });
   }
-  for (const a of m.actions) {
-    const old = original.actions?.find(
-      (o: any) =>
-        o.action_id === a.action_id &&
-        o.action_revision_id === a.action_revision_id,
-    );
-    if (!old || stable(old) === stable(a)) continue;
-    const key = a.action_id + ":" + a.action_revision_id;
-    const source = `amoji:action/${a.action_id}/${a.action_revision_id}`;
-    a.action_id = crypto.randomUUID();
-    a.action_revision_id = crypto.randomUUID();
-    a.rights.source = a.rights.source
-      ? `${a.rights.source}\n${source}`
-      : source;
-    actionRefs.set(key, {
-      action_id: a.action_id,
-      action_revision_id: a.action_revision_id,
-    });
-  }
-  m.defaults = m.defaults.map(
-    (r: any) => expressionRefs.get(r.asset_id + ":" + r.revision_id) ?? r,
-  );
-  // Forking a non-default revision creates an asset that had no prior default;
-  // forking the default can leave unchanged revisions of the original asset.
-  const assets = new Set(m.expressions.map((e: any) => e.asset_id));
-  m.defaults = m.defaults.filter((r: any) => assets.has(r.asset_id));
-  const covered = new Set(m.defaults.map((r: any) => r.asset_id));
-  for (const e of m.expressions)
-    if (!covered.has(e.asset_id)) {
-      m.defaults.push({ asset_id: e.asset_id, revision_id: e.revision_id });
-      covered.add(e.asset_id);
-    }
-  m.bindings = m.bindings.map((b: any) => ({
-    expression:
-      expressionRefs.get(
-        b.expression.asset_id + ":" + b.expression.revision_id,
-      ) ?? b.expression,
-    actions: b.actions.map(
-      (a: any) => actionRefs.get(a.action_id + ":" + a.action_revision_id) ?? a,
-    ),
-  }));
+  if (m.bindings)
+    m.bindings = m.bindings.map((b: any) => ({
+      ...b,
+      target:
+        "act" in b.target
+          ? b.target
+          : (expressionRefs.get(b.target.asset_id + ":" + b.target.revision_id) ?? b.target),
+    }));
   return { ...m, ...identity };
 }

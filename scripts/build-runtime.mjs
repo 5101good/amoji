@@ -5,10 +5,9 @@ export async function copyRuntime(root, destination) {
   await mkdir(`${destination}/runtime`, { recursive: true });
   await cp(`${root}/dist/src`, `${destination}/runtime/src`, { recursive: true });
   await cp(`${root}/dist/docs`, `${destination}/runtime/docs`, { recursive: true });
-  await mkdir(`${destination}/assets/samples`, { recursive: true });
-  await cp(`${root}/assets/samples/blobs`, `${destination}/assets/samples/blobs`, { recursive: true });
-  await cp(`${root}/assets/samples/manifest.json`, `${destination}/assets/samples/manifest.json`);
-  await cp(`${root}/assets/base-library`, `${destination}/assets/base-library`, { recursive: true });
+  // The built-in packs the service seeds on first start (service-main.ts).
+  await mkdir(`${destination}/assets/official-packs`, { recursive: true });
+  for (const name of ['classic.amoji', 'office.amoji', 'LICENSE']) await cp(`${root}/assets/official-packs/${name}`, `${destination}/assets/official-packs/${name}`);
   await cp(`${root}/web`, `${destination}/web`, { recursive: true });
   await cp(`${root}/package.json`, `${destination}/runtime/package.json`);
   await cp(`${root}/package-lock.json`, `${destination}/runtime/package-lock.json`);

@@ -190,20 +190,24 @@ export async function reviewRoute(
       )
         .bind(s.owner)
         .first<{ display_name: string }>();
+      // Every language is searchable; acts and locales are exact-match filters.
+      const text = (map: Record<string, string>) => Object.values(map);
       const search = [
-        manifest.name,
-        manifest.description ?? "",
-        ...manifest.scenario,
-        ...manifest.expressions.map(
-          (e: any) => e.name + " " + e.semantics.meaning,
-        ),
+        ...text(manifest.name),
+        ...text(manifest.description),
+        ...manifest.expressions.flatMap((e: any) => [
+          e.realizes,
+          ...text(e.name),
+          ...Object.values(e.semantics).flatMap((x: any) => [x.meaning, x.fallback]),
+          ...Object.values(e.tags ?? {}).flat(),
+        ]),
       ]
         .join(" ")
         .normalize("NFKC")
         .toLowerCase();
       statements.push(
         env.DB.prepare(
-          `INSERT INTO market_public_release(release_id,pack_id,submission_id,manifest,archive_sha256,manifest_sha256,author,name,search_text,scenarios,locales,styles,has_actions,published_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${success}`,
+          `INSERT INTO market_public_release(release_id,pack_id,submission_id,manifest,archive_sha256,manifest_sha256,author,name,search_text,acts,locales,has_effects,published_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${success}`,
         ).bind(
           s.release_id,
           s.pack_id,
@@ -212,16 +216,11 @@ export async function reviewRoute(
           s.archive_sha256,
           s.manifest_sha256,
           author!.display_name,
-          manifest.name,
+          manifest.name[manifest.original_locale],
           search,
-          JSON.stringify(manifest.scenario),
-          JSON.stringify([
-            ...new Set(
-              manifest.expressions.map((e: any) => e.semantics.locale),
-            ),
-          ]),
-          JSON.stringify(manifest.styles ?? []),
-          manifest.actions.length ? 1 : 0,
+          JSON.stringify([...new Set(manifest.expressions.map((e: any) => e.realizes))]),
+          JSON.stringify(manifest.locales),
+          manifest.effects?.length ? 1 : 0,
           now,
           s.id,
           marker,

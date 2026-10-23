@@ -50,7 +50,7 @@ export default {
       let response: Response;
       if (firstPage) {
         const catalogURL = new URL("/v1/packs", url);
-        for (const key of ["q", "scenario", "locale", "style", "actions"]) {
+        for (const key of ["q", "act", "locale", "effects"]) {
           const value = url.searchParams.get(key);
           if (value) catalogURL.searchParams.set(key, value);
         }

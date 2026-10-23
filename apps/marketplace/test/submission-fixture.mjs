@@ -63,6 +63,7 @@ export async function fixture(t, serviceBindings = {}) {
     "0007-device-authorizations.sql",
     "0008-moderation-lifecycle.sql",
     "0009-official-catalog.sql",
+    "0010-amoji-0.1.sql",
   ]) {
     const migration = await readFile(
       new URL("../migrations/" + name, import.meta.url),

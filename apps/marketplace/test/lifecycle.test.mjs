@@ -52,7 +52,7 @@ async function publish(f, admin) {
   const u = await f.reserve();
   const v = await archive(u, {
     mutate(m) {
-      m.name = "<img src=x onerror=alert(1)>";
+      m.name = { "zh-CN": "<img src=x onerror=alert(1)>" };
       m.rights.creator = "Synthetic";
       m.expressions[0].rights.creator = "Synthetic";
     },

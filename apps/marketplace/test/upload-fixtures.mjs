@@ -19,30 +19,29 @@ export async function archive(upload, options = {}) {
   };
   const expression = {
     kind: "amoji.expression",
-    schema_version: "0.1",
+    amoji: "0.1",
     asset_id: randomUUID(),
     revision_id: randomUUID(),
-    name: "理解",
-    created_at: new Date().toISOString(),
-    semantics: { locale: "zh-CN", meaning: "我理解了", fallback: "理解" },
-    visual: { primary: blob, animated: false },
+    realizes: "core:ack",
+    intensity: 2,
+    original_locale: "zh-CN",
+    name: { "zh-CN": "理解" },
+    semantics: { "zh-CN": { meaning: "我理解了", fallback: "理解" } },
+    visual: { primary: blob, animated: false, text_locale: null },
     rights: { license: "CC0-1.0" },
+    created_at: new Date().toISOString(),
   };
   const manifest = {
     kind: "amoji.pack",
-    schema_version: "0.2",
+    amoji: "0.1",
     pack_id: upload.pack_id,
     release_id: upload.release_id,
     version: upload.version,
-    name: "测试包",
-    created_at: new Date().toISOString(),
-    scenario: ["协作"],
+    original_locale: "zh-CN",
+    locales: ["zh-CN"],
+    name: { "zh-CN": "测试包" },
+    description: { "zh-CN": "用于测试的表情包" },
     expressions: [expression],
-    defaults: [
-      { asset_id: expression.asset_id, revision_id: expression.revision_id },
-    ],
-    actions: [],
-    bindings: [],
     rights: { license: "CC0-1.0" },
   };
   const extra = {};
@@ -69,6 +68,7 @@ export async function archive(upload, options = {}) {
       animated: true,
       duration_ms: options.duration ?? 20,
       poster: posterBlob,
+      text_locale: null,
     };
     extra["blobs/" + posterBlob.sha256] = poster;
   }
@@ -96,14 +96,7 @@ export async function byteBoundaryArchive(upload, kind, extra = 0) {
     asset_id: randomUUID(),
     revision_id: randomUUID(),
   }));
-  const manifest = {
-    ...seed.manifest,
-    expressions,
-    defaults: expressions.map((e) => ({
-      asset_id: e.asset_id,
-      revision_id: e.revision_id,
-    })),
-  };
+  const manifest = { ...seed.manifest, expressions };
   const render = () => {
     const files = {};
     expressions.forEach((expression, index) => {

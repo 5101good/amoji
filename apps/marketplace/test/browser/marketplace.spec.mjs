@@ -67,7 +67,7 @@ test("official directory has two complete classics and five original collections
   const catalog = JSON.parse(await readFile(resolve("../../assets/official-packs/catalog.json"), "utf8"));
   await page.goto("/");
   await expect(page.getByText("所有表情包", {exact: true})).toBeVisible();
-  await expect(page.locator(".catalog-row h3 a")).toHaveText(catalog.packs.map(p => p.name));
+  await expect(page.locator(".catalog-row h3 a")).toHaveText(catalog.packs.map(p => p.name["zh-CN"]));
   await expect(page.getByText(/场景包/)).toHaveCount(0);
   for (const pack of catalog.packs) {
     await page.goto(`/packs/${pack.pack_id}/releases/${pack.release_id}`);
@@ -83,17 +83,6 @@ test("official directory has two complete classics and five original collections
   }
 });
 
-test("older exact links retain their original mixed-style contents", async ({page}) => {
-  const m = JSON.parse(await readFile(resolve("../../assets/scenario-packs/make-it-clear.manifest.json"), "utf8"));
-  await page.goto(`/packs/${m.pack_id}/releases/${m.release_id}`);
-  await expect(page.locator(".expression-grid article")).toHaveCount(4);
-  const meanings = await page.locator(".expression-grid article > p[lang]").allTextContents();
-  expect(meanings).toHaveLength(4);
-  await page.getByRole("button", {name: "办公", exact: true}).click();
-  await expect(page.locator(".expression-grid article")).toHaveCount(4);
-  expect(await page.locator(".expression-grid article > p[lang]").allTextContents()).toEqual(meanings);
-});
-
 test("the expression exhibit uses exact built-in meanings in both languages and works by keyboard", async ({
   page,
 }) => {
@@ -102,29 +91,21 @@ test("the expression exhibit uses exact built-in meanings in both languages and 
   for (const locale of ["zh", "en"]) {
     if (locale === "en")
       await page.getByRole("button", { name: "Switch to English" }).click();
-    const definitions = JSON.parse(
-      await readFile(
-        resolve(
-          "../../assets/base-library/definitions" +
-            (locale === "en" ? ".en" : "") +
-            ".json",
-        ),
-        "utf8",
-      ),
+    const manifest = JSON.parse(
+      await readFile(resolve("../../assets/official-packs/classic.manifest.json"), "utf8"),
     );
-    for (const slug of ["thanks", "celebrate", "progress"]) {
-      const definition = definitions.entries.find(
-        (entry) => entry.slug === slug,
-      );
+    const language = locale === "en" ? "en" : "zh-CN";
+    for (const [slug, act] of [["thanks", "core:thanks"], ["celebrate", "core:celebrate"], ["progress", "core:checkin"]]) {
+      const definition = manifest.expressions.find((e) => e.realizes === act);
       const button = page.getByRole("button", {
-        name: (locale === "zh" ? "预览：" : "Preview: ") + definition.name,
+        name: (locale === "zh" ? "预览：" : "Preview: ") + definition.name[language],
         exact: true,
       });
       await button.focus();
       await button.press("Enter");
       await expect(button).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator(".meaning-quote")).toHaveText(
-        definition.semantics.meaning,
+        definition.semantics[language].meaning,
       );
       await expect(page.locator(".exhibit-stage > img")).toHaveAttribute(
         "src",
@@ -180,19 +161,17 @@ test("creator studio loads only on demand and saves a real local pack draft", as
   await page.goto("/?view=studio");
   await page
     .locator("input[type=file]")
-    .setInputFiles(resolve("../../assets/scenario-packs/make-it-clear.amoji"));
-  await expect(page.getByLabel("包名称", { exact: true })).toBeVisible();
-  await page.getByLabel("包名称", { exact: true }).fill("我的协作表情");
-  await expect(page.getByLabel("包名称", { exact: true })).toHaveValue(
-    "我的协作表情",
-  );
+    .setInputFiles(resolve("../../assets/official-packs/classic.amoji"));
+  const name = page.getByLabel("包名称 · zh-CN", { exact: true });
+  await expect(name).toBeVisible();
+  await expect(page.getByLabel("包名称 · en", { exact: true })).toHaveValue("Classic");
+  await name.fill("我的协作表情");
+  await expect(name).toHaveValue("我的协作表情");
   await page.reload();
-  await expect(page.getByLabel("包名称", { exact: true })).toHaveValue(
-    "我的协作表情",
-  );
+  await expect(name).toHaveValue("我的协作表情");
   await page.getByRole("button", { name: "下一步", exact: true }).click();
   await expect(
-    page.getByText("可选择保留包内动作。", { exact: false }),
+    page.getByText("可选择保留包内协作效果。", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "下一步", exact: true }).click();
   await expect(page.getByRole("heading", { name: "本地预览" })).toBeVisible();
@@ -698,16 +677,16 @@ for (const width of [320, 390, 768, 1024, 1440]) {
           exact: true,
         })
         .fill("经典");
-      await panel
-        .getByLabel(locale === "zh" ? "场景" : "Scenario", { exact: true })
-        .fill("澄清");
+      // The locale field offers a datalist, so it is a combobox.
+      const language = panel.getByRole("combobox", { name: locale === "zh" ? "语言" : "Language", exact: true });
+      await language.fill("en");
       if (locale === "zh")
-        await panel.getByLabel("场景", { exact: true }).press("Enter");
+        await language.press("Enter");
       else
         await panel
           .getByRole("button", { name: "Apply filters", exact: true })
           .click();
-      await expect(page).toHaveURL(/scenario=/);
+      await expect(page).toHaveURL(/locale=en/);
       await expect(page.locator(".catalog-row")).toHaveCount(1);
       await page
         .getByRole("button", {

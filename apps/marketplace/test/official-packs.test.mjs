@@ -40,7 +40,12 @@ test('seven official collections pass real Worker validation, independent review
   const directory = await (await f.mf.dispatchFetch('http://localhost/v1/packs')).json();
   assert.equal(directory.packs.length, 7);
   assert.deepEqual(directory.packs.map(p => p.expression_count).sort((a,b) => a-b), [4,4,4,4,4,24,24]);
-  const pixels = await (await f.mf.dispatchFetch('http://localhost/v1/packs?style=pixel&actions=false')).json();
-  assert.equal(pixels.packs.length, 1);
-  assert.match(pixels.packs[0].manifest.name, /Pixel Pal/);
+  // Exact-match filters: the act a pack realizes, a pack locale, and whether it carries effects.
+  const celebrate = await (await f.mf.dispatchFetch('http://localhost/v1/packs?act=core:celebrate&locale=en')).json();
+  assert.ok(celebrate.packs.length >= 1 && celebrate.packs.every(p => p.manifest.acts.includes('core:celebrate') && p.manifest.locales.includes('en')));
+  const pixel = await (await f.mf.dispatchFetch('http://localhost/v1/packs?q=pixel%20pal')).json();
+  assert.equal(pixel.packs.length, 1);
+  assert.match(pixel.packs[0].manifest.name.en, /Pixel Pal/);
+  const plain = await (await f.mf.dispatchFetch('http://localhost/v1/packs?effects=false')).json();
+  assert.ok(plain.packs.every(p => p.effect_count === 0));
 });

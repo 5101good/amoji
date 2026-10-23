@@ -8,8 +8,7 @@ async function submitted(f, pack_id) {
   const u = await f.reserve(pack_id ? { pack_id } : {});
   const v = await archive(u, {
     mutate(m) {
-      m.name = "中文协作";
-      m.styles = ["线条"];
+      m.name = { "zh-CN": "中文协作" };
       m.rights.creator = "Synthetic";
       m.expressions[0].rights.creator = "Synthetic";
     },
@@ -129,7 +128,7 @@ test("four actors: revision, digest-bound approval, public discovery and retaine
   assert.equal((await get(f, p + `/media/${hash(b.image)}`)).status, 200);
   const list = await get(
     f,
-    "/v1/packs?q=中文&scenario=协作&locale=zh-CN&style=线条&actions=false",
+    "/v1/packs?q=中文&act=core:ack&locale=zh-CN&effects=false",
   );
   assert.equal(list.status, 200);
   assert.equal((await list.json()).packs.length, 1);

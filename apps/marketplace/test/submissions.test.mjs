@@ -271,13 +271,7 @@ test("creator HTTP: an exact expression identity cannot publish different conten
   assert.equal(submitted.status, 201);
   const b = await valid(f, (m) => {
     m.expressions = [structuredClone(a.manifest.expressions[0])];
-    m.expressions[0].semantics.meaning = "Changed under the same identity";
-    m.defaults = [
-      {
-        asset_id: m.expressions[0].asset_id,
-        revision_id: m.expressions[0].revision_id,
-      },
-    ];
+    m.expressions[0].semantics["zh-CN"].meaning = "Changed under the same identity";
   });
   const conflict = await f.post(
     "/v1/submissions",

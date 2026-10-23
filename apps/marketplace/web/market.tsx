@@ -3,18 +3,18 @@ import { catalogPage, type CatalogPage } from "../src/catalog-page";
 import { Report } from "./lifecycle";
 import React, { useEffect, useRef, useState } from "react";
 import { Preview, previewWords } from "./preview";
+import { ACTS, actLabel, pick } from "./acts";
 import { Hero, PackCard } from "./gallery";
 import { Icon, CopyButton, EmptyState, type Locale } from "./ui";
 const words = {
   zh: {
     title: "发现表情包",
     q: "关键词",
-    scenario: "场景",
-    locale: "语义语言",
-    style: "画风",
-    actions: "协作动作",
+    act: "码位",
+    locale: "语言",
+    effects: "协作效果",
     all: "全部",
-    yes: "含动作",
+    yes: "含效果",
     no: "仅表情",
     search: "搜索",
     empty: "没有匹配的公开内容。",
@@ -29,7 +29,7 @@ const words = {
     dsh: "在 dsh 表情市场搜索此包 ID：",
     support: "宿主支持",
     supportText:
-      "表情可供支持此包格式的宿主使用。协作动作由 dsh 适配；其他宿主不支持时动作禁用。提示不保证模型遵从，安装不会自动启用动作。",
+      "表情可供支持 Amoji 0.1 的宿主使用。协作效果由宿主适配；不支持时效果停用。提示不保证模型遵从，安装不会自动启用效果。",
     update: "更新说明",
     review: "审核工作台",
     inspect: "查看精确内容",
@@ -56,12 +56,11 @@ const words = {
   en: {
     title: "Discover expression packs",
     q: "Keywords",
-    scenario: "Scenario",
-    locale: "Semantic language",
-    style: "Visual style",
-    actions: "Collaboration actions",
+    act: "Act",
+    locale: "Language",
+    effects: "Collaboration effects",
     all: "All",
-    yes: "With actions",
+    yes: "With effects",
     no: "Expressions only",
     search: "Search",
     empty: "No matching public content.",
@@ -76,7 +75,7 @@ const words = {
     dsh: "Search this pack ID in the dsh marketplace:",
     support: "Host support",
     supportText:
-      "Expressions work in hosts supporting this pack format. Collaboration actions are adapted for dsh; unsupported hosts disable actions. Guidance does not guarantee compliance, and installation never enables actions.",
+      "Expressions work in hosts supporting Amoji 0.1. Hosts adapt collaboration effects and disable them where unsupported. Guidance does not guarantee compliance, and installation never enables effects.",
     update: "Release notes",
     review: "Review workspace",
     inspect: "Inspect exact content",
@@ -158,7 +157,7 @@ export function Catalog({
     typeof location === "undefined" ? "" : location.search,
   );
   for (const key of [...initialQuery.keys()])
-    if (!["q", "scenario", "locale", "style", "actions"].includes(key))
+    if (!["q", "act", "locale", "effects"].includes(key))
       initialQuery.delete(key);
   const [rows, setRows] = useState<CatalogPage["packs"]>(initial?.packs ?? []);
   const [detail, setDetail] = useState<any>(null),
@@ -170,7 +169,7 @@ export function Catalog({
   const [query, setQuery] = useState(initialQuery.toString());
   const [filters, setFilters] = useState(Object.fromEntries(initialQuery));
   const [advanced, setAdvanced] = useState(
-    ["scenario", "style", "locale", "actions"].some((k) => initialQuery.has(k)),
+    ["act", "locale", "effects"].some((k) => initialQuery.has(k)),
   );
   const request = useRef<AbortController | null>(null);
   const exact =
@@ -236,7 +235,7 @@ export function Catalog({
     const restore = () => {
       const params = new URLSearchParams(location.search);
       for (const key of [...params.keys()])
-        if (!["q", "scenario", "locale", "style", "actions"].includes(key))
+        if (!["q", "act", "locale", "effects"].includes(key))
           params.delete(key);
       setFilters(Object.fromEntries(params));
       setQuery(params.toString());
@@ -337,15 +336,20 @@ export function Catalog({
                 hidden={!advanced}
               >
                 <label>
-                  {t.scenario}
-                  <input
-                    value={filters.scenario ?? ""}
-                    maxLength={256}
-                    placeholder={zh ? "例如：高效协作" : "e.g. collaboration"}
+                  {t.act}
+                  <select
+                    value={filters.act ?? ""}
                     onChange={(e) =>
-                      setFilters({ ...filters, scenario: e.target.value })
+                      setFilters({ ...filters, act: e.target.value })
                     }
-                  />
+                  >
+                    <option value="">{t.all}</option>
+                    {ACTS.map((a) => (
+                      <option key={a.act} value={a.act}>
+                        {actLabel(a.act, locale)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   {t.locale}
@@ -364,22 +368,11 @@ export function Catalog({
                   </datalist>
                 </label>
                 <label>
-                  {t.style}
-                  <input
-                    value={filters.style ?? ""}
-                    maxLength={256}
-                    placeholder={zh ? "例如：classic" : "e.g. classic"}
-                    onChange={(e) =>
-                      setFilters({ ...filters, style: e.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  {t.actions}
+                  {t.effects}
                   <select
-                    value={filters.actions ?? ""}
+                    value={filters.effects ?? ""}
                     onChange={(e) =>
-                      setFilters({ ...filters, actions: e.target.value })
+                      setFilters({ ...filters, effects: e.target.value })
                     }
                   >
                     <option value="">{t.all}</option>
@@ -506,8 +499,8 @@ export function Catalog({
             <p>
               {tombstone.state === "safety_removed"
                 ? zh
-                  ? "安全下架：此版本的协作动作不可再启用。"
-                  : "Safety removal: collaboration actions in this release must stay disabled."
+                  ? "安全下架：此版本的协作效果不可再启用。"
+                  : "Safety removal: collaboration effects in this release must stay disabled."
                 : zh
                   ? "作者或账号状态已停止此版本的分发。"
                   : "Distribution of this release has ended."}
@@ -526,10 +519,10 @@ export function Catalog({
           <div className="detail-layout">
             <div className="detail-heading">
               <span className="category-label">
-                {detail.manifest.scenario?.join(" / ")}
+                {[...new Set<string>(detail.manifest.expressions.map((e: any) => e.realizes))].slice(0, 4).map((act) => actLabel(act, locale)).join(" / ")}
               </span>
-              <h1 id="catalog-title">{detail.manifest.name}</h1>
-              <p>{detail.manifest.description}</p>
+              <h1 id="catalog-title">{pick(detail.manifest.name, locale, detail.manifest.original_locale)}</h1>
+              <p>{pick(detail.manifest.description, locale, detail.manifest.original_locale)}</p>
             </div>
             <div className="detail-content">
               <Preview
@@ -590,12 +583,16 @@ export function Catalog({
                     <dt>{zh ? "表情" : "Expressions"}</dt>
                     <dd>{detail.manifest.expressions.length}</dd>
                   </div>
+                  <div>
+                    <dt>{t.locale}</dt>
+                    <dd>{detail.manifest.locales.join(" · ")}</dd>
+                  </div>
                 </dl>
               </details>
               <p className="note">
                 {zh
-                  ? "安装不会自动启用协作动作。动作由 dsh 支持，需要你明确选择。"
-                  : "Installation never enables actions. Collaboration guidance requires your explicit choice in dsh."}
+                  ? "安装不会自动启用协作效果，需要你在宿主中明确选择。"
+                  : "Installation never enables effects. Collaboration guidance requires your explicit choice in the host."}
               </p>
               <CopyButton
                 value={detail.share_url}
@@ -868,7 +865,7 @@ export function Reviews({
                 </div>
                 <p className="queue-title">
                   {detail?.submission.id === s.id
-                    ? detail.manifest.name
+                    ? pick(detail.manifest.name, locale, detail.manifest.original_locale)
                     : locale === "zh"
                       ? "表情包投稿"
                       : "Pack submission"}
@@ -935,15 +932,11 @@ export function Reviews({
                     {[
                       "name",
                       "description",
-                      "scenario",
-                      "styles",
+                      "locales",
                       "expressions",
-                      "defaults",
-                      "actions",
+                      "effects",
                       "bindings",
                       "rights",
-                      "examples",
-                      "requires",
                       "derived_from",
                     ].map((field) => {
                       const before = detail.previous.manifest[field],

@@ -1,14 +1,8 @@
 import { SharedClient } from "../shared-client.js";
 import { ConnectedRuntime } from "../adapter-runtime.js";
 import { ExpressionApplication } from "../application/expressions.js";
-import {
-  SESSION_BINDINGS_CAPABILITY,
-  CREATE_DRAFT_CAPABILITY,
-  LIBRARY_MANAGEMENT_CAPABILITY,
-  PACKS_CAPABILITY,
-  ServiceError,
-  dataDirectory,
-} from "../shared-contract.js";
+import { ServiceError, dataDirectory } from "../shared-contract.js";
+import { CLAUDE_MODS_CAPABILITIES } from "./capabilities.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { executeBridge } from "./bridge.js";
@@ -26,13 +20,7 @@ try {
   // A pipe chunk can end inside a Chinese character. Decode only the whole input.
   const request = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   client = await SharedClient.connect({
-    requiredCapabilities: [
-      SESSION_BINDINGS_CAPABILITY,
-      CREATE_DRAFT_CAPABILITY,
-      LIBRARY_MANAGEMENT_CAPABILITY,
-      PACKS_CAPABILITY,
-      "marketplace-v1", "publisher-v1", "versioned-packs-v1",
-    ],
+    requiredCapabilities: CLAUDE_MODS_CAPABILITIES,
   });
   const result = await executeBridge(
     new ExpressionApplication(new ConnectedRuntime(client), client),

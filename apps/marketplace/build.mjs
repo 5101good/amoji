@@ -10,17 +10,13 @@ const standalone = require("ajv/dist/standalone/index.js").default;
 const addFormats = require("ajv-formats").default;
 const ajv = new Ajv2020({ strict: false, code: { source: true, esm: true } });
 addFormats(ajv);
-const legacy = JSON.parse(
-  await readFile("../../docs/specs/amoji-v0.1.schema.json", "utf8"),
+// Amoji 0.1 (docs/specs/amoji-0.1.schema.json) is the only pack protocol.
+const protocol = JSON.parse(
+  await readFile("../../docs/specs/amoji-0.1.schema.json", "utf8"),
 );
-const scenario = JSON.parse(
-  await readFile("../../docs/specs/amoji-v0.2.schema.json", "utf8"),
-);
-ajv.addSchema({ $id: "legacy", $defs: legacy.$defs, $ref: "#/$defs/pack" });
-ajv.addSchema({ ...scenario, $id: "scenario" });
+ajv.addSchema(protocol);
 const schemas = standalone(ajv, {
-  validate01: "legacy",
-  validate02: "scenario",
+  validatePackSchema: `${protocol.$id}#/$defs/pack`,
 });
 // Use the same trusted template for edge rendering and static detail pages.
 // Embedding it removes an asset-service round trip from a cold homepage load.
@@ -88,7 +84,7 @@ await copyFile("web/style.css", "dist/public/style.css");
 
 // Reuse the project's licensed expressions, optimized for this web surface.
 const art = unzipSync(
-  new Uint8Array(await readFile("../../assets/base-library/base.amoji")),
+  new Uint8Array(await readFile("../../assets/official-packs/classic.amoji")),
 );
 const manifest = JSON.parse(new TextDecoder().decode(art["manifest.json"]));
 await mkdir("dist/public/art", { recursive: true });
@@ -97,7 +93,7 @@ for (const [file, name] of [
   ["thanks", "谢谢"],
   ["celebrate", "一起庆祝"],
 ]) {
-  const expression = manifest.expressions.find((e) => e.name === name);
+  const expression = manifest.expressions.find((e) => e.name["zh-CN"] === name);
   const bytes = art["blobs/" + expression.visual.primary.sha256];
   await sharp(bytes)
     .resize(440, 440, { fit: "inside" })

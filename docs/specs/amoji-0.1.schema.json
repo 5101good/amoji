@@ -279,11 +279,10 @@
     },
     "preferences": {
       "type": "object", "additionalProperties": false,
-      "required": ["kind", "amoji", "display", "preferred_packs", "quick_entries", "ai_expressions", "reduce_motion"],
+      "required": ["kind", "amoji", "preferred_packs", "quick_entries", "ai_expressions", "reduce_motion"],
       "properties": {
         "kind": { "const": "amoji.preferences" },
         "amoji": { "const": "0.1" },
-        "display": { "enum": ["image", "text"] },
         "preferred_packs": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/uuid" } },
         "quick_entries": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/act" } },
         "ai_expressions": {

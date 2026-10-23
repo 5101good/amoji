@@ -7,7 +7,7 @@ export interface PersonalSettings extends Preferences { version: number }
 
 /** RFC §11.6 defaults; preferred_packs is filled with the built-in packs by the store. */
 export const DEFAULT_PREFERENCES: Preferences = {
-  kind: 'amoji.preferences', amoji: PROTOCOL, display: 'image', preferred_packs: [],
+  kind: 'amoji.preferences', amoji: PROTOCOL, preferred_packs: [],
   quick_entries: ['core:clarify', 'core:not-what-i-meant', 'core:example', 'core:concern', 'core:elaborate', 'core:redirect', 'core:to-the-point', 'core:checkin'],
   ai_expressions: { enabled: true, max_per_window: 1, families: Object.fromEntries(FAMILIES.map(f => [f, true])) as Preferences['ai_expressions']['families'] },
   reduce_motion: 'system',

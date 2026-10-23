@@ -111,7 +111,6 @@ export interface Operation {
 export interface Preferences {
   kind: 'amoji.preferences';
   amoji: typeof PROTOCOL;
-  display: 'image' | 'text';
   preferred_packs: string[];
   quick_entries: string[];
   ai_expressions: { enabled: boolean; max_per_window: number; families: Record<Family, boolean> };

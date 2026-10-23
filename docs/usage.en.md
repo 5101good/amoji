@@ -14,7 +14,7 @@ The AI expresses acts. People see artwork while the model receives fixed text. A
 
 Classic and Office are two official packs with 24 expressions each, realizing the same 22 acts. The pack you choose in the picker becomes your preferred pack, and when the AI expresses an act it takes the artwork from your preferred packs in order. Existing messages keep their exact revisions and original artwork.
 
-In the Preferences page you can reorder preferred packs; set how many AI expressions one answer may carry (default 1, or 0); switch AI expressions on or off per family (grounding, steering, progress, epistemic, social); pause AI expressions; show images or text only; and reduce motion. Preferences apply across conversations sharing the library and do not guarantee an expression every turn.
+In the Preferences page you can reorder preferred packs; set how many AI expressions one answer may carry (default 1, or 0); switch AI expressions on or off per family (grounding, steering, progress, epistemic, social); pause AI expressions; and reduce motion (animated images then show their still cover). Preferences apply across conversations sharing the library and do not guarantee an expression every turn.
 
 The interface follows dsh's Chinese/English setting. Built-in expressions carry their Chinese original and an English meaning, each translation labeled with how it was made; English in the character packs is machine-translated. Changing the UI language shows each expression's meaning by locale fallback without rewriting the original.
 

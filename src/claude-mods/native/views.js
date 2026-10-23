@@ -155,13 +155,6 @@ export function pane($, e, s, makePicture) {
       ? col([
           ui.caption(L(s, "偏好只影响显示和 AI 发送规则，不改变已发送的消息。", "Preferences change display and AI sending rules only, never messages already sent.")),
           section(L(s, "显示", "Display"), [select(
-            "preference:display",
-            L(s, "显示方式", "Display"),
-            p.display,
-            [["image", L(s, "显示图片", "Show images")], ["text", L(s, "只显示文字", "Text only")]],
-            (value) => changePreference($, s, (q) => ({ ...q, display: value })),
-          ),
-          select(
             "preference:reduce-motion",
             L(s, "动态效果", "Motion"),
             p.reduce_motion,

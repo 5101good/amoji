@@ -270,16 +270,16 @@ test("偏好保存和列表读取在同一次桥接完成，刷新失败不重�
   const { app, client, context } = await setup(t);
   const { version, ...p } = await client.getSettings();
   const result: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
-    version, preferences: { ...p, display: "text" },
+    version, preferences: { ...p, reduce_motion: "on" },
     browse: {query:"", offset:0, limit:64},
   } });
-  assert.equal(result.preferences.display, "text");
+  assert.equal(result.preferences.reduce_motion, "on");
   assert.ok(Array.isArray(result.collection.items));
   const failed: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
-    version: result.preferences.version, preferences: { ...p, display: "image" },
+    version: result.preferences.version, preferences: { ...p, reduce_motion: "off" },
     browse: {query:"", offset:-1, limit:64},
   } });
-  assert.equal(failed.preferences.display, "image");
+  assert.equal(failed.preferences.reduce_motion, "off");
   assert.equal(failed.refreshError, true);
   assert.equal((await client.getSettings()).version, failed.preferences.version);
 });

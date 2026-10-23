@@ -50,6 +50,7 @@ test('fix1 新预览等待时旧load不得授权新图确认', async t => {
 test('fix1 条目B读取期间不能操作A详情，失败不出现混合对象', async t => {
   const f = await fixture(t); let reject!: (reason: Error) => void; const mutations: unknown[] = [];
   const rpc: any = { management: async (_s: string, method: string, args: any) => {
+    if (method === 'getSettings') return { reduce_motion: 'system' };
     if (method === 'revisionVisual') return { expression: args.ref.asset_id === a.asset_id ? a : b, primary: 'data:image/png;base64,AAAA', poster: null };
     if (method === 'listRevisions') return args.asset_id === a.asset_id ? [a] : new Promise((_r, r) => { reject = r; });
     mutations.push(args);

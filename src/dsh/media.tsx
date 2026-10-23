@@ -7,7 +7,19 @@ import type { ClientPort } from './client.js';
 import type { DshRpc, VisualData, VisualMeta } from './contracts.js';
 interface SessionProps { sessionId: string }
 export function errorText(error: unknown): TextMessage { return errorMessage(error); }
-function reducedMotion(): boolean { return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; }
+type Motion = 'system' | 'on' | 'off';
+// The person's reduce_motion preference (RFC §11.6), read once per page and updated when they save it.
+let motionPreference: Motion | undefined; let motionLoad: Promise<void> | undefined; const motionListeners = new Set<() => void>();
+export function setMotionPreference(value: Motion) { if (motionPreference === value) return; motionPreference = value; motionListeners.forEach(listener => listener()); }
+function loadMotionPreference(rpc: DshRpc, sessionId: string) {
+  if (motionPreference !== undefined || motionLoad || !rpc.management) return;
+  motionLoad = Promise.resolve(rpc.management(sessionId, 'getSettings', {})).then(value => { if (value?.reduce_motion) setMotionPreference(value.reduce_motion); }).catch(() => {}).finally(() => { motionLoad = undefined; });
+}
+function reducedMotion(): boolean {
+  if (motionPreference === 'on') return true;
+  if (motionPreference === 'off') return false;
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
 function narrowRef(ref: ExpressionRef): ExpressionRef { return { asset_id: ref.asset_id, revision_id: ref.revision_id }; }
 export function createRpc(ctx: ClientPort): DshRpc {
   const call = async <T,>(method: string, payload: unknown, signal?: AbortSignal, operation = method): Promise<T> => {
@@ -90,11 +102,13 @@ export function AmojiImage({ rpc, sessionId, refValue, meta, thumbnail = false }
     return () => abort.abort();
   }, [rpc, sessionId, refValue.asset_id, refValue.revision_id, meta?.messageId, meta?.visualHash, meta?.posterHash]);
   useEffect(() => {
+    if (!thumbnail) loadMotionPreference(rpc, sessionId);
     const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const changed = (event: MediaQueryListEvent) => { if (event.matches) setPaused(true); };
+    const changed = () => setPaused(thumbnail || reducedMotion());
     preference?.addEventListener?.('change', changed);
-    return () => preference?.removeEventListener?.('change', changed);
-  }, []);
+    motionListeners.add(changed);
+    return () => { preference?.removeEventListener?.('change', changed); motionListeners.delete(changed); };
+  }, [rpc, sessionId, thumbnail]);
   const acknowledge = (state: 'rendered' | 'failed') => {
     if (!meta || !data) return;
     const hash = paused && data.poster ? data.expression.visual.poster!.sha256 : data.expression.visual.primary.sha256;
@@ -109,11 +123,11 @@ export function AmojiImage({ rpc, sessionId, refValue, meta, thumbnail = false }
   </Frame>;
 }
 
-/** One message's media: the glyph, or the act's gloss when the message is text-only or text display is on. */
-export function MessageMedia({ rpc, sessionId, meta, display = 'image' }: SessionProps & { rpc: DshRpc; meta: VisualMeta; display?: 'image' | 'text' }) {
+/** One message's media: the glyph, or the act's gloss when the message has no glyph. A glyph that fails to load falls back to its text inside AmojiImage. */
+export function MessageMedia({ rpc, sessionId, meta }: SessionProps & { rpc: DshRpc; meta: VisualMeta }) {
   const locale = useUiLocale();
   const gloss = actGloss(meta.act, meta.direction, locale).text;
   useEffect(() => { if (!meta.ref) void rpc.display(sessionId, meta.messageId, 'text', 'fallback').catch(() => {}); }, [rpc, sessionId, meta.messageId, meta.ref]);
-  const caption = meta.policy === 'prefer' || display === 'text' || !meta.ref;
-  return <>{meta.ref && display === 'image' && <AmojiImage rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={{ ...meta, alt: gloss }}/>}{caption && <span className="amoji-gloss" lang={locale}>{gloss}</span>}</>;
+  const caption = meta.policy === 'prefer' || !meta.ref;
+  return <>{meta.ref && <AmojiImage rpc={rpc} sessionId={sessionId} refValue={meta.ref} meta={{ ...meta, alt: gloss }}/>}{caption && <span className="amoji-gloss" lang={locale}>{gloss}</span>}</>;
 }

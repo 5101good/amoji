@@ -63,7 +63,7 @@ test('messages follow direction, mode and decision rules', () => {
 });
 
 test('preferences keep quick entries sendable by people', () => {
-  const preferences = { kind: 'amoji.preferences', amoji: '0.1', display: 'text', preferred_packs: [], quick_entries: ['core:clarify'], ai_expressions: { enabled: true, max_per_window: 1, families: { grounding: true, steering: true, progress: true, epistemic: true, social: false } }, reduce_motion: 'system' };
+  const preferences = { kind: 'amoji.preferences', amoji: '0.1', preferred_packs: [], quick_entries: ['core:clarify'], ai_expressions: { enabled: true, max_per_window: 1, families: { grounding: true, steering: true, progress: true, epistemic: true, social: false } }, reduce_motion: 'system' };
   validatePreferences(preferences);
   assert.throws(() => validatePreferences({ ...preferences, quick_entries: ['core:ready'] }), /快捷入口/);
   assert.throws(() => validatePreferences({ ...preferences, ai_expressions: { ...preferences.ai_expressions, max_per_window: 9 } }));

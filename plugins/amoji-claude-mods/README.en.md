@@ -34,7 +34,7 @@ The portable ZIP excludes node_modules and native binaries; locked dependencies 
 - **Create:** describe an intention in one field. Suggestions default to the conversation model; choose an alias or custom model ID. Only that intent is sent, with no images or chat history. Adopt, edit and review the suggestion, or fill the fields manually.
 - **Images and packs:** paste an absolute local path (`~/` is supported). PNG, JPEG, WebP and GIF are accepted, up to 10 MiB. A working preview and explicit review are required to confirm. Claude shows static covers for animations.
 - **Export:** select library entries and export `.amoji`. Existing files are never overwritten. Import validates structure, hashes, media and revision conflicts.
-- **Preferences:** display mode and motion; AI expressions on or off, a per-answer limit and per-family switches. The pack chosen in the picker becomes preferred and shapes later AI artwork, never past messages. Chinese/English follows Claude Code’s `language` setting, defaulting to Chinese. Mods cannot currently read Desktop’s separate application language.
+- **Preferences:** motion; AI expressions on or off, a per-answer limit and per-family switches. The pack chosen in the picker becomes preferred and shapes later AI artwork, never past messages. Chinese/English follows Claude Code’s `language` setting, defaulting to Chinese. Mods cannot currently read Desktop’s separate application language.
 
 AI receives only the `search` and `emit` expression tools. Library management, file access and creation confirmation are not exposed as model tools. Meanings are data, never proof of completed work, permission grants or instructions to execute.
 

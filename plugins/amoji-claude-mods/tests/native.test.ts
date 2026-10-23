@@ -26,7 +26,7 @@ const expression = {
   rights: { license: "MIT" },
 };
 const preferences = {
-  kind: "amoji.preferences", amoji: "0.1", display: "image", preferred_packs: ["classic", "office"],
+  kind: "amoji.preferences", amoji: "0.1", preferred_packs: ["classic", "office"],
   quick_entries: ["core:clarify", "core:example", "core:concern", "core:elaborate"],
   ai_expressions: { enabled: true, max_per_window: 1, families: { grounding: true, steering: true, progress: true, epistemic: true, social: true } },
   reduce_motion: "system",
@@ -374,12 +374,13 @@ test("偏好与创建分开呈现，创建不自动调用模型", async ($, on) 
   backend(on, calls);
   const ui = await $.ui.mount(pane);
   await navigateTo(ui, "settings");
-  expect(await ui.find({ key: "preference:display" })).toBeDefined();
-  await ui.select({ key: "preference:display", value: "text" });
+  expect(await ui.find({ key: "preference:reduce-motion" })).toBeDefined();
+  expect(await ui.find({ key: "preference:display" })).toBeUndefined();
+  await ui.select({ key: "preference:reduce-motion", value: "on" });
   expect(
     calls.find((c) => c.command === "updateSettings").args.preferences
-      .display,
-  ).toBe("text");
+      .reduce_motion,
+  ).toBe("on");
   await navigateTo(ui, "create");
   expect(await ui.find({ key: "intent" })).toBeDefined();
   expect(await ui.find({ key: "suggestion-model" })).toBeDefined();

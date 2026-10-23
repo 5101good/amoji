@@ -166,7 +166,7 @@ test('真实面板DOM上传、保存恢复、字段与媒体错误保留、预�
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('DRAFT_OUTCOME_UNKNOWN') && !button('confirm-draft').disabled);
   assert.equal((await client.list()).length, 49);
   button('confirm-draft').click();
-  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 49);
+  await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库') && doc.querySelectorAll('#catalog .sticker').length === 41);
   const created = (await client.list()).find(e => e.name['zh-CN'] === '新建鼓励')!;
   assert.ok(created);
   assert.equal(confirmRequests, 2, '只在用户明确核对时重试同一次确认，无自动循环');

@@ -148,3 +148,9 @@ export async function fixture(t, serviceBindings = {}) {
   }
   return { mf, db, bucket, post, cookie, register, reserve, authorize, put };
 }
+
+/** Public reads count per calendar minute; start a 120-request burst early in a minute so it cannot straddle two. */
+export async function freshMinute(budget = 15000) {
+  const left = 60000 - (Date.now() % 60000);
+  if (left < budget) await new Promise(resolve => setTimeout(resolve, left + 50));
+}

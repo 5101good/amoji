@@ -14,6 +14,7 @@ import { apply, createComponents, type ClientPort } from '../src/dsh/client.js';
 import { Manager } from '../src/dsh/manager.js';
 import { Conflict } from '../src/dsh/ui.js';
 import type { Draft } from '../src/drafts.js';
+import { DEFAULT_PREFERENCES } from '../src/library-management.js';
 import type { DshRpc } from '../src/dsh/contracts.js';
 
 const require=createRequire(import.meta.url);
@@ -36,10 +37,11 @@ async function fixture(t:TestContext){
  const button=(name:string)=>[...dom.window.document.querySelectorAll('button')].find(b=>b.textContent===name||b.getAttribute('aria-label')===name)!;
  return {dom,root,locale,render,button};
 }
-const fields={name:'用户原名',semantics:{locale:'zh-CN',meaning:'用户固定含义',fallback:'固定文字',tone:'温暖',use_when:['用户场景'],avoid_when:['用户边界']},rights:{license:'CC0'},tags:['原标签']};
+const suggested={realizes:'core:thanks',intensity:2 as const,original_locale:'zh-CN',name:{'zh-CN':'用户原名'},semantics:{'zh-CN':{meaning:'用户固定含义',fallback:'固定文字',use_when:['用户场景'],avoid_when:['用户边界']}},tags:{'zh-CN':['原标签']}};
+const fields={...suggested,rights:{license:'CC0'},text_locale:null};
 test('原生locale热切换更新字段、aria、状态和AI说明，同时保留未保存输入和固定语义',async t=>{
- const f=await fixture(t);const initial={draft_id:'locale-draft',version:1,fields,mode:'create'} as Draft;t.after(()=>discardEditor(initial.draft_id));
- const rpc={management:async(_s:string,method:string)=>{if(method==='listSuggestionModels')return {models:[{provider:'test',model:'model',name:'原模型名'}],current:{provider:'test',model:'model'}};if(method==='suggestAiText')return {fields,notice:'服务器中文说明'};throw new Error(method);}} as unknown as DshRpc;
+ const f=await fixture(t);const initial={draft_id:'locale-draft',version:1,fields,mode:'create',updated_at:'2026-01-01T00:00:00.000Z'} as Draft;t.after(()=>discardEditor(initial.draft_id));
+ const rpc={management:async(_s:string,method:string)=>{if(method==='listSuggestionModels')return {models:[{provider:'test',model:'model',name:'原模型名'}],current:{provider:'test',model:'model'}};if(method==='suggestAiText')return {fields:suggested,notice:'服务器中文说明'};throw new Error(method);}} as unknown as DshRpc;
  await f.render(React.createElement(DraftEditor,{rpc,sessionId:'s',initial,onCreated(){}}));
  const name=f.dom.window.document.querySelector<HTMLInputElement>('input[aria-label="名称"]')!;
  const intent=f.dom.window.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="文字意图"]')!;
@@ -60,7 +62,7 @@ test('原生locale热切换更新字段、aria、状态和AI说明，同时保�
  assert.match(f.dom.window.document.body.textContent!,/由 原模型名（test \/ model）生成文字建议/);
 });
 test('英文管理页、选择器和动态状态完整显示，GitHub入口可访问，切换保留搜索',async t=>{
- const f=await fixture(t);const rpc={catalog:async()=>[],search:async()=>[],management:async(_s:string,method:string)=>method==='getSettings'?{version:1,style:'neutral',frequency:'restrained',paused:false,appearance:'classic'}:[]} as unknown as DshRpc;
+ const f=await fixture(t);const rpc={catalog:async()=>[],search:async()=>[],management:async(_s:string,method:string)=>method==='getSettings'?{version:1,...DEFAULT_PREFERENCES}:[]} as unknown as DshRpc;
  const Picker=createComponents(rpc).Picker;
  await f.render(React.createElement(React.Fragment,null,React.createElement(Picker,{sessionId:'s'}),React.createElement(Manager,{rpc,sessionId:'s',currentSessionId:'s',open:true,onClose(){},onChanged(){}})));
  await act(async()=>f.button('表情').click());await act(()=>f.locale.setLocale('en'));
@@ -91,11 +93,11 @@ test('apply注册原生amoji词典和locale seats，宿主user renderer保持原
 });
 test('发布向导中文状态、许可占位、中英切换与步骤焦点保留',async t=>{
  const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
- const manifest={name:'固定包名',release_id:'local',rights:{license:'仅供个人使用'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:1,state:'draft',source_release_id:'local',manifest};
+ const manifest={pack_id:'pack',release_id:'local',version:1,original_locale:'zh-CN',locales:['zh-CN'],name:{'zh-CN':'固定包名'},description:{'zh-CN':'说明'},rights:{license:'仅供个人使用'},expressions:[]};let d:any={id:'draft',version:1,step:1,state:'draft',source_release_id:'local',manifest};
  const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string,args:any)=>{if(method==='loginStatus')return{state:'signed_out'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1,step:args.step};return d;}throw Error(method);}} as unknown as DshRpc;
  await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));assert.match(f.dom.window.document.body.textContent!,/编辑中/);assert.doesNotMatch(f.dom.window.document.body.textContent!,/· draft/);
  await act(async()=>f.button('恢复发布草稿').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 2：说明与许可');assert.ok([...f.dom.window.document.querySelectorAll('option')].some(o=>o.selected&&o.textContent==='请选择允许公开分发的许可'));
- await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选动作');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional actions/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
+ await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选效果');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional effects/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
 });
 test('发布网络与授权错误按当前英文locale显示，原始诊断单独保留',async t=>{
  const f=await fixture(t);await act(()=>f.locale.setLocale('en'));
@@ -106,13 +108,13 @@ test('发布网络与授权错误按当前英文locale显示，原始诊断单�
 });
 test('上传响应丢失后立即重读持久草稿并呈现恢复原上传',async t=>{
  const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);
- const manifest={name:'selected',release_id:'local',rights:{license:'CC0-1.0'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:3,state:'draft',source_release_id:'local',manifest};
+ const manifest={pack_id:'pack',release_id:'local',version:1,original_locale:'zh-CN',locales:['zh-CN'],name:{'zh-CN':'selected'},description:{'zh-CN':'说明'},rights:{license:'CC0-1.0'},expressions:[]};let d:any={id:'draft',version:1,step:3,state:'draft',source_release_id:'local',manifest};
  const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string)=>{if(method==='loginStatus')return{state:'authenticated'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1};return d;}if(method==='upload'){d={...d,state:'uploading',version:d.version+1};throw Object.assign(Error('断网'),{code:'PUBLISHER_OFFLINE'});}throw Error(method);}} as unknown as DshRpc;
  await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));await act(async()=>f.button('恢复发布草稿').click());await act(async()=>f.button('上传并校验所选内容').click());assert.ok(f.button('恢复原上传'));assert.equal(f.button('上传并校验所选内容'),undefined);
 });
 test('显式重试丢响应后恢复最新unknown状态且英文处理中提示完整',async t=>{
  const {Publisher}=await import('../src/dsh/publisher-ui.js');const f=await fixture(t);await act(()=>f.locale.setLocale('en'));
- const manifest={name:'selected',release_id:'local',rights:{license:'CC0-1.0'},actions:[],expressions:[],bindings:[],scenario:[]};let d:any={id:'draft',version:1,step:3,state:'unknown',unknown_absent:true,source_release_id:'local',manifest};let finish!:()=>void;const waiting=new Promise<void>(r=>{finish=r;});
+ const manifest={pack_id:'pack',release_id:'local',version:1,original_locale:'zh-CN',locales:['zh-CN'],name:{'zh-CN':'selected'},description:{'zh-CN':'说明'},rights:{license:'CC0-1.0'},expressions:[]};let d:any={id:'draft',version:1,step:3,state:'unknown',unknown_absent:true,source_release_id:'local',manifest};let finish!:()=>void;const waiting=new Promise<void>(r=>{finish=r;});
  const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string)=>{if(method==='loginStatus')return{state:'authenticated'};if(method==='drafts')return[d];if(method==='retrySubmit'){d={...d,unknown_absent:undefined};await waiting;throw Object.assign(Error('断网'),{code:'PUBLISHER_OFFLINE'});}throw Error(method);}} as unknown as DshRpc;
  await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));await act(async()=>f.button('Resume publishing draft').click());await act(async()=>f.button('Explicitly retry the same submission operation').click());const englishBusy=f.dom.window.document.body.textContent!.includes('Working…');await act(async()=>{finish();await waiting;});assert.ok(englishBusy);assert.equal(f.button('Explicitly retry the same submission operation'),undefined);
 });

@@ -5,6 +5,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots';
 import { apply, type ClientPort } from '../src/dsh/client.js';
 
+/** A real stored human message from the built-in packs. */
+async function humanMessage(t: { after(fn: () => unknown): void }, pick: (e: import('../src/protocol/index.js').Expression) => boolean = () => true) {
+  const { openStore } = await import('./helpers/store-runtime.js'); const library = await openStore(); t.after(() => library.close());
+  const e = library.store.list().find(pick)!;
+  const message = library.store.receive({ host: 'dsh', hostInstanceId: 'fixture', sessionId: 's' }, { ref: { asset_id: e.asset_id, revision_id: e.revision_id } }, 'request');
+  return { e, message };
+}
+
 test('原生用户 renderer 包装保留原组件全部 props、locale，卸载恢复且不用 history dock', () => {
   const core = new SlotCore();
   core.register({ name: 'root', children: {
@@ -30,14 +38,12 @@ test('原生用户 renderer 包装保留原组件全部 props、locale，卸载�
 
 test('原生用户行按 rpcId 加图，普通消息不查库；只在正确图像 load 后写回执', async t => {
   const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
-  const { SampleCatalog } = await import('../src/sample-catalog.js');
   const { visualMeta } = await import('../src/dsh/host.js');
   const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document };
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
   const root = createRoot(dom.window.document.getElementById('root')!);
   t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
-  const e = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all()[0]!;
-  const message = { message_id: 'm1', direction: 'human_to_ai', revision: e } as import('../src/sample-runtime.js').SampleMessage;
+  const { e, message: stored } = await humanMessage(t); const message = { ...stored, message_id: 'm1' };
   const meta = visualMeta(message); const calls: string[] = [];
   const rpc = { history: async () => { calls.push('history'); return [{ message, meta, host: { status: 'observed', requestId: 'amoji:m1' } }]; }, visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }), display: async (_s: string, id: string) => { calls.push(id); } } as unknown as import('../src/dsh/contracts.js').DshRpc;
   const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
@@ -57,11 +63,11 @@ test('原生用户行按 rpcId 加图，普通消息不查库；只在正确图�
 
 test('暂停动图替换图像节点，迟到旧图 load 不得为新封面写回执', async t => {
   const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
-  const { SampleCatalog } = await import('../src/sample-catalog.js'); const { visualMeta } = await import('../src/dsh/host.js'); const { AmojiImage } = await import('../src/dsh/media.js');
+  const { visualMeta } = await import('../src/dsh/host.js'); const { AmojiImage } = await import('../src/dsh/media.js');
   const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document }; Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
   const root = createRoot(dom.window.document.getElementById('root')!); t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
-  const e = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all().find(e => e.visual.animated)!;
-  const meta = visualMeta({ message_id: 'animated', revision: e } as any); const receipts: string[] = [];
+  const { e, message } = await humanMessage(t, e => e.visual.animated);
+  const meta = visualMeta({ ...message, message_id: 'animated' }); const receipts: string[] = [];
   const rpc = { visual: async () => ({ expression: e, primary: 'data:image/gif;base64,AAAA', poster: 'data:image/png;base64,BBBB' }), display: async (_s: string, _m: string, hash: string) => { receipts.push(hash); } } as any;
   await act(async () => root.render(React.createElement(AmojiImage, { rpc, sessionId: 's', refValue: e, meta })));
   const animated = dom.window.document.querySelector('img')!;
@@ -97,7 +103,8 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
   Object.defineProperty(dom.window, 'innerWidth', { value: 1280, writable: true }); Object.defineProperty(dom.window, 'innerHeight', { value: 720, writable: true });
   const root = createRoot(dom.window.document.getElementById('root')!); t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
-  const rpc = { catalog: async () => [] } as unknown as import('../src/dsh/contracts.js').DshRpc;
+  const pack = (pack_id: string, name: string) => ({ pack_id, release_id: pack_id, version: 1, name: { 'zh-CN': name }, original_locale: 'zh-CN', assets: [] });
+  const rpc = { catalog: async () => [], packs: async () => [pack('classic', '经典'), pack('office', '办公')] } as unknown as import('../src/dsh/contracts.js').DshRpc;
   const Picker = createComponents(rpc).Picker;
   await act(() => root.render(React.createElement(Picker, { sessionId: 'zero-text' })));
   const anchor = dom.window.document.querySelector('button')!;
@@ -114,7 +121,7 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
     assert.ok(left >= 12); assert.ok(left + width <= dom.window.innerWidth - 12);
     assert.equal(panel.style.overflow, 'hidden');
     assert.ok(panel.querySelector('.amoji-picker-body'), '中央列表独立滚动');
-    for (const text of ['管理表情', '搜索', '经典', '办公', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent) === text));
+    for (const text of ['表情市场', '管理表情', '搜索', '经典', '办公', '全部', '关闭']) assert.ok([...panel.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent) === text));
   };
   bounded();
   box = { ...box, top: 675, bottom: 703 }; await act(() => dom.window.dispatchEvent(new dom.window.Event('resize'))); bounded();
@@ -127,38 +134,37 @@ test('Picker 按居中/底部锚点和窄 viewport 限高，保留所有入口�
 
 test('核实后的用户表情只替换精确投影文本，原附件引用与额外文字保留，元数据移入详情', async t => {
   const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
-  const { SampleCatalog } = await import('../src/sample-catalog.js'); const { modelProjection } = await import('../src/projection.js');
+  const { expressionText } = await import('../src/protocol/index.js');
   const { visualMeta } = await import('../src/dsh/host.js'); const { mountUserMessages } = await import('../src/dsh/messages.js');
   const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document };
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
   const root = createRoot(dom.window.document.getElementById('root')!); t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, before); dom.window.close(); });
-  const e = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all()[0]!;
-  const message = { message_id: 'confirmed', direction: 'human_to_ai', revision: e } as any; const meta = visualMeta(message);
+  const { e, message: stored } = await humanMessage(t); const message = { ...stored, message_id: 'confirmed' }; const meta = visualMeta(message);
+  const { expressionMessageText } = await import('../src/dsh/expression-message.js'); const text = expressionText(e, 'zh-CN');
   const row = { message, meta, host: { status: 'observed', requestId: 'amoji:confirmed', seq: 12 } };
   const rpc = { history: async () => [row], visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }) } as any;
   const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
   core.register({ name: 'conversation.chat.node', key: 'user' } as never, (props: any) => React.createElement('p', { 'data-native': true }, props.node.data.content.map((block: any) => block.type === 'text' ? block.text : '附件.pdf').join('|') + '|' + props.node.data.referenceLabels.join(',') + '|' + props.node.data.skillNames.join(',') + '|' + props.marker));
   const release = mountUserMessages(core as unknown as ClientPort['slots'], rpc); t.after(release);
   const View = core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
-  const content = [{ type: 'text', text: modelProjection(e) }, { type: 'text', text: '另外写给你的话' }, { type: 'file', file: { name: '附件.pdf' } }]; const original = JSON.stringify(content);
+  const content = [{ type: 'text', text: expressionMessageText(message) }, { type: 'text', text: '另外写给你的话' }, { type: 'file', file: { name: '附件.pdf' } }]; const original = JSON.stringify(content);
   const render = (rpcId: string, seq = 12) => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq, content, source: { kind: 'user', rpcId }, referenceLabels: ['文件引用'], skillNames: ['技能引用'] } } }));
   await act(async () => render('amoji:confirmed'));
   const native = dom.window.document.querySelector('[data-native]')!.textContent!;
-  assert.ok(!native.includes(e.name)); assert.ok(!native.includes(e.semantics.meaning)); assert.doesNotMatch(native, /asset_id|revision_id/);
+  assert.ok(!native.includes(text.meaning)); assert.doesNotMatch(native, /"act"|asset_id|revision_id/);
   assert.match(native, /另外写给你的话\|附件.pdf\|文件引用\|技能引用\|宿主交互/);
   assert.ok(dom.window.document.querySelector('img'));
   assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(e.revision_id));
   assert.equal(JSON.stringify(content), original, '不得修改宿主持久消息内容');
-  const { expressionMessageText } = await import('../src/dsh/expression-message.js');
-  const contextual = [{ type: 'text', text: expressionMessageText(e) }];
+  const contextual = [{ type: 'text', text: expressionMessageText(message) }];
   await act(async () => root.render(React.createElement(View, { sessionId: 's', marker: '宿主交互', node: { data: { seq: 12, content: contextual, source: { kind: 'user', rpcId: 'amoji:confirmed' }, referenceLabels: [], skillNames: [] } } })));
   assert.ok(!dom.window.document.querySelector('[data-native]'), '纯表情不重复原生文字气泡');
-  assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(e.semantics.meaning));
-  assert.equal(contextual[0]!.text, expressionMessageText(e));
+  assert.ok(dom.window.document.querySelector('details')!.textContent!.includes(text.meaning));
+  assert.equal(contextual[0]!.text, expressionMessageText(message));
   await act(async () => render('amoji:unverified'));
-  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('asset_id'));
+  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('"act"'));
   await act(async () => render('amoji:confirmed', 99));
-  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('asset_id'), '错配原生行不能替换内容');
+  assert.ok(dom.window.document.querySelector('[data-native]')!.textContent!.includes('"act"'), '错配原生行不能替换内容');
 });
 
 test('settled AI 表情错误展示原始失败并给文字fallback，不能继续显示等待', async () => {

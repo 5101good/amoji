@@ -545,7 +545,7 @@ export const english = {
 "恢复发布草稿": "Resume publishing draft",
 "发布向导": "Publishing wizard",
 "步骤 2：说明与许可": "Step 2: Description and license",
-"步骤 3：可选动作": "Step 3: Optional actions",
+"步骤 3：可选效果": "Step 3: Optional effects",
 "步骤 4：完整预览与投稿": "Step 4: Full preview and submission",
 "署名": "Attribution",
 "纯视觉包可不选择任何动作。动作由使用者另行启用。": "Visual packs need no actions. Users enable actions separately.",

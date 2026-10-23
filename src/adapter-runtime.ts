@@ -19,7 +19,7 @@ export interface AdapterRuntime {
   reconnect?(): Promise<void>;
   creation?: Pick<SharedClient, 'createDraft' | 'getDraft' | 'listDrafts' | 'saveDraft' | 'previewDraft' | 'confirmDraft'>;
   packDrafts?: Pick<SharedClient, 'createPackDraft' | 'listPackDrafts' | 'getPackDraft' | 'savePackDraft' | 'previewPackDraft' | 'confirmPackDraft' | 'listPacks' | 'getPack' | 'exportRelease' | 'removePack'>;
-  packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision'>;
+  packs?: Pick<SharedClient, 'importPack' | 'exportPack' | 'selectRevision' | 'getPack'>;
   management?: Pick<SharedClient, 'listRevisions' | 'listEntries' | 'getEntry' | 'startRevisionDraft' | 'setArchived' | 'getSettings' | 'updateSettings'>;
   suggestions?: Pick<SharedClient, 'suggestText'>;
   catalog: { root: URL; all(): Awaitable<Expression[]>; resolve(ref: ExpressionRef): Awaitable<Expression> };

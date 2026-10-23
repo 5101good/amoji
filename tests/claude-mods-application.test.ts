@@ -19,13 +19,14 @@ import {
 import { thumbnailImage, cachedThumbnailImage } from "../src/claude-mods/thumbnail.js";
 import { readBoundedFile, writeNewFile } from "../src/claude-mods/files.js";
 import { executeBridge } from "../src/claude-mods/bridge.js";
+import { HUMAN_EXPRESSION_NOTICE } from "../src/projection.js";
+import { actEntry } from "../src/protocol/index.js";
+import { SEEDS } from "./helpers/store-runtime.js";
+import { fields as draftFixture } from "./helpers/fixtures.js";
 
 async function setup(t: TestContext) {
   const directory = await mkdtemp(join(tmpdir(), "amoji-mods-"));
-  const service = await startSharedService(
-    directory,
-    new URL("../assets/samples/", import.meta.url),
-  );
+  const service = await startSharedService(directory, SEEDS);
   const client = await SharedClient.connect({ directory });
   t.after(async () => {
     await client.close();
@@ -33,16 +34,22 @@ async function setup(t: TestContext) {
     await rm(directory, { recursive: true, force: true });
   });
   const app = new ExpressionApplication(new ConnectedRuntime(client), client);
+  /** AI send by selection token through the application use case. */
+  const aiSend = async (turn: Parameters<typeof app.express>[0], token: string) => {
+    const result = await app.express(turn, { selection_token: token });
+    assert.ok(result.status === "sent", JSON.stringify(result));
+    return result.message;
+  };
   const context = {
     host: "claude-code" as const,
     hostInstanceId: "mods",
     sessionId: "session-a",
   };
-  return { directory, client, app, context };
+  return { directory, client, app, context, aiSend };
 }
 
 test("宿主空闲时人工表情按请求幂等，AI 仍需真实回合；当前会话隔离", async (t) => {
-  const { client, app, context } = await setup(t);
+  const { client, app, context, aiSend } = await setup(t);
   assert.ok(
     client.identity.capabilities?.includes(SESSION_BINDINGS_CAPABILITY),
   );
@@ -62,30 +69,15 @@ test("宿主空闲时人工表情按请求幂等，AI 仍需真实回合；当�
   const turn = { ...context, turnId: "real-turn", turnOrdinal: 1 };
   const search = await app.search(turn, "加油");
   assert.ok(search.candidates.length);
-  await assert.rejects(
-    app.emit(
-      { ...turn, sessionId: "session-b" },
-      search.candidates[0]!.selection_token,
-    ),
-  );
-  const ai = await app.emit(turn, search.candidates[0]!.selection_token);
-  assert.equal(
-    (await app.emit(turn, search.candidates[0]!.selection_token)).message_id,
-    ai.message_id,
-  );
+  const foreign = await app.express({ ...turn, sessionId: "session-b" }, { selection_token: search.candidates[0]!.selection_token });
+  assert.equal(foreign.status === "rejected" && foreign.reason, "invalid_selection_token");
+  const ai = await aiSend(turn, search.candidates[0]!.selection_token);
+  assert.equal((await aiSend(turn, search.candidates[0]!.selection_token)).message_id, ai.message_id);
   assert.doesNotMatch(JSON.stringify(search), /visual|base64|sha256|image\//);
-  const prefs = await client.getSettings();
-  await client.updateSettings(prefs.version, {
-    style: prefs.style,
-    frequency: prefs.frequency,
-    appearance: prefs.appearance,
-    paused: true,
-  });
-  assert.equal(
-    (await app.search({ ...turn, turnId: "next", turnOrdinal: 2 }, "庆祝"))
-      .candidates.length,
-    0,
-  );
+  const { version, ...prefs } = await client.getSettings();
+  await client.updateSettings(version, { ...prefs, ai_expressions: { ...prefs.ai_expressions, enabled: false } });
+  const paused = await app.express({ ...turn, turnId: "next", turnOrdinal: 2 }, { act: "core:celebrate" });
+  assert.equal(paused.status === "rejected" && paused.reason, "ai_expressions_paused");
 });
 
 test("发送时预备的展示与冻结消息完全一致，模型文字不含媒体", async (t) => {
@@ -130,7 +122,7 @@ test("并发重绘合并读请求，失败可重试且会话缓存有界", async
 });
 
 test("只重绘同会话同方向的完整标记，保留普通文字、未知标记和历史固定语义", async (t) => {
-  const { app, client, context } = await setup(t);
+  const { app, client, context, aiSend } = await setup(t);
   const ref = (await app.browse({ query: "", page: 0 })).items[0]!.expression;
   const human = await app.receive(context, ref, "human");
   const wire = humanText(human);
@@ -162,14 +154,14 @@ test("只重绘同会话同方向的完整标记，保留普通文字、未知�
         app,
         context,
         "human_to_ai",
-        wire.replace(ref.name, "篡改"),
+        wire.replace(HUMAN_EXPRESSION_NOTICE, "篡改"),
       )
     )[0]!.kind,
     "text",
   );
   const turn = { ...context, turnId: "turn", turnOrdinal: 1 };
   const token = (await app.search(turn, "加油")).candidates[0]!.selection_token;
-  const ai = await app.emit(turn, token);
+  const ai = await aiSend(turn, token);
   const rendered = await renderSegments(
     app,
     context,
@@ -216,8 +208,8 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
     context,
     args: { query: "", page: 99 },
   });
-  assert.equal(result.page, 0);
-  assert.equal(result.items.length, 3);
+  assert.equal(result.page, 7, "an out-of-range page converges on the last page of 48");
+  assert.equal(result.items.length, 6);
   for (const item of result.items) {
     assert.match(item.preview, /^data:image\/avif;base64,/);
     const pixels = Buffer.from(item.preview.split(",")[1], "base64");
@@ -229,8 +221,9 @@ test("缩略图实际解码且有预算，桥接分页不泄露库路径；越�
     command: "browse", context, args: { query: "", offset: 1, limit: 2 },
   });
   assert.equal(window.offset, 1);
-  assert.equal(window.total, 3);
-  assert.deepEqual(window.items.map((x: any) => x.expression.asset_id), result.items.slice(1).map((x: any) => x.expression.asset_id));
+  assert.equal(window.total, 48);
+  const first: any = await executeBridge(app, client, { command: "browse", context, args: { query: "", offset: 0, limit: 3 } });
+  assert.deepEqual(window.items.map((x: any) => x.expression.asset_id), first.items.slice(1).map((x: any) => x.expression.asset_id));
   await assert.rejects(app.browseWindow({ query: "", offset: -1, limit: 2 }), /INVALID_ARGUMENT/);
   await assert.rejects(app.browseWindow({ query: "", offset: 0, limit: 101 }), /INVALID_ARGUMENT/);
   assert.equal((await app.browseWindow({ query: "", offset: 999, limit: 10 })).items.length, 0);
@@ -272,20 +265,20 @@ test("高清预览按原图摘要持久缓存，重开桥接不重编码，坏�
   assert.equal(reads, 4, "a corrupt bundle must not trigger encoding on every call");
 });
 
-test("画风保存和列表读取在同一次桥接完成，刷新失败不重试已提交设置", async (t) => {
+test("偏好保存和列表读取在同一次桥接完成，刷新失败不重试已提交设置", async (t) => {
   const { app, client, context } = await setup(t);
-  const p = await client.getSettings();
+  const { version, ...p } = await client.getSettings();
   const result: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
-    version: p.version, preferences: {style:p.style, frequency:p.frequency, paused:p.paused, appearance:"office"},
+    version, preferences: { ...p, display: "text" },
     browse: {query:"", offset:0, limit:64},
   } });
-  assert.equal(result.preferences.appearance, "office");
+  assert.equal(result.preferences.display, "text");
   assert.ok(Array.isArray(result.collection.items));
   const failed: any = await executeBridge(app, client, { context, command: "updateSettings", args: {
-    version: result.preferences.version, preferences: {style:p.style, frequency:p.frequency, paused:p.paused, appearance:"classic"},
+    version: result.preferences.version, preferences: { ...p, display: "image" },
     browse: {query:"", offset:-1, limit:64},
   } });
-  assert.equal(failed.preferences.appearance, "classic");
+  assert.equal(failed.preferences.display, "image");
   assert.equal(failed.refreshError, true);
   assert.equal((await client.getSettings()).version, failed.preferences.version);
 });
@@ -301,16 +294,7 @@ test("通过管理用例创建、核对、确认、归档和包导出导入；�
     imagePath,
     await readFile(await client.blobPath(original.visual.primary.sha256)),
   );
-  const fields = {
-    name: "一起稳步推进",
-    semantics: {
-      locale: "zh-CN",
-      meaning: "认可双方稳步推进",
-      fallback: "稳步推进",
-    },
-    rights: { license: "仅供个人使用" },
-    tags: ["协作"],
-  };
+  const fields = { ...draftFixture, name: { "zh-CN": "一起稳步推进", en: "Moving steadily" } };
   const saved = await run("saveDraft", {
     id: draft.draft_id,
     version: draft.version,
@@ -335,7 +319,7 @@ test("通过管理用例创建、核对、确认、归档和包导出导入；�
     version: saved.version,
     reviewed: true,
   });
-  assert.equal(expression.name, fields.name);
+  assert.deepEqual(expression.name, fields.name);
   const path = join(directory, "export.amoji");
   await run("exportPack", {
     refs: [
@@ -361,49 +345,38 @@ test("通过管理用例创建、核对、确认、归档和包导出导入；�
     version: entry.version,
     archived: true,
   });
-  assert.ok(!(await app.browse({ query: fields.name, page: 0 })).items.length);
+  assert.ok(!(await app.browse({ query: fields.name["zh-CN"], page: 0 })).items.length);
 });
 
 test("共享服务本身拒绝无回合 AI 工具，桥接只给模型纯文字结果；建议不能改版权", async (t) => {
   const { app, client, context } = await setup(t);
   const binding = await client.bind(context);
   await assert.rejects(client.search(binding, "加油"), /TURN_REQUIRED/);
-  await assert.rejects(client.emit(binding, "not-a-token"), /TURN_REQUIRED/);
+  await assert.rejects(client.express(binding, { selection_token: "not-a-token" }), /TURN_REQUIRED/);
   await client.unbind(binding);
   const run = (command: string, args: unknown, ctx = context) =>
     executeBridge(app, client, { command, context: ctx, args }) as Promise<any>;
   const turn = { ...context, turnId: "actual-turn", turnOrdinal: 1 };
   const found = await run("search", { query: "加油" }, turn);
   const emitted = await run(
-    "emit",
-    { token: found.candidates[0].selection_token },
+    "tool",
+    { name: "express", input: { selection_token: found.candidates[0].selection_token } },
     turn,
   );
   assert.match(emitted.marker, /^\[\[amoji:/);
+  assert.deepEqual([emitted.status, emitted.from], ["sent", "ai"]);
+  const tools = await run("tools", {});
+  assert.deepEqual(tools.map((tool: any) => tool.name), ["express", "search", "resolve"]);
   assert.doesNotMatch(JSON.stringify(emitted), /visual|base64|sha256|image\//);
   const ask = await run("suggestionRequest", { intent: "感谢搭档耐心解释" });
   assert.equal(ask.maxTokens, 1200);
   assert.equal(ask.timeoutMs, 45000);
-  assert.deepEqual(JSON.parse(ask.prompt), { intent: "感谢搭档耐心解释" });
-  await assert.rejects(
-    run("parseSuggestion", {
-      text: JSON.stringify({
-        name: "谢谢",
-        semantics: { locale: "zh-CN", meaning: "感谢搭档", fallback: "谢谢" },
-        tags: ["感谢"],
-        rights: { license: "伪造授权" },
-      }),
-    }),
-    /SUGGESTION_OUTPUT_INVALID/,
-  );
-  const fields = await run("parseSuggestion", {
-    text: JSON.stringify({
-      name: "谢谢",
-      semantics: { locale: "zh-CN", meaning: "感谢搭档", fallback: "谢谢" },
-      tags: ["感谢"],
-    }),
-  });
-  assert.equal(fields.name, "谢谢");
+  assert.deepEqual(JSON.parse(ask.prompt), { intent: "感谢搭档耐心解释", locale: "zh-CN" });
+  const suggestion = { realizes: "core:thanks", name: "谢谢", meaning: "感谢搭档", fallback: "谢谢", tags: ["感谢"] };
+  await assert.rejects(run("parseSuggestion", { text: JSON.stringify({ ...suggestion, rights: { license: "伪造授权" } }) }), /SUGGESTION_OUTPUT_INVALID/);
+  await assert.rejects(run("parseSuggestion", { text: JSON.stringify({ ...suggestion, realizes: "core:approve" }) }), /SUGGESTION_OUTPUT_INVALID/);
+  const fields = await run("parseSuggestion", { text: JSON.stringify(suggestion), locale: "en" });
+  assert.deepEqual([fields.realizes, fields.original_locale, fields.name], ["core:thanks", "en", { en: "谢谢" }]);
   assert.ok(!("rights" in fields));
 });
 
@@ -411,25 +384,16 @@ test("固定语义中的文件提及符被 JSON 转义，不触发宿主附加�
   const { app, context } = await setup(t);
   const ref = (await app.browse({ query: "", page: 0 })).items[0]!.expression;
   const stored = await app.receive(context, ref, "escape");
+  const revision = stored.revision!;
   const message = {
-    ...stored,
-    revision: {
-      ...stored.revision,
-      name: "看看 @~/secret.txt",
-      semantics: {
-        ...stored.revision.semantics,
-        meaning: "提及 @/private/file 只是文字",
-      },
-    },
+    ...stored, note: "看看 @~/secret.txt",
+    revision: { ...revision, semantics: { ...revision.semantics, [revision.original_locale]: { ...revision.semantics[revision.original_locale]!, meaning: "提及 @/private/file 只是文字" } } },
   };
   const text = humanText(message);
   assert.ok(!text.includes("@"));
-  const projection = JSON.parse(text.slice(text.indexOf("\n") + 1));
-  assert.equal(projection.name, message.revision.name);
-  assert.equal(
-    projection.semantics.meaning,
-    message.revision.semantics.meaning,
-  );
+  const projection = JSON.parse(text.slice(text.lastIndexOf("\n") + 1));
+  assert.equal(projection.note, message.note);
+  assert.equal(projection.meaning, "提及 @/private/file 只是文字");
 });
 
 test("文件失败返回可显示的稳定错误，不泄露本地路径或误报 Node 缺失", async (t) => {
@@ -469,30 +433,31 @@ test("真实 stdin 跨 UTF-8 字符分块不改变中文意图", async (t) => {
   await exited;
   const reply = JSON.parse(output);
   assert.equal(reply.ok, true);
-  assert.deepEqual(JSON.parse(reply.result.prompt), { intent: "感谢搭档🌱" });
+  assert.deepEqual(JSON.parse(reply.result.prompt), { intent: "感谢搭档🌱", locale: "zh-CN" });
 });
 
 test("冲突另存可沿用原图片摘要，远端草稿与本地文字互不覆盖", async (t) => {
   const { app, client, context } = await setup(t);
   const run = (command: string, args: unknown = {}) => executeBridge(app, client, { command, context, args }) as Promise<any>;
-  const expression = (await client.list())[0]!;
+  const expression = (await client.list()).find(e => !e.visual.animated)!;
   const original = await run("createDraft");
-  const fields = { name: "我的本地修改", semantics: {locale:"zh-CN",meaning:"感谢搭档",fallback:"谢谢"},rights:{license:"MIT"} };
-  const remote = await run("saveDraft", { id: original.draft_id, version: original.version, fields: {...fields,name:"另一会话的修改"} });
+  const fields = { ...draftFixture, name: { "zh-CN": "我的本地修改", en: "My local edit" } };
+  const remote = await run("saveDraft", { id: original.draft_id, version: original.version, fields: { ...fields, name: { "zh-CN": "另一会话的修改", en: "Elsewhere" } } });
   await assert.rejects(run("saveDraft", {id:original.draft_id,version:original.version,fields}), /DRAFT_CONFLICT/);
   const fork = await run("createDraft");
   const saved = await run("saveDraft", { id: fork.draft_id, version: fork.version, fields, imageHash: expression.visual.primary.sha256 });
-  assert.equal(saved.fields.name, fields.name);
-  assert.deepEqual(saved.visual, expression.visual);
+  assert.deepEqual(saved.fields.name, fields.name);
+  assert.deepEqual(saved.visual.primary, expression.visual.primary);
   assert.equal((await client.getDraft(original.draft_id)).version, remote.version);
-  assert.equal((await client.getDraft(original.draft_id)).fields.name, "另一会话的修改");
+  assert.equal((await client.getDraft(original.draft_id)).fields.name["zh-CN"], "另一会话的修改");
   await assert.rejects(run("saveDraft", {id:saved.draft_id,version:saved.version,fields,imageHash:"../../private"}), /INVALID_ARGUMENT/);
 });
 
-test("场景在完整结果上筛选再取窗口，未知分类被拒绝", async (t) => {
+test("码位家族在完整结果上筛选再取窗口，未知分类被拒绝", async (t) => {
   const { app } = await setup(t);
   const all = await app.browseWindow({ query: "", offset: 0, limit: 100 });
-  const categoryOf = (x: any) => x.expression.tags?.find((tag: string) => tag.startsWith("协作:"))?.slice(3) || "其他";
+  const categoryOf = (x: any) => actEntry(x.expression.realizes).family;
+  assert.deepEqual(all.categories, ["grounding", "steering", "progress", "epistemic", "social"]);
   for (const category of all.categories) {
     const expected = all.items.filter(x => categoryOf(x) === category);
     const first = await app.browseWindow({ query: "", category, offset: 0, limit: 1 });

@@ -189,9 +189,16 @@ export class LibraryStore {
       if (changed) { state.generation++; this.db.prepare('UPDATE session_rules SET generation=?, data=? WHERE session_key=?').run(state.generation, JSON.stringify(state), row.session_key); }
     }
   }
+  /**
+   * A release offers effects while the user holds it: built-in, file imports and local packs until removed;
+   * market releases only while installed or while one of their expressions is collected from them.
+   */
   private releaseActive(releaseId: string): boolean {
+    if (this.unsafePack(this.getPack(releaseId))) return false;
     const install = this.db.prepare('SELECT state FROM local_installs WHERE release_id=?').get(releaseId) as { state: string } | undefined;
-    return (!install || ['installed', 'collected'].includes(install.state)) && !this.unsafePack(this.getPack(releaseId));
+    if (install?.state === 'installed') return true;
+    if (this.releaseSource(releaseId)?.startsWith('market:')) return this.marketCollections().some(c => c.source.release_id === releaseId);
+    return !install || install.state !== 'removed';
   }
 
   // ---------------------------------------------------------------- pack drafts

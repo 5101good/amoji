@@ -58,7 +58,7 @@ test('适配器连接关闭会收口自己的待选请求，另一连接的面�
   assert.equal(response.status, 200);
   const message = await pendingB;
   assert.equal((await response.json()).message_id, message.message_id);
-  assert.equal(message.revision.revision_id, revision.revision_id);
+  assert.equal(message.revision!.revision_id, revision.revision_id);
   const binding = await b.bind({ ...context, sessionId: 'b' });
   assert.deepEqual(await b.history(binding), [message]);
 });

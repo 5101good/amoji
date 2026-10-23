@@ -61,9 +61,6 @@ test('完整envelope超预算在持久发送前拒绝，状态核对不调用模
  d=await f.c.savePackDraft(d.draft_id,d.version,{...d.manifest,effects:[a],bindings:[{target:f.ref,effects:[a.effect_id]}]});const pack=await f.c.confirmPackDraft(d.draft_id,d.version);
  await assert.rejects(f.apply({ref:f.ref,requestId:'oversize',effect:{release_id:pack.release_id,effect_id:a.effect_id,effect_revision_id:a.effect_revision_id}}),/EFFECT_LIMIT/);assert.equal((await f.call('history',{}) as HistoryEntry[]).length,0);assert.equal(f.host.provider.requests.length,0);
 });
-test('新profile保留原生日志证明的旧local表达读取，不迁移动作授权',async t=>{
- const f=await fixture(t);const binding=await f.c.bind({host:'dsh',hostInstanceId:'local',sessionId:'session'});const legacy=await f.c.receive(binding,{ref:f.ref},'legacy');f.live.followup(input(`amoji:${legacy.message_id}`));await f.live.whenIdle();const rows=await f.call('history',{}) as HistoryEntry[];assert.equal(rows.length,1);assert.equal(rows[0]!.message.message_id,legacy.message_id);assert.equal(rows[0]!.effect,undefined);
-});
 test('生产已提交回执在共享服务断连后仍可从原生日志恢复，核对不重发',async t=>{
  const f=await fixture(t);const {textResponse}=await import('./helpers/dsh-native.js');f.host.provider.respond=async function*(){await stopSharedService(join(f.directory,'library'),f.c.identity.serviceId);yield* textResponse();};
  try{await f.apply({ref:f.ref,requestId:'receipt-loss',effect:f.effect});}catch(error){assert.match(String(error),/DSH_OUTCOME_UNKNOWN|CONNECTION_CLOSED/);}

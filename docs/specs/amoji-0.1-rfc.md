@@ -6,7 +6,7 @@
 | 日期 | 2026-10-22（第 3 稿：吸收第二份产品评审，补齐协议细节） |
 | 协议版本 | `0.1` |
 | 注册表修订 | `0.1-r3`（附录 A） |
-| 取代 | 此前全部表情与包协议：[表情/包 Schema 0.1](amoji-v0.1.schema.json)、[场景包 Schema 0.2](amoji-v0.2.schema.json)、[场景包说明 0.2](scenario-packs-v0.2.md)、`amoji_search / amoji_resolve / amoji_emit` 工具合同、协作 envelope `amoji.collaboration/1` |
+| 取代 | 此前全部表情与包协议：表情/包 Schema 0.1（`amoji-v0.1.schema.json`）、场景包 Schema 0.2（`amoji-v0.2.schema.json`）与场景包说明 0.2、`amoji_search / amoji_resolve / amoji_emit` 工具合同、协作 envelope `amoji.collaboration/1`。这些文件已从仓库删除，只保留在 git 历史中。 |
 | 兼容性 | 不兼容旧格式，也不提供迁移层（线上线下均无用户）。版本号 `0.1` 重新起算 |
 
 本文中的“必须 / 不得 / 应当 / 可以”分别对应 RFC 2119 的 MUST / MUST NOT / SHOULD / MAY。

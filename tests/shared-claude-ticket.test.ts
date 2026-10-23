@@ -4,9 +4,10 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SharedClient, stopSharedService } from '../src/shared-client.js';
+import { API_VERSION, DATABASE_VERSION } from '../src/shared-contract.js';
 
 // Use the real authenticated HTTP boundary: an unimplemented ticket method must fail here.
-test('共享服务签发单次票据，固定真实身份、工具、参数与有效期，保留 API 2 普通客户端', async t => {
+test('共享服务签发单次票据，固定真实身份、工具、参数与有效期，普通客户端不受影响', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-claude-ticket-'));
   let client: SharedClient | undefined;
   const abort = new AbortController();
@@ -50,7 +51,7 @@ test('共享服务签发单次票据，固定真实身份、工具、参数与�
   assert.equal((await rpc('issueClaudeTicket', { ...invocation, invocationId: 'toolu_2', agentId: 'forged' })).body.code, 'INVALID_ARGUMENT');
   assert.equal((await rpc('redeemClaudeTicket', { ticket: 'forged', toolName: invocation.toolName, argumentsDigest: invocation.argumentsDigest })).body.code, 'CLAUDE_TICKET_UNAVAILABLE');
   assert.equal((await rpc('redeemClaudeTicket', { ticket, toolName: invocation.toolName, argumentsDigest: 'b'.repeat(64) })).body.code, 'CLAUDE_TICKET_MISMATCH');
-  assert.equal((await rpc('redeemClaudeTicket', { ticket, toolName: 'mcp__plugin_amoji_amoji__amoji_emit', argumentsDigest: invocation.argumentsDigest })).body.code, 'CLAUDE_TICKET_MISMATCH');
+  assert.equal((await rpc('redeemClaudeTicket', { ticket, toolName: 'mcp__plugin_amoji_amoji__amoji_express', argumentsDigest: invocation.argumentsDigest })).body.code, 'CLAUDE_TICKET_MISMATCH');
   assert.equal((await rpc('redeemClaudeTicket', { ticket, toolName: invocation.toolName, argumentsDigest: invocation.argumentsDigest, invocationId: 'wrong' })).body.code, 'CLAUDE_TICKET_MISMATCH');
   const redeemed = await rpc('redeemClaudeTicket', { ticket, toolName: invocation.toolName, argumentsDigest: invocation.argumentsDigest });
   assert.deepEqual(redeemed.body.result, { context: { host: 'claude-code', hostInstanceId: 'local', sessionId: invocation.sessionId, turnId: invocation.promptId }, invocationId: 'toolu_1' });
@@ -59,9 +60,9 @@ test('共享服务签发单次票据，固定真实身份、工具、参数与�
   const expiring = (await rpc('issueClaudeTicket', { ...invocation, invocationId: 'toolu_expiry' })).body.result;
   await writeFile(clockFile, '180000');
   assert.equal((await rpc('redeemClaudeTicket', { ticket: expiring.ticket, toolName: invocation.toolName, argumentsDigest: invocation.argumentsDigest })).body.code, 'CLAUDE_TICKET_EXPIRED');
-  assert.equal(client.identity.apiVersion, 2);
-  assert.equal(client.identity.databaseVersion, 5);
+  assert.equal(client.identity.apiVersion, API_VERSION);
+  assert.equal(client.identity.databaseVersion, DATABASE_VERSION);
   assert.ok((client.identity as any).capabilities.includes('claude-hook-tickets-v1'));
-  assert.equal((await client.list()).length, 24);
+  assert.equal((await client.list()).length, 48, 'Classic and Office are seeded');
   await rpc('close', {});
 });

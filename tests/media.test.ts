@@ -1,13 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { validateExpressionMedia, validateMediaBlob } from '../src/media.js';
-import { SampleCatalog, type BlobRef, type Expression } from '../src/sample-catalog.js';
+import { withValidatedPack } from '../src/packs.js';
+import type { BlobRef, Expression } from '../src/protocol/index.js';
+import { OFFICIAL } from './helpers/store-runtime.js';
 
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 const declaration = (bytes: Buffer, mime: string, width: number, height: number): BlobRef => ({ sha256: digest(bytes), mime, bytes: bytes.length, width, height });
@@ -22,24 +21,21 @@ function gif(width: number, height: number, frames: number, delayCentiseconds: n
   return Buffer.concat([header, ...Array.from({ length: frames }, () => frame), Buffer.from([0x3b])]);
 }
 
+const source = () => sharp({ create: { width: 1254, height: 1254, channels: 4, background: '#4080ff' } }).png().toBuffer();
 test('公共媒体接缝完整解码真实 PNG 与 animated WebP，并核对固定动画数据', async () => {
-  const manifest = JSON.parse(await readFile(new URL('../assets/samples/manifest.json', import.meta.url), 'utf8')) as { expressions: Expression[] };
-  for (const expression of manifest.expressions) {
-    const result = await validateExpressionMedia(expression, blob => readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url)));
-    assert.equal(result.primary.mime, expression.visual.primary.mime);
-    assert.equal(result.primary.width, expression.visual.primary.width);
-    assert.equal(result.primary.height, expression.visual.primary.height);
-    assert.equal(result.primary.animated, expression.visual.animated);
-    if (expression.visual.animated) {
-      assert.equal(result.primary.frames, 2);
-      assert.equal(result.primary.durationMs, 1000);
-      assert.equal(result.primary.decodedPixels, 887 * 887 * 2);
-      assert.equal(result.poster?.animated, false);
-      assert.notEqual(expression.visual.primary.sha256, expression.visual.poster?.sha256);
+  await withValidatedPack(await readFile(new URL('classic.amoji', OFFICIAL)), async pack => {
+    for (const expression of pack.manifest.expressions) {
+      const result = await validateExpressionMedia(expression, blob => pack.readBlob(blob));
+      assert.deepEqual([result.primary.mime, result.primary.width, result.primary.height, result.primary.animated], [expression.visual.primary.mime, expression.visual.primary.width, expression.visual.primary.height, expression.visual.animated]);
+      if (expression.visual.animated) {
+        assert.ok(result.primary.frames > 1);
+        assert.equal(result.primary.durationMs, expression.visual.duration_ms);
+        assert.equal(result.poster?.animated, false);
+        assert.notEqual(expression.visual.primary.sha256, expression.visual.poster?.sha256);
+      }
     }
-  }
-
-  const png = await readFile(new URL('../assets/samples/blobs/5684c88497966b68b1081c18d0bd60667e020a9771558fdebf9defcf67fbb154', import.meta.url));
+  });
+  const png = await source();
   for (const [mime, bytes] of [
     ['image/jpeg', await sharp(png).jpeg().toBuffer()],
     ['image/webp', await sharp(png).webp().toBuffer()],
@@ -55,7 +51,7 @@ test('公共媒体接缝完整解码真实 PNG 与 animated WebP，并核对固�
 });
 
 test('公共媒体接缝拒绝伪造类型、截断文件、静态附加动画字段与非静态封面', async () => {
-  const png = await readFile(new URL('../assets/samples/blobs/5684c88497966b68b1081c18d0bd60667e020a9771558fdebf9defcf67fbb154', import.meta.url));
+  const png = await source();
   const pngRef = declaration(png, 'image/png', 1254, 1254);
   await assert.rejects(validateMediaBlob(png, { ...pngRef, mime: 'image/jpeg' }, 'static'), /声明.*实际格式|格式.*不匹配/);
 
@@ -63,44 +59,26 @@ test('公共媒体接缝拒绝伪造类型、截断文件、静态附加动画�
   await assert.rejects(validateMediaBlob(truncated, declaration(truncated, 'image/png', 1254, 1254), 'static'), /无法完整解码|素材损坏/);
 
   const animatedPoster = gif(1, 1, 2, 5);
-  const expression: Expression = {
-    kind: 'amoji.expression', schema_version: '0.1', asset_id: '10000000-0000-4000-8000-000000000099', revision_id: '30000000-0000-4000-8000-000000000099',
-    name: '测试', created_at: '2026-09-16T00:00:00Z', semantics: { locale: 'zh-CN', meaning: '测试', fallback: '[测试]' }, rights: { license: 'test' },
-    visual: { primary: pngRef, animated: false, duration_ms: 100, poster: declaration(animatedPoster, 'image/gif', 1, 1) },
-  };
+  const expression = { visual: { primary: pngRef, animated: false, duration_ms: 100, poster: declaration(animatedPoster, 'image/gif', 1, 1), text_locale: null } } as Pick<Expression, 'visual'>;
   await assert.rejects(validateExpressionMedia(expression, blob => blob.sha256 === pngRef.sha256 ? Promise.resolve(png) : Promise.resolve(animatedPoster)), /静态素材.*时长|静态素材.*封面/);
-  const extraPoster = { ...expression, visual: { primary: pngRef, animated: false, poster: declaration(animatedPoster, 'image/gif', 1, 1) } };
+  const extraPoster = { visual: { primary: pngRef, animated: false, poster: declaration(animatedPoster, 'image/gif', 1, 1), text_locale: null } };
   await assert.rejects(validateExpressionMedia(extraPoster, () => Promise.resolve(png)), /静态素材.*封面/);
 
   const animation = gif(1, 1, 2, 5);
   const animationRef = declaration(animation, 'image/gif', 1, 1);
-  const badPosterExpression = { ...expression, visual: { primary: animationRef, animated: true, duration_ms: 100, poster: animationRef } };
+  const badPosterExpression = { visual: { primary: animationRef, animated: true, duration_ms: 100, poster: animationRef, text_locale: null } };
   await assert.rejects(validateExpressionMedia(badPosterExpression, () => Promise.resolve(animation)), /独立/);
-  const otherAnimation = await readFile(new URL('../assets/samples/blobs/477edc002d150c0db9f40cf06d8e346d642a4dcc9a394c7565983b35df99f997', import.meta.url));
-  const animatedPosterExpression = { ...expression, visual: { primary: animationRef, animated: true, duration_ms: 100, poster: declaration(otherAnimation, 'image/webp', 887, 887) } };
+  const frame = (background: string) => sharp({ create: { width: 2, height: 2, channels: 4, background } }).png().toBuffer();
+  const otherAnimation = await sharp([await frame('#ff0000'), await frame('#0000ff')], { join: { animated: true } }).webp({ delay: [50, 50] }).toBuffer();
+  const animatedPosterExpression = { visual: { primary: animationRef, animated: true, duration_ms: 100, poster: declaration(otherAnimation, 'image/webp', 2, 2), text_locale: null } };
   await assert.rejects(validateExpressionMedia(animatedPosterExpression, blob => Promise.resolve(blob.sha256 === animationRef.sha256 ? animation : otherAnimation)), /静态素材实际解码为动画/);
-  const wrongDuration = { ...expression, visual: { primary: animationRef, animated: true, duration_ms: 101, poster: pngRef } };
+  const wrongDuration = { visual: { primary: animationRef, animated: true, duration_ms: 101, poster: pngRef, text_locale: null } };
   await assert.rejects(validateExpressionMedia(wrongDuration, blob => Promise.resolve(blob.sha256 === animationRef.sha256 ? animation : png)), /声明与实际动图时长不匹配/);
 
   const fakeApngChunk = Buffer.concat([Buffer.from([0, 0, 0, 8]), Buffer.from('acTL'), Buffer.alloc(12)]);
   const apng = Buffer.concat([png.subarray(0, 33), fakeApngChunk, png.subarray(33)]);
-  await assert.rejects(validateMediaBlob(apng, declaration(apng, 'image/png', 1254, 1254), 'static'), /APNG.*不支持/);
+  await assert.rejects(validateMediaBlob(apng, declaration(apng, 'image/png', 1254, 1254), 'static'), /不支持 APNG/);
   await assert.rejects(validateMediaBlob(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), declaration(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'image/svg+xml', 1, 1), 'static'), /只支持 PNG、JPEG 或 WebP/);
-});
-
-test('真实目录载入通过公共媒体接缝拒绝 metadata 可读但像素截断的素材', async t => {
-  const directory = await mkdtemp(join(tmpdir(), 'amoji-media-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  await cp(new URL('../assets/samples/', import.meta.url), directory, { recursive: true });
-  const manifestPath = join(directory, 'manifest.json');
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { expressions: Expression[] };
-  const expression = manifest.expressions[0]!;
-  const source = await readFile(join(directory, 'blobs', expression.visual.primary.sha256));
-  const truncated = source.subarray(0, Math.floor(source.length / 2));
-  expression.visual.primary = declaration(truncated, 'image/png', expression.visual.primary.width, expression.visual.primary.height);
-  await writeFile(join(directory, 'blobs', expression.visual.primary.sha256), truncated);
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  await assert.rejects(SampleCatalog.load(pathToFileURL(`${directory}/`)), /无法完整解码|素材损坏/);
 });
 
 test('公共媒体接缝在解码前及解码过程中限制字节、边长、帧数、时长与累计像素', async () => {

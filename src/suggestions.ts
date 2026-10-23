@@ -62,7 +62,7 @@ export function suggestText(intentValue: unknown, notesValue?: unknown): TextSug
       name: { [locale]: wording.name },
       semantics: { [locale]: {
         meaning: intent,
-        fallback: `[${wording.fallback}]`.slice(0, 80),
+        fallback: [...`[${wording.fallback}]`].slice(0, 80).join(""),
         ...(contexts.length ? { use_when: contexts } : {}),
         avoid_when: [match?.cooperation
           ? (chinese ? '不把表情当作完成证明，也不扩大原有授权' : 'Not proof of completion, nor expanded permission')

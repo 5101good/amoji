@@ -1,230 +1,101 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import sharp from 'sharp';
 import { SharedClient, stopSharedService } from '../src/shared-client.js';
 import { ConnectedRuntime } from '../src/adapter-runtime.js';
-import { LibraryStore } from '../src/library-store.js';
-import { exportPack } from '../src/packs.js';
+import type { DraftFields } from '../src/drafts.js';
 
 async function sandbox(t: TestContext) {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-management-'));
   const clients: SharedClient[] = [];
   const connect = async () => { const client = await SharedClient.connect({ directory }); clients.push(client); return client; };
+  const restart = async () => { const last = clients.at(-1)!; for (const c of clients.splice(0)) await c.close(); await stopSharedService(directory, last.identity.serviceId); return connect(); };
   t.after(async () => { for (const c of clients) await c.close(); if (clients.length) await stopSharedService(directory, clients.at(-1)!.identity.serviceId); await rm(directory, { recursive: true, force: true }); });
-  return { directory, connect };
+  return { connect, restart };
 }
-const ref = (e: {asset_id: string; revision_id: string}) => ({ asset_id: e.asset_id, revision_id: e.revision_id });
+const ref = (e: { asset_id: string; revision_id: string }) => ({ asset_id: e.asset_id, revision_id: e.revision_id });
+const png = async (color: string) => (await sharp({ create: { width: 64, height: 64, channels: 4, background: color } }).png().toBuffer()).toString('base64');
+const meaning = (fields: DraftFields, text: string): DraftFields => ({ ...fields, semantics: { ...fields.semantics, [fields.original_locale]: { ...fields.semantics[fields.original_locale]!, meaning: text } } });
 
-test('画风缺省为经典，旧客户更新 AI 偏好不重置已选画风', async t => {
-  const directory = await mkdtemp(join(tmpdir(), 'amoji-appearance-settings-'));
-  const store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
-  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
-  assert.equal(store.getSettings().appearance, 'classic');
-  const office = store.updateSettings(1, { style: 'neutral', frequency: 'restrained', paused: false, appearance: 'office' });
-  assert.equal(office.appearance, 'office');
-  const legacy = store.updateSettings(office.version, { style: 'warm', frequency: 'active', paused: false });
-  assert.equal(legacy.appearance, 'office');
-  assert.throws(() => store.updateSettings(legacy.version, { style: 'warm', frequency: 'active', paused: false, appearance: 'nope' } as any), /INVALID_ARGUMENT/);
-});
-
-test('内置同 family 只显示偏好画风，外部条目的画风 tags 不被误隐藏，在途 token 仍可发', async t => {
-  const directory = await mkdtemp(join(tmpdir(), 'amoji-appearance-list-'));
-  const store = await LibraryStore.open(directory, new URL('../assets/base-library/base.amoji', import.meta.url));
-  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
-  const classic = store.list()[0]!;
-  const office = store.listEntries().find(e => e.expression.name === classic.name && e.expression.tags?.includes('amoji:appearance:office'))!.expression;
-  const imported = { ...office, asset_id: 'd6000000-0000-4000-8000-000000000001', revision_id: 'd7000000-0000-4000-8000-000000000001' };
-  await store.importPack(await exportPack([imported], [ref(imported)], 'External style fixture', blob => readFile(join(directory, 'blobs', blob.sha256))));
-  assert.ok(store.list().some(e => e.asset_id === classic.asset_id));
-  assert.ok(!store.list().some(e => e.asset_id === office.asset_id));
-  assert.ok(store.list().some(e => e.asset_id === imported.asset_id));
-  const context = { host: 'dsh' as const, sessionId: 'appearance', turnId: 'one' };
-  const token = store.search(context, classic.name, 5).candidates.find(c => c.asset_id === classic.asset_id)!.selection_token;
-  store.updateSettings(1, { style: 'neutral', frequency: 'active', paused: false, appearance: 'office' });
-  assert.ok(store.list().some(e => e.asset_id === office.asset_id));
-  assert.equal(store.emit(context, token).revision.asset_id, classic.asset_id);
-  assert.equal(store.receive({ ...context, turnId: 'two' }, classic, 'manual').revision.asset_id, classic.asset_id);
-});
-
-test('retired_samples 只接受三个固定开发样本引用，且只归档精确原版本', async t => {
-  const directory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-data-'));
-  const seedDirectory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-seed-'));
-  const seed = new URL(`file://${seedDirectory}/base.amoji`);
-  let store = await LibraryStore.open(directory, new URL('../assets/samples/', import.meta.url));
-  const samples = store.listEntries(); store.close();
-  await copyFile(new URL('../assets/base-library/base.amoji', import.meta.url), join(seedDirectory, 'base.amoji'));
-  const manifest = JSON.parse(await readFile(new URL('../assets/base-library/manifest.json', import.meta.url), 'utf8'));
-  const refs = samples.map(entry => ref(entry.expression));
-  await writeFile(join(seedDirectory, 'builtin-policy.json'), JSON.stringify({ pack_id: manifest.pack_id, retired: [], retired_samples: refs }));
-  store = await LibraryStore.open(directory, seed);
-  for (const entry of samples) assert.equal(store.getEntry(entry.expression.asset_id).archived, true);
-  store.close();
-  const badDirectory = await mkdtemp(join(tmpdir(), 'amoji-retired-samples-bad-'));
-  await writeFile(join(seedDirectory, 'builtin-policy.json'), JSON.stringify({ pack_id: manifest.pack_id, retired: [], retired_samples: [{ asset_id: refs[0]!.asset_id, revision_id: 'changed' }] }));
-  await assert.rejects(LibraryStore.open(badDirectory, seed), /BUILTIN_POLICY_INVALID/);
-  t.after(async () => { await rm(directory, { recursive: true, force: true }); await rm(seedDirectory, { recursive: true, force: true }); await rm(badDirectory, { recursive: true, force: true }); });
-});
-
-test('管理 capability、不可变编辑、个人副本和跨客户端 CAS 保留草稿与旧历史', async t => {
-  const { directory, connect } = await sandbox(t);
+test('editing is immutable: copies of built-ins, new revisions, history pinning and cross-client conflicts', async t => {
+  const { connect, restart } = await sandbox(t);
   let a = await connect(); const b = await connect();
   assert.ok(a.identity.capabilities?.includes('library-management-v1'));
   assert.ok(new ConnectedRuntime(a).management);
-  const builtin = (await a.listEntries())[0]!;
+  const builtin = (await a.listEntries()).find(e => e.expression.realizes === 'core:encourage')!;
   assert.equal(builtin.origin, 'builtin');
-  const draft = await a.startRevisionDraft(ref(builtin.expression), builtin.version);
-  assert.equal(draft.mode, 'copy');
-  const saved = await a.saveDraft(draft.draft_id, draft.version, { ...draft.fields, name: '个人温柔鼓励', rights: { license: '个人', creator: 'builtin' } });
+  const copy = await a.startRevisionDraft(ref(builtin.expression), builtin.version);
+  assert.equal(copy.mode, 'copy');
+  const saved = await a.saveDraft(copy.draft_id, copy.version, { ...meaning(copy.fields, '我的版本：别急，我陪你一步步来。'), rights: { license: '个人使用', creator: 'me' } });
   const personal = await a.confirmDraft(saved.draft_id, saved.version);
-  assert.notEqual(personal.asset_id, builtin.expression.asset_id);
-  assert.deepEqual(personal.derived_from, ref(builtin.expression));
-  const context = { host: 'dsh' as const, sessionId: 'immutable', turnId: 'one' };
-  const binding = await a.bind(context);
-  const old = await a.receive(binding, ref(personal), 'old');
+  assert.notEqual(personal.asset_id, builtin.expression.asset_id, 'a copy is a new asset; the built-in is untouched');
+  assert.equal(personal.realizes, 'core:encourage');
+  const binding = await a.bind({ host: 'dsh', sessionId: 'immutable', turnId: 'one' });
+  const old = await a.receive(binding, { ref: ref(personal) }, 'old');
   const entry = await a.getEntry(personal.asset_id);
   const one = await a.startRevisionDraft(ref(personal), entry.version);
   const two = await b.startRevisionDraft(ref(personal), entry.version);
   assert.equal(one.mode, 'edit');
-  const selection = (await a.search(binding, personal.name)).candidates[0]!;
-  const replacement = (await a.list()).find(e => e.visual.primary.sha256 !== personal.visual.primary.sha256)!;
-  const edited = await a.saveDraft(one.draft_id, one.version, { ...one.fields, semantics: { ...one.fields.semantics, meaning: '全新的含义' } }, (await readFile(await a.blobPath(replacement.visual.primary.sha256))).toString('base64'));
+  const edited = await a.saveDraft(one.draft_id, one.version, meaning(one.fields, '全新的含义'), await png('#ff8800'));
   const newer = await a.confirmDraft(edited.draft_id, edited.version);
   assert.equal(newer.asset_id, personal.asset_id); assert.notEqual(newer.revision_id, personal.revision_id);
-  assert.deepEqual(newer.derived_from, ref(personal)); assert.notEqual(newer.visual.primary.sha256, personal.visual.primary.sha256);
-  assert.deepEqual(await a.resolve(ref(personal)), personal);
-  await assert.rejects(a.emit(binding, selection.selection_token), /SELECTION_UNAVAILABLE/);
-  const unsaved = await b.saveDraft(two.draft_id, two.version, { ...two.fields, name: '保留另一端内容' });
+  assert.notEqual(newer.visual.primary.sha256, personal.visual.primary.sha256);
+  assert.deepEqual(await a.resolve(ref(personal)), personal, 'the old revision stays resolvable');
+  assert.deepEqual((await a.listRevisions(personal.asset_id)).map(r => r.revision_id).sort(), [personal.revision_id, newer.revision_id].sort());
+  const unsaved = await b.saveDraft(two.draft_id, two.version, meaning(two.fields, '另一端的修改'));
   await assert.rejects(b.confirmDraft(unsaved.draft_id, unsaved.version), (error: any) => error.code === 'ENTRY_CONFLICT' && error.current.expression.revision_id === newer.revision_id);
-  assert.equal((await b.getDraft(two.draft_id)).fields.name, '保留另一端内容');
+  assert.equal((await b.getDraft(two.draft_id)).fields.semantics['zh-CN']!.meaning, '另一端的修改', 'the losing draft keeps its input');
   await assert.rejects(a.saveDraft(edited.draft_id, 1, edited.fields), (error: any) => error.code === 'DRAFT_CONFLICT' && error.current.version === edited.version);
-  await a.close(); await b.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
-  assert.deepEqual(await a.history(await a.bind(context)), [old]);
-  assert.deepEqual(await a.confirmDraft(edited.draft_id, edited.version), newer);
-  const current = await a.getEntry(newer.asset_id);
-  const retry = await a.startRevisionDraft(ref(newer), current.version);
-  const reapplied = await a.saveDraft(retry.draft_id, retry.version, unsaved.fields);
-  const resolved = await a.confirmDraft(reapplied.draft_id, reapplied.version);
-  const after = await a.receive(await a.bind({ ...context, turnId: 'two' }), ref(resolved), 'resolved-conflict');
-  assert.equal(after.revision.name, '保留另一端内容');
-  assert.deepEqual((await a.history(await a.bind(context)))[0], old);
+  a = await restart();
+  const history = await a.history(await a.bind({ host: 'dsh', sessionId: 'immutable', turnId: 'one' }));
+  assert.deepEqual(history.map(m => m.revision?.revision_id), [old.revision!.revision_id], 'messages keep the exact revision they were sent with');
+  assert.deepEqual(await a.confirmDraft(edited.draft_id, edited.version), newer, 'confirming again after a restart is idempotent');
 });
 
-test('归档阻止新收发和未消费 token；已消费重试、精确历史和素材保留', async t => {
-  const { directory, connect } = await sandbox(t); let a = await connect();
-  const entry = (await a.listEntries())[0]!; const e = entry.expression;
-  const first = await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' });
-  const second = await a.bind({ host: 'dsh', sessionId: 'archive-other', turnId: '1' });
-  const token = (await a.search(first, e.name)).candidates[0]!.selection_token;
-  const unconsumed = (await a.search(second, e.name)).candidates[0]!.selection_token;
-  const emitted = await a.emit(first, token); const received = await a.receive(first, ref(e), 'received');
+test('archiving hides an entry from new sends and search while history, media and restore survive', async t => {
+  const { connect, restart } = await sandbox(t);
+  let a = await connect();
+  const entry = (await a.listEntries()).find(e => e.expression.realizes === 'core:thanks')!;
+  const e = entry.expression;
+  const binding = await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' });
+  const received = await a.receive(binding, { ref: ref(e) }, 'received');
   const archived = await a.setArchived(e.asset_id, entry.version, true);
-  assert.equal(archived.archived, true); assert.equal(archived.version, entry.version + 1);
+  assert.deepEqual([archived.archived, archived.version], [true, entry.version + 1]);
   await assert.rejects(a.setArchived(e.asset_id, entry.version, false), (error: any) => error.code === 'ENTRY_CONFLICT' && error.current.archived);
   assert.equal((await a.list()).some(x => x.asset_id === e.asset_id), false);
-  assert.equal((await a.search(second, e.name)).candidates.some(x => x.asset_id === e.asset_id), false);
-  await assert.rejects(a.emit(second, unconsumed), /SELECTION_UNAVAILABLE/);
-  await assert.rejects(a.receive(first, ref(e), 'new'), /SELECTION_UNAVAILABLE/);
-  assert.deepEqual(await a.emit(first, token), emitted); assert.deepEqual(await a.receive(first, ref(e), 'received'), received);
-  assert.deepEqual(await a.resolve(ref(e)), e); assert.ok(await readFile(await a.blobPath(e.visual.primary.sha256)));
-  await a.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
-  const restored = await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' });
-  assert.deepEqual(await a.history(restored), [emitted, received]);
-  assert.equal((await a.getEntry(e.asset_id)).archived, true);
-  assert.deepEqual(await a.emit(restored, token), emitted);
-  const path = await a.blobPath(e.visual.primary.sha256); await rm(path);
-  await assert.rejects(a.blobPath(e.visual.primary.sha256), /BLOB_MISSING/);
-  assert.equal((await a.history(restored))[0]!.revision.semantics.fallback, e.semantics.fallback);
-  assert.deepEqual(await a.resolve(ref(e)), e);
+  assert.equal((await a.search(binding, e.name['zh-CN']!)).candidates.some(x => x.asset_id === e.asset_id), false);
+  await assert.rejects(a.receive(binding, { ref: ref(e) }, 'new'), /SELECTION_UNAVAILABLE/);
+  assert.deepEqual(await a.receive(binding, { ref: ref(e) }, 'received'), received, 'a retry of an already-sent message still answers');
+  assert.ok(await a.blobPath(e.visual.primary.sha256));
+  a = await restart();
+  assert.deepEqual(await a.history(await a.bind({ host: 'dsh', sessionId: 'archive', turnId: '1' })), [received]);
   await a.setArchived(e.asset_id, archived.version, false);
   assert.equal((await a.list()).some(x => x.asset_id === e.asset_id), true);
 });
 
-test('共享偏好 CAS、暂停即时复核、克制冷却、重复限制与手动发送独立', async t => {
-  const { directory, connect } = await sandbox(t); let a = await connect(); const b = await connect();
-  const settings = await a.getSettings(); assert.equal(settings.frequency, 'restrained'); assert.equal(settings.paused, false);
-  const expressions = await a.list();
+test('preferences are compare-and-swap, validated, and gate AI expressions immediately', async t => {
+  const { connect, restart } = await sandbox(t);
+  let a = await connect(); const b = await connect();
+  const initial = await a.getSettings();
+  assert.equal(initial.ai_expressions.enabled, true, 'AI expressions are on by default');
+  const { version, ...preferences } = initial;
+  const paused = await b.updateSettings(version, { ...preferences, ai_expressions: { ...preferences.ai_expressions, enabled: false } });
+  await assert.rejects(a.updateSettings(version, preferences), (error: any) => error.code === 'SETTINGS_CONFLICT' && error.current.version === paused.version);
+  await assert.rejects(a.updateSettings(paused.version, { ...preferences, quick_entries: ['core:ready'] }), /INVALID/, 'quick entries must be sendable by people');
+  assert.equal((await a.getSettings()).version, paused.version, 'a rejected update changes nothing');
   const binding = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '1' });
-  const token = (await a.search(binding, expressions[0]!.name)).candidates[0]!.selection_token;
-  const paused = await b.updateSettings(settings.version, { style: 'warm', frequency: 'moderate', paused: true });
-  await assert.rejects(a.updateSettings(settings.version, { style: 'neutral', frequency: 'active', paused: false }), (error: any) => error.code === 'SETTINGS_CONFLICT' && error.current.version === paused.version);
-  await assert.rejects(a.emit(binding, token), /AI_PAUSED/);
-  assert.deepEqual((await a.search(binding, expressions[0]!.name)).candidates, []);
-  await a.receive(binding, ref(expressions[0]!), 'manual');
-  await a.updateSettings(paused.version, { style: 'warm', frequency: 'restrained', paused: false });
-  const message = await a.emit(binding, token);
-  const turn2 = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '2' });
-  const next = (await a.search(turn2, expressions[1]!.name)).candidates[0]!;
-  await assert.rejects(a.emit(turn2, next.selection_token), /FREQUENCY_LIMIT/);
-  const turn3 = await a.bind({ host: 'dsh', sessionId: 'policy', turnId: '3' });
-  const repeat = (await a.search(turn3, message.revision.name, 5)).candidates.find(c => c.asset_id === message.revision.asset_id)!;
-  assert.ok(repeat, '重复限制必须选择同一个asset，不能假设偏好切换后排序不变');
-  await assert.rejects(a.emit(turn3, repeat.selection_token), /REPEAT_LIMIT/);
-  const next3 = (await a.search(turn3, expressions[1]!.name)).candidates[0]!;
-  await a.emit(turn3, next3.selection_token);
-  const latest = await a.getSettings(); await a.updateSettings(latest.version, { style: 'neutral', frequency: 'active', paused: true });
-  assert.deepEqual(await a.emit(binding, token), message);
-  await a.close(); await b.close(); await stopSharedService(directory, a.identity.serviceId); a = await connect();
-  assert.equal((await a.getSettings()).paused, true);
-});
-
-test('风格对整库语境匹配候选排序，不改固定语义；严格拒绝管理字段伪造', async t => {
-  const { connect } = await sandbox(t); const a = await connect();
-  const source = (await a.listEntries())[0]!;
-  let warm;
-  for (let i = 0; i < 6; i++) {
-    const draft = await a.startRevisionDraft(ref(source.expression), source.version);
-    const saved = await a.saveDraft(draft.draft_id, draft.version, { ...draft.fields, name: `测试鼓励${i}`, semantics: { locale: 'zh-CN', meaning: '测试鼓励持续工作', fallback: '测试鼓励', tone: i === 5 ? '温暖' : '平静' }, tags: [] });
-    warm = await a.confirmDraft(saved.draft_id, saved.version);
-  }
-  const settings = await a.getSettings();
-  await assert.rejects(a.updateSettings(settings.version, { style: 'unknown', frequency: 'active', paused: false } as any), /INVALID_ARGUMENT/);
-  await assert.rejects(a.updateSettings(settings.version, { style: 'warm', frequency: 'active', paused: false, turnId: 'fake' } as any), /INVALID_ARGUMENT/);
-  await a.updateSettings(settings.version, { style: 'warm', frequency: 'active', paused: false });
-  const binding = await a.bind({ host: 'dsh', sessionId: 'style', turnId: 'one' });
-  const result = await a.search(binding, '测试鼓励', 1);
-  assert.equal(result.candidates[0]!.asset_id, warm!.asset_id);
-  assert.deepEqual((await a.emit(binding, result.candidates[0]!.selection_token)).revision, warm);
-  assert.match(result.policy, /温暖/); assert.equal(JSON.stringify(result).includes('visual'), false);
-});
-
-test('数据库2导入来源迁移按个人副本处理，上游新默认不覆盖副本及其后续修订', async t => {
-  const { directory, connect } = await sandbox(t); let a = await connect();
-  const sample = (await a.list())[0]!;
-  await a.close(); await stopSharedService(directory, a.identity.serviceId);
-  const { DatabaseSync } = await import('node:sqlite');
-  let db = new DatabaseSync(join(directory, 'library.sqlite'));
-  const imported = { ...sample, asset_id: '90000000-0000-4000-8000-000000000009', revision_id: '91000000-0000-4000-8000-000000000009', name: '导入来源', rights: { license: '个人', creator: 'local' } };
-  db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(imported.asset_id, imported.revision_id, JSON.stringify(imported));
-  db.prepare('INSERT INTO library_entries VALUES (?,?)').run(imported.asset_id, imported.revision_id);
-  db.exec('DROP TABLE entry_state; PRAGMA user_version=2;'); db.close();
-  a = await connect(); const source = await a.getEntry(imported.asset_id);
-  assert.equal(source.origin, 'imported');
-  const draft = await a.startRevisionDraft(ref(imported), source.version); assert.equal(draft.mode, 'copy');
-  const copy = await a.confirmDraft(draft.draft_id, draft.version); assert.notEqual(copy.asset_id, imported.asset_id);
-  assert.deepEqual(copy.derived_from, ref(imported));
-  const ownEntry = await a.getEntry(copy.asset_id); const edit = await a.startRevisionDraft(ref(copy), ownEntry.version);
-  assert.equal(edit.mode, 'edit');
-  const edited = await a.saveDraft(edit.draft_id, edit.version, { ...edit.fields, name: '我的新版' });
-  const ownNew = await a.confirmDraft(edited.draft_id, edited.version);
-  await a.close(); await stopSharedService(directory, a.identity.serviceId);
-  db = new DatabaseSync(join(directory, 'library.sqlite'));
-  const upstream = { ...imported, revision_id: '92000000-0000-4000-8000-000000000009', name: '上游新版' };
-  db.prepare('INSERT INTO revisions VALUES (?,?,?)').run(upstream.asset_id, upstream.revision_id, JSON.stringify(upstream));
-  db.prepare('UPDATE library_entries SET revision_id=? WHERE asset_id=?').run(upstream.revision_id, upstream.asset_id);
-  db.prepare('UPDATE entry_state SET version=version+1 WHERE asset_id=?').run(upstream.asset_id); db.close();
-  a = await connect(); assert.deepEqual((await a.getEntry(copy.asset_id)).expression, ownNew);
-  assert.deepEqual(await a.resolve(ref(imported)), imported); assert.deepEqual(await a.resolve(ref(copy)), copy);
-});
-
-test('真实公共 API 拒绝非字符串风格和频率，失败不改变设置或修改序号', async t => {
-  const { connect } = await sandbox(t); const a = await connect();
-  for (const [field, valid] of [['style', 'warm'], ['frequency', 'restrained']] as const) await t.test(field, async () => {
-    const before = await a.updateSettings((await a.getSettings()).version, { style: 'warm', frequency: 'restrained', paused: false });
-    for (const invalid of [[valid], [[valid]], { value: valid }, null, 1, true]) {
-      await assert.rejects(a.updateSettings(before.version, { style: before.style, frequency: before.frequency, paused: before.paused, [field]: invalid } as any), /INVALID_ARGUMENT/, `${field} 必须拒绝 ${JSON.stringify(invalid)}`);
-      assert.deepEqual(await a.getSettings(), before, '拒绝非法偏好不能更改已保存设置或版本');
-    }
-  });
+  const off = await a.express(binding, { act: 'core:ack' });
+  assert.deepEqual(off.status === 'rejected' && off.reason, 'ai_expressions_paused');
+  await a.receive(binding, { act: 'core:clarify' }, 'manual');
+  const { version: v2, ...p2 } = await a.getSettings();
+  const social = await a.updateSettings(v2, { ...p2, ai_expressions: { ...p2.ai_expressions, enabled: true, families: { ...p2.ai_expressions.families, social: false } } });
+  const blocked = await a.express(binding, { act: 'core:thanks' });
+  assert.deepEqual(blocked.status === 'rejected' && blocked.reason, 'family_disabled');
+  const sent = await a.express(binding, { act: 'core:ack' });
+  assert.equal(sent.status, 'sent');
+  a = await restart();
+  assert.deepEqual(await a.getSettings(), social, 'preferences persist');
 });

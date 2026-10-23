@@ -7,11 +7,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { startSharedService } from '../src/shared-service.js';
 import { SharedClient } from '../src/shared-client.js';
 import { LibraryStore } from '../src/library-store.js';
+import { SEEDS } from './helpers/store-runtime.js';
+import { fields } from './helpers/fixtures.js';
 
-const fields = { name: '慢媒体恢复', semantics: { locale: 'zh-CN', meaning: '耐心等待', fallback: '等待' }, rights: { license: '个人使用' } };
 test('真实公共媒体请求超过旧5秒仍返回确定结果，save重试保留CAS且确认幂等', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-slow-create-'));
-  const service = await startSharedService(directory, new URL('../assets/samples/', import.meta.url));
+  const service = await startSharedService(directory, SEEDS);
   const client = await SharedClient.connect({ directory });
   const original = { saveDraft: LibraryStore.prototype.saveDraft, previewDraft: LibraryStore.prototype.previewDraft, confirmDraft: LibraryStore.prototype.confirmDraft };
   t.after(async () => { Object.assign(LibraryStore.prototype, original); await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
@@ -24,7 +25,7 @@ test('真实公共媒体请求超过旧5秒仍返回确定结果，save重试保
   assert.deepEqual(saved, await client.getDraft(initial.draft_id));
   LibraryStore.prototype.saveDraft = original.saveDraft;
   assert.deepEqual(await client.saveDraft(initial.draft_id, initial.version, fields, upload), saved);
-  await assert.rejects(client.saveDraft(initial.draft_id, initial.version, { ...fields, name: '另一个写入' }, upload), /DRAFT_CONFLICT/);
+  await assert.rejects(client.saveDraft(initial.draft_id, initial.version, { ...fields, intensity: 1 }, upload), /DRAFT_CONFLICT/);
   LibraryStore.prototype.previewDraft = async function (...args) { const value = await original.previewDraft.apply(this, args); await delay(5200); return value; };
   assert.deepEqual(await client.previewDraft(saved.draft_id, saved.version), saved);
   LibraryStore.prototype.previewDraft = original.previewDraft;
@@ -32,12 +33,12 @@ test('真实公共媒体请求超过旧5秒仍返回确定结果，save重试保
   const confirmed = await client.confirmDraft(saved.draft_id, saved.version);
   LibraryStore.prototype.confirmDraft = original.confirmDraft;
   assert.deepEqual(await client.confirmDraft(saved.draft_id, saved.version), confirmed);
-  assert.equal((await client.list()).length, 4);
+  assert.equal((await client.list()).length, 49);
 });
 
 test('已提交保存或确认的响应丢失时报告待核对，同一公共请求重试不重复写入且跨重启保留', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-recover-create-'));
-  let service = await startSharedService(directory, new URL('../assets/samples/', import.meta.url));
+  let service = await startSharedService(directory, SEEDS);
   let client = await SharedClient.connect({ directory });
   const nativeFetch = globalThis.fetch;
   t.after(async () => { globalThis.fetch = nativeFetch; await client.close(); await service.close(); await rm(directory, { recursive: true, force: true }); });
@@ -55,13 +56,13 @@ test('已提交保存或确认的响应丢失时报告待核对，同一公共�
   const afterSave = await client.getDraft(initial.draft_id);
   assert.equal(afterSave.version, initial.version + 1);
   await client.close(); await service.close();
-  service = await startSharedService(directory, new URL('../assets/samples/', import.meta.url)); client = await SharedClient.connect({ directory });
+  service = await startSharedService(directory, SEEDS); client = await SharedClient.connect({ directory });
   assert.deepEqual(await client.saveDraft(initial.draft_id, initial.version, fields, upload), afterSave);
   lost = 'previewDraft';
   await assert.rejects(client.previewDraft(afterSave.draft_id, afterSave.version), /DRAFT_PREVIEW_UNAVAILABLE/);
   assert.equal(client.signal.aborted, true); await client.reconnect();
   assert.deepEqual(await client.getDraft(afterSave.draft_id), afterSave);
-  const other = await client.saveDraft(afterSave.draft_id, afterSave.version, { ...fields, name: '另一窗口的新版本' });
+  const other = await client.saveDraft(afterSave.draft_id, afterSave.version, { ...fields, intensity: 3 });
   await assert.rejects(client.saveDraft(initial.draft_id, initial.version, fields, upload), /DRAFT_CONFLICT/);
   assert.deepEqual(await client.getDraft(other.draft_id), other);
   lost = 'confirmDraft';
@@ -69,5 +70,5 @@ test('已提交保存或确认的响应丢失时报告待核对，同一公共�
   assert.equal(client.signal.aborted, true); await client.reconnect();
   const confirmed = await client.confirmDraft(other.draft_id, other.version);
   assert.deepEqual((await client.list()).find(e => e.asset_id === confirmed.asset_id), confirmed);
-  assert.equal((await client.list()).length, 4);
+  assert.equal((await client.list()).length, 49);
 });

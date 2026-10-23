@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Ajv2020 } from 'ajv/dist/2020.js';
-import { amojiTools, amojiPickTool } from './mcp-server.js';
+import { amojiTools, amojiPickTool } from './model-tools.js';
 import { fail, nonempty, type ClaudeHookInvocation } from './shared-contract.js';
 
 export const CLAUDE_TICKET_FIELD = '_amoji_ticket';
@@ -17,10 +17,14 @@ export function claudeArguments(name: string, value: unknown): Record<string, un
   return args;
 }
 
+/** Key order at every depth is irrelevant; arrays keep their order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort((a, b) => a.localeCompare(b, 'en')).map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
 export function argumentsDigest(args: Record<string, unknown>): string {
-  // All accepted schemas contain only primitive values; object property order is irrelevant.
-  const canonical = JSON.stringify(Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b, 'en'))));
-  return createHash('sha256').update(canonical).digest('hex');
+  return createHash('sha256').update(canonical(args)).digest('hex');
 }
 
 /** This function is called only by the command Hook reading Claude's stdin envelope. */

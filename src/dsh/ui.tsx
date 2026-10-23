@@ -1,6 +1,6 @@
 import { useText, errorMessage } from './i18n.js';
 import React from 'react';
-import type { Expression } from '../sample-catalog.js';
+import type { Expression } from '../protocol/index.js';
 import type { DshRpc } from './contracts.js';
 import { AmojiImage } from './media.js';
 

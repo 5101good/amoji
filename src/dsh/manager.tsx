@@ -5,7 +5,7 @@ import { useText } from './i18n.js';
 import React,{useEffect,useRef,useState} from 'react';
 import type {Draft} from '../drafts.js';
 import type {LibraryEntry} from '../library-management.js';
-import type {Expression,ExpressionRef} from '../sample-catalog.js';
+import type {Expression,ExpressionRef} from '../protocol/index.js';
 import type {DshRpc} from './contracts.js';
 import {DraftEditor,discardEditor} from './draft-editor.js';
 import {LibraryControls} from './library-controls.js';

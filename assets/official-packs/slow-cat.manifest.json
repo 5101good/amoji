@@ -1,55 +1,75 @@
 {
   "kind": "amoji.pack",
-  "schema_version": "0.2",
+  "amoji": "0.1",
   "pack_id": "dbd45bc2-b332-4798-8062-3b5349b41b60",
-  "release_id": "c526906d-23c7-4c45-a08e-24b791cdde68",
   "version": 1,
-  "name": "慢半拍猫 / Slow Cat",
-  "created_at": "2026-10-18T00:00:00Z",
-  "description": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。 / A watercolor cat with no hurry. Room to think, and a little kindness for the effort.",
-  "scenario": [
-    "放松",
-    "陪伴",
-    "思考",
-    "rest",
-    "companionship",
-    "reflection"
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
   ],
-  "styles": [
-    "watercolor"
-  ],
+  "name": {
+    "zh-CN": "慢半拍猫",
+    "en": "Slow Cat"
+  },
+  "description": {
+    "zh-CN": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。",
+    "en": "A watercolor cat with no hurry. Room to think, and a little kindness for the effort."
+  },
   "expressions": [
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "8f8bbaaa-bf87-4a26-82a5-1834da24a375",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "先喘口气",
+      "amoji": "0.1",
+      "asset_id": "04d24780-4599-4242-a1d5-1e3266b4e580",
+      "realizes": "core:rest",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "先喘口气",
+        "en": "Breather"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "先缓一缓，给自己一点喘息的空间；不用因为这句表达而催促或继续推进任务。",
-        "tone": "温柔、放松",
-        "fallback": "[先喘口气]",
-        "use_when": [
-          "人想短暂放松时",
-          "AI 温和回应对方的疲惫时"
+        "zh-CN": {
+          "meaning": "先缓一缓，给自己一点喘息的空间；不用因为这句表达而催促或继续推进任务。",
+          "fallback": "[先喘口气]",
+          "use_when": [
+            "人想短暂放松时",
+            "AI 温和回应对方的疲惫时"
+          ],
+          "avoid_when": [
+            "不要据此擅自取消、暂停或修改正在运行的任务"
+          ]
+        },
+        "en": {
+          "meaning": "Let's slow down and take a breath; this is not a nudge to push the task forward.",
+          "fallback": "[breather]",
+          "use_when": [
+            "When someone wants a short break",
+            "When the AI gently answers signs of tiredness"
+          ],
+          "avoid_when": [
+            "Never cancel, pause or change running work because of it"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "先喘口气",
+          "放松",
+          "陪伴",
+          "思考"
         ],
-        "avoid_when": [
-          "不要据此擅自取消、暂停或修改正在运行的任务"
+        "en": [
+          "Breather",
+          "rest",
+          "companionship",
+          "reflection"
         ]
       },
-      "tags": [
-        "协作:放松",
-        "画风:watercolor",
-        "角色:slow-cat",
-        "先喘口气",
-        "放松",
-        "陪伴",
-        "思考",
-        "rest",
-        "companionship",
-        "reflection"
-      ],
       "visual": {
         "primary": {
           "sha256": "298f2b99d46d08c096a4b8a9435bc4b0f19362c5a4f600960f826adcb9e28352",
@@ -58,46 +78,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "99f93e75-7588-4389-985e-9e212a416d4e"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "e990864c-dcc5-41c1-8eeb-c6cc28f9e2d7"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "b3ac81dd-fef9-4899-87e2-bbb86568ff0d",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "让我想想",
+      "amoji": "0.1",
+      "asset_id": "90a241de-393f-4aa7-a6e6-c1ab7ede36de",
+      "realizes": "core:working",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "让我想想",
+        "en": "Let me think"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我还在思考这件事，暂时没有确定的答案，希望留一点整理思路的空间。",
-        "tone": "从容、坦诚",
-        "fallback": "[让我想想]",
-        "use_when": [
-          "人需要考虑一个选择时",
-          "AI 正在梳理问题、尚无结论时"
+        "zh-CN": {
+          "meaning": "我还在思考这件事，暂时没有确定的答案，希望留一点整理思路的空间。",
+          "fallback": "[让我想想]",
+          "use_when": [
+            "人需要考虑一个选择时",
+            "AI 正在梳理问题、尚无结论时"
+          ],
+          "avoid_when": [
+            "不要用它掩盖已停止的工作或承诺后台继续执行"
+          ]
+        },
+        "en": {
+          "meaning": "I'm still thinking this through and have no settled answer yet; I'd like a little room to sort my thoughts.",
+          "fallback": "[let me think]",
+          "use_when": [
+            "When a person is weighing a choice",
+            "When the AI is working through a problem with no conclusion yet"
+          ],
+          "avoid_when": [
+            "Don't hide stopped work or promise background work"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "让我想想",
+          "放松",
+          "陪伴",
+          "思考"
         ],
-        "avoid_when": [
-          "不要用它掩盖已停止的工作或承诺后台继续执行"
+        "en": [
+          "Let me think",
+          "rest",
+          "companionship",
+          "reflection"
         ]
       },
-      "tags": [
-        "协作:放松",
-        "画风:watercolor",
-        "角色:slow-cat",
-        "让我想想",
-        "放松",
-        "陪伴",
-        "思考",
-        "rest",
-        "companionship",
-        "reflection"
-      ],
       "visual": {
         "primary": {
           "sha256": "386d56a6154143f5e4c14c543c666e0140ab14cfcb017fd823426685019963c6",
@@ -106,46 +150,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "c70f5b6d-060c-4c7c-80a7-e75658b1b0f4"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "c6905e85-6fe2-4984-bebb-5326d4822d1c"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "71f9cde0-04d3-4701-b9a9-d1df5104c900",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "陪你一会儿",
+      "amoji": "0.1",
+      "asset_id": "7666117b-6555-4ef1-90db-c4d418c37192",
+      "realizes": "core:company",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "陪你一会儿",
+        "en": "Here with you"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我愿意在这段对话里耐心听你说、陪你理一理，不急着给出解决方案。",
-        "tone": "温暖、耐心",
-        "fallback": "[陪你一会儿]",
-        "use_when": [
-          "对方更需要被倾听时",
-          "想先给予支持而不是建议时"
+        "zh-CN": {
+          "meaning": "我愿意在这段对话里耐心听你说、陪你理一理，不急着给出解决方案。",
+          "fallback": "[陪你一会儿]",
+          "use_when": [
+            "对方更需要被倾听时",
+            "想先给予支持而不是建议时"
+          ],
+          "avoid_when": [
+            "不暗示持续在线、排他关系或对真实情绪的确定判断"
+          ]
+        },
+        "en": {
+          "meaning": "I'm happy to listen and help you sort things out in this conversation, without rushing to a solution.",
+          "fallback": "[here with you]",
+          "use_when": [
+            "When the other person mainly needs to be heard",
+            "When support should come before advice"
+          ],
+          "avoid_when": [
+            "No promise of constant presence or claims about real feelings"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "陪你一会儿",
+          "放松",
+          "陪伴",
+          "思考"
         ],
-        "avoid_when": [
-          "不暗示持续在线、排他关系或对真实情绪的确定判断"
+        "en": [
+          "Here with you",
+          "rest",
+          "companionship",
+          "reflection"
         ]
       },
-      "tags": [
-        "协作:放松",
-        "画风:watercolor",
-        "角色:slow-cat",
-        "陪你一会儿",
-        "放松",
-        "陪伴",
-        "思考",
-        "rest",
-        "companionship",
-        "reflection"
-      ],
       "visual": {
         "primary": {
           "sha256": "971656e76bf430b966085886e85da6494b7dce202271284373f6e6fd6835f6ac",
@@ -154,46 +222,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "ce736424-24f0-4c5f-98c3-abb6cec562c4"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "91dc57c1-677e-49f2-8887-3a32112e735b"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "7740031b-67c6-4276-93fd-9b7914fe5418",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "一小步也算",
+      "amoji": "0.1",
+      "asset_id": "9cb347a3-0768-4a41-914f-b3f87e9b46b1",
+      "realizes": "core:recognize",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "一小步也算",
+        "en": "Small steps count"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "虽然这一步不大，但这份实际进展和付出值得被看见。",
-        "tone": "轻柔、鼓励",
-        "fallback": "[一小步也算]",
-        "use_when": [
-          "完成了一个小步骤时",
-          "回应对方已经付出的努力时"
+        "zh-CN": {
+          "meaning": "虽然这一步不大，但这份实际进展和付出值得被看见。",
+          "fallback": "[一小步也算]",
+          "use_when": [
+            "完成了一个小步骤时",
+            "回应对方已经付出的努力时"
+          ],
+          "avoid_when": [
+            "没有实际进展时不要声称任务已取得成果"
+          ]
+        },
+        "en": {
+          "meaning": "This step is small, but the real progress and effort behind it deserve to be seen.",
+          "fallback": "[small steps count]",
+          "use_when": [
+            "After finishing a small step",
+            "When acknowledging effort already made"
+          ],
+          "avoid_when": [
+            "Don't claim results when there has been no real progress"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "一小步也算",
+          "放松",
+          "陪伴",
+          "思考"
         ],
-        "avoid_when": [
-          "没有实际进展时不要声称任务已取得成果"
+        "en": [
+          "Small steps count",
+          "rest",
+          "companionship",
+          "reflection"
         ]
       },
-      "tags": [
-        "协作:放松",
-        "画风:watercolor",
-        "角色:slow-cat",
-        "一小步也算",
-        "放松",
-        "陪伴",
-        "思考",
-        "rest",
-        "companionship",
-        "reflection"
-      ],
       "visual": {
         "primary": {
           "sha256": "023e5f4034f9d6927554cbc6fd95090a414315ff27bf20198925a75e5f978abc",
@@ -202,39 +294,22 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "17441572-6c97-4615-922f-73809a6fac57"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "a454d6e2-4ed5-4243-b61b-cb981058297e"
     }
   ],
-  "defaults": [
-    {
-      "asset_id": "8f8bbaaa-bf87-4a26-82a5-1834da24a375",
-      "revision_id": "99f93e75-7588-4389-985e-9e212a416d4e"
-    },
-    {
-      "asset_id": "b3ac81dd-fef9-4899-87e2-bbb86568ff0d",
-      "revision_id": "c70f5b6d-060c-4c7c-80a7-e75658b1b0f4"
-    },
-    {
-      "asset_id": "71f9cde0-04d3-4701-b9a9-d1df5104c900",
-      "revision_id": "ce736424-24f0-4c5f-98c3-abb6cec562c4"
-    },
-    {
-      "asset_id": "7740031b-67c6-4276-93fd-9b7914fe5418",
-      "revision_id": "17441572-6c97-4615-922f-73809a6fac57"
-    }
-  ],
-  "actions": [],
-  "bindings": [],
   "rights": {
     "license": "CC0-1.0",
-    "creator": "Amoji",
+    "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
-  }
+  },
+  "release_id": "79a7c35f-e0d3-43fc-ab4c-e09246d28914"
 }

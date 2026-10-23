@@ -1,55 +1,75 @@
 {
   "kind": "amoji.pack",
-  "schema_version": "0.2",
+  "amoji": "0.1",
   "pack_id": "2a01ad10-a763-4839-866f-5f78b0897ee0",
-  "release_id": "c498677e-b19e-43e6-8ff7-fed329b99a05",
   "version": 1,
-  "name": "搭把手犬 / Good Dog",
-  "created_at": "2026-10-18T00:00:00Z",
-  "description": "热情但不抢戏的毛绒搭档。接住你的消息，也认真回应每一份善意。 / A soft, enthusiastic teammate. Every message received, every kindness returned.",
-  "scenario": [
-    "鼓励",
-    "感谢",
-    "回应",
-    "encouragement",
-    "thanks",
-    "acknowledgement"
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
   ],
-  "styles": [
-    "felt"
-  ],
+  "name": {
+    "zh-CN": "搭把手犬",
+    "en": "Good Dog"
+  },
+  "description": {
+    "zh-CN": "热情但不抢戏的毛绒搭档。接住你的消息，也认真回应每一份善意。",
+    "en": "A soft, enthusiastic teammate. Every message received, every kindness returned."
+  },
   "expressions": [
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "9f40c9be-cc49-4ab3-af60-b0fe5e41a57e",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "击个掌",
+      "amoji": "0.1",
+      "asset_id": "4de35ffb-4ea0-45a2-b54e-fc17b9466925",
+      "realizes": "core:celebrate",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "击个掌",
+        "en": "High five"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "为我们刚刚共同完成的一步击个掌，分享这份开心。",
-        "tone": "开心、亲切",
-        "fallback": "[击个掌]",
-        "use_when": [
-          "共同完成一个步骤时",
-          "回应对方分享的好消息时"
+        "zh-CN": {
+          "meaning": "为我们刚刚共同完成的一步击个掌，分享这份开心。",
+          "fallback": "[击个掌]",
+          "use_when": [
+            "共同完成一个步骤时",
+            "回应对方分享的好消息时"
+          ],
+          "avoid_when": [
+            "不把庆祝当作未验证任务的完成证明"
+          ]
+        },
+        "en": {
+          "meaning": "A high five for the step we just finished together; sharing the good moment.",
+          "fallback": "[high five]",
+          "use_when": [
+            "After finishing a step together",
+            "When answering good news"
+          ],
+          "avoid_when": [
+            "Don't treat celebration as proof that unverified work is done"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "击个掌",
+          "鼓励",
+          "感谢",
+          "回应"
         ],
-        "avoid_when": [
-          "不把庆祝当作未验证任务的完成证明"
+        "en": [
+          "High five",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
         ]
       },
-      "tags": [
-        "协作:鼓励",
-        "画风:felt",
-        "角色:good-dog",
-        "击个掌",
-        "鼓励",
-        "感谢",
-        "回应",
-        "encouragement",
-        "thanks",
-        "acknowledgement"
-      ],
       "visual": {
         "primary": {
           "sha256": "f824e11edf3f2747ba3cc9588df234b21197255cd105fd3592a01ab01f065eef",
@@ -58,46 +78,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "dc10a2be-474d-4d3d-85bd-2a1deeeb6e49"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "34de2aec-bac8-4fc7-a9e3-6b179c681dc0"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "9931fb50-9b94-481d-9006-34f66244ab0a",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "收到啦",
+      "amoji": "0.1",
+      "asset_id": "9d23f82f-bb95-412e-a99e-515b9cc474af",
+      "realizes": "core:ack",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "收到啦",
+        "en": "Got it!"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "你的这条消息我收到了，也理解了其中明确表达的意思。",
-        "tone": "积极、自然",
-        "fallback": "[收到啦]",
-        "use_when": [
-          "确认收到清楚的消息时",
-          "无需长篇回复的日常交接时"
+        "zh-CN": {
+          "meaning": "你的这条消息我收到了，也理解了其中明确表达的意思。",
+          "fallback": "[收到啦]",
+          "use_when": [
+            "确认收到清楚的消息时",
+            "无需长篇回复的日常交接时"
+          ],
+          "avoid_when": [
+            "有歧义时应先澄清；收到不代表任务已经完成或权限已经授予"
+          ]
+        },
+        "en": {
+          "meaning": "I received your message and understood what it clearly says.",
+          "fallback": "[got it]",
+          "use_when": [
+            "Confirming a clear message",
+            "Everyday handoffs that need no long reply"
+          ],
+          "avoid_when": [
+            "Clarify ambiguity first; receipt isn't completion or permission"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "收到啦",
+          "鼓励",
+          "感谢",
+          "回应"
         ],
-        "avoid_when": [
-          "有歧义时应先澄清；收到不代表任务已经完成或权限已经授予"
+        "en": [
+          "Got it!",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
         ]
       },
-      "tags": [
-        "协作:鼓励",
-        "画风:felt",
-        "角色:good-dog",
-        "收到啦",
-        "鼓励",
-        "感谢",
-        "回应",
-        "encouragement",
-        "thanks",
-        "acknowledgement"
-      ],
       "visual": {
         "primary": {
           "sha256": "8ac1b107f8d2275232ce69a8ee21ac896915ed2245118a5bc8ad007c321017cf",
@@ -106,46 +150,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "bcb23d3a-056d-4c22-b996-a713130b3a12"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "08a38f60-dbdc-4c79-8468-78439215d501"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "9b056cfb-1a43-4ab5-9814-13a8348481b1",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "给你打气",
+      "amoji": "0.1",
+      "asset_id": "d7f7b1ac-0036-4f90-8ea5-f7a916c5a201",
+      "realizes": "core:encourage",
+      "intensity": 3,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "给你打气",
+        "en": "Rooting for you"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我想给你一些鼓励，认可你的努力，祝你接下来顺利。",
-        "tone": "热情、支持",
-        "fallback": "[给你打气]",
-        "use_when": [
-          "对方正在努力时",
-          "开始有挑战的工作之前"
+        "zh-CN": {
+          "meaning": "我想给你一些鼓励，认可你的努力，祝你接下来顺利。",
+          "fallback": "[给你打气]",
+          "use_when": [
+            "对方正在努力时",
+            "开始有挑战的工作之前"
+          ],
+          "avoid_when": [
+            "不保证成功，也不替代必要的具体帮助"
+          ]
+        },
+        "en": {
+          "meaning": "I want to cheer you on, recognize your effort and wish you luck with what comes next.",
+          "fallback": "[rooting for you]",
+          "use_when": [
+            "While someone is working hard",
+            "Before starting challenging work"
+          ],
+          "avoid_when": [
+            "It doesn't promise success or replace concrete help"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "给你打气",
+          "鼓励",
+          "感谢",
+          "回应"
         ],
-        "avoid_when": [
-          "不保证成功，也不替代必要的具体帮助"
+        "en": [
+          "Rooting for you",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
         ]
       },
-      "tags": [
-        "协作:鼓励",
-        "画风:felt",
-        "角色:good-dog",
-        "给你打气",
-        "鼓励",
-        "感谢",
-        "回应",
-        "encouragement",
-        "thanks",
-        "acknowledgement"
-      ],
       "visual": {
         "primary": {
           "sha256": "d1ade867cca3a3c3ce84047ea297a0837365a2cbc677feb0380201f25398c500",
@@ -154,46 +222,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "b6d87d42-5eb7-4770-82f2-10174d28e23a"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "82059718-88e4-4d15-b4b9-7fb6f8fd89b7"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "8cecd49b-91bd-41bf-a74b-8f75345ea09b",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "多亏有你",
+      "amoji": "0.1",
+      "asset_id": "419e016a-5773-4a52-8120-c4178f858ff5",
+      "realizes": "core:thanks",
+      "intensity": 3,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "多亏有你",
+        "en": "Couldn't without you"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "谢谢你刚才提供的帮助或支持，这份投入对我很有帮助。",
-        "tone": "真诚、感激",
-        "fallback": "[多亏有你]",
-        "use_when": [
-          "人感谢 AI 的帮助时",
-          "AI 感谢人补充信息或纠正问题时"
+        "zh-CN": {
+          "meaning": "谢谢你刚才提供的帮助或支持，这份投入对我很有帮助。",
+          "fallback": "[多亏有你]",
+          "use_when": [
+            "人感谢 AI 的帮助时",
+            "AI 感谢人补充信息或纠正问题时"
+          ],
+          "avoid_when": [
+            "不夸大帮助，也不暗示情感依赖"
+          ]
+        },
+        "en": {
+          "meaning": "Thank you for the help or support just now; it really helped me.",
+          "fallback": "[thank you]",
+          "use_when": [
+            "When a person thanks the AI for help",
+            "When the AI thanks someone for info or a correction"
+          ],
+          "avoid_when": [
+            "Don't exaggerate the help or imply emotional dependence"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "多亏有你",
+          "鼓励",
+          "感谢",
+          "回应"
         ],
-        "avoid_when": [
-          "不夸大帮助，也不暗示情感依赖"
+        "en": [
+          "Couldn't without you",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
         ]
       },
-      "tags": [
-        "协作:鼓励",
-        "画风:felt",
-        "角色:good-dog",
-        "多亏有你",
-        "鼓励",
-        "感谢",
-        "回应",
-        "encouragement",
-        "thanks",
-        "acknowledgement"
-      ],
       "visual": {
         "primary": {
           "sha256": "1eff51cd523dda0241ee680a0bd8551ccf054bc5c172845472dbec1e2775478d",
@@ -202,39 +294,22 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "c6ba4ca2-c05f-448f-bca7-261900fa102e"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "380275b5-5cc3-46a5-b728-b6d23a472286"
     }
   ],
-  "defaults": [
-    {
-      "asset_id": "9f40c9be-cc49-4ab3-af60-b0fe5e41a57e",
-      "revision_id": "dc10a2be-474d-4d3d-85bd-2a1deeeb6e49"
-    },
-    {
-      "asset_id": "9931fb50-9b94-481d-9006-34f66244ab0a",
-      "revision_id": "bcb23d3a-056d-4c22-b996-a713130b3a12"
-    },
-    {
-      "asset_id": "9b056cfb-1a43-4ab5-9814-13a8348481b1",
-      "revision_id": "b6d87d42-5eb7-4770-82f2-10174d28e23a"
-    },
-    {
-      "asset_id": "8cecd49b-91bd-41bf-a74b-8f75345ea09b",
-      "revision_id": "c6ba4ca2-c05f-448f-bca7-261900fa102e"
-    }
-  ],
-  "actions": [],
-  "bindings": [],
   "rights": {
     "license": "CC0-1.0",
-    "creator": "Amoji",
+    "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
-  }
+  },
+  "release_id": "d881fc73-53c9-42ca-988c-e31d58f34c22"
 }

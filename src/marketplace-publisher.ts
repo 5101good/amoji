@@ -2,17 +2,18 @@ import {mkdir,chmod,lstat,readFile,writeFile,rename,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import type {AdapterRuntime} from './adapter-runtime.js';
-import {exportManifest,withValidatedPack,type ScenarioPack} from './packs.js';
+import {exportManifest,withValidatedPack} from './packs.js';
+import type {Pack} from './protocol/index.js';
 import {fail,object,nonempty} from './shared-contract.js';
 export const MARKET_ORIGIN='https://amoji.ai-web.ai';
 type Tokens={access_token:string;refresh_token:string;account_id:string;device_id:string;expires_at:number;refreshing?:boolean};
 type Pair={id:string;device_secret:string;user_code:string;device_name:string;expires_at:number;verification_uri:string;next_poll:number};
 type Credentials={origin:string;tokens?:Tokens;pair?:Pair};
-export type PublisherDraft={id:string;version:number;step:number;source_release_id:string;manifest:ScenarioPack;account_id?:string;pack_id?:string;state:'draft'|'uploading'|'uploaded'|'unknown'|'submitted';unknown_absent?:boolean;reserve_operation:string;authorize_operation:string;complete_operation:string;submit_operation:string;upload?:{id:string;pack_id:string;release_id:string;version:number;row_version:number;state:string};submission?:{id:string;pack_id:string;release_id:string;version:number;state:string;reason:string|null;row_version:number}};
+export type PublisherDraft={id:string;version:number;step:number;source_release_id:string;manifest:Pack;account_id?:string;pack_id?:string;state:'draft'|'uploading'|'uploaded'|'unknown'|'submitted';unknown_absent?:boolean;reserve_operation:string;authorize_operation:string;complete_operation:string;submit_operation:string;upload?:{id:string;pack_id:string;release_id:string;version:number;row_version:number;state:string};submission?:{id:string;pack_id:string;release_id:string;version:number;state:string;reason:string|null;row_version:number}};
 /** Credentials stay host-owned; RPC returns public draft snapshots only. All mutations serialize. */
 export class MarketplacePublisher{
  private tail:Promise<unknown>=Promise.resolve();
- constructor(private directory:string,private runtime:{scenarios?:Pick<NonNullable<AdapterRuntime['scenarios']>,'getScenarioPack'>;readBlob?:AdapterRuntime['readBlob']},private origin=MARKET_ORIGIN,private fetcher:typeof fetch=fetch,private now=Date.now){const u=new URL(origin);if(u.origin!==origin||!(u.protocol==='https:'||(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname))))throw Error('INVALID_MARKET_ORIGIN');}
+ constructor(private directory:string,private runtime:{packs?:{getPack(releaseId:string):Promise<Pack>};readBlob?:AdapterRuntime['readBlob']},private origin=MARKET_ORIGIN,private fetcher:typeof fetch=fetch,private now=Date.now){const u=new URL(origin);if(u.origin!==origin||!(u.protocol==='https:'||(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname))))throw Error('INVALID_MARKET_ORIGIN');}
  call(method:string,raw:unknown):Promise<any>{const work=this.tail.then(()=>this.execute(method,raw));this.tail=work.catch(()=>{});return work;}
  private async read<T>(name:string,fallback:T):Promise<T>{try{return JSON.parse(await readFile(join(this.directory,name),'utf8')) as T;}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return fallback;throw e;}}
  private async write(name:string,value:unknown){const tmp=join(this.directory,'.'+randomUUID());try{await writeFile(tmp,JSON.stringify(value),{mode:0o600,flag:'wx'});await rename(tmp,join(this.directory,name));}finally{await rm(tmp,{force:true});}}
@@ -30,7 +31,7 @@ export class MarketplacePublisher{
  }
  private tokens(value:any):Tokens{if(!/^[a-f0-9]{64}$/.test(value.access_token)||!/^[a-f0-9]{64}$/.test(value.refresh_token)||typeof value.account_id!=='string'||typeof value.device_id!=='string'||value.expires_in!==900)fail('PUBLISHER_LOGIN','授权响应无效');return{access_token:value.access_token,refresh_token:value.refresh_token,account_id:value.account_id,device_id:value.device_id,expires_at:this.now()+900000};}
  private async execute(method:string,raw:unknown):Promise<any>{
-  await this.init();const schemas:Record<string,string[]>={beginLogin:['device_name'],loginStatus:[],cancelLogin:[],logout:[],drafts:[],create:['release_id','revise_id'],save:['id','version','step','name','description','license','creator','source','actions'],upload:['id'],submit:['id','rights_confirmed'],retrySubmit:['id','rights_confirmed'],reconcile:['id'],submissions:[],withdraw:['id']};
+  await this.init();const schemas:Record<string,string[]>={beginLogin:['device_name'],loginStatus:[],cancelLogin:[],logout:[],drafts:[],create:['release_id','revise_id'],save:['id','version','step','name','description','license','creator','source','effects'],upload:['id'],submit:['id','rights_confirmed'],retrySubmit:['id','rights_confirmed'],reconcile:['id'],submissions:[],withdraw:['id']};
   if(!schemas[method])fail('INVALID_ARGUMENT','未知发布操作');const a=object(raw,schemas[method]!,[]);
   if(method==='beginLogin'){
    const c=await this.credentials();if(c.pair)await this.request(`device-authorizations/${c.pair.id}/cancel`,{device_secret:c.pair.device_secret});
@@ -56,7 +57,7 @@ export class MarketplacePublisher{
   if(method==='drafts')return drafts;
   const save=async(d:PublisherDraft)=>{d.version++;await this.write('drafts.json',drafts);return d;};
   if(method==='create'){
-   if(!this.runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','本地表情包不可用');const source=await this.runtime.scenarios.getScenarioPack(nonempty(a.release_id));
+   if(!this.runtime.packs)fail('CAPABILITY_UNAVAILABLE','本地表情包不可用');const source=await this.runtime.packs.getPack(nonempty(a.release_id));
    const old=a.revise_id?drafts.find(d=>d.id===a.revise_id):undefined;
    if(a.revise_id&&(!old||!old.submission||!['changes_requested','published','withdrawn'].includes(old.submission.state)))fail('PUBLISHER_STATE','请先核对投稿状态');
    const d:PublisherDraft={id:randomUUID(),version:1,step:1,source_release_id:source.release_id,manifest:source,state:'draft',reserve_operation:randomUUID(),authorize_operation:randomUUID(),complete_operation:randomUUID(),submit_operation:randomUUID(),...(old?{pack_id:old.submission!.pack_id,account_id:old.account_id}:{})};drafts.unshift(d);await this.write('drafts.json',drafts);return d;
@@ -66,11 +67,16 @@ export class MarketplacePublisher{
   if(method==='save'){
    if(d.state!=='draft'||a.version!==d.version)fail('PUBLISHER_CONFLICT','草稿已变化，请重新打开');
    if(!Number.isInteger(a.step)||Number(a.step)<1||Number(a.step)>3)fail('INVALID_ARGUMENT','无效向导步骤');
-   if(!Array.isArray(a.actions)||a.actions.some(id=>typeof id!=='string'))fail('INVALID_ARGUMENT','无效动作选择');
-   const original=await this.runtime.scenarios!.getScenarioPack(d.source_release_id);const ids=a.actions as string[];
-   if(ids.some(id=>!original.actions.some(x=>x.action_revision_id===id)))fail('INVALID_ARGUMENT','动作不属于选择的本地包');
-   for(const key of ['name','description','license','creator','source'])if(typeof a[key]!=='string'||Buffer.byteLength(a[key] as string)>4096)fail('INVALID_ARGUMENT','发布说明过长或无效');
-   const actions=original.actions.filter(x=>ids.includes(x.action_revision_id));d.manifest={...original,name:a.name as string,description:a.description as string,rights:{license:a.license as string,creator:a.creator as string,...(a.source?{source:a.source as string}:{})},actions,bindings:original.bindings.map(b=>({...b,actions:b.actions.filter(x=>ids.includes(x.action_revision_id))})).filter(b=>b.actions.length)};d.step=Number(a.step);return save(d);
+   if(!Array.isArray(a.effects)||a.effects.some(id=>typeof id!=='string'))fail('INVALID_ARGUMENT','无效效果选择');
+   const original=await this.runtime.packs!.getPack(d.source_release_id);const ids=a.effects as string[];
+   if(ids.some(id=>!(original.effects??[]).some(x=>x.effect_revision_id===id)))fail('INVALID_ARGUMENT','效果不属于选择的本地包');
+   for(const key of ['license','creator','source'])if(typeof a[key]!=='string'||Buffer.byteLength(a[key] as string)>4096)fail('INVALID_ARGUMENT','发布说明过长或无效');
+   // A plain string applies to every language the pack declares; a map must cover them all.
+   const localized=(value:unknown,max:number):Record<string,string>=>{const map=typeof value==='string'?Object.fromEntries(original.locales.map(l=>[l,value])):value;if(!map||typeof map!=='object'||Array.isArray(map)||original.locales.some(l=>typeof (map as Record<string,unknown>)[l]!=='string'||![...(map as Record<string,string>)[l]!.trim()].length||[...(map as Record<string,string>)[l]!].length>max))fail('INVALID_ARGUMENT','名称或说明需要覆盖包的全部语言');return Object.fromEntries(original.locales.map(l=>[l,(map as Record<string,string>)[l]!.trim()]));};
+   const effects=(original.effects??[]).filter(x=>ids.includes(x.effect_revision_id));const kept=new Set(effects.map(e=>e.effect_id));
+   const bindings=(original.bindings??[]).map(b=>({...b,effects:b.effects.filter(id=>kept.has(id))})).filter(b=>b.effects.length);
+   const {effects:_,bindings:__,...rest}=original;
+   d.manifest={...rest,name:localized(a.name,60),description:localized(a.description,280),rights:{license:a.license as string,...(a.creator?{creator:a.creator as string}:{}),...(a.source?{source:a.source as string}:{})},...(effects.length?{effects}:{}),...(bindings.length?{bindings}:{})};d.step=Number(a.step);return save(d);
   }
   const token=await this.token();if(d.account_id&&d.account_id!==token.account_id)fail('PUBLISHER_ACCOUNT','请使用原投稿账号');d.account_id=token.account_id;
   if(method==='upload'){

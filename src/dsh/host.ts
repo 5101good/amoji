@@ -1,6 +1,6 @@
 import type {DshPublisher} from './publisher.js';
-import { actionSelection, type ActionSelection } from '../collaboration.js';
-import type { DshCollaboration } from './collaboration.js';
+import { effectSelection, type EffectSelection } from '../effects.js';
+import type { DshCollaboration } from './effects.js';
 import { AiSuggestions, conversationModel } from './ai-suggestions.js';
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection';
 import type { JsonValue } from '@deepseek-ai/dsh-util-values';
@@ -11,11 +11,11 @@ import { modelProjection } from '../projection.js';
 import { searchExpressions } from '../search.js';
 import { fail, nonempty, object, type BindingContext } from '../shared-contract.js';
 import type { AdapterRuntime } from '../adapter-runtime.js';
-import type { ExpressionRef } from '../sample-catalog.js';
-import type { SampleMessage } from '../sample-runtime.js';
+import type { ExpressionRef } from '../protocol/index.js';
+import type { StoredMessage } from '../messages.js';
 import type { DshEvent, DshExecution, DshSession, HostPort, HistoryEntry, ToolOptions, VisualMeta } from './contracts.js';
 
-export function visualMeta(message: SampleMessage): VisualMeta {
+export function visualMeta(message: StoredMessage): VisualMeta {
   const e = message.revision;
   return { kind: 'amoji', messageId: message.message_id, ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: e.semantics.fallback };
 }
@@ -30,7 +30,7 @@ function record(value: unknown): Record<string, unknown> { return value && typeo
 export class DshAdapter {
   private readonly aiSuggestions: AiSuggestions;
   private panel?: Promise<PanelServer>;
-  private readonly pending = new Map<string, { ref: ExpressionRef; action?: ActionSelection; work: Promise<HistoryEntry> }>();
+  private readonly pending = new Map<string, { ref: ExpressionRef; action?: EffectSelection; work: Promise<HistoryEntry> }>();
   private readonly lifecycle: AbortSignal;
   constructor(private readonly ctx: HostPort, private readonly runtime: AdapterRuntime, private readonly hostInstanceId: string, private readonly collaboration?: DshCollaboration, private readonly publisher?: DshPublisher) {
     nonempty(hostInstanceId);
@@ -84,7 +84,7 @@ export class DshAdapter {
     if (result.agent.id !== sessionId || result.agent.session.id !== sessionId) fail('DSH_CONTEXT_MISMATCH', '宿主解析了其他会话');
     return result.agent.session;
   }
-  private async messageRows(sessionId:string,events:readonly DshEvent[]):Promise<SampleMessage[]> {
+  private async messageRows(sessionId:string,events:readonly DshEvent[]):Promise<StoredMessage[]> {
     const current=await this.runtime.messages(this.context(sessionId));
     if(this.hostInstanceId==='local')return current;
     const legacy=await this.runtime.messages({host:'dsh',hostInstanceId:'local',sessionId});
@@ -95,13 +95,13 @@ export class DshAdapter {
     };
     // Legacy history is read only and must already belong to this native log.
     // Never migrate a legacy action or authorize from a replayed expression.
-    return [...legacy.filter(m=>!m.action_intent && !current.some(c=>c.message_id===m.message_id) && events.some(e=>references(e.data,m.message_id))),...current];
+    return [...legacy.filter(m=>!m.effect_intent && !current.some(c=>c.message_id===m.message_id) && events.some(e=>references(e.data,m.message_id))),...current];
   }
   private async rows(sessionId: string, events: readonly DshEvent[]): Promise<HistoryEntry[]> {
     const messages=await this.messageRows(sessionId,events);
-    if(this.collaboration && messages.some(m=>m.action_intent))await this.session(sessionId,this.lifecycle);
+    if(this.collaboration && messages.some(m=>m.effect_intent))await this.session(sessionId,this.lifecycle);
     return Promise.all(messages.map(async message => {
-      const action = message.action_intent ? (this.collaboration ? await this.collaboration.receipt(sessionId,message) : {status:'unsupported' as const,reason:'host-context-unavailable'}) : undefined;
+      const action = message.effect_intent ? (this.collaboration ? await this.collaboration.receipt(sessionId,message) : {status:'unsupported' as const,reason:'host-context-unavailable'}) : undefined;
       if (message.direction !== 'human_to_ai') return { message, meta: visualMeta(message), host: null };
       const requestId = `amoji:${message.message_id}`;
       const user = events.find(e => e.type === 'user/message' && record(record(e.data).source).kind === 'user' && record(record(e.data).source).rpcId === requestId);
@@ -151,7 +151,7 @@ export class DshAdapter {
       await this.session(sessionId,signal);
       if(method==='collaboration.rules')return this.collaboration.rules(sessionId);
       if(!Number.isSafeInteger(args.generation)||Number(args.generation)<0)fail('INVALID_ARGUMENT','无效规则 generation');
-      return this.collaboration.change(sessionId,{kind:method.slice('collaboration.'.length) as 'enable'|'disable'|'disableAll',generation:Number(args.generation),...(args.selection?{selection:actionSelection(args.selection)}:{}),...(args.replace?{replace:actionSelection(args.replace)}:{replace:null})});
+      return this.collaboration.change(sessionId,{kind:method.slice('collaboration.'.length) as 'enable'|'disable'|'disableAll',generation:Number(args.generation),...(args.selection?{selection:effectSelection(args.selection)}:{}),...(args.replace?{replace:effectSelection(args.replace)}:{replace:null})});
     }
     if(method==='collaboration.capabilities')return {supported:!!this.collaboration&&!!this.runtime.collaboration,scopes:['turn','conversation'],reason:this.collaboration&&this.runtime.collaboration?null:'host-context-unavailable'};
     if(method==='collaboration.receipts')return (await this.rows(sessionId,events)).filter(row=>row.action);
@@ -181,7 +181,7 @@ export class DshAdapter {
       await this.runtime.acknowledge(currentMessages.some(m=>m.message_id===messageId)?context:{...context,hostInstanceId:'local'}, messageId, args.state === 'rendered' ? 'rendered' : 'fallback');
       return null;
     }
-    const action = method === 'submitWithAction' ? actionSelection({...object(args.actionRef,['action_id','action_revision_id']),...object(args.releaseRef,['release_id'])}) : undefined;
+    const action = method === 'submitWithAction' ? effectSelection({...object(args.actionRef,['action_id','action_revision_id']),...object(args.releaseRef,['release_id'])}) : undefined;
     if(action && (!this.collaboration || !this.runtime.collaboration))fail('CAPABILITY_UNAVAILABLE','当前宿主不支持协作动作，可明确选择仅发送');
     const requestId = nonempty(args.requestId); const ref = refOf(args.ref); const key = JSON.stringify([sessionId, requestId]);
     signal.throwIfAborted();
@@ -211,18 +211,18 @@ export class DshAdapter {
       void work.then(value => { signal.removeEventListener('abort', cancelled); if (!signal.aborted) resolve(value); }, error => { signal.removeEventListener('abort', cancelled); if (!signal.aborted) reject(error); });
     });
   }
-  private async submit(sessionId: string, ref: ExpressionRef, requestId: string, signal: AbortSignal, action?: ActionSelection): Promise<HistoryEntry> {
+  private async submit(sessionId: string, ref: ExpressionRef, requestId: string, signal: AbortSignal, action?: EffectSelection): Promise<HistoryEntry> {
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
     // Read-only preflight happens before creating the atomic message/intent pair.
     if(action){
-      const previous=(await this.runtime.messages(context)).find(m=>m.action_intent?.requestId===requestId);
+      const previous=(await this.runtime.messages(context)).find(m=>m.effect_intent?.requestId===requestId);
       if(!previous){await this.collaboration!.rules(sessionId);const choice=(await this.runtime.collaboration!.choices(context,ref)).find(c=>JSON.stringify(c.selection)===JSON.stringify(action));if(!choice)fail('ACTION_UNAVAILABLE','此精确动作不可用于所选表情');this.collaboration!.validate(sessionId,choice,ref);}
     }
     const message = await this.runtime.receive(context, ref, requestId, action); signal.throwIfAborted();
     const existing = (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
-    if (existing.host!.status !== 'prepared' || (message.action_intent?.checkpoint && existing.action?.status==='unknown')) return existing;
+    if (existing.host!.status !== 'prepared' || (message.effect_intent?.checkpoint && existing.action?.status==='unknown')) return existing;
     await this.flush(session); signal.throwIfAborted();
-    if(message.action_intent)await this.collaboration!.prepare(sessionId,message);
+    if(message.effect_intent)await this.collaboration!.prepare(sessionId,message);
     if (!this.runtime.dshAttempted || !this.runtime.dshAccepted) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持可靠投递，请升级服务后重新连接');
     // The single writer claims dispatch before crossing the host boundary. Any
     // later uncertainty is reconciled by native rpcId, never by another prompt.
@@ -231,7 +231,7 @@ export class DshAdapter {
       return (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
     }
       signal.throwIfAborted();
-      if(message.action_intent)this.collaboration!.dispatched(sessionId,message);
+      if(message.effect_intent)this.collaboration!.dispatched(sessionId,message);
       const result = await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji:${message.message_id}`, mode: 'queue', content: [{ type: 'text', text: expressionMessageText(message.revision) }] }, signal);
       signal.throwIfAborted();
       if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');
@@ -239,7 +239,7 @@ export class DshAdapter {
       await this.runtime.dshAccepted(context, message.message_id); signal.throwIfAborted();
       return (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
     } catch {
-      if(message.action_intent)this.collaboration!.uncertain(sessionId,message);
+      if(message.effect_intent)this.collaboration!.uncertain(sessionId,message);
       fail('DSH_OUTCOME_UNKNOWN', '投递结果尚待核对。请重新连接并核对原会话；不要重新选择或另发一次。');
     }
   }

@@ -3,7 +3,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import type {SuggestionModel} from './ai-suggestions.js';
 import type {Draft,DraftFields} from '../drafts.js';
 import type {DshRpc} from './contracts.js';
-import type {Expression} from '../sample-catalog.js';
+import type {Expression} from '../protocol/index.js';
 import {Conflict} from './ui.js';
 export function Fields({value,onChange,showRights=true}:{value:DraftFields;onChange:(v:DraftFields)=>void;showRights?:boolean}){
  const t=useText();

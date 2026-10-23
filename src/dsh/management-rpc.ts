@@ -1,7 +1,7 @@
 import type {ScenarioDraft} from '../scenario-drafts.js';
 import type {ScenarioPack} from '../packs.js';
 import type { Draft, DraftFields } from '../drafts.js';
-import type { Expression, ExpressionRef } from '../sample-catalog.js';
+import type { Expression, ExpressionRef } from '../protocol/index.js';
 import type { LibraryEntry, PersonalPreferences, PersonalSettings } from '../library-management.js';
 import type { TextSuggestion } from '../suggestions.js';
 import type { ImportResult } from '../packs.js';

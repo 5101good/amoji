@@ -1,25 +1,25 @@
 import type { ExpressionApplication } from "../application/expressions.js";
 import type { BindingContext } from "../shared-contract.js";
-import type { SampleMessage } from "../sample-runtime.js";
+import type { StoredMessage } from "../sample-runtime.js";
 import { modelProjection } from "../projection.js";
 
 const MARKER = /\[\[amoji:([0-9a-f-]{36})\]\]/g;
 export function messageMarker(
-  message: Pick<SampleMessage, "message_id">,
+  message: Pick<StoredMessage, "message_id">,
 ): string {
   return `[[amoji:${message.message_id}]]`;
 }
-export function humanText(message: SampleMessage): string {
+export function humanText(message: StoredMessage): string {
   return `${messageMarker(message)}\n${modelProjection(message.revision).replaceAll("@", "\\u0040")}`;
 }
 export type MessageSegment =
   | { kind: "text"; text: string }
-  | { kind: "expression"; message: SampleMessage };
+  | { kind: "expression"; message: StoredMessage };
 /** A marker is only a local reference. The same-session journal is the authority. */
 export async function renderSegments(
   app: ExpressionApplication,
   context: BindingContext,
-  direction: SampleMessage["direction"],
+  direction: StoredMessage["direction"],
   text: string,
 ): Promise<MessageSegment[]> {
   if (!text.includes("[[amoji:") || text.length > 100_000)

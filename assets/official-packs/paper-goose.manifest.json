@@ -1,54 +1,73 @@
 {
   "kind": "amoji.pack",
-  "schema_version": "0.2",
+  "amoji": "0.1",
   "pack_id": "c4d192ee-1e20-4744-9ca1-544d8c32427c",
-  "release_id": "1f92fbec-6f6b-47bc-b6c7-c3bb2e433a2e",
   "version": 1,
-  "name": "纸片鹅 / Paper Goose",
-  "created_at": "2026-10-18T00:00:00Z",
-  "description": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。 / A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections.",
-  "scenario": [
-    "幽默",
-    "提醒",
-    "简化",
-    "humor",
-    "reminders",
-    "clarity"
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
   ],
-  "styles": [
-    "paper-cut"
-  ],
+  "name": {
+    "zh-CN": "纸片鹅",
+    "en": "Paper Goose"
+  },
+  "description": {
+    "zh-CN": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。",
+    "en": "A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections."
+  },
   "expressions": [
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "d8225c72-1d1e-497e-9107-ced4c6229cf0",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "鹅等一下",
+      "amoji": "0.1",
+      "asset_id": "c0d915e5-7124-4079-b648-b1b40c8200c7",
+      "realizes": "core:hold",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "鹅等一下",
+        "en": "Hold on, honk"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "先等一下，我有一点需要补充或确认，希望暂缓眼前的讨论节奏。",
-        "tone": "俏皮、温和",
-        "fallback": "[鹅等一下]",
-        "use_when": [
-          "需要打断补充信息时"
+        "zh-CN": {
+          "meaning": "先等一下，我有一点需要补充或确认，希望暂缓眼前的讨论节奏。",
+          "fallback": "[鹅等一下]",
+          "use_when": [
+            "需要打断补充信息时"
+          ],
+          "avoid_when": [
+            "不表示取消任务、撤回权限或终止后台进程"
+          ]
+        },
+        "en": {
+          "meaning": "Hold on a moment; I have something to add or check and would like to pause the discussion briefly.",
+          "fallback": "[hold on]",
+          "use_when": [
+            "When interrupting to add information"
+          ],
+          "avoid_when": [
+            "Doesn't cancel work, withdraw permission or stop processes"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "鹅等一下",
+          "幽默",
+          "提醒",
+          "简化"
         ],
-        "avoid_when": [
-          "不表示取消任务、撤回权限或终止后台进程"
+        "en": [
+          "Hold on, honk",
+          "humor",
+          "reminders",
+          "clarity"
         ]
       },
-      "tags": [
-        "协作:幽默",
-        "画风:paper-cut",
-        "角色:paper-goose",
-        "鹅等一下",
-        "幽默",
-        "提醒",
-        "简化",
-        "humor",
-        "reminders",
-        "clarity"
-      ],
       "visual": {
         "primary": {
           "sha256": "aebb07148b30675b10ed2a7192541b78e517a1cc6d041a60b86925f6988fbed4",
@@ -57,45 +76,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "439176bc-9f85-44dc-a41c-2fe05eb7676b"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "fdee1883-311d-4284-be80-902959043f4b"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "1d95971d-ddd8-42f2-93f3-b424321e27e8",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "信息有点满",
+      "amoji": "0.1",
+      "asset_id": "140459ff-ad5e-40ad-bf0c-1f9d1095c7e9",
+      "realizes": "core:to-the-point",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "信息有点满",
+        "en": "That's a lot"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "这次信息量有点大，我想先抓住最关键的部分，再逐步展开。",
-        "tone": "幽默、直接",
-        "fallback": "[信息有点满]",
-        "use_when": [
-          "回复过长或细节过多时"
+        "zh-CN": {
+          "meaning": "这次信息量有点大，我想先抓住最关键的部分，再逐步展开。",
+          "fallback": "[信息有点满]",
+          "use_when": [
+            "回复过长或细节过多时"
+          ],
+          "avoid_when": [
+            "不据此省略影响判断的重要风险或事实"
+          ]
+        },
+        "en": {
+          "meaning": "That's a lot of information; let's take the key point first and expand step by step.",
+          "fallback": "[that's a lot]",
+          "use_when": [
+            "When a reply is too long or too detailed"
+          ],
+          "avoid_when": [
+            "Don't drop important risks or facts because of it"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "信息有点满",
+          "幽默",
+          "提醒",
+          "简化"
         ],
-        "avoid_when": [
-          "不据此省略影响判断的重要风险或事实"
+        "en": [
+          "That's a lot",
+          "humor",
+          "reminders",
+          "clarity"
         ]
       },
-      "tags": [
-        "协作:幽默",
-        "画风:paper-cut",
-        "角色:paper-goose",
-        "信息有点满",
-        "幽默",
-        "提醒",
-        "简化",
-        "humor",
-        "reminders",
-        "clarity"
-      ],
       "visual": {
         "primary": {
           "sha256": "4242722f33b10656ebec8479f80ea7532878885759f7c3f2a1eeb748a3959d81",
@@ -104,46 +146,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "2ad9346c-d2dc-40d3-9402-5b6fd977bf9a"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "039d91cf-3228-4b80-ae33-8b7e831b8a2e"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "30796512-94b5-4002-b990-f16403e12d02",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "回到正题鹅",
+      "amoji": "0.1",
+      "asset_id": "8f7e6d60-9b71-487a-843c-bd3ff14b5142",
+      "realizes": "core:redirect",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "回到正题鹅",
+        "en": "Back on track"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我们似乎有点偏离当前问题，我想把注意力带回已经明确的重点。",
-        "tone": "俏皮、友善",
-        "fallback": "[回到正题鹅]",
-        "use_when": [
-          "讨论跑题时",
-          "需要重新聚焦既定目标时"
+        "zh-CN": {
+          "meaning": "我们似乎有点偏离当前问题，我想把注意力带回已经明确的重点。",
+          "fallback": "[回到正题鹅]",
+          "use_when": [
+            "讨论跑题时",
+            "需要重新聚焦既定目标时"
+          ],
+          "avoid_when": [
+            "不借此忽略用户刚提出的新需求或纠正"
+          ]
+        },
+        "en": {
+          "meaning": "We seem to be drifting; I want to bring attention back to the agreed focus.",
+          "fallback": "[back on track]",
+          "use_when": [
+            "When the discussion drifts",
+            "When refocusing on the agreed goal"
+          ],
+          "avoid_when": [
+            "Don't use it to ignore a new request or correction"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "回到正题鹅",
+          "幽默",
+          "提醒",
+          "简化"
         ],
-        "avoid_when": [
-          "不借此忽略用户刚提出的新需求或纠正"
+        "en": [
+          "Back on track",
+          "humor",
+          "reminders",
+          "clarity"
         ]
       },
-      "tags": [
-        "协作:幽默",
-        "画风:paper-cut",
-        "角色:paper-goose",
-        "回到正题鹅",
-        "幽默",
-        "提醒",
-        "简化",
-        "humor",
-        "reminders",
-        "clarity"
-      ],
       "visual": {
         "primary": {
           "sha256": "ab9bb4b7816b9a8850bb2289841f353bf9e6f2b4d6a76f4d7af4900c24c1162d",
@@ -152,45 +218,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "08d9bdda-efed-4d0f-8975-f7c61f9f067c"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "13daef0c-1359-4ded-befc-299915e1f1a3"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "a73420de-fc98-46e1-9d6c-349a652c2413",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "竟然还能这样",
+      "amoji": "0.1",
+      "asset_id": "c7be0ec7-16cb-405a-8298-7732a784df29",
+      "realizes": "core:affirm",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "竟然还能这样",
+        "en": "Didn't see that coming"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "这个结果或角度让我感到意外，我想轻松地表达这份惊讶。",
-        "tone": "诙谐、惊喜",
-        "fallback": "[竟然还能这样]",
-        "use_when": [
-          "遇到出乎意料的发现时"
+        "zh-CN": {
+          "meaning": "这个结果或角度让我意外又惊喜，觉得这样不错。",
+          "fallback": "[竟然还能这样]",
+          "use_when": [
+            "遇到出乎意料的发现时"
+          ],
+          "avoid_when": [
+            "严肃事故或对方痛苦时不用玩笑弱化问题"
+          ]
+        },
+        "en": {
+          "meaning": "This result or angle surprised me in a good way, and I think it works.",
+          "fallback": "[didn't see that coming]",
+          "use_when": [
+            "When an unexpected finding turns out well"
+          ],
+          "avoid_when": [
+            "Don't make light of serious incidents or someone's distress"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "竟然还能这样",
+          "幽默",
+          "提醒",
+          "简化"
         ],
-        "avoid_when": [
-          "严肃事故或对方痛苦时不用玩笑弱化问题"
+        "en": [
+          "Didn't see that coming",
+          "humor",
+          "reminders",
+          "clarity"
         ]
       },
-      "tags": [
-        "协作:幽默",
-        "画风:paper-cut",
-        "角色:paper-goose",
-        "竟然还能这样",
-        "幽默",
-        "提醒",
-        "简化",
-        "humor",
-        "reminders",
-        "clarity"
-      ],
       "visual": {
         "primary": {
           "sha256": "be020564566454d0c0e6d309f57977fd157847477dc808308bcf677268d0aa5b",
@@ -199,39 +288,22 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "a2364230-3167-477e-96de-b2d70d0186dd"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "56166268-cd58-439a-91fc-8d76a3a24987"
     }
   ],
-  "defaults": [
-    {
-      "asset_id": "d8225c72-1d1e-497e-9107-ced4c6229cf0",
-      "revision_id": "439176bc-9f85-44dc-a41c-2fe05eb7676b"
-    },
-    {
-      "asset_id": "1d95971d-ddd8-42f2-93f3-b424321e27e8",
-      "revision_id": "2ad9346c-d2dc-40d3-9402-5b6fd977bf9a"
-    },
-    {
-      "asset_id": "30796512-94b5-4002-b990-f16403e12d02",
-      "revision_id": "08d9bdda-efed-4d0f-8975-f7c61f9f067c"
-    },
-    {
-      "asset_id": "a73420de-fc98-46e1-9d6c-349a652c2413",
-      "revision_id": "a2364230-3167-477e-96de-b2d70d0186dd"
-    }
-  ],
-  "actions": [],
-  "bindings": [],
   "rights": {
     "license": "CC0-1.0",
-    "creator": "Amoji",
+    "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
-  }
+  },
+  "release_id": "ad75d5e4-6453-42b8-aaa6-8280b920f1ec"
 }

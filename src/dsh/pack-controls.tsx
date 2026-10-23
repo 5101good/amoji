@@ -1,7 +1,7 @@
 import {ScenarioEditor} from './scenario-editor.js';
 import { useText, message, type TextMessage } from './i18n.js';
 import React,{useEffect,useRef,useState} from 'react';
-import type {ExpressionRef} from '../sample-catalog.js';
+import type {ExpressionRef} from '../protocol/index.js';
 import type {DshRpc} from './contracts.js';
 import {Conflict} from './ui.js';
 export function PackControls({rpc,sessionId,refs,onImported}:{rpc:DshRpc;sessionId:string;refs:ExpressionRef[];onImported:()=>void}){

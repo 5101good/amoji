@@ -2,13 +2,13 @@ import { createServer, type ServerResponse, type IncomingMessage, type Server as
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { ServiceError, object, nonempty, sessionKey, type BindingContext as HostContext } from './shared-contract.js';
-import type { SampleMessage } from './sample-runtime.js';
+import type { StoredMessage } from './messages.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
 import { searchExpressions } from './search.js';
 
 import { draftVersion, type DraftFields } from './drafts.js';
 
-interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
+interface PendingPick { id: string; finish: (result: StoredMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
 
 export class PanelServer {
@@ -49,7 +49,7 @@ export class PanelServer {
     return url;
   }
 
-  pick(context: HostContext, signal: AbortSignal): Promise<SampleMessage> {
+  pick(context: HostContext, signal: AbortSignal): Promise<StoredMessage> {
     const url = this.url(context);
     const session = this.sessions.get(sessionKey(context))!;
     if (session.pending) return Promise.reject(new Error('该会话已有待选请求'));
@@ -118,7 +118,7 @@ export class PanelServer {
     }
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);
-      const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).map(m => m.revision)];
+      const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).flatMap(m => m.revision ? [m.revision] : [])];
       const drafts = this.runtime.creation ? await this.runtime.creation.listDrafts() : [];
       const blob = [...visible.flatMap(e => [e.visual.primary, e.visual.poster]), ...drafts.flatMap(d => [d.visual?.primary, d.visual?.poster])].find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
@@ -183,7 +183,7 @@ export class PanelServer {
     }
     if (typeof body.asset_id !== 'string' || typeof body.revision_id !== 'string' || Object.keys(body).some(k => !['pick_id', 'asset_id', 'revision_id'].includes(k))) { this.json(res, 400, { error: '只能选择固定版本，不能覆盖语义' }); return; }
     try {
-      const message = await this.runtime.receive(session.context, { asset_id: body.asset_id, revision_id: body.revision_id }, pending.id);
+      const message = await this.runtime.receive(session.context, { ref: { asset_id: body.asset_id, revision_id: body.revision_id } }, pending.id);
       session.completed.set(pending.id, { message_id: message.message_id, asset_id: body.asset_id, revision_id: body.revision_id });
       pending.finish(message);
       this.json(res, 200, { message_id: message.message_id });

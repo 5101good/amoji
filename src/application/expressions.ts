@@ -2,13 +2,16 @@ import type { AdapterRuntime } from "../adapter-runtime.js";
 import type { SharedClient } from "../shared-client.js";
 import type { BindingContext } from "../shared-contract.js";
 import { fail } from "../shared-contract.js";
-import type { ExpressionRef } from "../sample-catalog.js";
+import { actEntry, searchableText, type ExpressionRef, type Family } from "../protocol/index.js";
 import type { LibraryEntry } from "../library-management.js";
+import type { ExpressInput, ReceiveInput } from "../library-store.js";
 
 export const PAGE_SIZE = 6;
+/** Picker categories are act families (RFC §5.2). */
+export const FAMILY_ORDER: Family[] = ["grounding", "steering", "progress", "epistemic", "social"];
 export type ExpressionPort = Pick<
   AdapterRuntime,
-  "catalog" | "search" | "emit" | "messages" | "receive"
+  "catalog" | "search" | "express" | "messages" | "receive"
 >;
 export type LibraryPort = Pick<
   SharedClient,
@@ -80,12 +83,12 @@ export class ExpressionApplication {
         !Number.isSafeInteger(input.offset) || input.offset < 0 ||
         !Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 100)
       fail("INVALID_ARGUMENT", "无效的搜索窗口");
-    if (input.category !== undefined && !["全部", "进度", "澄清", "方向", "反馈", "其他"].includes(input.category))
-      fail("INVALID_ARGUMENT", "无效的表情场景");
+    if (input.category !== undefined && !["all", ...FAMILY_ORDER].includes(input.category))
+      fail("INVALID_ARGUMENT", "无效的表情类别");
     const all = await this.matches(input);
-    const categoryOf = (entry: LibraryEntry) => entry.expression.tags?.find(tag => tag.startsWith("协作:"))?.slice(3) || "其他";
-    const categories = ["进度", "澄清", "方向", "反馈", "其他"].filter(category => all.some(entry => categoryOf(entry) === category));
-    const matches = input.category && input.category !== "全部" ? all.filter(entry => categoryOf(entry) === input.category) : all;
+    const categoryOf = (entry: LibraryEntry): Family => actEntry(entry.expression.realizes).family;
+    const categories = FAMILY_ORDER.filter(category => all.some(entry => categoryOf(entry) === category));
+    const matches = input.category && input.category !== "all" ? all.filter(entry => categoryOf(entry) === input.category) : all;
     return { items: matches.slice(input.offset, input.offset + input.limit),
       categories, offset: input.offset, total: matches.length };
   }
@@ -107,24 +110,15 @@ export class ExpressionApplication {
               `${entry.expression.asset_id}:${entry.expression.revision_id}`,
             ),
       )
-      .filter(
-        ({ expression: e }) =>
-          !query ||
-          [
-            e.name,
-            e.semantics.meaning,
-            e.semantics.fallback,
-            ...(e.tags ?? []),
-          ].some((v) => v.toLocaleLowerCase().includes(query)),
-      );
+      .filter(({ expression: e }) => {
+        if (!query) return true;
+        const text = searchableText(e);
+        return [e.realizes, ...text.name, ...text.meaning, ...text.fallback, ...text.tags].some((v) => v.toLocaleLowerCase().includes(query));
+      });
     return matches;
   }
-  receive(context: BindingContext, ref: ExpressionRef, requestId: string) {
-    return this.expressions.receive(
-      context,
-      { asset_id: ref.asset_id, revision_id: ref.revision_id },
-      requestId,
-    );
+  receive(context: BindingContext, ref: ExpressionRef, requestId: string, extras: Omit<ReceiveInput, "ref"> = {}) {
+    return this.expressions.receive(context, { ...extras, ref: { asset_id: ref.asset_id, revision_id: ref.revision_id } }, requestId);
   }
   history(context: BindingContext) {
     return this.expressions.messages(context);
@@ -134,10 +128,10 @@ export class ExpressionApplication {
       return Promise.reject(new Error("TURN_REQUIRED: AI 选择需要真实回合"));
     return this.expressions.search(context, query, 3);
   }
-  async emit(context: BindingContext, token: string) {
+  async express(context: BindingContext, input: ExpressInput) {
     if (!context.turnId)
       return Promise.reject(new Error("TURN_REQUIRED: AI 发送需要真实回合"));
-    return this.expressions.emit(context, token);
+    return this.expressions.express(context, input);
   }
   async confirmDraft(id: string, version: number, reviewed: boolean) {
     if (reviewed !== true)

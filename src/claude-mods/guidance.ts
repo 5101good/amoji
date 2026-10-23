@@ -3,7 +3,7 @@ import type { BindingContext } from '../shared-contract.js';
 import { fail, object } from '../shared-contract.js';
 import { ConnectedRuntime } from '../adapter-runtime.js';
 import { ActionCompiler } from '../actions.js';
-import { actionSelection } from '../collaboration.js';
+import { effectSelection } from '../effects.js';
 import { expressionRef } from '../library-management.js';
 import { isDeepStrictEqual } from 'node:util';
 
@@ -17,10 +17,10 @@ export async function guidance(client:SharedClient,context:BindingContext,raw:un
   if(a.method!=='compile'||!Array.isArray(a.rules)||a.rules.length>2)fail('INVALID_ARGUMENT','无效协作提示');
   await client.marketplace('refreshRevocations',{});
   const available=await runtime.rules.choices(context);
-  const selected=a.rules.map(actionSelection);
+  const selected=a.rules.map(effectSelection);
   const rules=available.filter(c=>selected.some(r=>isDeepStrictEqual(c.selection,r)));
   let once;
-  if(a.once){const args=object(a.once,['ref','selection']);const choice=actionSelection(args.selection);
+  if(a.once){const args=object(a.once,['ref','selection']);const choice=effectSelection(args.selection);
     once=(await runtime.collaboration.choices(context,expressionRef(args.ref))).find(c=>isDeepStrictEqual(c.selection,choice));
     if(!once)fail('ACTION_UNAVAILABLE','此表情的提示已不可用，请重新选择');
   }

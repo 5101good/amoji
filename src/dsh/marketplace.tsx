@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import type { DshRpc } from './contracts.js';
-import type { Expression } from '../sample-catalog.js';
+import type { Expression } from '../protocol/index.js';
 import type { MarketRelease,MarketOperation } from '../local-acquisition.js';
 import { useText } from './i18n.js';
 const refOf=(e:Expression)=>({asset_id:e.asset_id,revision_id:e.revision_id});

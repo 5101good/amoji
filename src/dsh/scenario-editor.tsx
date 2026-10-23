@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import type {ExpressionRef} from '../sample-catalog.js';
+import type {ExpressionRef} from '../protocol/index.js';
 import type {ScenarioPack} from '../packs.js';
 import type {ScenarioDraft} from '../scenario-drafts.js';
 import type {ActionDefinition} from '../actions.js';

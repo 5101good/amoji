@@ -1,11 +1,11 @@
-import type { ActionChoice, ActionSelection } from '../collaboration.js';
+import type { EffectChoice, EffectSelection } from '../effects.js';
 import { useText, message, type TextMessage, AmojiLocaleProvider, AMOJI_LOCALE, chinese, dictionaries, type AmojiLocale } from './i18n.js';
 import { english } from './i18n-dictionary.js';
 import { aiExpressionDefinition, AiExpressions } from './ai-messages.js';
 import { Manager } from './manager.js';
 import { Styles, CloseIcon, SmileIcon, ExpressionTile } from './ui.js';
 import React, { useEffect, useRef, useState } from 'react';
-import type { Expression, ExpressionRef } from '../sample-catalog.js';
+import type { Expression, ExpressionRef } from '../protocol/index.js';
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import { PickerPopover } from './picker-popover.js';
 import { mountUserMessages } from './messages.js';
@@ -40,7 +40,7 @@ function deliveryText(row: HistoryEntry): TextMessage {
 export function createComponents(rpc: DshRpc) {
   // Keep unresolved identities beyond a keyed PickerSession's lifetime. A UI abort
   // cannot tell us whether the host already accepted the original submission.
-  const pendingSelections = new Map<string, {selected: Expression; requestId: string; action?:ActionSelection; sent?: HistoryEntry}>();
+  const pendingSelections = new Map<string, {selected: Expression; requestId: string; action?:EffectSelection; sent?: HistoryEntry}>();
   function Picker({ sessionId }: SessionProps) {
     const [managerTab,setManagerTab]=useState('library'); const [reopen,setReopen]=useState(0); const [managerSession,setManagerSession]=useState<string>(); const [managerOpen,setManagerOpen]=useState(false); const [refresh,setRefresh]=useState(0);
     return <><PickerSession key={sessionId} sessionId={sessionId} refresh={refresh} reopen={reopen} onMarket={()=>{setManagerTab('market');setManagerSession(v=>v??sessionId);setManagerOpen(true);}} onManage={()=>{setManagerTab('library');setManagerSession(v=>v??sessionId);setManagerOpen(true);}}/>{managerSession&&<Manager initialTab={managerTab} rpc={rpc} sessionId={managerSession} currentSessionId={sessionId} open={managerOpen} onClose={()=>{setManagerOpen(false);setRefresh(v=>v+1);setReopen(v=>v+1);}} onChanged={()=>setRefresh(v=>v+1)}/>}</>;
@@ -50,7 +50,7 @@ export function createComponents(rpc: DshRpc) {
     const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState<TextMessage>(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState<TextMessage>(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
-    const [choices,setChoices]=useState<ActionChoice[]>([]); const [actionIndex,setActionIndex]=useState(0); const [actionsLoading,setActionsLoading]=useState(false);
+    const [choices,setChoices]=useState<EffectChoice[]>([]); const [actionIndex,setActionIndex]=useState(0); const [actionsLoading,setActionsLoading]=useState(false);
     const choose = async (expression:Expression, detail=false) => {
       selectionEpoch.current++; const epoch=selectionEpoch.current; setSent(undefined);setStatus('');setChoices([]);setActionIndex(0);setRequestId('');
       if(!rpc.actions){if(detail)setSelected(expression);else void send(expression,'',undefined);return;}
@@ -103,7 +103,7 @@ export function createComponents(rpc: DshRpc) {
       } catch (e) { if (current()) { setCatalog([]); setUnavailable(true); setSearchStatus(errorText(e)); } }
       finally { if (current()) setSearching(false); }
     };
-    const send = async (choice = selected, retryRequestId = requestId, action:ActionSelection|undefined = pendingSelections.get(sessionId)?.action) => {
+    const send = async (choice = selected, retryRequestId = requestId, action:EffectSelection|undefined = pendingSelections.get(sessionId)?.action) => {
       if (!target || !choice || sendLock.current || unavailable) return;
       sendLock.current = true;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;

@@ -130,7 +130,7 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     );
   });
   assert.equal(response.ok, true, JSON.stringify(response));
-  assert.equal(response.result.total, 24);
+  assert.equal(response.result.total, 48, "both built-in packs are browsable");
   assert.ok(response.result.items[0].preview.startsWith("data:image/avif;base64,"));
   const previews = join(plugin, "assets/claude-previews");
   assert.ok((await readdir(previews)).filter(name => name.endsWith(".avif")).length >= response.result.total);

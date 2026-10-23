@@ -22,7 +22,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 This example uses a separate `amoji` profile. Substitute your existing profile when appropriate, after saving work and exiting it. The official plugin command installs the package and resolves dependencies through the host package manager. The archive includes neither `node_modules` nor native binaries; dependency installation requires network access. It is not an offline installer.
 
-Restart, select a workspace, and open Expressions in the composer. A new conversation needs no preliminary text message. A fresh library shows 24 built-in expressions for the selected appearance; existing personal content may increase that count. Exit code 0 establishes installation only: check the UI entry point, image loading, and delivery separately.
+Restart, select a workspace, and open Expressions in the composer. A new conversation needs no preliminary text message. A fresh library shows the 48 expressions of the built-in Classic and Office packs, with Classic preferred; existing personal content may increase that count. Exit code 0 establishes installation only: check the UI entry point, image loading, and delivery separately.
 
 ## Install from a public URL
 

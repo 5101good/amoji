@@ -1,7 +1,7 @@
 {
   "tool": "Codex built-in imagegen",
   "date": "2026-09-21",
-  "reference_classic": "assets/samples/manifest.json: original three Amoji characters",
+  "reference_classic": "assets/samples/manifest.json (removed in Amoji 0.1; see Git history): original three Amoji characters",
   "reference_office": "Original office/progress generated for this collection",
   "prompts": [
     {

@@ -34,13 +34,13 @@ AI image validation targets direct tools; nested Code Dispatch/PTC rendering is 
 
 Includes Host/Client, shared core, assets, build information, and license inventories, without `node_modules`, Sharp `.node`, or libvips binaries. The host package manager installs dependencies, so this is not an offline installer. Client React and Host services come from dsh.
 
-Code is MIT; built-in assets are CC0-1.0; dependencies retain their own licenses. See packaged `LICENSE`, `NOTICE`, `THIRD_PARTY.json`, `THIRD_PARTY_LICENSES/`, and `assets/base-library/`.
+Code is MIT; the official packs are CC0-1.0; dependencies retain their own licenses. See packaged `LICENSE`, `NOTICE`, `THIRD_PARTY.json`, `THIRD_PARTY_LICENSES/`, and `assets/official-packs/`.
 
 Full [installation/recovery](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.en.md), [usage](https://github.com/5101good/amoji/blob/main/docs/usage.en.md), and [limitations](https://github.com/5101good/amoji/blob/main/docs/release.en.md) are in the source repository.
 
 ### Expression marketplace
 
-Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables actions. Updates show semantic and action differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
+Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables an effect. Updates show semantic and effect differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
 
 The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (defaulting to the public marketplace `https://amoji.ai-web.ai`). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
 
@@ -48,6 +48,6 @@ Installed and collected expressions remain usable offline. Cached results disclo
 
 ### Publish from dsh
 
-Confirm a local expression pack under Import and export, then open Publish to marketplace. Save description, licensing and optional actions in the wizard; visual packs need no actions. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
+Confirm a local expression pack under Import and export, then open Publish to marketplace. Save the description for each language, licensing and optional effects in the wizard; expression-only packs need no effects. Sign in through the browser, compare the device name and code shown in dsh, and explicitly approve. Pairing expires after five minutes; cancelled pairing must be restarted. Model settings are not changed.
 
 Review the complete content before upload, validation and explicit submission. If the outcome is unknown, check the original operation and review status instead of creating another submission. Returned feedback remains with the draft; select the revised local pack and create a new version for review. Saved drafts survive disconnection. Credentials stay in the private `plugins/amoji/publisher` directory of this dsh profile, outside browser storage, packages, model input and the shared library. Do not share that directory. Signing out the device revokes its authorization.

@@ -14,7 +14,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "进度如何",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -28,7 +28,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "还在吗",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -42,7 +42,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "卡在哪里",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -56,7 +56,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "说具体些",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -70,7 +70,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "举个例子",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -84,7 +84,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "没看懂",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -98,7 +98,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "方向不对",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -112,7 +112,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "先等一下",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -126,7 +126,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "继续吧",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -140,7 +140,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "一步一步来",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -154,7 +154,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "明白了",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -168,7 +168,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "这个不错",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -182,7 +182,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "谢谢",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -197,7 +197,7 @@
       "visual_intent": "一起庆祝",
       "reference": "Original three cream-white Amoji characters.",
       "reused_sample": "10000000-0000-4000-8000-000000000001",
-      "prompt_source": "assets/samples/generation.json",
+      "prompt_source": "assets/samples/generation.json (removed in Amoji 0.1; see Git history)",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -212,7 +212,7 @@
       "visual_intent": "挠头苦笑",
       "reference": "Original three cream-white Amoji characters.",
       "reused_sample": "10000000-0000-4000-8000-000000000002",
-      "prompt_source": "assets/samples/generation.json",
+      "prompt_source": "assets/samples/generation.json (removed in Amoji 0.1; see Git history)",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -227,7 +227,7 @@
       "visual_intent": "给你加油",
       "reference": "Original three cream-white Amoji characters.",
       "reused_sample": "10000000-0000-4000-8000-000000000003",
-      "prompt_source": "assets/samples/generation.json",
+      "prompt_source": "assets/samples/generation.json (removed in Amoji 0.1; see Git history)",
       "processing": "Original animation and poster preserved byte-for-byte."
     },
     {
@@ -241,7 +241,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "我来处理",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -255,7 +255,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "正在核对",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -269,7 +269,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "需要你确认",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -283,7 +283,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "是我理解错了",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -297,7 +297,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "暂时没把握",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -311,7 +311,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "不客气",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -325,7 +325,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "辛苦了",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -339,7 +339,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "准备好了",
       "reference": "Original three cream-white Amoji characters.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -353,7 +353,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "进度如何",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -367,7 +367,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "还在吗",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -381,7 +381,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "卡在哪里",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -395,7 +395,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "说具体些",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -409,7 +409,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "举个例子",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -423,7 +423,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "没看懂",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -437,7 +437,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "方向不对",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -451,7 +451,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "先等一下",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -465,7 +465,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "继续吧",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -479,7 +479,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "一步一步来",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -493,7 +493,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "明白了",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -507,7 +507,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "这个不错",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -521,7 +521,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "谢谢",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -535,7 +535,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "一起庆祝",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -549,7 +549,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "挠头苦笑",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -563,7 +563,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "给你加油",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -577,7 +577,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "我来处理",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -591,7 +591,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "正在核对",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -605,7 +605,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "需要你确认",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -619,7 +619,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "是我理解错了",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -633,7 +633,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "暂时没把握",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -647,7 +647,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "不客气",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -661,7 +661,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "辛苦了",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     },
     {
@@ -675,7 +675,7 @@
       "generator": "Codex built-in imagegen",
       "visual_intent": "准备好了",
       "reference": "Original paper-white office character generated for this release.",
-      "prompt_source": "assets/base-library/generation.json",
+      "prompt_source": "assets/official-packs/generation.classic-office.json",
       "processing": "Uniform 512px PNG packaging with alpha preserved; no compositional or semantic image editing."
     }
   ]

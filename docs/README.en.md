@@ -14,9 +14,9 @@ These are the current user and developer guides for Amoji 1.0. The published rel
 | Check compatibility and unverified paths | [Release scope and limitations](release.en.md) |
 | Read version 1.0 release notes | [v1.0.0](releases/v1.0.0.md) |
 | Report security issues | [Security](../SECURITY.en.md) |
-| Review assets and licenses | [Built-in library](../assets/base-library/README.en.md), [NOTICE](../NOTICE) |
+| Review assets and licenses | [Official packs](../assets/official-packs/README.en.md), [NOTICE](../NOTICE) |
 | Inspect this release's acceptance | [Release audit](release-audit.en.md) |
 
-The product version is 1.0.0; expression/pack schema remains `0.1`, shared API `2`, and database `4`. These version numbers have different meanings. The [JSON Schema](specs/amoji-v0.1.schema.json) is still used by runtime validation.
+The product version is 1.1.0, and the source implements the [Amoji 0.1 protocol](specs/amoji-0.1-rfc.md) (act registry `0.1-r3`); the shared API is `3` and the database `1`. These version numbers have different meanings. The [JSON Schema](specs/amoji-0.1.schema.json) and [act registry](specs/amoji-0.1.registry.json) are used by runtime validation.
 
-Current public guides have Chinese defaults and English counterparts. Obsolete research, plans, and per-candidate acceptance documents have been removed from the current source tree and remain available in Git history. Runtime schemas and test examples are retained.
+Current public guides have Chinese defaults and English counterparts. Obsolete research, plans, and per-candidate acceptance documents have been removed from the current source tree and remain available in Git history. The runtime schema and registry are retained.

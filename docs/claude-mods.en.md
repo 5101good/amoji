@@ -13,7 +13,7 @@ These additions are in the current source. The existing v1.1.0 Claude release ZI
 1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
 2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
 3. Open **Share and publish**, connect your market account, verify the device code in your browser, then choose **I authorized it — check connection**. The plugin never receives your account password. Device credentials remain in the shared service's private local directory.
-4. Choose an imported 0.2 pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
+4. Choose an imported pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
 5. Review the description, license, optional guidance and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
 
 **Collaboration guidance** is separate from fixed meaning. Explicitly enable up to two predefined conversation rules and confirm replacements within the same group. An installed expression's details also offer one-time guidance when available. Each submission revalidates exact source revisions; removed sources are disabled. Only user messages in the current main conversation receive guidance, never grants to other plugins, schedules or subagents. Re-enable after restarting or switching conversations.
@@ -41,11 +41,11 @@ Mods statically follows `$` only inside one file, so readable modules in `src/cl
 
 Human sending first creates a frozen, request-idempotent shared-service message, then calls `$.prompt.submit`. Only a text marker and fixed meaning enter the conversation. AI tools accept a query or a selection token from the current turn; session and turn identity come from host events. Subagents cannot borrow the main turn.
 
-Rendering resolves only persisted markers from the same session and direction, preserving surrounding prose. Unknown, forged, cross-session or altered human payloads retain their original text. History uses frozen revisions regardless of appearance changes, archiving or later edits.
+Rendering resolves only persisted markers from the same session and direction, preserving surrounding prose. Unknown, forged, cross-session or altered human payloads retain their original text. History uses frozen revisions regardless of preferred-pack changes, archiving or later edits.
 
 Panels and the composer strip show AVIF/WebP rasters as stickers: Desktop frames Markdown images in a card, so each raster is drawn inside an `Svg` image element, on a translucent rounded plate in grids and details and on a round backdrop in the composer strip. Chat messages keep native Markdown images. The rasters themselves are unchanged, never traced into vectors. Gallery images retain a longest edge of 152 pixels for 76 CSS pixels at 2x; message and detail images retain up to 192 pixels, without upscaling small originals. The host shares a 100k text budget across each pane, so each gallery AVIF is capped at 3,350 bytes by adjusting encoding quality, not by reducing dimensions further. Original files remain intact. The gallery scrolls continuously without page controls. The Claude adapter reads ahead up to 64 items into session memory and draws at most 20 visible thumbnails while reserving the complete scroll height. Scrolling within the buffer launches no local process; a new search, list change or refresh reads fresh data. No image is sent to the model. Animations use static covers.
 
-Gallery and detail pixels for both built-in appearances are generated at build time, so the first switch needs no on-demand encoding. Personal media uses a persistent cache keyed by the original digest, display profile and encoder version; corrupt cache entries are rebuilt. An appearance switch uses one local request, preserves the current gallery until the replacement is ready, and ignores repeated selections of the current appearance.
+Gallery and detail pixels for both built-in packs are generated at build time, so the first switch needs no on-demand encoding. Personal media uses a persistent cache keyed by the original digest, display profile and encoder version; corrupt cache entries are rebuilt. Switching packs saves the preferred pack and reads the new gallery in one local request, preserves the current gallery until the replacement is ready, and only refreshes when the chosen pack is already preferred.
 
 Submission refusal, unknown outcomes and conflicts are surfaced without automatically repeating a possibly completed action.
 
@@ -65,8 +65,8 @@ Panels share one visual kit: translucent cards with hairline outlines, theme-fol
 
 ## Workflow aligned with dsh
 
-- **Picker**: open Expressions, switch Classic/Office artwork, filter by collaboration context, and click a picture or its name to send. The gallery scrolls continuously without pagination.
-- **Manage expressions**: a separate workspace for Library, Market, Guidance, Create, Publish, Preferences and Import/export, switched by a row of tabs with the current one highlighted. Returning to the picker keeps the search and context.
+- **Picker**: open Expressions, switch packs (the chosen pack becomes preferred, so AI expressions use it too), filter by the five act families, optionally add a note, and click a picture or its name to send. The gallery scrolls continuously without pagination.
+- **Manage expressions**: a separate workspace for Library, Market, Guidance, Create, Publish, Preferences and Import/export, switched by a row of tabs with the current one highlighted. Returning to the picker keeps the search and family.
 - **Create and drafts**: explicitly create or resume a draft, describe one intent, choose a model and generate a suggestion. Adopting it shows a meaning summary; Edit meaning and source reveals the fields. Saving, previewing and reviewing still gate confirmation. Switching drafts lets you save, explicitly discard or keep editing unsaved changes.
 - **Host differences**: Claude owns fonts, native control colors and the pane shell. Files use local paths, animations use covers, and the picker remains open to avoid Desktop’s programmatic-close issue for expanded panes. Web popovers, file choosers and automatic collapsing are not claimed as supported Mods features.
 
@@ -95,7 +95,7 @@ On 2026-10-11, an isolated local project and Amoji library in Claude Desktop 2.3
 - Creation defaults to the current conversation model. One intent generates a suggestion, explicitly adopted before editing; drafts save and resume, then image/meaning review gates confirmation into the library.
 - Concurrent-write conflict recovery: inspect the latest content, save local text and the original image separately, and verify the other writer’s draft remains unchanged.
 - Search, `.amoji` export, readable file errors and corrected retry, duplicate import without duplicate revisions, archive and restore.
-- Office appearance applies to the picker while existing classic messages keep their original images. Code’s Chinese/English setting switches the interface.
+- Switching to the Office pack applies to the picker while existing Classic messages keep their original images. Code’s Chinese/English setting switches the interface.
 
 The test transcript confirms human expression input contains text and zero image blocks. AI expression replies also use text tool results and markers. Claude Code still sends its own system context; this is not a fixed token or cost promise for the whole conversation. AI drafting sends only the intent and fixed system prompt.
 

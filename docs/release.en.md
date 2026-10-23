@@ -10,6 +10,17 @@ Features include two-way fixed-meaning expressions, 24 meanings in each of Class
 
 Version 1.1 adds a reviewed scenario marketplace, direct browser-to-R2 uploads, exact-release installation in dsh, optional turn instructions and conversation rules, and a separate Claude Desktop Mods ZIP. See the [1.1 release notes](releases/v1.1.0.md) for database migration, installation and compatibility boundaries.
 
+## Amoji 0.1 (source, not yet released)
+
+The current source migrates every host, the marketplace and the official content to the [Amoji 0.1 protocol](specs/amoji-0.1-rfc.md): an act registry, multilingual meanings with translation provenance, packs with effects, AI expression by act, and correction signals and interrupts while the AI works. Version 0.1 replaces every earlier format with no compatibility layer: 1.x `.amoji` packs cannot be imported, the shared API becomes `3`, the local database restarts at version `1`, and the marketplace catalog requires migration `0010-amoji-0.1.sql`.
+
+Known gaps:
+
+- dsh cannot yet detect a pending confirmation in the host, so withholding pressure-sensitive acts during a pending confirmation only applies after a `core:decide`.
+- The adaptive frequency the RFC allows is not implemented; AI expressions are limited only by the fixed per-response-window cap.
+- The dsh UI does not yet offer a menu to anchor an expression to exact message text; the protocol and service already support anchors.
+- English meanings in the five character packs are machine-translated and not human-reviewed.
+
 ## Evidence layers
 
 Historical evidence includes actual installation, browser selection and two-way display, lifecycle recovery on macOS arm64, and one successful Flash text-suggestion request followed by editing, adoption, and draft saving. These are development observations, not a substitute for acceptance of the corresponding final archive; see the historical [1.0 release audit](release-audit.en.md) and the [1.1 release scope](releases/v1.1.0.md). Earlier records remain in Git history.
@@ -22,18 +33,18 @@ The final release archive requires evidence from its corresponding workflow and 
 - AI image validation targets direct tools. Nested Code Dispatch / PTC calls may lose visual metadata; rendering is not guaranteed.
 - On one provider's Flash route, AI search, emission, and display succeeded, but the following model request returned HTTP 400 requiring `reasoning_text`. This is a host/provider continuation compatibility boundary; Amoji cannot guarantee complete tool turns for every model.
 - Suggestions depend on host model services and credentials. Timeout, cancellation, quota, model discovery, and output-format failures are surfaced without automatic retries or disguised local-template fallbacks.
-- UI language changes do not translate stored names, meanings, tags, or user text. Unsaved draft input does not survive page reloads.
+- UI language changes show existing meanings by locale fallback and never machine-translate stored names, meanings, tags, or user text. Unsaved draft input does not survive page reloads.
 - Older Codex/Claude hook adapters remain legacy. The new Claude Desktop Mods adapter is separate; see its guide for scope and verification. Version 1.1 introduces its separate ZIP.
 
 ## Maintainer release process
 
 1. Align root, dsh and Claude Mods package versions and update both language guides and release notes. Maintain product, schema, API, and database versions separately.
-2. Run type checking, core tests, and the full dsh suite from the candidate commit. Inspect package contents, asset counts, licensing, privacy, and personal paths.
+2. Run type checking, core tests, and the full dsh suite from the candidate commit. Inspect package contents, built-in official pack counts, licensing, privacy, and personal paths.
 3. Install the final candidate and perform relevant UI/model acceptance. Record failures and unverified paths. Keep paid requests within the explicitly agreed scope.
 4. Push the corresponding `v1.1.0` tag. Official repository GitHub Actions builds, verifies, and publishes the matching archive, `SHA256SUMS`, release notes, and `BUILD_PROVENANCE.json` with the commit, tag, and Actions run URL. See [Actions](https://github.com/5101good/amoji/actions).
 5. Verify Release assets, SHA-256, tag commit, and downloaded package. A workflow definition alone does not prove successful publication.
 
-Code and technical documentation are MIT; built-in assets, semantics, and prompts are CC0-1.0. The actual build supplies a dependency-license inventory. Sharp/libvips and other dependencies retain their own licenses. See [NOTICE](../NOTICE) and [built-in assets](../assets/base-library/README.en.md).
+Code and technical documentation are MIT; official pack artwork, semantics, and prompts are CC0-1.0. The actual build supplies a dependency-license inventory. Sharp/libvips and other dependencies retain their own licenses. See [NOTICE](../NOTICE) and [the official packs](../assets/official-packs/README.en.md).
 
 
 ## Additional Claude Mods artifact

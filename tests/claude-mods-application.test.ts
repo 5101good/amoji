@@ -468,6 +468,23 @@ test("码位家族在完整结果上筛选再取窗口，未知分类被拒绝",
   await assert.rejects(app.browseWindow({ query: "", category: "forged", offset: 0, limit: 1 }), /INVALID_ARGUMENT|无效/);
 });
 
+test("表情包筛选只显示该包，名称取最新发布，未知包回到全部", async (t) => {
+  const { app } = await setup(t);
+  const all = await app.browseWindow({ query: "", offset: 0, limit: 100 });
+  assert.equal(all.pack, "all");
+  assert.deepEqual(all.packs.map(p => p.name["zh-CN"]).sort(), ["办公", "经典"]);
+  for (const pack of all.packs) {
+    const only = await app.browseWindow({ query: "", pack: pack.pack_id, offset: 0, limit: 100 });
+    assert.equal(only.pack, pack.pack_id);
+    assert.ok(only.total > 0 && only.total < all.total);
+    assert.ok(only.items.every(entry => entry.pack_id === pack.pack_id));
+    assert.deepEqual(only.packs, all.packs, "the choices stay visible while one pack is shown");
+  }
+  const unknown = await app.browseWindow({ query: "", pack: "missing", offset: 0, limit: 100 });
+  assert.equal(unknown.pack, "all");
+  assert.equal(unknown.total, all.total);
+});
+
 test("窄栏语义完整换行，不截断固定内容", async () => {
   const { wrapText } = await import(new URL("../src/claude-mods/native/text-layout.js", import.meta.url).href);
   const meaning = "表达发送者觉得很好笑、非常开心或畅快的情绪反应。";

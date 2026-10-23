@@ -66,6 +66,7 @@ export async function executeBridge(
       const filter = {
         query: args.query as string,
         category: args.category as string | undefined,
+        ...(args.pack === undefined ? {} : { pack: args.pack as string }),
         library: args.library === true,
         archived: args.archived === true,
       };

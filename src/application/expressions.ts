@@ -32,6 +32,7 @@ export type LibraryPort = Pick<
   | "confirmDraft"
   | "importPack"
   | "exportPack"
+  | "listPacks"
 >;
 export interface BrowseQuery {
   query: string;
@@ -53,7 +54,10 @@ export interface BrowseWindowQuery {
   library?: boolean;
   archived?: boolean;
   category?: string;
+  /** A pack_id to show only that pack's expressions; unknown packs show all. */
+  pack?: string;
 }
+export interface PackChoice { pack_id: string; name: Record<string, string>; original_locale: string }
 
 /** Host-independent use cases. Media/UI encoding and host delivery belong to adapters. */
 export class ExpressionApplication {
@@ -86,12 +90,20 @@ export class ExpressionApplication {
       fail("INVALID_ARGUMENT", "无效的搜索窗口");
     if (input.category !== undefined && !["all", ...FAMILY_ORDER].includes(input.category))
       fail("INVALID_ARGUMENT", "无效的表情类别");
-    const all = await this.matches(input);
+    if (input.pack !== undefined && (typeof input.pack !== "string" || !input.pack))
+      fail("INVALID_ARGUMENT", "无效的表情包");
+    const [found, released] = await Promise.all([this.matches(input), this.library.listPacks()]);
+    // Latest release name per pack that still has visible expressions here.
+    const named = new Map<string, PackChoice & { version: number }>();
+    for (const p of released) if ((named.get(p.pack_id)?.version ?? -1) < p.version) named.set(p.pack_id, { pack_id: p.pack_id, name: p.name, original_locale: p.original_locale, version: p.version });
+    const packs: PackChoice[] = [...new Set(found.map(entry => entry.pack_id))].flatMap(id => { const p = id ? named.get(id) : undefined; return p ? [{ pack_id: p.pack_id, name: p.name, original_locale: p.original_locale }] : []; });
+    const pack = input.pack && packs.some(p => p.pack_id === input.pack) ? input.pack : "all";
+    const all = pack === "all" ? found : found.filter(entry => entry.pack_id === pack);
     const categoryOf = (entry: LibraryEntry): Family => actEntry(entry.expression.realizes).family;
     const categories = FAMILY_ORDER.filter(category => all.some(entry => categoryOf(entry) === category));
     const matches = input.category && input.category !== "all" ? all.filter(entry => categoryOf(entry) === input.category) : all;
     return { items: matches.slice(input.offset, input.offset + input.limit),
-      categories, offset: input.offset, total: matches.length };
+      categories, packs, pack, offset: input.offset, total: matches.length };
   }
   private async matches(input: Pick<BrowseQuery, "query" | "library" | "archived">) {
     const [entries, available] = await Promise.all([

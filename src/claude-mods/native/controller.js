@@ -92,6 +92,26 @@ export async function perform($, s, action) {
     invalidate($);
   }
 }
+/** The picker shows the first preferred pack until the person picks another (RFC §11.6). */
+function packFilter(s) {
+  if (s.tab !== "picker") return {};
+  const pack = s.pack ?? s.preferences?.preferred_packs?.[0];
+  return pack ? { pack } : {};
+}
+/** Choosing a pack also makes it preferred, so AI glyphs follow it; one request saves and refreshes. */
+export async function choosePack($, s, pack) {
+  s.pack = pack;
+  s.category = "all";
+  const { version, ...current } = s.preferences;
+  if (pack === "all" || current.preferred_packs[0] === pack) { s.collection = null; await load($, s); return; }
+  const preferences = { ...current, preferred_packs: [pack, ...current.preferred_packs.filter(p => p !== pack)] };
+  const result = await bridge($, s.context, "updateSettings", { version, preferences,
+    browse: { query: s.query, category: "all", pack, offset: 0, limit: BUFFER_LIMIT } });
+  s.preferences = result.preferences;
+  s.bandItems = null;
+  if (result.collection) { s.galleryBuffer = result.collection; s.collection = { ...result.collection, items: result.collection.items.slice(0, WINDOW_LIMIT) }; }
+  else { s.collection = null; await load($, s); }
+}
 export async function load($, s) {
   const settings = await $.settings.read();
   s.language = await languageOf($, settings);
@@ -105,6 +125,7 @@ export async function load($, s) {
     s.galleryBuffer = await bridge($, s.context, "browse", {
       query: s.query,
       category: s.category,
+      ...packFilter(s),
       offset: 0,
       limit: BUFFER_LIMIT,
       library: s.tab === "library",
@@ -131,11 +152,11 @@ export async function loadGalleryWindow($, s, e) {
     s.collection = { ...buffer, offset: range.offset, items: buffer.items.slice(start, start + count) };
     return;
   }
-  const signature = `${s.tab}:${s.query}:${s.category}:${s.archived}:${range.offset}:${range.limit}`;
+  const signature = `${s.tab}:${s.query}:${s.category}:${s.pack}:${s.archived}:${range.offset}:${range.limit}`;
   if (s.windowRequest?.signature === signature) return s.windowRequest.promise;
   const pending = { signature };
   pending.promise = bridge($, s.context, "browse", {
-    query: s.query, category: s.category, library: s.tab === "library", archived: s.archived,
+    query: s.query, category: s.category, ...packFilter(s), library: s.tab === "library", archived: s.archived,
     offset: range.offset, limit: BUFFER_LIMIT,
   }).then(collection => {
     if (s.windowRequest === pending && s.collection === current) {

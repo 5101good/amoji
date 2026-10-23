@@ -3,7 +3,7 @@ import { publisherView, packView } from './publisher-view.js';
 import { marketView } from './market-view.js';
 import { creationView } from "./creation-view.js";
 import { stickerPicture, stickerPixels } from "./raster-picture.js";
-import { L, refOf, view, gloss, FAMILY_LABELS } from "./transport.js";
+import { L, refOf, view, local, gloss, FAMILY_LABELS } from "./transport.js";
 import { deliveryText } from "./message-view.js";
 import { galleryLayout, galleryLabel, TILE_HEIGHT, PANE_MAX_COLUMNS } from "./gallery.js";
 import { controls } from "./controls.js";
@@ -15,6 +15,7 @@ import {
   load,
   send,
   changePreference,
+  choosePack,
   edit,
   save,
   forkLocalDraft,
@@ -570,6 +571,8 @@ export function pane($, e, s, makePicture) {
       });
     });
     const selectedCount = Object.keys(s.selected).length;
+    const preferred = s.preferences?.preferred_packs ?? [];
+    const rank = (p) => { const i = preferred.indexOf(p.pack_id); return i < 0 ? preferred.length : i; };
     const chip = (key, label, active, action) => Button({ key, label,
       ...(active ? { variant: "primary" } : { plain: true, dimColor: true }),
       onPress: action });
@@ -579,6 +582,7 @@ export function pane($, e, s, makePicture) {
         placeholder: L(s, "附一句话（可选），例如：第 3 步没看懂", "Add a note (optional), e.g. I don't follow step 3"),
         value: s.note || "",
         onInput: (value) => { s.note = value.slice(0, 140); },
+        onSubmit: (value) => { s.note = value.slice(0, 140); },
       }),
       Input({
         key: "search",
@@ -598,6 +602,11 @@ export function pane($, e, s, makePicture) {
             await load($, s);
           }),
       }),
+      s.tab === "picker" && (collection?.packs?.length ?? 0) > 1 && row([
+        ...[...collection.packs].sort((a, b) => rank(a) - rank(b)).map(p =>
+          button("pack:" + p.pack_id, local(s, p.name, p.original_locale), () => choosePack($, s, p.pack_id), collection.pack === p.pack_id)),
+        button("pack:all", L(s, "全部表情包", "All packs"), () => choosePack($, s, "all"), collection.pack === "all"),
+      ]),
       s.tab === "picker"
         ? row(["all", ...(collection?.categories || [])].map(category =>
             button("category:" + category, category === "all" ? L(s, "全部", "All") : L(s, ...FAMILY_LABELS[category]), async () => {

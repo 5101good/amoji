@@ -14,8 +14,10 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { ZipFile } from "yazl";
 import { API_VERSION, DATABASE_VERSION } from "../dist/src/shared-contract.js";
+import { CLAUDE_MODS_CAPABILITIES } from "../dist/src/claude-mods/capabilities.js";
 
 const root = resolve(import.meta.dirname, "..");
+const SEED_PACKS = ["classic.amoji", "office.amoji", "LICENSE"];
 export async function buildClaudeMods(
   destination = resolve(root, ".cache/claude-mods"),
 ) {
@@ -69,18 +71,16 @@ export async function buildClaudeMods(
   await cp(join(root, "dist/docs"), join(plugin, "runtime/docs"), {
     recursive: true,
   });
-  await cp(
-    join(root, "assets/base-library"),
-    join(plugin, "assets/base-library"),
-    { recursive: true },
-  );
-  // Ship display pixels for both built-in appearances: a first switch should
-  // read files, not encode an entire gallery in the user's local bridge.
+  await mkdir(join(plugin, "assets/official-packs"), { recursive: true });
+  for (const name of SEED_PACKS)
+    await cp(join(root, "assets/official-packs", name), join(plugin, "assets/official-packs", name));
+  // Ship display pixels for the built-in packs: a first gallery should read
+  // files, not encode every image in the user's local bridge.
   const { withValidatedPack } = await import("../dist/src/packs.js");
   const { cachedThumbnailImage } = await import("../dist/src/claude-mods/thumbnail.js");
   const previewDirectory = join(plugin, "assets/claude-previews");
-  await withValidatedPack(await readFile(join(plugin, "assets/base-library/base.amoji")), async (pack) => {
-    const seen = new Set();
+  const seen = new Set();
+  for (const name of SEED_PACKS.filter(name => name.endsWith(".amoji"))) await withValidatedPack(await readFile(join(plugin, "assets/official-packs", name)), async (pack) => {
     for (const expression of pack.manifest.expressions) {
       const blob = expression.visual.poster ?? expression.visual.primary;
       if (seen.has(blob.sha256)) continue;
@@ -127,13 +127,7 @@ export async function buildClaudeMods(
       .digest("hex"),
     serviceApi: API_VERSION,
     databaseVersion: DATABASE_VERSION,
-    requiredCapabilities: [
-      "session-bindings-v1",
-      "create-drafts-v1",
-      "library-management-v1",
-      "packs-v1",
-      "versioned-packs-v1", "marketplace-v1", "publisher-v1",
-    ],
+    requiredCapabilities: CLAUDE_MODS_CAPABILITIES,
   };
   await writeFile(
     join(plugin, "BUILD.json"),
@@ -169,7 +163,10 @@ export async function buildClaudeMods(
       if (entry.isDirectory()) await append(file);
       else if (entry.isFile())
         zip.addFile(file, relative(destination, file).split("\\").join("/"), {
-          mtime: new Date("2000-01-01T00:00:00Z"),
+          // DOS fields use local calendar time; the UTC extra field would
+          // otherwise make identical builds differ across machine time zones.
+          mtime: new Date(2000, 0, 1),
+          forceDosTimestamp: true,
           mode: 0o100644,
         });
       else throw new Error("Unexpected non-file in portable package");

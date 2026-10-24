@@ -25,12 +25,13 @@ dsh 公开包基线在 `scripts/dsh/baseline.json`，完整依赖在锁文件。
 
 ## 目录
 
-- `src/`：共享服务、SQLite 库、协议、包和媒体校验。
+- `src/protocol/`：Amoji 0.1 协议核心——类型、码位注册表、语言回退、文字投影与校验。
+- `src/`：共享服务、SQLite 库、包、效果和媒体校验。
 - `src/dsh/`：Host、Client、选择器、管理页、AI 建议。
-- `assets/base-library/`：可审阅清单、生成来源、双画风基础包与 CC0。
+- `assets/official-packs/`：七套官方表情包、可审阅清单、生成来源与 CC0。
 - `adapters/dsh/`：插件入口、元数据及构建产物。
 - `tests/`：行为回归、合同、打包、隔离和资源预算检查。
-- `docs/`：当前中英指南、发布审计与运行时 Schema。
+- `docs/`：当前中英指南、发布审计；`docs/specs/` 是 RFC、运行时 Schema 与码位注册表。
 
 `dist/`、`.cache/`、构建生成的 runtime/client 等由脚本产生；修改来源代码后重建，不手工修补生成 bundle。用 `AMOJI_DATA_DIR` 隔离运行数据，不在日常库上试验迁移。
 
@@ -48,13 +49,13 @@ mkdir -p .local/release
 npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ```
 
-包应包含 Host/Client、核心 runtime、基础资产、`BUILD.json`、`LICENSE`、`NOTICE`、`THIRD_PARTY.json` 和 `THIRD_PARTY_LICENSES/`。不包含个人库、凭据、`node_modules` 或原生二进制。第三方清单反映构建机器实际解析结果，不保证其他平台安装依赖完全相同。
+包应包含 Host/Client、核心 runtime、经典与办公官方包、`BUILD.json`、`LICENSE`、`NOTICE`、`THIRD_PARTY.json` 和 `THIRD_PARTY_LICENSES/`。不包含个人库、凭据、`node_modules` 或原生二进制。第三方清单反映构建机器实际解析结果，不保证其他平台安装依赖完全相同。
 
 见[贡献指南](../CONTRIBUTING.md)和[发布流程](release.md)。
 
 ## 表情包内容贡献
 
-从[官方表情包](../assets/official-packs/README.md)和 `scripts/build-official-packs.mjs` 开始。保留已确认语义和精确身份，复用许可明确的素材；说明原始语义语言、双向角色和示例性质。动作可选、不强制控制，关闭只停止后续应用而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。
+从[官方表情包](../assets/official-packs/README.md)和 `scripts/build-official-packs.mjs` 开始。每个表情实现一个注册表码位，保留已确认语义和精确身份，复用许可明确的素材；声明原文语言，其他语言标明翻译方式。效果可选、不强制控制，停用只停止后续附加而不删除历史。运行种子包测试和完整基线后，以独立创作者投稿、独立审核者审核；不得自审。
 
 ## Claude Mods
 

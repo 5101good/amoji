@@ -8,10 +8,11 @@ import { SharedClient } from '../src/shared-client.js';
 import { ConnectedRuntime } from '../src/adapter-runtime.js';
 import { ExpressionApplication } from '../src/application/expressions.js';
 import { executeBridge } from '../src/claude-mods/bridge.js';
+import { SEEDS } from './helpers/store-runtime.js';
 
 test('Claude market bridge: local packs and creator drafts survive separate clients without lost writes', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'amoji-claude-market-'));
-  const service = await startSharedService(directory, new URL('../assets/samples/', import.meta.url));
+  const service = await startSharedService(directory, SEEDS);
   const clients = await Promise.all([SharedClient.connect({directory}), SharedClient.connect({directory})]);
   t.after(async () => { await Promise.all(clients.map(c => c.close())); await service.close(); await rm(directory, {recursive:true,force:true}); });
   const context = {host:'claude-code',hostInstanceId:'mods',sessionId:'market-test'};
@@ -21,10 +22,13 @@ test('Claude market bridge: local packs and creator drafts survive separate clie
   };
   assert.deepEqual((await call('marketplace',{method:'local',args:{}})).installs,[]);
   const expression=(await clients[0]!.list())[0]!;
-  const draft=await call('scenario',{method:'create',refs:[{asset_id:expression.asset_id,revision_id:expression.revision_id}]});
-  const saved=await call('scenario',{method:'save',id:draft.draft_id,version:draft.version,manifest:{...draft.manifest,name:'我的分享',rights:{license:'CC0-1.0'}}});
-  await assert.rejects(call('scenario',{method:'confirm',id:saved.draft_id,version:saved.version,reviewed:false}),/REVIEW_REQUIRED/);
-  const pack=await call('scenario',{method:'confirm',id:saved.draft_id,version:saved.version,reviewed:true});
+  const draft=await call('packs',{method:'create',refs:[{asset_id:expression.asset_id,revision_id:expression.revision_id}]});
+  const name=Object.fromEntries(draft.manifest.locales.map((l:string)=>[l,'我的分享']));
+  const saved=await call('packs',{method:'save',id:draft.draft_id,version:draft.version,manifest:{...draft.manifest,name,rights:{license:'CC0-1.0',creator:'me'}}});
+  assert.deepEqual((await call('packs',{method:'list'},1)).drafts.map((d:any)=>d.version),[saved.version],'the other client sees the saved draft');
+  await assert.rejects(call('packs',{method:'confirm',id:saved.draft_id,version:saved.version,reviewed:false}),/REVIEW_REQUIRED/);
+  const pack=await call('packs',{method:'confirm',id:saved.draft_id,version:saved.version,reviewed:true});
+  assert.deepEqual(pack.name,name);
   const created=await Promise.all([0,1].map(i=>call('publisher',{method:'create',args:{release_id:pack.release_id}},i)));
   const drafts=await call('publisher',{method:'drafts',args:{}});
   assert.equal(drafts.length,2);
@@ -37,27 +41,30 @@ test('Claude market bridge: local packs and creator drafts survive separate clie
 test('Claude guidance requires explicit exact selections and revalidates removed sources',async t=>{
  const {randomUUID}=await import('node:crypto');
  const directory=await mkdtemp(join(tmpdir(),'amoji-claude-guidance-'));
- const service=await startSharedService(directory,new URL('../assets/samples/',import.meta.url));
+ const service=await startSharedService(directory,SEEDS);
  const client=await SharedClient.connect({directory});
  t.after(async()=>{await client.close();await service.close();await rm(directory,{recursive:true,force:true});});
  const context={host:'claude-code' as const,hostInstanceId:'mods',sessionId:'guidance-test'};
  const app=new ExpressionApplication(new ConnectedRuntime(client),client);
  const call=(args:unknown):Promise<any>=>executeBridge(app,client,{command:'guidance',context,args});
  const e=(await client.list())[0]!,ref={asset_id:e.asset_id,revision_id:e.revision_id};
- const d=await client.createScenarioDraft([ref]);
- const rule={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'hook' as const,scope:'conversation' as const,locale:'zh-CN',effect_summary:'先给答案',conflict_group:'response-organization' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},rights:{license:'CC0-1.0'}};
- const once={action_id:randomUUID(),action_revision_id:randomUUID(),kind:'instruction' as const,scope:'turn' as const,locale:'zh-CN',effect_summary:'解释原因',conflict_group:'explanation' as const,instruction:'解释当前结论的原因。',rights:{license:'CC0-1.0'}};
- const saved=await client.saveScenarioDraft(d.draft_id,d.version,{...d.manifest,actions:[rule,once],bindings:[{expression:ref,actions:[{action_id:once.action_id,action_revision_id:once.action_revision_id}]}]});
- const pack=await client.confirmScenarioDraft(saved.draft_id,saved.version);
- const choices=await call({method:'choices',ref});assert.equal(choices.rules.length,1);assert.equal(choices.once.length,1);
- assert.equal(JSON.parse((await call({method:'compile',rules:[]})).text).actions.length,0,'installation is not consent');
- const compiled=await call({method:'compile',rules:[choices.rules[0].selection],once:{ref,selection:choices.once[0].selection}});
- assert.equal(JSON.parse(compiled.text).actions.length,2);assert.equal(compiled.rules.length,1);
- await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:{...choices.once[0].selection,action_revision_id:randomUUID()}}}),/ACTION_UNAVAILABLE/);
+ const d=await client.createPackDraft([ref]);
+ const text=(v:string)=>Object.fromEntries(d.manifest.locales.map(l=>[l,v]));
+ const rule={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'template' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},title:text('先给答案'),summary:text('先给答案')};
+ const once={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'context' as const,conflict_group:'explanation' as const,title:text('解释原因'),summary:text('解释原因'),instruction:text('解释当前结论的原因。')};
+ const saved=await client.savePackDraft(d.draft_id,d.version,{...d.manifest,effects:[rule,once],bindings:[{target:ref,effects:[once.effect_id]}]});
+ const pack=await client.confirmPackDraft(saved.draft_id,saved.version);
+ const own=(choices:any[])=>choices.filter(c=>c.selection.release_id===pack.release_id);
+ const choices=await call({method:'choices',ref});assert.equal(own(choices.rules).length,2,'any effect can be a conversation rule');assert.deepEqual(own(choices.once).map((c:any)=>c.effect.effect_id),[once.effect_id],'only bound effects accompany one expression');
+ assert.equal(JSON.parse((await call({method:'compile',rules:[]})).text).effects.length,0,'installation is not consent');
+ const ruleChoice=own(choices.rules).find((c:any)=>c.effect.effect_id===rule.effect_id)!;
+ const compiled=await call({method:'compile',rules:[ruleChoice.selection],once:{ref,selection:own(choices.once)[0].selection}});
+ assert.equal(JSON.parse(compiled.text).effects.length,2);assert.equal(compiled.rules.length,1);
+ await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:{...own(choices.once)[0].selection,effect_revision_id:randomUUID()}}}),/EFFECT_UNAVAILABLE/);
  const b=await client.bind(context);assert.equal((await client.rules(b)).rules.length,0,'compilation never silently persists consent');await client.unbind(b);
- await client.removeScenarioPack(pack.release_id);
- assert.equal((await call({method:'compile',rules:[choices.rules[0].selection]})).rules.length,0);
- await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:choices.once[0].selection}}),/ACTION_UNAVAILABLE/);
+ await client.removePack(pack.release_id);
+ assert.equal((await call({method:'compile',rules:[ruleChoice.selection]})).rules.length,0);
+ await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:own(choices.once)[0].selection}}),/EFFECT_UNAVAILABLE/);
 });
 
 test('Claude downloads a verified release, renders a bounded preview, sends its meaning and keeps frozen history after removal',async t=>{
@@ -76,7 +83,7 @@ test('Claude downloads a verified release, renders a bounded preview, sends its 
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
  const old=process.env.AMOJI_MARKET_ORIGIN;process.env.AMOJI_MARKET_ORIGIN=`http://127.0.0.1:${(server.address() as any).port}`;
  const directory=await mkdtemp(join(tmpdir(),'amoji-claude-online-'));
- const service=await startSharedService(directory,new URL('../assets/samples/',import.meta.url));
+ const service=await startSharedService(directory,SEEDS);
  if(old===undefined)delete process.env.AMOJI_MARKET_ORIGIN;else process.env.AMOJI_MARKET_ORIGIN=old;
  const client=await SharedClient.connect({directory});
  t.after(async()=>{await client.close();await service.close();await new Promise<void>(r=>server.close(()=>r()));await rm(directory,{recursive:true,force:true});});
@@ -94,8 +101,8 @@ test('Claude downloads a verified release, renders a bounded preview, sends its 
  assert.equal((await market('local')).installs.length,0);assert.equal((await market('installStatus',{operation_id:identity.operation_id})).status,'failed');
  corrupt=false;assert.equal((await market('install',{...identity,operation_id:randomUUID()})).status,'committed');
  assert.equal((await market('local')).installs.length,1);
- const received=await call('receive',{ref,requestId:randomUUID()});assert.ok(received.text.includes(e.semantics.meaning));assert.ok(!received.text.includes('base64'));
+ const received=await call('receive',{ref,requestId:randomUUID()});assert.ok(received.text.includes(e.semantics['zh-CN'].meaning));assert.ok(!received.text.includes('base64'));
  await market('remove',{pack_id:manifest.pack_id});assert.equal((await market('local')).installs.length,0);
- const history=await call('render',{direction:'human_to_ai',text:received.text});assert.equal(history[0].semantics.meaning,e.semantics.meaning);
+ const history=await call('render',{direction:'human_to_ai',text:received.text});assert.equal(history[0].meaning,e.semantics['zh-CN'].meaning);assert.equal(history[0].act,e.realizes);
  assert.ok(requests.every(p=>p.startsWith('/v1/')));
 });

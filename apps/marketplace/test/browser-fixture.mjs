@@ -24,8 +24,6 @@ async function loadPack(directory, name) {
       };
 }
 const packs = await Promise.all(catalog.packs.map(p => loadPack("official-packs", p.slug)));
-// Keep old exact links usable, but do not advertise the superseded groupings.
-const legacyPacks = await Promise.all(["make-it-clear", "work-well-together", "collaborate-comfortably"].map(name => loadPack("scenario-packs", name)));
 const sessions = new Map();
 const json = (res, body, status = 200) => {
   res.writeHead(status, {
@@ -100,12 +98,12 @@ const server = createServer(async (req, res) => {
           ? []
           : packs.filter((p) => {
               const m = p.manifest;
-              const search = [m.name, m.description, ...m.scenario, ...m.expressions.map(e => e.name)].join(" ").normalize("NFKC").toLowerCase();
+              const acts = [...new Set(m.expressions.map(e => e.realizes))];
+              const search = [...Object.values(m.name), ...Object.values(m.description), ...m.expressions.flatMap(e => [e.realizes, ...Object.values(e.name)])].join(" ").normalize("NFKC").toLowerCase();
               return search.includes(q.normalize("NFKC").toLowerCase()) &&
-                (!url.searchParams.get("scenario") || m.scenario.includes(url.searchParams.get("scenario"))) &&
-                (!url.searchParams.get("style") || m.styles.includes(url.searchParams.get("style"))) &&
-                (!url.searchParams.get("locale") || m.expressions.some(e => e.semantics.locale === url.searchParams.get("locale"))) &&
-                (!url.searchParams.get("actions") || String(m.actions.length > 0) === url.searchParams.get("actions"));
+                (!url.searchParams.get("act") || acts.includes(url.searchParams.get("act"))) &&
+                (!url.searchParams.get("locale") || m.locales.includes(url.searchParams.get("locale"))) &&
+                (!url.searchParams.get("effects") || String((m.effects?.length ?? 0) > 0) === url.searchParams.get("effects"));
             });
       return json(res, {
         packs: rows.map((p) => ({
@@ -119,11 +117,13 @@ const server = createServer(async (req, res) => {
             ).sha256,
           },
           expression_count: p.manifest.expressions.length,
-          action_count: p.manifest.actions?.length ?? 0,
+          effect_count: p.manifest.effects?.length ?? 0,
           manifest: {
             name: p.manifest.name,
             description: p.manifest.description,
-            scenario: p.manifest.scenario,
+            original_locale: p.manifest.original_locale,
+            locales: p.manifest.locales,
+            acts: [...new Set(p.manifest.expressions.map(e => e.realizes))],
             version: p.manifest.version,
           },
         })),
@@ -131,7 +131,7 @@ const server = createServer(async (req, res) => {
       });
     }
     if (path.startsWith("/v1/packs/")) {
-      const p = [...packs, ...legacyPacks].find((p) => path.includes(p.pack_id) && (!path.includes("/releases/") || path.includes(p.release_id)));
+      const p = packs.find((p) => path.includes(p.pack_id) && (!path.includes("/releases/") || path.includes(p.release_id)));
       if (!p) return json(res, {}, 404);
       if (state.mode === "removed")
         return json(

@@ -1,4 +1,4 @@
-import { L } from "./transport.js";
+import { L, ACTS, FAMILY_LABELS, gloss, view } from "./transport.js";
 import { LINE, SURFACE } from "./ui-kit.js";
 import { edit, suggest, invalidate, save, newDraft, call, perform } from "./controller.js";
 
@@ -36,16 +36,33 @@ export function creationView($, e, s, u) {
     tools, heading(L(s, "把想说的话，变成表情", "Turn what you mean into an expression")),
     t(L(s, "从一句想表达的话开始，再配上一张图。", "Start with what you want to say, then add an image."), true),
   ]);
+  // Native editing writes the draft's original language; other languages are edited in dsh or the pack tools.
+  const lang = d.fields.original_locale;
+  const semantics = () => (d.fields.semantics[lang] ??= { meaning: "", fallback: "" });
   const field = (key, value) => edit(s, () => { d.fields[key] = value; });
-  const semantic = (key, value) => edit(s, () => { d.fields.semantics[key] = value; });
-  const meaning = d.fields.name.trim() || d.fields.semantics.meaning.trim();
-  const summary = fields => col([
-    heading(fields.name || L(s, "未命名表情", "Untitled expression")),
-    t(fields.semantics.meaning),
-    fields.semantics.fallback && t(L(s, "图片无法显示时：", "Text fallback: ") + fields.semantics.fallback, true),
-  ]);
+  const named = value => edit(s, () => { d.fields.name = { ...d.fields.name, [lang]: value }; });
+  const semantic = (key, value) => edit(s, () => {
+    const next = { ...semantics() };
+    if (Array.isArray(value) && !value.length) delete next[key]; else next[key] = value;
+    d.fields.semantics = { ...d.fields.semantics, [lang]: next };
+  });
+  const tags = value => edit(s, () => {
+    const next = { ...d.fields.tags };
+    if (value.length) next[lang] = value; else delete next[lang];
+    if (Object.keys(next).length) d.fields.tags = next; else delete d.fields.tags;
+  });
+  const own = { name: d.fields.name[lang] || "", ...semantics() };
+  const meaning = own.name.trim() || own.meaning.trim();
+  const summary = fields => { const v = view(s, fields); return col([
+    heading(v.name || L(s, "未命名表情", "Untitled expression")),
+    fields.realizes && t(gloss(s, fields.realizes, fields.directions?.[0]) + " · " + fields.realizes, true),
+    t(v.meaning),
+    v.fallback && t(L(s, "图片无法显示时：", "Text fallback: ") + v.fallback, true),
+  ]); };
+  const actOptions = [["", L(s, "选择码位", "Choose an act")], ...ACTS.map(a =>
+    [a.act, L(s, ...FAMILY_LABELS[a.family]) + " · " + gloss(s, a.act, a.forms.h2a ? "h2a" : "a2h")])];
   const artwork = col([
-    d.preview ? picture(d.preview, d.fields.name) : Box({ width: 14, height: 6,
+    d.preview ? picture(d.preview, own.name) : Box({ width: 14, height: 6,
       borderStyle: "round", borderColor: LINE, backgroundColor: SURFACE, alignItems: "center", justifyContent: "center",
       children: [Text({ children: [L(s, "＋ 配一张图", "＋ Add artwork")], dimColor: true })] }),
     input("image-path", L(s, "表情图片", "Artwork"), s.imagePath,
@@ -72,18 +89,23 @@ export function creationView($, e, s, u) {
     t(L(s, "仅用文字生成，按模型计费。", "Uses your description only. Your selected model’s pricing applies."), true),
   ]);
   const fields = s.manual ? col([
-    input("field:name", L(s, "名称", "Name"), d.fields.name, value => field("name", value)),
-    input("field:meaning", L(s, "固定含义", "Fixed meaning"), d.fields.semantics.meaning, value => semantic("meaning", value)),
-    input("field:fallback", L(s, "文字回退", "Text fallback"), d.fields.semantics.fallback, value => semantic("fallback", value)),
-    button("advanced", L(s, s.advanced ? "收起更多设置" : "更多设置：语气、场景与来源", s.advanced ? "Fewer settings" : "Tone, context and source"), async () => { s.advanced = !s.advanced; }),
+    select("field:realizes", L(s, "实现的码位", "Act realized"), d.fields.realizes, actOptions, value => edit(s, () => { d.fields.realizes = value; delete d.fields.directions; })),
+    select("field:intensity", L(s, "强度", "Intensity"), String(d.fields.intensity),
+      [["1", L(s, "轻", "Light")], ["2", L(s, "中", "Medium")], ["3", L(s, "强", "Strong")]], value => field("intensity", Number(value))),
+    input("field:name", L(s, "名称", "Name"), own.name, named),
+    input("field:meaning", L(s, "固定含义", "Fixed meaning"), own.meaning, value => semantic("meaning", value)),
+    input("field:fallback", L(s, "文字回退", "Text fallback"), own.fallback, value => semantic("fallback", value)),
+    button("advanced", L(s, s.advanced ? "收起更多设置" : "更多设置：场景、图中文字与来源", s.advanced ? "Fewer settings" : "Context, text in image and source"), async () => { s.advanced = !s.advanced; }),
     ...(s.advanced ? [
-      input("field:locale", L(s, "语言", "Language"), d.fields.semantics.locale, value => semantic("locale", value)),
-      input("field:tone", L(s, "语气", "Tone"), d.fields.semantics.tone || "", value => semantic("tone", value)),
+      t(L(s, "语言：", "Language: ") + lang, true),
       ...[["use", "use_when", "适用场景", "Use when"], ["avoid", "avoid_when", "避免场景", "Avoid when"]].map(([id, key, zh, en]) =>
-        input("field:" + id, L(s, zh + "（分号分隔）", en + " (semicolon separated)"), (d.fields.semantics[key] || []).join("; "),
+        input("field:" + id, L(s, zh + "（分号分隔）", en + " (semicolon separated)"), (own[key] || []).join("; "),
           value => semantic(key, value.split(/[;；]/).map(x => x.trim()).filter(Boolean)))),
-      input("field:tags", L(s, "标签（分号分隔）", "Tags (semicolon separated)"), (d.fields.tags || []).join("; "),
-        value => field("tags", value.split(/[;；]/).map(x => x.trim()).filter(Boolean))),
+      input("field:tags", L(s, "标签（分号分隔）", "Tags (semicolon separated)"), (d.fields.tags?.[lang] || []).join("; "),
+        value => tags(value.split(/[;；]/).map(x => x.trim()).filter(Boolean))),
+      select("field:text-locale", L(s, "图片中的文字", "Text in the image"), d.fields.text_locale || "",
+        [["", L(s, "图片不含文字", "No text in the image")], ...Object.keys(d.fields.semantics).map(l => [l, l])],
+        value => field("text_locale", value || null)),
       ...[["license", "使用许可", "License"], ["creator", "作者", "Creator"], ["source", "来源", "Source"]].map(([key, zh, en]) =>
         input("field:" + key, L(s, zh, en), d.fields.rights[key] || "", value => edit(s, () => { d.fields.rights[key] = value; }))),
     ] : []),

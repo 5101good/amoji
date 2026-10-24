@@ -38,9 +38,9 @@ test("real local Worker: creator uploads, submits, reviewer approves, public vis
     await page
       .locator("input[type=file]")
       .setInputFiles(
-        resolve("../../assets/scenario-packs/make-it-clear.amoji"),
+        resolve("../../assets/official-packs/pixel-pal.amoji"),
       );
-    await page.getByLabel("包名称", { exact: true }).fill("浏览器真实投稿验收");
+    await page.getByLabel("包名称 · zh-CN", { exact: true }).fill("浏览器真实投稿验收");
     await page.getByRole("button", { name: "下一步", exact: true }).click();
     await page.getByRole("button", { name: "下一步", exact: true }).click();
     await page

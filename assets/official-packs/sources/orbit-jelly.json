@@ -1,0 +1,230 @@
+{
+  "slug": "orbit-jelly",
+  "pack_id": "adae364e-69b2-4584-9845-e4fe31d707c6",
+  "version": 2,
+  "created_at": "2026-10-22T00:00:00Z",
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
+  ],
+  "name": {
+    "zh-CN": "灵感水母",
+    "en": "Orbit Jelly"
+  },
+  "description": {
+    "zh-CN": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。",
+    "en": "A glowing bundle of curiosity. Let half-formed ideas slowly take shape in conversation."
+  },
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+  },
+  "expressions": [
+    {
+      "slug": "what-if",
+      "realizes": "core:idea",
+      "intensity": 1,
+      "image": "images/orbit-jelly/what-if.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "换个可能呢",
+        "en": "What if…"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我们可以试着从另一种可能性看这件事，先讨论，不急着作决定。",
+          "fallback": "[换个可能呢]",
+          "use_when": [
+            "脑暴或遇到思路局限时"
+          ],
+          "avoid_when": [
+            "不据此擅自推翻已确认的需求或修改方案"
+          ]
+        },
+        "en": {
+          "meaning": "We could consider another possibility and discuss it without rushing to a decision.",
+          "fallback": "[what if]",
+          "use_when": [
+            "Brainstorming or when thinking feels stuck"
+          ],
+          "avoid_when": [
+            "Don't override agreed requirements or change plans on your own"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "换个可能呢",
+          "探索",
+          "灵感",
+          "不确定"
+        ],
+        "en": [
+          "What if…",
+          "exploration",
+          "ideas",
+          "uncertainty"
+        ]
+      }
+    },
+    {
+      "slug": "connect",
+      "realizes": "core:idea",
+      "intensity": 2,
+      "image": "images/orbit-jelly/connect.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "好像连上了",
+        "en": "A possible connection"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "这两个想法或线索之间似乎存在联系，值得一起看看是否成立。",
+          "fallback": "[好像连上了]",
+          "use_when": [
+            "发现潜在关联时"
+          ],
+          "avoid_when": [
+            "不把关联当作因果，也不把猜想当作事实"
+          ]
+        },
+        "en": {
+          "meaning": "These two ideas or clues seem related; it's worth checking together whether that holds.",
+          "fallback": "[a possible connection]",
+          "use_when": [
+            "Spotting a possible connection"
+          ],
+          "avoid_when": [
+            "Don't treat association as causation, or a guess as fact"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "好像连上了",
+          "探索",
+          "灵感",
+          "不确定"
+        ],
+        "en": [
+          "A possible connection",
+          "exploration",
+          "ideas",
+          "uncertainty"
+        ]
+      }
+    },
+    {
+      "slug": "uncertain",
+      "realizes": "core:uncertain",
+      "intensity": 1,
+      "image": "images/orbit-jelly/uncertain.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "还不太确定",
+        "en": "Not quite sure"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我对当前判断还没有足够把握，需要更多信息或验证才能确认。",
+          "fallback": "[还不太确定]",
+          "use_when": [
+            "证据不足或存在多个合理解释时"
+          ],
+          "avoid_when": [
+            "不以表情替代应该说明的具体不确定事项"
+          ]
+        },
+        "en": {
+          "meaning": "I'm not confident in this judgement yet; it needs more information or checking.",
+          "fallback": "[not quite sure]",
+          "use_when": [
+            "When evidence is thin or several explanations fit"
+          ],
+          "avoid_when": [
+            "Don't let it replace saying what exactly is uncertain"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "还不太确定",
+          "探索",
+          "灵感",
+          "不确定"
+        ],
+        "en": [
+          "Not quite sure",
+          "exploration",
+          "ideas",
+          "uncertainty"
+        ]
+      }
+    },
+    {
+      "slug": "spark",
+      "realizes": "core:idea",
+      "intensity": 3,
+      "image": "images/orbit-jelly/spark.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "灵感冒泡了",
+        "en": "Spark!"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "一个新想法刚刚浮现，我想把这份发现的兴奋分享给你。",
+          "fallback": "[灵感冒泡了]",
+          "use_when": [
+            "产生一个新角度或创意时"
+          ],
+          "avoid_when": [
+            "不暗示这个想法已经可行、正确或完成实施"
+          ]
+        },
+        "en": {
+          "meaning": "A new idea just surfaced and I want to share the excitement of finding it.",
+          "fallback": "[spark]",
+          "use_when": [
+            "When a new angle or creative idea appears"
+          ],
+          "avoid_when": [
+            "Don't imply the idea is feasible, correct or already implemented"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "灵感冒泡了",
+          "探索",
+          "灵感",
+          "不确定"
+        ],
+        "en": [
+          "Spark!",
+          "exploration",
+          "ideas",
+          "uncertainty"
+        ]
+      }
+    }
+  ]
+}

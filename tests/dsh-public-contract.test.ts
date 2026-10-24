@@ -14,11 +14,11 @@ import { createComponents } from '../src/dsh/client.js';
 
 // Compiled against pinned published declarations, no structural fixture substitutes.
 function publicContracts(adapter: DshAdapter, slots: SlotRegistry, views: ReturnType<typeof createComponents>, session: Session, owner: ToolCallOwnerProps, user: ChatNodeViewProps<'user'>) {
-  defineTool(adapter.tool('amoji_emit'));
+  defineTool(adapter.tool('amoji_express'));
   const port: DshSession = session;
   const create: SessionCreateRequest = { workspaceId: undefined, agentPreset: undefined };
   slots.inject('conversation.input.left', () => slots.register({ name: 'conversation.input.left', id: 'amoji' }, views.Picker));
-  slots.inject('tool.call.toolview', () => slots.register({ name: 'tool.call.toolview', key: 'amoji_emit' }, views.ToolView));
+  slots.inject('tool.call.toolview', () => slots.register({ name: 'tool.call.toolview', key: 'amoji_express' }, views.ToolView));
   const block = owner.block;
   if ('kind' in block && block.kind === 'tool-result') void block.meta;
   void user.node.data.source;

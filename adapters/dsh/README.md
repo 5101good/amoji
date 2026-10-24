@@ -2,29 +2,29 @@
 
 [English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-面向人和 AI 的原生表情：人看图，模型读固定语义。1.1.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**；已有实际宿主证据的平台为 macOS arm64。
+面向人和 AI 的原生表情：人看图，模型读固定语义。2.0.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**。历史真机记录来自 macOS arm64，本次发行范围见[2.0.0 发布说明](https://github.com/5101good/amoji/blob/v2.0.0/docs/releases/v2.0.0.md)。
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-1.1.0.tgz`，在文件所在目录执行：
+从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-2.0.0.tgz`，在文件所在目录执行：
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
-`amoji` 是示例 profile，替换为自己的名称。安装到已有 profile 时先保存工作，安装后重启。选择工作区即可从输入区打开“表情”，无需先发送普通文字。点图发送，详情只查看含义；新库的经典/办公各有24个同语义表情，共48个资产。
+`amoji` 是示例 profile，替换为自己的名称。安装到已有 profile 时先保存工作，安装后重启。选择工作区即可从输入区打开“表情”，无需先发送普通文字。点图发送，详情只查看含义；新库的经典与办公各有 24 个表情、实现相同的 22 个码位，共 48 个资产。选择器只提供可由人发送的表情。
 
 “管理表情”支持草稿、个人副本、不可变历史版本、归档、偏好及 `.amoji` 包导入导出。创作只有一个意图输入框；AI 文字建议默认当前会话模型，可另选宿主已配置模型。只发送文字意图和生成指令，不发送图片或会话历史。采用建议后仍需编辑、保存、图文加载预览、勾选并确认入库。手工填写无需模型请求。
 
-界面跟随 dsh 中英语言，固定语义不会随 UI 翻译改写。内置语义为中文。模型建议按所选提供方配置计费，不自动重试。
+界面跟随 dsh 中英语言，固定语义不会随 UI 翻译改写。内置表情提供中文原文与英文语义，并标明翻译来源。模型建议按所选提供方配置计费，不自动重试。
 
 ## 数据与兼容
 
-Host 连接本地共享服务，要求 API 2、数据库4，以及 `dsh-native-delivery-v1`、`dsh-reliable-delivery-v1`、`library-management-v1`、`packs-v1`。macOS 默认数据目录为 `~/Library/Application Support/Amoji/prototype`，可用 `AMOJI_DATA_DIR` 隔离。升级保留共享数据和宿主会话；卸载插件不主动删除共享库。
+Host 连接本地共享服务；产品版本为 2.0.0，协议为 Amoji 0.1，共享 API 为 `3`，数据库为 `1`。macOS 默认数据目录为 `~/Library/Application Support/Amoji/prototype`，可用 `AMOJI_DATA_DIR` 隔离。从 1.x 升级前须停止旧服务并备份完整目录。2.0.0 使用新的 `library-0.1.sqlite`，保留旧 `library.sqlite`，不要求空目录；不支持旧库就地迁移或旧 `.amoji` 包导入。不要手改数据库版本号。卸载插件不主动删除共享库。
 
 浏览器只使用宿主认证 RPC，模型只使用三个文字工具。`accepted` 表示宿主已接收入队，原生用户消息是否落盘仍需核对；`observed` 表示已观察到对应原生消息，图片 `rendered` 是独立的加载证据。断连或结果未知时核对原请求，避免另发。
 
@@ -34,13 +34,13 @@ direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具
 
 包含 Host/Client、共享核心、基础资产、构建信息与许可清单，不嵌入 `node_modules`、Sharp `.node` 或 libvips 动态库；宿主包管理器安装依赖，因此不是离线安装包。Client 使用宿主 React，Host 使用宿主服务。
 
-代码 MIT；基础素材 CC0-1.0；第三方依赖保留各自许可。参见包内 `LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/` 和 `assets/base-library/`。
+代码 MIT；官方表情包 CC0-1.0；第三方依赖保留各自许可。参见包内 `LICENSE`、`NOTICE`、`THIRD_PARTY.json`、`THIRD_PARTY_LICENSES/` 和 `assets/official-packs/`。
 
 完整[安装恢复](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)、[使用](https://github.com/5101good/amoji/blob/main/docs/usage.md)和[已知限制](https://github.com/5101good/amoji/blob/main/docs/release.md)见源码仓库。
 
 ### 表情市场
 
-在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装表情包或独立收藏单张表情。安装不会启用动作。检查更新会列出语义和动作差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
+在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装表情包或独立收藏单张表情。安装不会启用任何效果。检查更新会列出语义和效果差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
 
 Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认正式市场 `https://amoji.ai-web.ai`）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
 
@@ -48,6 +48,6 @@ Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认正式市
 
 ### 从 dsh 投稿
 
-在管理页的「导入与导出」先确认本地表情包，再打开「发布到市场」。向导保存说明、许可和可选动作；纯视觉包可以不带动作。浏览器登录后核对 dsh 显示的设备名称及短码，勾选确认并授权。配对五分钟内有效，取消后需重新开始；无需修改模型设置。
+在管理页的「导入与导出」先确认本地表情包，再打开「发布到市场」。向导保存每种语言的说明、许可和可选效果；纯表情包可以不带效果。浏览器登录后核对 dsh 显示的设备名称及短码，勾选确认并授权。配对五分钟内有效，取消后需重新开始；无需修改模型设置。
 
 完整预览后上传、校验并明确投稿。结果不明时点击「核对原操作与审核状态」，不要另建投稿。退回理由显示在原草稿；选择修订后的本地包，创建新版本重新审核。断网保留已保存草稿。访问凭据仅保存在当前 dsh profile 的 `plugins/amoji/publisher` 私有目录，不进入网页、包、模型输入或共享库；不要分享该目录。注销设备会撤销授权。

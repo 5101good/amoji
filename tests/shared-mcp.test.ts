@@ -21,7 +21,7 @@ test('两个真实 MCP 适配进程复用选择凭据与消息服务，面板回
   });
   const connect = async () => {
     const client = new Client({ name: 'mcp-shared-test', version: '1' }); clients.push(client);
-    await client.connect(new StdioClientTransport({ command: process.execPath, args: ['--import', 'tsx', 'src/main.ts'], cwd: fileURLToPath(new URL('../', import.meta.url)), env: { ...process.env as Record<string, string>, AMOJI_DATA_DIR: directory, AMOJI_SAMPLE_ROOT: fileURLToPath(new URL('../assets/samples/', import.meta.url)) }, stderr: 'pipe' }));
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: ['--import', 'tsx', 'src/main.ts'], cwd: fileURLToPath(new URL('../', import.meta.url)), env: { ...process.env as Record<string, string>, AMOJI_DATA_DIR: directory }, stderr: 'pipe' }));
     return client;
   };
   const a = await connect();
@@ -34,8 +34,8 @@ test('两个真实 MCP 适配进程复用选择凭据与消息服务，面板回
     return JSON.parse((result.content as Array<{ text: string }>)[0]!.text);
   };
   const choice = (await invoke(a, 'amoji_search', { query: '加油' })).candidates[0];
-  const sent = await invoke(b, 'amoji_emit', { selection_token: choice.selection_token });
-  assert.deepEqual(Object.keys(sent.expression).sort(), ['asset_id', 'name', 'revision_id', 'semantics']);
+  const sent = await invoke(b, 'amoji_express', { selection_token: choice.selection_token });
+  assert.deepEqual([sent.status, sent.act, sent.from], ['sent', 'core:encourage', 'ai']);
   const panel = new URL(sent.panel_url);
   const headers = { Authorization: `Bearer ${panel.hash.slice(1)}`, 'Content-Type': 'application/json' };
   const state = await (await fetch(`${panel.origin}/api/state`, { headers })).json();
@@ -44,11 +44,10 @@ test('两个真实 MCP 适配进程复用选择凭据与消息服务，面板回
   assert.equal((await fetch(`${panel.origin}/api/ack`, { method: 'POST', headers, body: JSON.stringify({ message_id: sent.message_id, presentation: 'rendered' }) })).status, 200);
   const refreshed = await (await fetch(`${panel.origin}/api/state`, { headers })).json();
   assert.equal(refreshed.messages[0].presentation, 'rendered');
-  assert.equal(refreshed.messages[0].delivery, 'pending');
-  assert.equal((await invoke(a, 'amoji_emit', { selection_token: choice.selection_token })).message_id, sent.message_id);
+  assert.equal((await invoke(a, 'amoji_express', { selection_token: choice.selection_token })).message_id, sent.message_id, 'the other process replays the same message');
   await a.close();
   const second = (await invoke(b, 'amoji_search', { query: '庆祝' }, 'another')).candidates[0];
-  const other = await invoke(b, 'amoji_emit', { selection_token: second.selection_token }, 'another');
+  const other = await invoke(b, 'amoji_express', { selection_token: second.selection_token }, 'another');
   assert.notEqual(other.message_id, sent.message_id);
   const url = new URL(other.panel_url);
   const otherHeaders = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' };

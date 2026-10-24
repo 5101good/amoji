@@ -1,9 +1,48 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "./ui";
+import { expressionText } from "../../../src/protocol/text";
+import { lookupLocale } from "../../../src/protocol/locale";
+import type { Expression } from "../../../src/protocol/types";
+import { actLabel, pick, uiLocale } from "./acts";
+import type { Locale } from "./ui";
+
+const languageNames = {
+  zh: new Intl.DisplayNames(["zh-CN"], { type: "language" }),
+  en: new Intl.DisplayNames(["en"], { type: "language" }),
+};
+function languageName(language: string, locale: Locale): string {
+  if (language.toLowerCase() === "zh-cn") return locale === "zh" ? "简体中文" : "Simplified Chinese";
+  if (language.toLowerCase() === "en") return locale === "zh" ? "英文" : "English";
+  try {
+    return languageNames[locale].of(language) ?? language;
+  } catch {
+    // An unrecognized tag must not prevent the pack from being previewed.
+    return language;
+  }
+}
+
+function LanguageNotice({ expression, language, locale }: {
+  expression: Expression;
+  language: string;
+  locale: Locale;
+}) {
+  const fallback = !lookupLocale([language], uiLocale(locale));
+  const machine = expression.semantics[language]?.translation?.method === "machine";
+  if (!fallback && !machine) return null;
+  const name = languageName(language, locale);
+  return <p className="language-notice">
+    {fallback && (locale === "zh"
+      ? `当前显示${name}说明。`
+      : `Description shown in ${name}.`)}
+    {fallback && machine && " "}
+    {machine && (locale === "zh" ? "机器翻译，未经人工审校。" : "Machine translation, not human-reviewed.")}
+  </p>;
+}
+
 export const previewWords = {
   zh: {
     title: "创作者工作台",
-    steps: ["选择内容", "说明与许可", "可选动作", "预览投稿"],
+    steps: ["选择内容", "说明与许可", "可选效果", "预览投稿"],
     choose: "选择 .amoji 表情包",
     next: "下一步",
     back: "上一步",
@@ -29,13 +68,12 @@ export const previewWords = {
     empty: "还没有投稿。",
     ready: "完整校验通过。投稿后内容不可修改，修订会生成新版本。",
     rights:
-      "仅支持 CC0-1.0、CC-BY-4.0、CC-BY-SA-4.0；每项均须填写创作者，衍生包须保留来源。不会自动改变导入内容的许可。修改表情或动作的署名/许可会创建新身份并保留来源。",
-    actions:
-      "可选择保留包内动作。动作是可选提示，不会因安装或发送表情而自动执行。",
-    noActions: "这个包只有表情，没有协作动作。",
-    example: "示例（不代表效果保证）",
+      "仅支持 CC0-1.0、CC-BY-4.0、CC-BY-SA-4.0；包和每个表情均须填写创作者，衍生包须保留来源。不会自动改变导入内容的许可。修改表情的署名/许可会创建新身份并保留来源。",
+    effects:
+      "可选择保留包内协作效果。效果是可选提示，不会因安装或发送表情而自动启用。",
+    noEffects: "这个包只有表情，没有协作效果。",
     meaning: "固定语义",
-    locale: "原始语义语言",
+    locale: "原文语言",
     full: "完整内容与元数据",
     new: "新建另一份草稿",
     busy: "处理中…",
@@ -44,22 +82,25 @@ export const previewWords = {
     sourceHint: "导入后形成新的发布快照，保留原包版本作为衍生来源。",
     localPreview: "本地预览",
     verifiedPreview: "已验证的精确版本",
-    allContent: "全部表达、素材、动作、示例、许可与来源",
+    allContent: "全部表情、素材、效果、许可与来源",
     more: "加载更多",
     pack: "表情包",
     expression: "表情",
-    action: "动作",
-    turn: "本次请求",
-    conversation: "当前会话",
-    instruction: "协作提示",
-    hook: "会话习惯",
+    effect: "效果",
+    act: "码位",
+    languages: "含义说明支持",
+    translation: "翻译",
+    context: "协作提示",
+    template: "会话习惯",
+    bound: "绑定",
+    packLevel: "包级习惯，需手动启用",
   },
   en: {
     title: "Creator workspace",
     steps: [
       "Choose content",
       "Details and licenses",
-      "Optional actions",
+      "Optional effects",
       "Preview and submit",
     ],
     choose: "Choose an .amoji expression pack",
@@ -89,14 +130,13 @@ export const previewWords = {
     ready:
       "The complete archive passed validation. Submitted bytes are immutable; revisions create new versions.",
     rights:
-      "Supported: CC0-1.0, CC-BY-4.0 and CC-BY-SA-4.0. Every item requires creator attribution; derivatives require provenance. Imported licenses are never changed automatically. Editing attribution/licenses creates new identities and preserves provenance.",
-    actions:
-      "Choose which included actions to keep. These are optional guidance, never activated by installation or expression sending.",
-    noActions:
-      "This pack contains expressions only, with no collaboration actions.",
-    example: "Example (not a guarantee of results)",
+      "Supported: CC0-1.0, CC-BY-4.0 and CC-BY-SA-4.0. The pack and every expression require creator attribution; derivatives require provenance. Imported licenses are never changed automatically. Editing an expression's attribution or license creates a new identity and preserves provenance.",
+    effects:
+      "Choose which included collaboration effects to keep. They are optional guidance, never enabled by installation or by sending an expression.",
+    noEffects:
+      "This pack contains expressions only, with no collaboration effects.",
     meaning: "Fixed semantics",
-    locale: "Original semantic language",
+    locale: "Original language",
     full: "Complete content and metadata",
     new: "Start another draft",
     busy: "Working…",
@@ -107,15 +147,18 @@ export const previewWords = {
     localPreview: "Local preview",
     verifiedPreview: "Exact validated version",
     allContent:
-      "All expressions, media, actions, examples, licenses and sources",
+      "All expressions, media, effects, licenses and sources",
     more: "Load more",
     pack: "Expression pack",
     expression: "Expression",
-    action: "Action",
-    turn: "This request",
-    conversation: "This conversation",
-    instruction: "Collaboration instruction",
-    hook: "Conversation habit",
+    effect: "Effect",
+    act: "Act",
+    languages: "Meaning descriptions available in",
+    translation: "Translation",
+    context: "Collaboration hint",
+    template: "Conversation habit",
+    bound: "Bound to",
+    packLevel: "Pack-level habit; enable it yourself",
   },
 };
 export function Preview({
@@ -134,26 +177,10 @@ export function Preview({
   t: typeof previewWords.zh | typeof previewWords.en;
 }) {
   const zh = t.title === previewWords.zh.title;
-  const appearances: string[] = [
-    ...new Set<string>(
-      manifest.expressions.flatMap((e: any) =>
-        (e.tags ?? [])
-          .filter((tag: string) => tag.startsWith("amoji:appearance:"))
-          .map((tag: string) => tag.slice(17)),
-      ),
-    ),
-  ];
-  const [appearance, setAppearance] = useState(appearances[0] ?? "");
+  const locale = zh ? "zh" : "en";
+  const lang = uiLocale(locale);
+  const local = (map: Record<string, string>) => pick(map, locale, manifest.original_locale);
   const [zoom, setZoom] = useState<any>(null);
-  const shown =
-    hideHeading && appearance
-      ? manifest.expressions.filter(
-          (e: any) =>
-            !e.tags?.some((tag: string) =>
-              tag.startsWith("amoji:appearance:"),
-            ) || e.tags.includes("amoji:appearance:" + appearance),
-        )
-      : manifest.expressions;
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     if (uploadId || mediaBase) {
@@ -178,132 +205,107 @@ export function Preview({
       : uploadId
         ? `/v1/uploads/${uploadId}/media/${m.sha256}`
         : urls[m.sha256];
+  const bindings = (effectId: string) =>
+    (manifest.bindings ?? [])
+      .filter((b: any) => b.effects.includes(effectId))
+      .map((b: any) => {
+        if ("act" in b.target) return actLabel(b.target.act, locale);
+        const e = manifest.expressions.find((x: any) => x.asset_id === b.target.asset_id && x.revision_id === b.target.revision_id);
+        return e ? expressionText(e, lang).name : b.target.revision_id;
+      });
+  const zoomed = zoom && expressionText(zoom, lang);
   return (
     <section className="pack-preview" aria-label={t.allContent}>
       {!hideHeading && (
         <div className="preview-heading">
-          <h3>{manifest.name}</h3>
-          <p>{manifest.description}</p>
+          <h3>{local(manifest.name)}</h3>
+          <p>{local(manifest.description)}</p>
         </div>
       )}
       {hideHeading && (
         <div className="preview-toolbar">
           <h2>{zh ? "表情与含义" : "Expressions & meanings"}</h2>
-          {appearances.length > 1 && (
-            <div
-              className="segmented"
-              role="group"
-              aria-label={zh ? "选择画风" : "Choose appearance"}
-            >
-              {["", ...appearances].map((style) => (
-                <button
-                  type="button"
-                  key={style}
-                  aria-pressed={appearance === style}
-                  onClick={() => setAppearance(style)}
-                >
-                  {style === ""
-                    ? zh
-                      ? "全部"
-                      : "All"
-                    : style === "classic"
-                      ? zh
-                        ? "经典"
-                        : "Classic"
-                      : style === "office"
-                        ? zh
-                          ? "办公"
-                          : "Office"
-                        : style}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
+      <p>{t.languages}: {manifest.locales.map((language: string) => languageName(language, locale)).join(" · ")}</p>
       <div className="expression-grid">
-        {shown.map((e: any) => (
-          <article key={e.asset_id + e.revision_id}>
-            <div className="preview-media">
-              <button
-                className="image-preview-button"
-                type="button"
-                onClick={() => setZoom(e)}
-                aria-label={(zh ? "放大查看：" : "View larger: ") + e.name}
-              >
-                <img
-                  loading="lazy"
-                  decoding="async"
-                  src={mediaUrl(e.visual.primary)}
-                  alt={e.semantics.fallback}
-                />
-              </button>
-              {e.visual.poster && (
-                <img
-                  src={mediaUrl(e.visual.poster)}
-                  alt={e.semantics.fallback + " (poster)"}
-                />
-              )}
-            </div>
-            <h4>{e.name}</h4>
-            <p>
-              {t.locale}:{" "}
-              <span lang={e.semantics.locale}>{e.semantics.locale}</span>
-            </p>
-            <p lang={e.semantics.locale}>{e.semantics.meaning}</p>
-            <details>
-              <summary>{t.full}</summary>
-              <pre>{JSON.stringify(e.semantics, null, 2)}</pre>
+        {manifest.expressions.map((e: any) => {
+          const x = expressionText(e, lang);
+          return (
+            <article key={e.asset_id + e.revision_id}>
+              <div className="preview-media">
+                <button
+                  className="image-preview-button"
+                  type="button"
+                  onClick={() => setZoom(e)}
+                  aria-label={(zh ? "放大查看：" : "View larger: ") + x.name}
+                >
+                  <img
+                    loading="lazy"
+                    decoding="async"
+                    src={mediaUrl(e.visual.primary)}
+                    alt={x.fallback}
+                  />
+                </button>
+                {e.visual.poster && (
+                  <img
+                    src={mediaUrl(e.visual.poster)}
+                    alt={x.fallback + " (poster)"}
+                  />
+                )}
+              </div>
+              <h4 lang={x.locale}>{x.name}</h4>
               <p>
-                {e.rights.license} · {e.rights.creator}
+                {t.act}: {actLabel(e.realizes, locale)} · {e.realizes}
               </p>
-              <p>{e.rights.source}</p>
-            </details>
-          </article>
-        ))}
+              <LanguageNotice expression={e} language={x.locale} locale={locale} />
+              <p lang={x.locale}>{x.meaning}</p>
+              <details>
+                <summary>{t.full}</summary>
+                <p>{t.locale}: {languageName(e.original_locale, locale)}</p>
+                <p>{t.languages}: {Object.keys(e.semantics).map(language => languageName(language, locale)).join(" · ")}</p>
+                <pre tabIndex={0}>{JSON.stringify({ realizes: e.realizes, intensity: e.intensity, directions: e.directions, name: e.name, semantics: e.semantics, tags: e.tags }, null, 2)}</pre>
+                <p>
+                  {e.rights.license} · {e.rights.creator}
+                </p>
+                <p>{e.rights.source}</p>
+              </details>
+            </article>
+          );
+        })}
       </div>
-      {!!manifest.actions?.length && (
+      {!!manifest.effects?.length && (
         <h2 className="preview-section-title">
-          {zh ? "可选协作提示" : "Optional collaboration guidance"}
+          {zh ? "可选协作效果" : "Optional collaboration effects"}
         </h2>
       )}
-      {manifest.actions?.map((a: any) => (
-        <article className="action-preview" key={a.action_id}>
-          <h4>{a.name ?? a.effect_summary}</h4>
-          <p>
-            {a.kind === "instruction" ? t.instruction : t.hook} ·{" "}
-            {a.scope === "turn" ? t.turn : t.conversation} · {a.locale}
-          </p>
-          {a.name && a.name !== a.effect_summary && <p>{a.effect_summary}</p>}
-          {a.instruction ? (
-            <p>{a.instruction}</p>
-          ) : (
-            <details>
-              <summary>{t.full}</summary>
-              <pre>
-                {JSON.stringify(
-                  { template: a.template, config: a.config },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
-          )}
-          <details>
-            <summary>{zh ? "许可与来源" : "License & attribution"}</summary>
+      {manifest.effects?.map((a: any) => {
+        const bound = bindings(a.effect_id);
+        return (
+          <article className="action-preview" key={a.effect_id}>
+            <h4>{local(a.title)}</h4>
             <p>
-              {a.rights.license} · {a.rights.creator}
+              {a.kind === "context" ? t.context : t.template} ·{" "}
+              {bound.length ? `${t.bound}: ${bound.join(" · ")}` : t.packLevel}
             </p>
-            <p>{a.rights.source}</p>
-          </details>
-        </article>
-      ))}
-      {manifest.examples?.map((e: any, i: number) => (
-        <article className="example-preview" key={i}>
-          <h4>{t.example}</h4>
-          <p>{typeof e === "string" ? e : JSON.stringify(e)}</p>
-        </article>
-      ))}
+            <p>{local(a.summary)}</p>
+            {a.kind === "context" ? (
+              <p>{local(a.instruction)}</p>
+            ) : (
+              <details>
+                <summary>{t.full}</summary>
+                <pre tabIndex={0}>
+                  {JSON.stringify(
+                    { template: a.template, config: a.config },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
+            )}
+          </article>
+        );
+      })}
       <p>
         {manifest.rights.license} · {manifest.rights.creator}
       </p>
@@ -311,25 +313,26 @@ export function Preview({
       {manifest.derived_from && (
         <details>
           <summary>{t.source}</summary>
-          <pre>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
+          <pre tabIndex={0}>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
         </details>
       )}
       <details>
         <summary>{t.full}</summary>
-        <pre>{JSON.stringify(manifest, null, 2)}</pre>
+        <pre tabIndex={0}>{JSON.stringify(manifest, null, 2)}</pre>
       </details>
       {zoom && (
         <Modal
-          locale={zh ? "zh" : "en"}
-          title={zoom.name}
+          locale={locale}
+          title={zoomed.name}
           close={() => setZoom(null)}
         >
           <img
             className="zoom-image"
             src={mediaUrl(zoom.visual.primary)}
-            alt={zoom.semantics.fallback}
+            alt={zoomed.fallback}
           />
-          <p lang={zoom.semantics.locale}>{zoom.semantics.meaning}</p>
+          <LanguageNotice expression={zoom} language={zoomed.locale} locale={locale} />
+          <p lang={zoomed.locale}>{zoomed.meaning}</p>
         </Modal>
       )}
     </section>

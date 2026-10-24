@@ -44,7 +44,7 @@ async function fixture(t) {
     .filter((x) => x.trim()))
     await db.prepare(sql).run();
   await migrateUploads(db);
-  for(const name of ['0005-creator-submissions.sql','0006-review-publish.sql','0007-device-authorizations.sql','0008-moderation-lifecycle.sql','0009-official-catalog.sql']){for(const sql of (await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).split(/;\n(?=CREATE|ALTER|DROP)/).filter(s=>s.trim()))await db.prepare(sql).run();}
+  for(const name of ['0005-creator-submissions.sql','0006-review-publish.sql','0007-device-authorizations.sql','0008-moderation-lifecycle.sql','0009-official-catalog.sql','0010-amoji-0.1.sql']){for(const sql of (await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).split(/;\n(?=CREATE|ALTER|DROP)/).filter(s=>s.trim()))await db.prepare(sql).run();}
   async function post(path, data, cookie, operation = crypto.randomUUID()) {
     const csrf = await (
       await mf.dispatchFetch("http://localhost/v1/auth/csrf", {

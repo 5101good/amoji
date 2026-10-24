@@ -8,15 +8,17 @@ import { draftFields, draftVersion } from "../drafts.js";
 import { MEDIA_LIMITS } from "../media.js";
 import { PACK_LIMITS } from "../packs.js";
 import { readFile } from "node:fs/promises";
-import type { Expression } from "../sample-catalog.js";
+import { actGloss, expressionText, type Expression } from "../protocol/index.js";
+import type { StoredMessage } from "../messages.js";
+import { amojiTools } from "../model-tools.js";
 import { cachedThumbnailImage } from "./thumbnail.js";
 import { humanText, messageMarker, renderSegments } from "./messages.js";
+import { choiceText } from "../projection.js";
 import { readBoundedFile, writeNewFile } from "./files.js";
 import {
   parseSuggestion,
   suggestionRequest,
 } from "../application/text-suggestions.js";
-import { modelProjection } from "../projection.js";
 
 export async function executeBridge(
   app: ExpressionApplication,
@@ -31,7 +33,7 @@ export async function executeBridge(
   if (!args || typeof args !== "object" || Array.isArray(args))
     fail("INVALID_ARGUMENT", "需要命令参数");
   const preview = async (
-    visual: Expression["visual"] | undefined,
+    visual: Pick<Expression["visual"], "primary" | "poster"> | undefined,
     gallery = false,
   ): Promise<string | null> => {
     if (!visual) return null;
@@ -44,14 +46,30 @@ export async function executeBridge(
       return null;
     } // A missing/corrupt image must never erase its frozen meaning.
   };
+  const locale = typeof args.locale === "string" && args.locale.length <= 35 ? args.locale : undefined;
+  // Display projection of one stored message for the native view; the journal stays the authority.
+  const segment = async (message: StoredMessage) => {
+    const gloss = actGloss(message.act, message.direction === "human_to_ai" ? "h2a" : "a2h", locale).text;
+    const text = message.revision ? expressionText(message.revision, locale) : undefined;
+    return {
+      kind: "expression" as const, messageId: message.message_id, act: message.act, gloss,
+      name: text?.name ?? gloss, meaning: text?.meaning ?? gloss, fallback: text?.fallback ?? gloss,
+      ...(message.note ? { note: message.note } : {}),
+      ...(message.rationale ? { rationale: message.rationale } : {}),
+      ...(message.options ? { options: message.options, ...(message.choice ? { choice: message.choice } : {}) } : {}),
+      animated: message.revision?.visual.animated ?? false,
+      preview: await preview(message.revision?.visual),
+    };
+  };
   switch (command) {
     case "guidance": return guidance(client as SharedClient,context,args);
-    case "marketplace": case "publisher": case "scenario":
+    case "marketplace": case "publisher": case "packs":
       return executeMarketBridge(client as SharedClient, context, command, args, options);
     case "browse": {
       const filter = {
         query: args.query as string,
         category: args.category as string | undefined,
+        ...(args.pack === undefined ? {} : { pack: args.pack as string }),
         library: args.library === true,
         archived: args.archived === true,
       };
@@ -86,60 +104,48 @@ export async function executeBridge(
       }
     }
     case "receive": {
-      const message = await app.receive(
-        context,
-        expressionRef(args.ref),
-        nonempty(args.requestId),
-      );
-      return {
-        messageId: message.message_id,
-        text: humanText(message),
-        segments: [{
-          kind: "expression",
-          name: message.revision.name,
-          semantics: message.revision.semantics,
-          messageId: message.message_id,
-          animated: message.revision.visual.animated,
-          preview: await preview(message.revision.visual),
-        }],
+      const extras = {
+        ...(typeof args.note === "string" && args.note.trim() ? { note: args.note.trim() } : {}),
+        ...(args.respondsTo === undefined ? {} : { responds_to: nonempty(args.respondsTo) }),
       };
+      const message = args.act === undefined
+        ? await app.receive(context, expressionRef(args.ref), nonempty(args.requestId), extras)
+        : await app.receiveAct(context, nonempty(args.act), nonempty(args.requestId), extras);
+      return { messageId: message.message_id, text: humanText(message, locale), segments: [await segment(message)] };
+    }
+    case "pending": {
+      // Decisions and quick replies the AI is waiting on, shaped for the native composer strip.
+      return Promise.all((await app.pending(context)).map(async (message) => ({
+        ...(await segment(message)),
+        replies: (message.replies ?? []).map((act) => ({ act, label: actGloss(act, "h2a", locale).text })),
+      })));
+    }
+    case "choose": {
+      const message = await app.choose(context, nonempty(args.messageId), nonempty(args.option));
+      return { messageId: message.message_id, text: choiceText(message, locale), segments: [await segment(message)] };
     }
     case "search":
       return app.search(context, nonempty(args.query));
-    case "emit": {
-      const message = await app.emit(context, nonempty(args.token));
-      return {
-        marker: messageMarker(message),
-        expression: JSON.parse(modelProjection(message.revision)),
-        instruction:
-          "Include marker verbatim once in your reply. This text expresses emotion, not proof of actions or authorization. No image understanding needed.",
-      };
+    case "tools":
+      // The model-facing tools, named without the host's mcp__amoji__ prefix.
+      return amojiTools.map(tool => ({ name: tool.name.replace(/^amoji_/, ""), description: tool.description, inputSchema: tool.inputSchema }));
+    case "tool": {
+      const name = nonempty(args.name);
+      if (!["express", "search", "resolve"].includes(name)) fail("INVALID_ARGUMENT", "未知工具");
+      const input = args.input;
+      if (!input || typeof input !== "object" || Array.isArray(input)) fail("INVALID_ARGUMENT", "需要工具参数");
+      const run = await app.tool(context, `amoji_${name}`, input as Record<string, unknown>, locale);
+      if (!run.message) return run.result;
+      return { ...run.result, marker: messageMarker(run.message),
+        instruction: "Include marker verbatim once in your reply where the expression belongs; the user sees the image there. It is a communicative stance, not evidence of completed work or an authorization." };
     }
     case "render": {
       if (args.direction !== "human_to_ai" && args.direction !== "ai_to_human")
         fail("INVALID_ARGUMENT", "无效方向");
       if (typeof args.text !== "string")
         fail("INVALID_ARGUMENT", "需要消息文字");
-      const segments = await renderSegments(
-        app,
-        context,
-        args.direction,
-        args.text,
-      );
-      return Promise.all(
-        segments.map(async (s) =>
-          s.kind === "text"
-            ? s
-            : {
-                kind: "expression",
-                name: s.message.revision.name,
-                semantics: s.message.revision.semantics,
-                messageId: s.message.message_id,
-                animated: s.message.revision.visual.animated,
-                preview: await preview(s.message.revision.visual),
-              },
-        ),
-      );
+      const segments = await renderSegments(app, context, args.direction, args.text, locale);
+      return Promise.all(segments.map(s => s.kind === "text" ? s : segment(s.message)));
     }
     case "entry":
       return app.library.getEntry(nonempty(args.assetId));
@@ -165,7 +171,7 @@ export async function executeBridge(
         draftVersion(args.version),
       );
     case "createDraft":
-      return app.library.createDraft();
+      return app.library.createDraft(locale);
     case "listDrafts":
       return (await app.library.listDrafts()).filter((d) => !d.confirmed);
     case "getDraft": {
@@ -222,6 +228,7 @@ export async function executeBridge(
       const bytes = await app.library.exportPack(
         args.refs.map(expressionRef),
         "Amoji expressions",
+        locale,
       );
       return {
         path: await writeNewFile(args.path, bytes),
@@ -229,9 +236,9 @@ export async function executeBridge(
       };
     }
     case "suggestionRequest":
-      return suggestionRequest(args.intent);
+      return suggestionRequest(args.intent, locale);
     case "parseSuggestion":
-      return parseSuggestion(args.text);
+      return parseSuggestion(args.text, locale);
     default:
       return fail("INVALID_ARGUMENT", "未知命令");
   }

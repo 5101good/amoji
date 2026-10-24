@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fixture } from "./submission-fixture.mjs";
+import { fixture, freshMinute } from "./submission-fixture.mjs";
 import { archive, hash } from "./upload-fixtures.mjs";
 const get = (f, path, cookie = "") =>
   f.mf.dispatchFetch("http://localhost" + path, { headers: { cookie } });
@@ -8,8 +8,7 @@ async function submitted(f, pack_id) {
   const u = await f.reserve(pack_id ? { pack_id } : {});
   const v = await archive(u, {
     mutate(m) {
-      m.name = "中文协作";
-      m.styles = ["线条"];
+      m.name = { "zh-CN": "中文协作" };
       m.rights.creator = "Synthetic";
       m.expressions[0].rights.creator = "Synthetic";
     },
@@ -129,7 +128,7 @@ test("four actors: revision, digest-bound approval, public discovery and retaine
   assert.equal((await get(f, p + `/media/${hash(b.image)}`)).status, 200);
   const list = await get(
     f,
-    "/v1/packs?q=中文&scenario=协作&locale=zh-CN&style=线条&actions=false",
+    "/v1/packs?q=中文&act=core:ack&locale=zh-CN&effects=false",
   );
   assert.equal(list.status, 200);
   assert.equal((await list.json()).packs.length, 1);
@@ -245,6 +244,7 @@ test("review HTTP: self-review, CAS race, transaction rollback, bootstrap and sa
 });
 test("anonymous reads enforce the shared 120 per minute IP budget", async (t) => {
   const f = await fixture(t);
+  await freshMinute();
   for (let i = 0; i < 120; i++)
     assert.equal((await get(f, "/v1/packs")).status, 200);
   const denied = await get(f, "/v1/packs");

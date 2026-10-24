@@ -1,12 +1,13 @@
 import type { AdapterRuntime } from '../adapter-runtime.js';
 import { draftVersion, type DraftFields } from '../drafts.js';
-import { expressionRef, type PersonalPreferences } from '../library-management.js';
+import { expressionRef } from '../library-management.js';
+import type { Pack, Preferences, Visual } from '../protocol/index.js';
 import { fail, nonempty, object } from '../shared-contract.js';
 import { PACK_LIMITS } from '../packs.js';
 import type { HostPort } from './contracts.js';
 const schemas: Record<string, string[]> = {
-  createScenarioDraft:['refs'],listScenarioDrafts:[],getScenarioDraft:['draft_id'],saveScenarioDraft:['draft_id','version','manifest'],previewScenarioDraft:['draft_id','version'],confirmScenarioDraft:['draft_id','version'],listScenarioPacks:[],getScenarioPack:['release_id'],
-  listEntries: [], listDrafts: [], createDraft: [], getSettings: [], listRevisions: ['asset_id'],
+  createPackDraft:['refs','name'],listPackDrafts:[],getPackDraft:['draft_id'],savePackDraft:['draft_id','version','manifest'],previewPackDraft:['draft_id','version'],confirmPackDraft:['draft_id','version'],listPacks:[],getPack:['release_id'],removePack:['release_id'],
+  listEntries: [], listDrafts: [], createDraft: ['locale'], getSettings: [], listRevisions: ['asset_id'],
   startRevisionDraft: ['ref', 'version'], selectRevision: ['ref', 'version'], setArchived: ['asset_id', 'version', 'archived'],
   updateSettings: ['version', 'preferences'], getDraft: ['draft_id'], saveDraft: ['draft_id', 'version', 'fields', 'upload'],
   previewDraft: ['draft_id', 'version'], confirmDraft: ['draft_id', 'version'], suggestText: ['intent', 'notes'], revisionVisual: ['ref'],
@@ -14,30 +15,34 @@ const schemas: Record<string, string[]> = {
 export function failure(error: unknown) { const e = error as { code?: string; message?: string; current?: unknown }; return { code: e?.code ?? 'amoji/failed', message: e?.message ?? '操作失败', details: e?.current === undefined ? {} : { current: e.current } }; }
 export async function management(runtime: AdapterRuntime, method: string, raw: unknown): Promise<unknown> {
   const keys = schemas[method]; if (!keys) fail('INVALID_ARGUMENT', '未知管理操作');
-  const args = object(raw, keys, keys.filter(key => key !== 'upload' && key !== 'notes'));
+  const args = object(raw, keys, keys.filter(key => !['upload', 'notes', 'locale', 'name'].includes(key)));
   const m = runtime.management; const c = runtime.creation;
   if (!m || !c) fail('CAPABILITY_UNAVAILABLE', '共享服务尚不支持管理');
   const version = () => draftVersion(args.version); const id = () => nonempty(args.draft_id);
-  const visual = async (value: { visual?: import('../sample-catalog.js').Expression['visual'] }) => {
+  const packs = () => runtime.packDrafts ?? fail('CAPABILITY_UNAVAILABLE', '表情包能力不可用');
+  const visual = async (value: { visual?: Omit<Visual, 'text_locale'> }) => {
     if (!value.visual || !runtime.readBlob) fail('MEDIA_REQUIRED', '请先上传图片');
     const data = async (blob: {sha256: string; mime: string}) => `data:${blob.mime};base64,${(await runtime.readBlob!(blob.sha256)).toString('base64')}`;
     return { primary: await data(value.visual.primary), poster: value.visual.poster ? await data(value.visual.poster) : null };
   };
   switch (method) {
-    case 'createScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');if(!Array.isArray(args.refs))fail('INVALID_ARGUMENT','需要版本列表');return runtime.scenarios.createScenarioDraft(args.refs.map(expressionRef));
-    case 'listScenarioDrafts':case 'listScenarioPacks':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');return runtime.scenarios[method]();
-    case 'getScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');return runtime.scenarios.getScenarioDraft(id());
-    case 'getScenarioPack':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');return runtime.scenarios.getScenarioPack(nonempty(args.release_id));
-    case 'saveScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');return runtime.scenarios.saveScenarioDraft(id(),version(),args.manifest as import('../packs.js').ScenarioPack);
-    case 'previewScenarioDraft':case 'confirmScenarioDraft':if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');return runtime.scenarios[method](id(),version());
+    case 'createPackDraft': { const p = packs(); if (!Array.isArray(args.refs)) fail('INVALID_ARGUMENT', '需要版本列表'); return p.createPackDraft(args.refs.map(expressionRef), args.name === undefined ? undefined : nonempty(args.name)); }
+    case 'listPackDrafts': return packs().listPackDrafts();
+    case 'listPacks': return packs().listPacks();
+    case 'getPackDraft': return packs().getPackDraft(id());
+    case 'getPack': return packs().getPack(nonempty(args.release_id));
+    case 'removePack': return packs().removePack(nonempty(args.release_id));
+    case 'savePackDraft': return packs().savePackDraft(id(), version(), args.manifest as Pack);
+    case 'previewPackDraft': return packs().previewPackDraft(id(), version());
+    case 'confirmPackDraft': return packs().confirmPackDraft(id(), version());
     case 'listEntries': return m.listEntries();
     case 'listRevisions': return m.listRevisions(nonempty(args.asset_id));
     case 'getSettings': return m.getSettings();
-    case 'updateSettings': return m.updateSettings(version(), args.preferences as PersonalPreferences);
+    case 'updateSettings': return m.updateSettings(version(), args.preferences as Preferences);
     case 'setArchived': return m.setArchived(nonempty(args.asset_id), version(), args.archived as boolean);
     case 'startRevisionDraft': return m.startRevisionDraft(expressionRef(args.ref), version());
     case 'selectRevision': if (!runtime.packs) fail('CAPABILITY_UNAVAILABLE', '缺少完整包能力'); return runtime.packs.selectRevision(expressionRef(args.ref), version());
-    case 'createDraft': return c.createDraft();
+    case 'createDraft': return c.createDraft(args.locale === undefined ? undefined : nonempty(args.locale));
     case 'listDrafts': return c.listDrafts();
     case 'getDraft': return c.getDraft(id());
     case 'saveDraft': return c.saveDraft(id(), version(), args.fields as DraftFields, args.upload as string | undefined);
@@ -56,21 +61,21 @@ export async function readBounded(request: Request, limit: number): Promise<Uint
 }
 export function installPackRoutes(ctx: HostPort, runtime: AdapterRuntime, check: (sessionId: string, signal: AbortSignal) => Promise<unknown>): Array<() => Promise<void>> {
   const releases: Array<() => Promise<void>> = [];
-  try { for (const action of ['import', 'export', 'scenario-export']) releases.push(ctx.connection.fetch.register({ path: `/api/amoji/pack-${action}`, methods: ['POST'], requestBody: 'streaming', fetch: async request => {
+  try { for (const action of ['import', 'export', 'release-export']) releases.push(ctx.connection.fetch.register({ path: `/api/amoji/pack-${action}`, methods: ['POST'], requestBody: 'streaming', fetch: async request => {
     try {
       const sessionId = nonempty(new URL(request.url).searchParams.get('sessionId')); await check(sessionId, request.signal);
       if (!runtime.packs) fail('CAPABILITY_UNAVAILABLE', '完整包能力不可用');
       const bytes = await readBounded(request, action === 'import' ? PACK_LIMITS.archive : 128 * 1024);
       if (action === 'import') return Response.json({ result: await runtime.packs.importPack(bytes) });
-      if(action==='scenario-export'){
-       if(!runtime.scenarios)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');
-       const args=object(JSON.parse(new TextDecoder().decode(bytes)),['release_id','expressions_only']);if(typeof args.expressions_only!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
-       const result=await runtime.scenarios.exportScenarioPack(nonempty(args.release_id),args.expressions_only);
+      if(action==='release-export'){
+       if(!runtime.packDrafts)fail('CAPABILITY_UNAVAILABLE','表情包能力不可用');
+       const args=object(JSON.parse(new TextDecoder().decode(bytes)),['release_id','without_effects']);if(typeof args.without_effects!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
+       const result=await runtime.packDrafts.exportRelease(nonempty(args.release_id),args.without_effects);
        return new Response(new Uint8Array(result),{headers:{'Content-Type':'application/zip','Content-Length':String(result.length),'Cache-Control':'no-store'}});
       }
-      const args = object(JSON.parse(new TextDecoder().decode(bytes)), ['refs', 'name']);
+      const args = object(JSON.parse(new TextDecoder().decode(bytes)), ['refs', 'name', 'locale'], ['refs', 'name']);
       if (!Array.isArray(args.refs)) fail('INVALID_ARGUMENT', '请选择导出版本');
-      const result = await runtime.packs.exportPack(args.refs.map(expressionRef), nonempty(args.name));
+      const result = await runtime.packs.exportPack(args.refs.map(expressionRef), nonempty(args.name), args.locale === undefined ? undefined : nonempty(args.locale));
       return new Response(new Uint8Array(result), { headers: { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="expressions.amoji"', 'Content-Length': String(result.length), 'Cache-Control': 'no-store' } });
     } catch (error) { return Response.json({ error: failure(error) }, { status: 400 }); }
   } })); } catch(error) { for(const release of releases) void release(); throw error; }

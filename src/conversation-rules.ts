@@ -1,11 +1,17 @@
-import type { ActionChoice, ActionSelection } from './collaboration.js';
-import type { ActionDefinition } from './actions.js';
+import type { EffectChoice, EffectSelection } from './effects.js';
+import { effectConflictGroup, effectGuidance } from './effects.js';
 import type { CollaborationCheckpoint, CollaborationRule } from './dsh/collaboration-context.js';
-export interface RuleChoice { selection: ActionSelection; action: Extract<ActionDefinition,{kind:'hook'}>; source: ActionChoice['source'] }
-export interface RuleActivation extends RuleChoice { enabled:boolean; actor:'user'; generation:number; status:'disabled'|'configured'|'attached'|'failed'|'unsupported'; reason?:string }
-export interface RuleSnapshot { generation:number; rules:RuleActivation[]; checkpoint?:CollaborationCheckpoint }
-export interface RuleView extends RuleSnapshot { choices:RuleChoice[]; identity:'ready'|'pending'; }
-export interface RuleChange { kind:'enable'|'disable'|'disableAll'; generation:number; selection?:ActionSelection; replace?:ActionSelection|null; checkpoint:CollaborationCheckpoint }
-export function compiledRule(rule:RuleChoice):CollaborationRule {
- return {id:rule.action.action_id,revision:rule.action.action_revision_id,template:rule.action.template,config:rule.action.config,source:rule.source} as CollaborationRule;
+
+export type RuleChoice = EffectChoice;
+export interface RuleActivation extends RuleChoice { enabled: boolean; actor: 'user'; generation: number; status: 'disabled' | 'configured' | 'attached' | 'failed' | 'unsupported'; reason?: string }
+export interface RuleSnapshot { generation: number; rules: RuleActivation[]; checkpoint?: CollaborationCheckpoint }
+export interface RuleView extends RuleSnapshot { choices: RuleChoice[]; identity: 'ready' | 'pending' }
+export interface RuleChange { kind: 'enable' | 'disable' | 'disableAll'; generation: number; selection?: EffectSelection; replace?: EffectSelection | null; checkpoint: CollaborationCheckpoint }
+export const ruleConflictGroup = (rule: RuleChoice) => effectConflictGroup(rule.effect);
+
+export function compiledRule(rule: RuleChoice): CollaborationRule {
+  const base = { id: rule.effect.effect_id, revision: rule.effect.effect_revision_id, source: rule.source };
+  const effect = rule.effect;
+  if (effect.kind === 'context') return { ...base, template: 'context', config: { conflictGroup: effect.conflict_group, instruction: effectGuidance(effect, undefined, rule.source.original_locale) } };
+  return { ...base, template: effect.template, config: effect.config } as CollaborationRule;
 }

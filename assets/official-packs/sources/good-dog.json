@@ -1,0 +1,238 @@
+{
+  "slug": "good-dog",
+  "pack_id": "2a01ad10-a763-4839-866f-5f78b0897ee0",
+  "version": 2,
+  "created_at": "2026-10-22T00:00:00Z",
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
+  ],
+  "name": {
+    "zh-CN": "搭把手犬",
+    "en": "Good Dog"
+  },
+  "description": {
+    "zh-CN": "热情但不抢戏的毛绒搭档。接住你的消息，也认真回应每一份善意。",
+    "en": "A plush teammate, enthusiastic without stealing the spotlight. Ready to receive your messages and respond thoughtfully to every kindness."
+  },
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+  },
+  "expressions": [
+    {
+      "slug": "high-five",
+      "realizes": "core:celebrate",
+      "intensity": 2,
+      "image": "images/good-dog/high-five.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "击个掌",
+        "en": "High five"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "为我们刚刚共同完成的一步击个掌，分享这份开心。",
+          "fallback": "[击个掌]",
+          "use_when": [
+            "共同完成一个步骤时",
+            "回应对方分享的好消息时"
+          ],
+          "avoid_when": [
+            "不把庆祝当作未验证任务的完成证明"
+          ]
+        },
+        "en": {
+          "meaning": "A high five for the step we just finished together; sharing the good moment.",
+          "fallback": "[high five]",
+          "use_when": [
+            "After finishing a step together",
+            "When responding to someone sharing good news"
+          ],
+          "avoid_when": [
+            "Don't treat celebration as proof that unverified work is done"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "击个掌",
+          "鼓励",
+          "感谢",
+          "回应"
+        ],
+        "en": [
+          "High five",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
+        ]
+      }
+    },
+    {
+      "slug": "got-you",
+      "realizes": "core:ack",
+      "intensity": 2,
+      "image": "images/good-dog/got-you.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "收到啦",
+        "en": "Got it!"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "你的这条消息我收到了，也理解了其中明确表达的意思。",
+          "fallback": "[收到啦]",
+          "use_when": [
+            "确认收到清楚的消息时",
+            "无需长篇回复的日常交接时"
+          ],
+          "avoid_when": [
+            "有歧义时应先澄清；收到不代表任务已经完成或权限已经授予"
+          ]
+        },
+        "en": {
+          "meaning": "I received your message and understood what it clearly says.",
+          "fallback": "[got it]",
+          "use_when": [
+            "Confirming a clear message",
+            "Everyday handoffs that need no long reply"
+          ],
+          "avoid_when": [
+            "Clarify ambiguity first; receipt isn't completion or permission"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "收到啦",
+          "鼓励",
+          "感谢",
+          "回应"
+        ],
+        "en": [
+          "Got it!",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
+        ]
+      }
+    },
+    {
+      "slug": "cheer",
+      "realizes": "core:encourage",
+      "intensity": 3,
+      "image": "images/good-dog/cheer.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "给你打气",
+        "en": "Rooting for you"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我想给你一些鼓励，认可你的努力，祝你接下来顺利。",
+          "fallback": "[给你打气]",
+          "use_when": [
+            "对方正在努力时",
+            "开始有挑战的工作之前"
+          ],
+          "avoid_when": [
+            "不保证成功，也不替代必要的具体帮助"
+          ]
+        },
+        "en": {
+          "meaning": "I want to cheer you on, recognize your effort and wish you luck with what comes next.",
+          "fallback": "[rooting for you]",
+          "use_when": [
+            "While someone is working hard",
+            "Before starting challenging work"
+          ],
+          "avoid_when": [
+            "It doesn't promise success or replace concrete help"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "给你打气",
+          "鼓励",
+          "感谢",
+          "回应"
+        ],
+        "en": [
+          "Rooting for you",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
+        ]
+      }
+    },
+    {
+      "slug": "thanks",
+      "realizes": "core:thanks",
+      "intensity": 3,
+      "image": "images/good-dog/thanks.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "多亏有你",
+        "en": "Thanks to you"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "谢谢你刚才提供的帮助或支持，这份投入对我很有帮助。",
+          "fallback": "[多亏有你]",
+          "use_when": [
+            "人感谢 AI 的帮助时",
+            "AI 感谢人补充信息或纠正问题时"
+          ],
+          "avoid_when": [
+            "不夸大帮助，也不暗示情感依赖"
+          ]
+        },
+        "en": {
+          "meaning": "Thank you for the help or support just now; it really helped me.",
+          "fallback": "[thanks to you]",
+          "use_when": [
+            "When a person thanks the AI for help",
+            "When the AI thanks someone for info or a correction"
+          ],
+          "avoid_when": [
+            "Don't exaggerate the help or imply emotional dependence"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "多亏有你",
+          "鼓励",
+          "感谢",
+          "回应"
+        ],
+        "en": [
+          "Thanks to you",
+          "encouragement",
+          "thanks",
+          "acknowledgement"
+        ]
+      }
+    }
+  ]
+}

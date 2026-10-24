@@ -1,13 +1,14 @@
 import { MarketplacePublisher } from './marketplace-publisher.js';
 import { LocalAcquisition } from './local-acquisition.js';
-import { actionSelection } from './collaboration.js';
+import { effectSelection } from './effects.js';
+import { expressInput, receiveInput } from './service-inputs.js';
 import { createServer, type ServerResponse, type IncomingMessage } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LibraryStore } from './library-store.js';
-import { COLLABORATION_CAPABILITY, API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, SESSION_BINDINGS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
+import { PROTOCOL_CAPABILITY, COLLABORATION_CAPABILITY, API_VERSION, VERSIONED_PACKS_CAPABILITY, DATABASE_VERSION, SESSION_BINDINGS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, bindingContext, fail, nonempty, object, type BindingContext, type ServiceDescriptor } from './shared-contract.js';
 import { ClaudeTickets } from './claude-tickets.js';
 import { suggestText } from './suggestions.js';
 
@@ -17,7 +18,7 @@ import { draftVersion } from './drafts.js';
 interface Connection { response: ServerResponse; bindings: Map<string, BindingContext>; heartbeat: NodeJS.Timeout }
 
 /** A kernel-held SQLite EXCLUSIVE lock elects the sole writer, including during startup. */
-export async function startSharedService(directory: string, seed: URL, idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void>; closed: Promise<void> }> {
+export async function startSharedService(directory: string, seeds: readonly URL[], idleMs = 60000, heartbeatMs = 15000): Promise<{ close(): Promise<void>; closed: Promise<void> }> {
   if (!Number.isFinite(heartbeatMs) || heartbeatMs < 10 || heartbeatMs > 60000) fail('INVALID_ARGUMENT', '保活间隔必须在10–60000毫秒内');
   process.umask(0o077);
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -27,16 +28,16 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
   try { lock.exec('PRAGMA busy_timeout=0; BEGIN EXCLUSIVE; CREATE TABLE IF NOT EXISTS owner (id TEXT);'); }
   catch { lock.close(); fail('SERVICE_STARTING', '另一个服务已取得写入锁，等待健康握手'); }
   let store: LibraryStore;
-  try { store = await LibraryStore.open(directory, seed); }
+  try { store = await LibraryStore.open(directory, seeds); }
   catch (error) { lock.close(); throw error; }
   const marketplace=new LocalAcquisition(store,process.env.AMOJI_MARKET_ORIGIN??'https://amoji.ai-web.ai');
   const publisher = new MarketplacePublisher(join(directory, 'marketplace-publisher'), {
-    scenarios: {getScenarioPack: async id => store.getScenarioPack(id)},
+    packs: { getPack: async id => store.getPack(id) },
     readBlob: async digest => readFile(await store.blobPath(digest)),
   }, marketplace.origin);
   void marketplace.refreshRevocations({});
   const revocationTimer=setInterval(()=>void marketplace.refreshRevocations({}),15*60*1000);revocationTimer.unref();
-  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [SESSION_BINDINGS_CAPABILITY, 'marketplace-v1', 'publisher-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
+  const descriptor: ServiceDescriptor = { serviceId: randomUUID(), pid: process.pid, dataRoot: directory, apiVersion: API_VERSION, databaseVersion: DATABASE_VERSION, capabilities: [PROTOCOL_CAPABILITY, SESSION_BINDINGS_CAPABILITY, 'marketplace-v1', 'publisher-v1', COLLABORATION_CAPABILITY, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CLAUDE_TICKET_CAPABILITY, DSH_SUBMISSION_CAPABILITY, DSH_NATIVE_CAPABILITY, DSH_RELIABILITY_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY], origin: '', secret: randomBytes(32).toString('base64url') };
   const connections = new Map<string, Connection>();
   const claudeTickets = new ClaudeTickets();
   const selectionCleanup = setInterval(() => { store.pruneSelections(); claudeTickets.prune(); }, 60000);
@@ -102,19 +103,19 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       res.write(`${JSON.stringify({ connectionId: id })}\n`);
       res.once('close', () => disconnect(id)); return;
     }
-    if (req.method === 'POST' && ['/packs/import', '/packs/export', '/packs/scenario-export'].includes(url.pathname)) {
+    if (req.method === 'POST' && ['/packs/import', '/packs/export', '/packs/release-export'].includes(url.pathname)) {
       if (!connections.has(String(req.headers['x-amoji-connection'] ?? ''))) fail('CONNECTION_CLOSED', '适配器连接已失效');
       if (url.pathname === '/packs/import') {
         if (req.headers['content-type'] !== 'application/zip') fail('INVALID_ARGUMENT', '需要 ZIP 文件');
         json(res, 200, { result: await store.importPack(req) });
-      } else if(url.pathname==='/packs/scenario-export'){
-        const args=object(await readJson(req),['release_id','expressions_only']);if(typeof args.expressions_only!=='boolean')fail('INVALID_ARGUMENT','需要明确的导出格式');
-        const bytes=await store.exportScenarioPack(nonempty(args.release_id),args.expressions_only);
+      } else if (url.pathname === '/packs/release-export') {
+        const args = object(await readJson(req), ['release_id', 'without_effects']); if (typeof args.without_effects !== 'boolean') fail('INVALID_ARGUMENT', '需要明确的导出格式');
+        const bytes = await store.exportRelease(nonempty(args.release_id), args.without_effects);
         res.writeHead(200,{'Content-Type':'application/zip','Content-Length':bytes.length,'Cache-Control':'no-store'});res.end(bytes);
       } else {
-        const args = object(await readJson(req), ['refs', 'name']);
+        const args = object(await readJson(req), ['refs', 'name', 'locale'], ['refs', 'name']);
         if (!Array.isArray(args.refs) || args.refs.length > 200) fail('INVALID_ARGUMENT', '需要有界确定版本列表');
-        const bytes = await store.exportPack(args.refs.map(expressionRef), nonempty(args.name));
+        const bytes = await store.exportPack(args.refs.map(expressionRef), nonempty(args.name), args.locale === undefined ? undefined : nonempty(args.locale));
         res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': bytes.length, 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="expressions.amoji"' }); res.end(bytes);
       }
       return;
@@ -147,14 +148,15 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'unbind': {
         const args = object(value, ['binding']); connection.bindings.delete(nonempty(args.binding)); result = null; break;
       }
-      case 'createScenarioDraft':{const args=object(value,['refs']);if(!Array.isArray(args.refs))fail('INVALID_ARGUMENT','需要版本列表');result=store.createScenarioDraft(args.refs.map(expressionRef));break;}
-      case 'listScenarioDrafts':object(value,[]);result=store.listScenarioDrafts();break;
-      case 'listScenarioPacks':object(value,[]);result=store.listScenarioPacks();break;
-      case 'getScenarioPack':{const args=object(value,['release_id']);result=store.getScenarioPack(nonempty(args.release_id));break;}
-      case 'getScenarioDraft':{const args=object(value,['draft_id']);result=store.getScenarioDraft(nonempty(args.draft_id));break;}
-      case 'saveScenarioDraft':{const args=object(value,['draft_id','version','manifest']);result=store.saveScenarioDraft(nonempty(args.draft_id),draftVersion(args.version),args.manifest);break;}
-      case 'previewScenarioDraft':
-      case 'confirmScenarioDraft':{const args=object(value,['draft_id','version']);result=await store[method](nonempty(args.draft_id),draftVersion(args.version));break;}
+      case 'createPackDraft': { const args = object(value, ['refs', 'name'], ['refs']); if (!Array.isArray(args.refs)) fail('INVALID_ARGUMENT', '需要版本列表'); result = store.createPackDraft(args.refs.map(expressionRef), args.name === undefined ? undefined : nonempty(args.name)); break; }
+      case 'listPackDrafts': object(value, []); result = store.listPackDrafts(); break;
+      case 'listPacks': object(value, []); result = store.listPacks(); break;
+      case 'getPack': { const args = object(value, ['release_id']); result = store.getPack(nonempty(args.release_id)); break; }
+      case 'getPackDraft': { const args = object(value, ['draft_id']); result = store.getPackDraft(nonempty(args.draft_id)); break; }
+      case 'savePackDraft': { const args = object(value, ['draft_id', 'version', 'manifest']); result = store.savePackDraft(nonempty(args.draft_id), draftVersion(args.version), args.manifest); break; }
+      case 'previewPackDraft':
+      case 'confirmPackDraft': { const args = object(value, ['draft_id', 'version']); result = await store[method](nonempty(args.draft_id), draftVersion(args.version)); break; }
+      case 'removePack': { const args = object(value, ['release_id']); store.removePack(nonempty(args.release_id)); result = null; break; }
       case 'listRevisions': { const args = object(value, ['asset_id']); result = store.listRevisions(nonempty(args.asset_id)); break; }
       case 'listEntries': object(value, []); result = store.listEntries(); break;
       case 'getEntry': { const args = object(value, ['asset_id']); result = store.getEntry(nonempty(args.asset_id)); break; }
@@ -163,7 +165,7 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'selectRevision': { const args = object(value, ['ref', 'version']); result = store.selectRevision(expressionRef(args.ref), draftVersion(args.version)); break; }
       case 'getSettings': object(value, []); result = store.getSettings(); break;
       case 'updateSettings': { const args = object(value, ['version', 'preferences']); result = store.updateSettings(draftVersion(args.version), args.preferences); break; }
-      case 'createDraft': object(value, []); result = store.createDraft(); break;
+      case 'createDraft': { const args = object(value, ['locale'], []); result = store.createDraft(args.locale === undefined ? undefined : nonempty(args.locale)); break; }
       case 'listDrafts': object(value, []); result = store.listDrafts(); break;
       case 'getDraft': { const args = object(value, ['draft_id']); result = store.getDraft(nonempty(args.draft_id)); break; }
       case 'saveDraft': { const args = object(value, ['draft_id', 'version', 'fields', 'upload'], ['draft_id', 'version', 'fields']); result = await store.saveDraft(nonempty(args.draft_id), draftVersion(args.version), args.fields, args.upload as string | undefined); break; }
@@ -173,33 +175,35 @@ export async function startSharedService(directory: string, seed: URL, idleMs = 
       case 'list': object(value, []); result = store.list(); break;
       case 'resolve': { const args = object(value, ['asset_id', 'revision_id']); result = store.resolve({ asset_id: nonempty(args.asset_id), revision_id: nonempty(args.revision_id) }); break; }
       case 'blobPath': { const args = object(value, ['digest']); result = await store.blobPath(nonempty(args.digest)); break; }
-      case 'search': { const args = object(value, ['binding', 'query', 'limit'], ['binding', 'query']); result = store.search(context(args), nonempty(args.query), args.limit === undefined ? 3 : Number(args.limit)); break; }
-      case 'emit': { const args = object(value, ['binding', 'selection_token']); result = store.emit(context(args), nonempty(args.selection_token)); break; }
+      case 'search': { const args = object(value, ['binding', 'query', 'limit', 'locale'], ['binding', 'query']); result = store.search(context(args), nonempty(args.query), args.limit === undefined ? 3 : Number(args.limit), args.locale === undefined ? undefined : nonempty(args.locale)); break; }
+      case 'express': { const args = object(value, ['binding', 'input']); result = store.express(context(args), expressInput(args.input)); break; }
       case 'history': { const args = object(value, ['binding']); result = store.history(context(args)); break; }
       case 'receive': {
-        const args = object(value, ['binding', 'ref', 'send_request_id', 'action'], ['binding','ref','send_request_id']); const ref = object(args.ref, ['asset_id', 'revision_id']);
-        if(args.action!==undefined)await marketplace.refreshRevocations({});
-        result = store.receive(context(args), { asset_id: nonempty(ref.asset_id), revision_id: nonempty(ref.revision_id) }, nonempty(args.send_request_id), args.action === undefined ? undefined : actionSelection(args.action)); break;
+        const args = object(value, ['binding', 'input', 'send_request_id']);
+        const input = receiveInput(args.input);
+        if (input.effect) await marketplace.refreshRevocations({});
+        result = store.receive(context(args), input, nonempty(args.send_request_id)); break;
       }
-      case 'ruleChoices': case 'rules': {const args=object(value,['binding']);result=store[method](context(args));break;}
-      case 'changeRules': {const args=object(value,['binding','change']);const change=object(args.change,['kind','generation','selection','replace','checkpoint'],['kind','generation','checkpoint']);
-        if(!['enable','disable','disableAll'].includes(String(change.kind)))fail('INVALID_ARGUMENT','无效规则操作');
-        if(change.selection)change.selection=actionSelection(change.selection);if(change.replace)change.replace=actionSelection(change.replace);
-        if(change.kind==='enable')await marketplace.refreshRevocations({});
-        result=store.changeRules(context(args),change as unknown as import('./conversation-rules.js').RuleChange);break;}
-      case 'removeScenarioPack': {const args=object(value,['release_id']);store.removeScenarioPack(nonempty(args.release_id));result=null;break;}
-      case 'collaborationChoices': { const args=object(value,['binding','ref']); result=store.collaborationChoices(context(args),expressionRef(args.ref)); break; }
-      case 'saveActionIntent': { const args=object(value,['binding','message_id','update']); const update=object(args.update,['status','checkpoint','receipt'],['status']);
-        if(!['prepared','dispatched','bound','attached','failed','cancelled','unknown'].includes(String(update.status)))fail('INVALID_ARGUMENT','无效动作状态');
-        store.saveActionIntent(context(args),nonempty(args.message_id),update as unknown as import('./collaboration.js').ActionIntent);result=null;break; }
-      case 'dshAttempted': {
-        const args = object(value, ['binding', 'message_id']);
-        result = store.dshAttempted(context(args), nonempty(args.message_id)); break;
+      case 'retract': { const args = object(value, ['binding', 'message_id']); result = store.retract(context(args), nonempty(args.message_id)); break; }
+      case 'choose': { const args = object(value, ['binding', 'message_id', 'option']); result = store.choose(context(args), nonempty(args.message_id), nonempty(args.option)); break; }
+      case 'signal': { const args = object(value, ['binding', 'message_id', 'state']); if (args.state !== 'delivered_to_model' && args.state !== 'promoted') fail('INVALID_ARGUMENT', '无效信号状态'); result = store.signal(context(args), nonempty(args.message_id), args.state); break; }
+      case 'applied': { const args = object(value, ['binding', 'message_id']); result = store.applied(context(args), nonempty(args.message_id)); break; }
+      case 'ruleChoices': case 'rules': { const args = object(value, ['binding']); result = store[method](context(args)); break; }
+      case 'changeRules': {
+        const args = object(value, ['binding', 'change']); const change = object(args.change, ['kind', 'generation', 'selection', 'replace', 'checkpoint'], ['kind', 'generation', 'checkpoint']);
+        if (!['enable', 'disable', 'disableAll'].includes(String(change.kind))) fail('INVALID_ARGUMENT', '无效规则操作');
+        if (change.selection) change.selection = effectSelection(change.selection); if (change.replace) change.replace = effectSelection(change.replace);
+        if (change.kind === 'enable') await marketplace.refreshRevocations({});
+        result = store.changeRules(context(args), change as unknown as import('./conversation-rules.js').RuleChange); break;
       }
-      case 'dshAccepted': {
-        const args = object(value, ['binding', 'message_id']);
-        store.dshAccepted(context(args), nonempty(args.message_id)); result = null; break;
+      case 'effectChoices': { const args = object(value, ['binding', 'ref']); result = store.effectChoices(context(args), expressionRef(args.ref)); break; }
+      case 'saveEffectIntent': {
+        const args = object(value, ['binding', 'message_id', 'update']); const update = object(args.update, ['status', 'checkpoint', 'receipt'], ['status']);
+        if (!['prepared', 'dispatched', 'bound', 'attached', 'failed', 'cancelled', 'unknown'].includes(String(update.status))) fail('INVALID_ARGUMENT', '无效效果状态');
+        store.saveEffectIntent(context(args), nonempty(args.message_id), update as unknown as import('./effects.js').EffectIntent); result = null; break;
       }
+      case 'dshAttempted': { const args = object(value, ['binding', 'message_id']); result = store.dshAttempted(context(args), nonempty(args.message_id)); break; }
+      case 'dshAccepted': { const args = object(value, ['binding', 'message_id']); store.dshAccepted(context(args), nonempty(args.message_id)); result = null; break; }
       case 'presentation': {
         const args = object(value, ['binding', 'message_id', 'presentation']);
         if (args.presentation !== 'rendered' && args.presentation !== 'fallback') fail('INVALID_ARGUMENT', '无效展示回执');

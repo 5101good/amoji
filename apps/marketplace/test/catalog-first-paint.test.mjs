@@ -71,11 +71,11 @@ test("homepage HTTP already contains visible escaped public summaries and non-ex
   const malicious = '</div><script>alert("name")</script>';
   await f.db
     .prepare(
-      "UPDATE market_public_release SET manifest=json_set(manifest,'$.name',?,'$.description',?,'$.private_only','DO_NOT_DISCLOSE'),author=? WHERE pack_id=?",
+      "UPDATE market_public_release SET manifest=json_set(manifest,'$.name',json(?),'$.description',json(?),'$.private_only','DO_NOT_DISCLOSE'),author=? WHERE pack_id=?",
     )
     .bind(
-      malicious,
-      "A & B < C",
+      JSON.stringify({ "zh-CN": malicious, en: malicious }),
+      JSON.stringify({ "zh-CN": "A & B < C", en: "A & B < C" }),
       "</div><img src=x onerror=alert(1)>",
       "00000000-0000-4000-8000-000000000021",
     )
@@ -127,7 +127,7 @@ test("official priority is shared by SSR, filters and every cursor page without 
       .bind(priority, id(n)).run();
   }
   // A name and author copied by a community creator cannot pin the collection.
-  await f.db.prepare("UPDATE market_public_release SET author='Amoji',manifest=json_set(manifest,'$.name','经典 / Classic') WHERE pack_id=?").bind(id(21)).run();
+  await f.db.prepare("UPDATE market_public_release SET author='Amoji',manifest=json_set(manifest,'$.name',json('{\"zh-CN\":\"经典\",\"en\":\"Classic\"}')) WHERE pack_id=?").bind(id(21)).run();
   const first = await (await f.request("/v1/packs")).json();
   assert.deepEqual(first.packs.slice(0, 5).map(p => p.pack_id), [1, 2, 4, 3, 21].map(id));
   const html = await (await f.request("/")).text();
@@ -144,7 +144,7 @@ test("official priority is shared by SSR, filters and every cursor page without 
     cursor = page.cursor;
   } while (cursor);
   assert.deepEqual(seen, [1, 2, 4, 3, ...Array.from({length:17}, (_, i) => 21 - i)].map(id));
-  const filtered = await (await f.request("/v1/packs?q=performance&scenario=explanation&actions=true")).json();
+  const filtered = await (await f.request("/v1/packs?q=performance&act=core:ack&effects=true")).json();
   assert.deepEqual(filtered.packs.slice(0, 5).map(p => p.pack_id), [1, 2, 4, 3, 21].map(id));
   await f.db.prepare("UPDATE market_public_release SET state='unpublished' WHERE pack_id=?").bind(id(1)).run();
   assert.equal((await (await f.request("/v1/packs")).json()).packs[0].pack_id, id(2));
@@ -208,7 +208,7 @@ test("homepage and catalog API consume the same public allowance; exhaustion nev
 
 test("malformed or excessively long public summary fails closed before HTML injection", async (t) => {
   const f = await fixture(t);
-  for (const value of ["x".repeat(10000), ["not", "a", "name"]]) {
+  for (const value of ["a plain string is not a localized name", { "zh-CN": "x".repeat(10000) }, ["not", "a", "name"]]) {
     await f.db
       .prepare(
         "UPDATE market_public_release SET manifest=json_set(manifest,'$.name',json(?))",
@@ -229,9 +229,9 @@ test("homepage preserves literal replacement metacharacters in public names", as
   const name = "price $& $` $' $$ value";
   await f.db
     .prepare(
-      "UPDATE market_public_release SET manifest=json_set(manifest,'$.name',?)",
+      "UPDATE market_public_release SET manifest=json_set(manifest,'$.name',json(?))",
     )
-    .bind(name)
+    .bind(JSON.stringify({ "zh-CN": name, en: name }))
     .run();
   const response = await f.request();
   assert.equal(response.status, 200);
@@ -248,7 +248,7 @@ test("homepage preserves literal replacement metacharacters in public names", as
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&amp;", "&");
-  assert.equal(JSON.parse(decoded).packs[0].manifest.name, name);
+  assert.equal(JSON.parse(decoded).packs[0].manifest.name["zh-CN"], name);
 });
 
 test("filtered homepage SSR matches the requested directory without exposing full manifests", async (t) => {
@@ -271,7 +271,8 @@ test("filtered homepage SSR matches the requested directory without exposing ful
   const pack = api.packs[0];
   assert.match(pack.cover.sha256, /^[a-f0-9]{64}$/);
   assert.ok(pack.expression_count > 0);
-  assert.equal(typeof pack.action_count, "number");
+  assert.equal(typeof pack.effect_count, "number");
+  assert.ok(pack.manifest.acts.length > 0 && pack.manifest.locales.includes("zh-CN"));
 });
 
 test("a saved English interface is rendered before JavaScript without rewriting pack content", async (t) => {
@@ -283,7 +284,7 @@ test("a saved English interface is rendered before JavaScript without rewriting 
   assert.match(html, /lang="en"/);
   assert.ok(html.includes("A new language."));
   const api = await (await f.request("/v1/packs")).json();
-  assert.ok(html.includes(api.packs[0].manifest.name));
+  assert.ok(html.includes(api.packs[0].manifest.name.en), "English pack names come from the pack, not a translation");
   assert.ok(html.includes("Find your expression"));
   assert.ok(html.includes("catalog-bootstrap"));
 });

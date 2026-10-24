@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { unzipSync, zipSync } from "fflate";
-import { validate01, validate02 } from "amoji-schema";
+import { packProblems } from "../src/pack-schema";
+import { expressionText } from "../../../src/protocol/text";
+import { pick, uiLocale } from "./acts";
 import { buildSnapshot } from "./snapshot";
 import { Icon, EmptyState } from "./ui";
 import { draftStore } from "./draft";
@@ -96,21 +98,46 @@ export function UploadPanel({
     } | null>(null);
   const status = useRef<HTMLParagraphElement>(null);
   const saveTail = useRef(Promise.resolve());
+  const saveVersion = useRef(0);
+  const unsaved = useRef(false);
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">("saved");
+  useEffect(() => {
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      if (!unsaved.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectDraft);
+    return () => window.removeEventListener("beforeunload", protectDraft);
+  }, []);
   function notify(text: string) {
     setMessage(text);
     setTimeout(() => status.current?.focus(), 0);
   }
   async function save(d: Draft | null) {
+    const version = ++saveVersion.current;
+    unsaved.current = true;
+    setSaveState("saving");
     setDraft(d);
     const work = saveTail.current.then(() => draftStore(accountId, d));
     saveTail.current = work.then(
       () => {},
       () => {},
     );
-    await work;
+    try {
+      await work;
+      if (version === saveVersion.current) {
+        unsaved.current = false;
+        setSaveState("saved");
+      }
+    } catch (error) {
+      if (version === saveVersion.current) setSaveState("failed");
+      throw error;
+    }
   }
   function edit(d: Draft) {
     setPreview(null);
+    setMessage("");
     void save({
       ...d,
       archive: undefined,
@@ -230,19 +257,12 @@ export function UploadPanel({
     const m = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files["manifest.json"]),
     );
-    if (!(m.schema_version === "0.2" ? validate02 : validate01)(m))
-      throw Error("MANIFEST_SCHEMA");
+    // Only Amoji 0.1 packs are accepted; the same checks run again in the Worker.
+    if (packProblems(m).length) throw Error("MANIFEST_SCHEMA");
     const targetPack = draft?.targetPack;
     const manifest = {
       ...m,
-      schema_version: "0.2",
-      scenario: m.scenario ?? ["imported"],
-      actions: m.actions ?? [],
-      bindings: m.bindings ?? [],
-      rights: m.rights ?? { license: "" },
-      ...(m.schema_version === "0.2"
-        ? { derived_from: { pack_id: m.pack_id, release_id: m.release_id } }
-        : {}),
+      derived_from: { pack_id: m.pack_id, release_id: m.release_id },
     };
     await save({ files, manifest, filename: file.name, step: 1, targetPack });
     setPreview(null);
@@ -378,12 +398,8 @@ export function UploadPanel({
     ? [
         { label: t.pack, value: draft.manifest.rights },
         ...draft.manifest.expressions.map((e: any) => ({
-          label: `${t.expression}: ${e.name}`,
+          label: `${t.expression}: ${expressionText(e, uiLocale(zh ? "zh" : "en")).name}`,
           value: e.rights,
-        })),
-        ...draft.manifest.actions.map((a: any) => ({
-          label: `${t.action}: ${a.effect_summary}`,
-          value: a.rights,
         })),
       ]
     : [];
@@ -436,45 +452,53 @@ export function UploadPanel({
                 </label>
               ) : (
                 <>
-                  <p className="note">
-                    {draft.filename} · {t.saved}
+                  <p className="note" data-save-state={saveState} aria-live="polite">
+                    {draft.filename} · {saveState === "saved" ? t.saved
+                      : saveState === "saving" ? (zh ? "正在保存草稿…" : "Saving draft…")
+                      : (zh ? "草稿尚未保存，请勿关闭页面。" : "Draft not saved. Keep this page open.")}
                   </p>
                   {draft.step === 1 && (
                     <div className="editor-fields">
-                      <label>
-                        {t.name}
-                        <input
-                          value={draft.manifest.name}
-                          maxLength={120}
-                          disabled={busy}
-                          onChange={(e) =>
-                            edit({
-                              ...draft,
-                              manifest: {
-                                ...draft.manifest,
-                                name: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {t.description}
-                        <textarea
-                          value={draft.manifest.description ?? ""}
-                          maxLength={4000}
-                          disabled={busy}
-                          onChange={(e) =>
-                            edit({
-                              ...draft,
-                              manifest: {
-                                ...draft.manifest,
-                                description: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </label>
+                      {draft.manifest.locales.map((l: string) => (
+                        <React.Fragment key={l}>
+                          <label>
+                            {t.name} · {l}
+                            <input
+                              lang={l}
+                              value={draft.manifest.name[l] ?? ""}
+                              maxLength={60}
+                              disabled={busy}
+                              onChange={(e) =>
+                                edit({
+                                  ...draft,
+                                  manifest: {
+                                    ...draft.manifest,
+                                    name: { ...draft.manifest.name, [l]: e.target.value },
+                                  },
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {t.description} · {l}
+                            <textarea
+                              lang={l}
+                              value={draft.manifest.description[l] ?? ""}
+                              maxLength={280}
+                              disabled={busy}
+                              onChange={(e) =>
+                                edit({
+                                  ...draft,
+                                  manifest: {
+                                    ...draft.manifest,
+                                    description: { ...draft.manifest.description, [l]: e.target.value },
+                                  },
+                                })
+                              }
+                            />
+                          </label>
+                        </React.Fragment>
+                      ))}
                       <p>{t.rights}</p>
                       {rights.map((r: any, i: number) => (
                         <details
@@ -505,11 +529,7 @@ export function UploadPanel({
                                       const target =
                                         i === 0
                                           ? m.rights
-                                          : i <= m.expressions.length
-                                            ? m.expressions[i - 1].rights
-                                            : m.actions[
-                                                i - m.expressions.length - 1
-                                              ].rights;
+                                          : m.expressions[i - 1].rights;
                                       if (e.target.value)
                                         target[field] = e.target.value;
                                       else delete target[field];
@@ -531,15 +551,16 @@ export function UploadPanel({
                   )}
                   {draft.step === 2 && (
                     <>
-                      <p>{t.actions}</p>
-                      {!draft.manifest.actions.length ? (
-                        <p>{t.noActions}</p>
+                      <p>{t.effects}</p>
+                      {!draft.manifest.effects?.length ? (
+                        <p>{t.noEffects}</p>
                       ) : (
-                        draft.manifest.actions.map((a: any) => (
-                          <article key={a.action_id}>
-                            <h3>{a.effect_summary}</h3>
-                            {a.instruction ? (
-                              <p>{a.instruction}</p>
+                        draft.manifest.effects.map((a: any) => (
+                          <article key={a.effect_id}>
+                            <h3>{pick(a.title, zh ? "zh" : "en", draft.manifest.original_locale)}</h3>
+                            <p>{pick(a.summary, zh ? "zh" : "en", draft.manifest.original_locale)}</p>
+                            {a.kind === "context" ? (
+                              <p>{pick(a.instruction, zh ? "zh" : "en", draft.manifest.original_locale)}</p>
                             ) : (
                               <details>
                                 <summary>{t.full}</summary>
@@ -556,21 +577,23 @@ export function UploadPanel({
                               disabled={busy}
                               onClick={() => {
                                 const m = structuredClone(draft.manifest);
-                                m.actions = m.actions.filter(
-                                  (v: any) => v.action_id !== a.action_id,
+                                m.effects = m.effects.filter(
+                                  (v: any) => v.effect_id !== a.effect_id,
                                 );
-                                m.bindings = m.bindings
+                                if (!m.effects.length) delete m.effects;
+                                m.bindings = (m.bindings ?? [])
                                   .map((b: any) => ({
                                     ...b,
-                                    actions: b.actions.filter(
-                                      (v: any) => v.action_id !== a.action_id,
+                                    effects: b.effects.filter(
+                                      (v: string) => v !== a.effect_id,
                                     ),
                                   }))
-                                  .filter((b: any) => b.actions.length);
+                                  .filter((b: any) => b.effects.length);
+                                if (!m.bindings.length) delete m.bindings;
                                 edit({ ...draft, manifest: m });
                               }}
                             >
-                              {zh ? "不包含此动作" : "Exclude this action"}
+                              {zh ? "不包含此效果" : "Exclude this effect"}
                             </button>
                           </article>
                         ))
@@ -701,7 +724,7 @@ export function UploadPanel({
           <article key={s.id}>
             <h4>
               {viewed?.id === s.id
-                ? viewed.manifest.name
+                ? pick(viewed.manifest.name, zh ? "zh" : "en", viewed.manifest.original_locale)
                 : zh
                   ? "表情包投稿"
                   : "Pack submission"}{" "}

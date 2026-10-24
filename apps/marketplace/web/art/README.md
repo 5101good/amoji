@@ -6,4 +6,4 @@
 
 作者 / Creator: Amoji contributors · 2026
 
-许可 / License: [CC0-1.0](../../../../assets/base-library/LICENSE)，与参考的基础表情库一致 / consistent with the referenced base library.
+许可 / License: [CC0-1.0](../../../../assets/official-packs/LICENSE)，与参考的官方经典表情包一致 / consistent with the referenced official Classic pack.

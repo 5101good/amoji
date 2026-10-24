@@ -1,14 +1,18 @@
+import { REGISTRY, actGloss, humanSendable } from './protocol/index.js';
 import { createServer, type ServerResponse, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { ServiceError, object, nonempty, sessionKey, type BindingContext as HostContext } from './shared-contract.js';
-import type { SampleMessage } from './sample-runtime.js';
+import type { StoredMessage } from './messages.js';
 import type { AdapterRuntime } from './adapter-runtime.js';
 import { searchExpressions } from './search.js';
 
 import { draftVersion, type DraftFields } from './drafts.js';
 
-interface PendingPick { id: string; finish: (result: SampleMessage | Error) => void }
+/** Acts a human can author or send, with their zh-CN gloss, for the panel's act picker. */
+const PANEL_ACTS = REGISTRY.acts.filter(a => a.status !== 'deprecated').map(a => ({ act: a.act, family: a.family, gloss: actGloss(a.act, a.forms.h2a ? 'h2a' : 'a2h', 'zh-CN').text }));
+
+interface PendingPick { id: string; finish: (result: StoredMessage | Error) => void }
 interface PanelSession { context: HostContext; capability: string; pending?: PendingPick; completed: Map<string, { message_id: string; asset_id: string; revision_id: string }> }
 
 export class PanelServer {
@@ -49,7 +53,7 @@ export class PanelServer {
     return url;
   }
 
-  pick(context: HostContext, signal: AbortSignal): Promise<SampleMessage> {
+  pick(context: HostContext, signal: AbortSignal): Promise<StoredMessage> {
     const url = this.url(context);
     const session = this.sessions.get(sessionKey(context))!;
     if (session.pending) return Promise.reject(new Error('该会话已有待选请求'));
@@ -104,7 +108,7 @@ export class PanelServer {
     const session = [...this.sessions.values()].find(s => s.capability === token);
     if (!session) { this.json(res, 401, { error: '请从当前宿主会话重新打开选择器' }); return; }
     if (req.method === 'GET' && url.pathname === '/api/state') {
-      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: await this.runtime.catalog.all(), messages: await this.runtime.messages(session.context) }); return;
+      this.json(res, 200, { host: session.context.host, session_id: session.context.sessionId, turn_id: session.context.turnId, pending_pick: session.pending?.id ?? null, creation_available: !!this.runtime.creation, suggestion_available: !!this.runtime.suggestions, expressions: (await this.runtime.catalog.all()).filter(humanSendable), messages: await this.runtime.messages(session.context), acts: PANEL_ACTS }); return;
     }
     if (req.method === 'GET' && url.pathname === '/api/drafts') {
       this.json(res, 200, { drafts: this.runtime.creation ? await this.runtime.creation.listDrafts() : [] }); return;
@@ -112,13 +116,13 @@ export class PanelServer {
     if (req.method === 'GET' && url.pathname === '/api/search') {
       try {
         const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 3;
-        this.json(res, 200, { expressions: searchExpressions(await this.runtime.catalog.all(), url.searchParams.get('query') ?? '', limit) });
+        this.json(res, 200, { expressions: searchExpressions((await this.runtime.catalog.all()).filter(humanSendable), url.searchParams.get('query') ?? '', limit) });
       } catch (error) { this.json(res, 400, { error: error instanceof Error ? error.message : '搜索参数不合法' }); }
       return;
     }
     if (req.method === 'GET' && /^\/blobs\/[a-f0-9]{64}$/.test(url.pathname)) {
       const digest = url.pathname.slice('/blobs/'.length);
-      const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).map(m => m.revision)];
+      const visible = [...await this.runtime.catalog.all(), ...(await this.runtime.messages(session.context)).flatMap(m => m.revision ? [m.revision] : [])];
       const drafts = this.runtime.creation ? await this.runtime.creation.listDrafts() : [];
       const blob = [...visible.flatMap(e => [e.visual.primary, e.visual.poster]), ...drafts.flatMap(d => [d.visual?.primary, d.visual?.poster])].find(b => b?.sha256 === digest);
       if (!blob) { this.json(res, 404, { error: '素材不存在' }); return; }
@@ -183,7 +187,7 @@ export class PanelServer {
     }
     if (typeof body.asset_id !== 'string' || typeof body.revision_id !== 'string' || Object.keys(body).some(k => !['pick_id', 'asset_id', 'revision_id'].includes(k))) { this.json(res, 400, { error: '只能选择固定版本，不能覆盖语义' }); return; }
     try {
-      const message = await this.runtime.receive(session.context, { asset_id: body.asset_id, revision_id: body.revision_id }, pending.id);
+      const message = await this.runtime.receive(session.context, { ref: { asset_id: body.asset_id, revision_id: body.revision_id } }, pending.id);
       session.completed.set(pending.id, { message_id: message.message_id, asset_id: body.asset_id, revision_id: body.revision_id });
       pending.finish(message);
       this.json(res, 200, { message_id: message.message_id });

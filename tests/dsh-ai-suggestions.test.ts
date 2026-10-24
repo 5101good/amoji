@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm';
 import { AiSuggestions, conversationModel, type SuggestionLlm } from '../src/dsh/ai-suggestions.js';
-const fields = { name:'谢谢你', semantics:{locale:'zh-CN',meaning:'向对方表达受到帮助后的真诚感谢',fallback:'谢谢你',tone:'真诚',use_when:['得到帮助后'],avoid_when:['讽刺他人时']},tags:['感谢'] };
+const output = { realizes:'core:thanks', intensity:2, name:'谢谢你', meaning:'向对方表达受到帮助后的真诚感谢', fallback:'谢谢你', use_when:['得到帮助后'], avoid_when:['讽刺他人时'], tags:['感谢'] };
+const fields = { realizes:'core:thanks', intensity:2, original_locale:'zh-CN', name:{'zh-CN':'谢谢你'}, semantics:{'zh-CN':{meaning:output.meaning,fallback:'谢谢你',use_when:output.use_when,avoid_when:output.avoid_when}}, tags:{'zh-CN':['感谢']} };
 const route = {provider:'configured',model:'deepseek-v4-flash'};
-function fixture(chunks: StreamChunk[] = [{type:'text-delta',index:0,text:JSON.stringify(fields)},{type:'finish',reason:{kind:'stop'}}]) {
+function fixture(chunks: StreamChunk[] = [{type:'text-delta',index:0,text:JSON.stringify(output)},{type:'finish',reason:{kind:'stop'}}]) {
  const calls:GenerateOptions[]=[];
  const llm:SuggestionLlm={listProviders:()=>[{id:'configured',name:'Configured'}],listModels:async()=>[{provider:'configured',id:'large-model',name:'Large'},{provider:'configured',id:route.model,name:'Flash'}],resolveModelInfo:async()=>({provider:route.provider,id:route.model,name:'Flash',reasoning:{efforts:[{id:'off' as never,name:'Off'}]}}),async *stream(options){calls.push(options);yield* chunks;}};
  return {llm,calls,ai:new AiSuggestions(llm)};
@@ -23,11 +24,11 @@ test('未配置模型、非法输入、未知字段在请求前拒绝',async()=>
 test('失败、截断、非法JSON、越界语义及夹带权限字段不退回模板，不自动重试',async()=>{
  for(const chunks of [
   [{type:'finish',reason:{kind:'error',failure:{code:'AUTH',message:'secret-provider-value'}}}],
-  [{type:'text-delta',index:0,text:JSON.stringify(fields)},{type:'finish',reason:{kind:'max-tokens'}}],
+  [{type:'text-delta',index:0,text:JSON.stringify(output)},{type:'finish',reason:{kind:'max-tokens'}}],
   [{type:'text-delta',index:0,text:'not json'},{type:'finish',reason:{kind:'stop'}}],
-  [{type:'text-delta',index:0,text:JSON.stringify({...fields,rights:{license:'invented'}})},{type:'finish',reason:{kind:'stop'}}],
-  [{type:'text-delta',index:0,text:JSON.stringify({...fields,semantics:{...fields.semantics,meaning:'a'.repeat(241)}})},{type:'finish',reason:{kind:'stop'}}],
-  [{type:'text-delta',index:0,text:JSON.stringify(fields)}],
+  [{type:'text-delta',index:0,text:JSON.stringify({...output,rights:{license:'invented'}})},{type:'finish',reason:{kind:'stop'}}],
+  [{type:'text-delta',index:0,text:JSON.stringify({...output,meaning:'a'.repeat(241)})},{type:'finish',reason:{kind:'stop'}}],
+  [{type:'text-delta',index:0,text:JSON.stringify(output)}],
  ] as StreamChunk[][]){const f=fixture(chunks);await assert.rejects(f.ai.suggest('s',{...route,intent:'感谢'},new AbortController().signal),e=>!String(e).includes('secret-provider-value'));assert.equal(f.calls.length,1);}
 });
 test('取消与超时终止生成，同会话不能并发计费，结束后允许重试',async()=>{

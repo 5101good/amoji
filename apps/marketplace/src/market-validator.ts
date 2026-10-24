@@ -1,7 +1,7 @@
 import { inflateRawSync, crc32 } from "node:zlib";
 import { createHash } from "node:crypto";
 import decoderModule from "./decoder.wasm";
-import { validate01, validate02 } from "amoji-schema";
+import { packProblems } from "./pack-schema";
 import { MARKET_LIMITS as L } from "./upload-shared";
 type Media = {
   sha256: string;
@@ -202,42 +202,19 @@ export function validateArchive(
   const files = unpack(bytes),
     raw = files.get("manifest.json")!,
     m = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  // Structure (JSON Schema) and the protocol's semantic rules: registry acts,
+  // complete locales, effects and bindings that resolve inside the pack.
+  ensure(packProblems(m).length === 0, "MANIFEST_SCHEMA");
   ensure(
-    (m.schema_version === "0.2" ? validate02 : validate01)(m),
-    "MANIFEST_SCHEMA",
-  );
-  // Market publications are new 0.2 snapshots; local 0.1 imports remain unchanged.
-  ensure(
-    m.schema_version === "0.2" &&
-      m.pack_id === identity.pack_id &&
+    m.pack_id === identity.pack_id &&
       m.release_id === identity.release_id &&
       m.version === identity.version,
     "RESERVATION_MISMATCH",
   );
   const decoder = new WebAssembly.Instance(decoderModule, {})
     .exports as unknown as Exports;
-  const refs = new Set<string>(),
-    assets = new Set<string>(),
-    defaults = new Set<string>(),
-    used = new Set(["manifest.json"]),
-    actions = new Set<string>();
+  const used = new Set(["manifest.json"]);
   let memory = 0;
-  const key = (r: { asset_id: string; revision_id: string }) =>
-    r.asset_id + ":" + r.revision_id;
-  const actionKey = (r: { action_id: string; action_revision_id: string }) =>
-    r.action_id + ":" + r.action_revision_id;
-  const textBytes = (v: unknown) => Buffer.byteLength(String(v));
-  for (const a of m.actions) {
-    ensure(!actions.has(actionKey(a)), "ACTION_REFERENCE");
-    actions.add(actionKey(a));
-    ensure(
-      textBytes(a.effect_summary) <= 4096 &&
-        (a.kind !== "instruction" || textBytes(a.instruction) <= 2048),
-      "ACTION_LIMIT",
-    );
-  }
-  for (const t of [m.description, ...(m.examples ?? [])])
-    if (t !== undefined) ensure(textBytes(t) <= 4096, "TEXT_LIMIT");
   const media = (b: Media, animated: boolean) => {
     const path = "blobs/" + b.sha256,
       value = files.get(path);
@@ -257,15 +234,6 @@ export function validateArchive(
     return d;
   };
   for (const e of m.expressions) {
-    ensure(!refs.has(key(e)), "EXPRESSION_REFERENCE");
-    refs.add(key(e));
-    assets.add(e.asset_id);
-    ensure(
-      Buffer.byteLength(
-        JSON.stringify({ name: e.name, semantics: e.semantics }),
-      ) <= 4096,
-      "SEMANTICS_LIMIT",
-    );
     const v = e.visual;
     ensure(
       v.animated
@@ -284,21 +252,6 @@ export function validateArchive(
       );
       media(v.poster, false);
     } else ensure(d.mime !== "image/gif", "MEDIA_FORMAT");
-  }
-  for (const r of m.defaults) {
-    ensure(refs.has(key(r)) && !defaults.has(r.asset_id), "DEFAULT_REFERENCE");
-    defaults.add(r.asset_id);
-  }
-  ensure(defaults.size === assets.size, "DEFAULT_REFERENCE");
-  const bound = new Set<string>();
-  for (const b of m.bindings) {
-    ensure(
-      refs.has(key(b.expression)) && !bound.has(key(b.expression)),
-      "BINDING_REFERENCE",
-    );
-    bound.add(key(b.expression));
-    for (const a of b.actions)
-      ensure(actions.has(actionKey(a)), "BINDING_REFERENCE");
   }
   ensure(used.size === files.size, "UNREFERENCED_BLOB");
   return {

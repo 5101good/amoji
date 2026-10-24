@@ -6,11 +6,13 @@ export type CatalogPage = {
     author: string;
     cover?: { sha256: string };
     expression_count?: number;
-    action_count?: number;
+    effect_count?: number;
     manifest: {
-      name: string;
-      description: string | null;
-      scenario: string[];
+      name: Record<string, string>;
+      description: Record<string, string>;
+      original_locale: string;
+      locales: string[];
+      acts: string[];
       version: number;
     };
   }>;
@@ -23,6 +25,15 @@ function text(value: unknown, max: number): string {
     throw Error("INVALID_SUMMARY");
   return value;
 }
+function texts(value: unknown, max: number): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 32)
+    throw Error("INVALID_SUMMARY");
+  return Object.fromEntries(Object.entries(value).map(([locale, item]) => [text(locale, 48), text(item, max)]));
+}
+const list = (value: unknown, max: number) => {
+  if (!Array.isArray(value) || value.length > 64) throw Error("INVALID_SUMMARY");
+  return value.map((item) => text(item, max));
+};
 export function catalogPage(value: unknown): CatalogPage {
   const data = value as CatalogPage;
   if (!data || !Array.isArray(data.packs) || data.packs.length > 20)
@@ -35,9 +46,7 @@ export function catalogPage(value: unknown): CatalogPage {
       if (
         !m ||
         !Number.isSafeInteger(m.version) ||
-        m.version < 1 ||
-        !Array.isArray(m.scenario) ||
-        m.scenario.length > 16
+        m.version < 1
       )
         throw Error("INVALID_SUMMARY");
       return {
@@ -51,13 +60,15 @@ export function catalogPage(value: unknown): CatalogPage {
         row.expression_count! >= 0
           ? { expression_count: row.expression_count }
           : {}),
-        ...(Number.isSafeInteger(row.action_count) && row.action_count! >= 0
-          ? { action_count: row.action_count }
+        ...(Number.isSafeInteger(row.effect_count) && row.effect_count! >= 0
+          ? { effect_count: row.effect_count }
           : {}),
         manifest: {
-          name: text(m.name, 80),
-          description: m.description == null ? null : text(m.description, 4096),
-          scenario: m.scenario.map((s) => text(s, 48)),
+          name: texts(m.name, 60),
+          description: texts(m.description, 4096),
+          original_locale: text(m.original_locale, 48),
+          locales: list(m.locales, 48),
+          acts: list(m.acts, 70),
           version: m.version,
         },
       };

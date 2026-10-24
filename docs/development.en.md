@@ -25,12 +25,13 @@ npm run test:dsh
 
 ## Directories
 
-- `src/`: shared service, SQLite library, protocol, pack and media validation.
+- `src/protocol/`: the Amoji 0.1 protocol core — types, act registry, locale fallback, text projections and validation.
+- `src/`: shared service, SQLite library, pack, effect and media validation.
 - `src/dsh/`: Host, Client, picker, manager, and AI suggestions.
-- `assets/base-library/`: reviewable manifest, provenance, dual-appearance pack, and CC0.
+- `assets/official-packs/`: the seven official packs, reviewable manifests, provenance, and CC0.
 - `adapters/dsh/`: plugin entry point, metadata, and generated output.
 - `tests/`: behavior, contract, packaging, isolation, and resource-limit tests.
-- `docs/`: current bilingual guides, release audits, and runtime schemas.
+- `docs/`: current bilingual guides and release audits; `docs/specs/` holds the RFC, runtime schema and act registry.
 
 `dist/`, `.cache/`, and generated runtime/client files come from scripts. Edit source and rebuild instead of patching bundles. Isolate runtime data with `AMOJI_DATA_DIR`; do not test migrations against a daily-use library.
 
@@ -52,9 +53,9 @@ Expected content includes Host/Client, core runtime, built-in assets, `BUILD.jso
 
 See [contributing](../CONTRIBUTING.en.md) and [release process](release.en.md).
 
-## Contributing scenario content
+## Contributing pack content
 
-Start with the [official packs](../assets/official-packs/README.en.md) and `scripts/build-official-packs.mjs`. Preserve confirmed semantics and exact identities; reuse clearly licensed visuals. State the original language, both communication directions and illustrative nature of examples. Actions are optional guidance, not enforcement; disabling stops future application without deleting history. Run seed and baseline tests, then submit as a creator for independent review; self-review is forbidden.
+Start with the [official packs](../assets/official-packs/README.en.md) and `scripts/build-official-packs.mjs`. Every expression realizes one registry act. Preserve confirmed semantics and exact identities; reuse clearly licensed visuals. Declare the original language and label how every other language was translated. Effects are optional guidance, not enforcement; disabling stops future attachment without deleting history. Run seed and baseline tests, then submit as a creator for independent review; self-review is forbidden.
 
 ## Claude Mods
 

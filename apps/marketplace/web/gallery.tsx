@@ -4,6 +4,7 @@ import { Icon, type Locale } from "./ui";
 import { exhibit } from "./exhibit";
 import { useArtworkDepth, useSceneProgress } from "./motion";
 import { narrative } from "./copy";
+import { actLabel, pick } from "./acts";
 export function Brand() {
   return (
     <a className="brand" href="/" aria-label="Amoji">
@@ -138,7 +139,7 @@ export function Hero({ locale }: { locale: Locale }) {
             >
               {words.meaning}
             </p>
-            <p className="meaning-tone">{words.tone}</p>
+            <p className="meaning-tone">{actLabel(example.act, locale)} · {example.act}</p>
             <div className="meaning-footnote">
               <span className="semantic-dot" aria-hidden="true" />
               {zh
@@ -214,6 +215,9 @@ export function PackCard({
 }) {
   const url = `/packs/${row.pack_id}/releases/${row.release_id}`;
   const zh = locale === "zh";
+  const m = row.manifest;
+  const name = pick(m.name, locale, m.original_locale);
+  const description = pick(m.description, locale, m.original_locale);
   return (
     <article className="catalog-row">
       <a
@@ -235,8 +239,9 @@ export function PackCard({
       <div className="pack-info">
         <div className="pack-meta">
           <span>
-            {row.manifest.scenario[0] ||
-              (zh ? "表达与协作" : "Expression & collaboration")}
+            {m.acts[0]
+              ? actLabel(m.acts[0], locale)
+              : zh ? "表达与协作" : "Expression & collaboration"}
           </span>
           {row.expression_count != null && (
             <span>
@@ -245,10 +250,10 @@ export function PackCard({
           )}
         </div>
         <h3>
-          <a href={url}>{row.manifest.name}</a>
+          <a href={url}>{name}</a>
         </h3>
-        {row.manifest.description && (
-          <p className="pack-description">{row.manifest.description}</p>
+        {description && (
+          <p className="pack-description">{description}</p>
         )}
         <div className="pack-footer">
           <span className="author">
@@ -257,7 +262,7 @@ export function PackCard({
             </span>
             {row.author}
           </span>
-          {!!row.action_count && (
+          {!!row.effect_count && (
             <span className="action-badge">
               {zh ? "含协作提示" : "With guidance"}
             </span>

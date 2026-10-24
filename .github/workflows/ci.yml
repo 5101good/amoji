@@ -38,6 +38,11 @@ jobs:
       - name: Audit marketplace locked dependencies
         working-directory: apps/marketplace
         run: npm audit --audit-level=low --registry=https://registry.npmjs.org
+      - name: Install Python imaging for the pack skill tests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/amoji-python"
+          "$RUNNER_TEMP/amoji-python/bin/pip" install --disable-pip-version-check --only-binary=:all: pillow==12.3.0
+          echo "AMOJI_PYTHON=$RUNNER_TEMP/amoji-python/bin/python" >> "$GITHUB_ENV"
       - name: Core tests
         run: npm test
       - name: Build plugin and test published dsh contracts

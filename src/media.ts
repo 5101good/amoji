@@ -1,4 +1,4 @@
-import type { BlobRef, Expression } from './sample-catalog.js';
+import type { BlobRef, Expression } from './protocol/index.js';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { fail } from './shared-contract.js';
@@ -59,7 +59,7 @@ export async function validateMediaBlob(bytes: Buffer, declared: BlobRef, expect
   limit(declared.width > limits.edge || declared.height > limits.edge, '素材边长尺寸超限（最大 2048）');
   const supported = expected === 'animated' ? animatedMimes : staticMimes;
   if (!supported.has(declared.mime)) fail('MEDIA_UNSUPPORTED', expected === 'animated' ? '动图只支持 GIF 或 animated WebP' : '静态图只支持 PNG、JPEG 或 WebP');
-  if (declared.mime === 'image/png' && hasPngChunk(bytes, 'acTL')) fail('MEDIA_UNSUPPORTED', 'APNG 容器在 v0.1 不支持');
+  if (declared.mime === 'image/png' && hasPngChunk(bytes, 'acTL')) fail('MEDIA_UNSUPPORTED', '不支持 APNG 容器');
 
   let meta: Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
   try {
@@ -95,7 +95,7 @@ export async function validateMediaBlob(bytes: Buffer, declared: BlobRef, expect
   return { mime, width, height, animated, frames, durationMs, decodedPixels };
 }
 
-export async function validateExpressionMedia(expression: Expression, read: (blob: BlobRef) => Promise<Buffer>, limits:MediaLimits=MEDIA_LIMITS): Promise<ExpressionMedia> {
+export async function validateExpressionMedia(expression: Pick<Expression, 'visual'>, read: (blob: BlobRef) => Promise<Buffer>, limits:MediaLimits=MEDIA_LIMITS): Promise<ExpressionMedia> {
   const visual = expression.visual;
   if (!visual.animated && visual.duration_ms !== undefined) fail('MEDIA_UNSUPPORTED', '静态素材不得携带动画时长');
   if (!visual.animated && visual.poster !== undefined) fail('MEDIA_UNSUPPORTED', '静态素材不得携带额外封面');
@@ -120,7 +120,7 @@ export async function prepareUploadedMedia(bytes: Buffer): Promise<{ visual: Exp
   const animated = (meta.pages ?? 1) > 1;
   const decoded = await validateMediaBlob(bytes, primary, animated ? 'animated' : 'static');
   const blobs = new Map([[primary.sha256, bytes]]);
-  const visual: Expression['visual'] = { primary, animated };
+  const visual: Expression['visual'] = { primary, animated, text_locale: null };
   if (animated) {
     const posterBytes = await sharp(bytes, { page: 0, pages: 1, failOn: 'warning', limitInputPixels: MEDIA_LIMITS.decodedPixels, limitInputChannels: 4 }).png().toBuffer();
     const poster: BlobRef = { sha256: createHash('sha256').update(posterBytes).digest('hex'), mime: 'image/png', bytes: posterBytes.length, width: primary.width, height: primary.height };

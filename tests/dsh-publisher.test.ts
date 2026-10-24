@@ -24,7 +24,7 @@ import {randomUUID} from 'node:crypto';
 import {withValidatedPack} from '../src/packs.js';
 test('publishing persists steps, sends selected bytes only, reconciles unknown once and revises a returned release',async t=>{
  const root=await mkdtemp(join(tmpdir(),'amoji-publishing-'));const c=await SharedClient.connect({directory:join(root,'library')});t.after(async()=>{await c.close();await stopSharedService(join(root,'library'),c.identity.serviceId);await rm(root,{recursive:true,force:true});});
- const expressions=await c.list();const selected=expressions[0]!;const local=await c.createScenarioDraft([{asset_id:selected.asset_id,revision_id:selected.revision_id}]);const source=await c.confirmScenarioDraft(local.draft_id,local.version);
+ const expressions=await c.list();const selected=expressions[0]!;const local=await c.createPackDraft([{asset_id:selected.asset_id,revision_id:selected.revision_id}]);const source=await c.confirmPackDraft(local.draft_id,local.version);
  let now=1000,submitCount=0,uploaded:Uint8Array|undefined,operation='',review='pending';const calls:string[]=[];let version=0;let upload:any;let submission:any;
  const transport:typeof fetch=async(input,init)=>{
   const u=new URL(String(input));calls.push(u.pathname);const body=init?.body&&typeof init.body==='string'?JSON.parse(init.body):{};
@@ -42,7 +42,7 @@ test('publishing persists steps, sends selected bytes only, reconciles unknown o
  };
  const dir=join(root,'publisher'),p=new DshPublisher(dir,new ConnectedRuntime(c),'https://market.test',transport,()=>now);
  await p.call('beginLogin',{device_name:'test'});now+=5000;await p.call('loginStatus',{});
- let draft=await p.call('create',{release_id:source.release_id});draft=await p.call('save',{id:draft.id,version:draft.version,step:3,name:'只发布选择项',description:'公开说明',license:'CC0-1.0',creator:'测试创作者',source:'自己创作',actions:[]});
+ let draft=await p.call('create',{release_id:source.release_id});draft=await p.call('save',{id:draft.id,version:draft.version,step:3,name:'只发布选择项',description:'公开说明',license:'CC0-1.0',creator:'测试创作者',source:'自己创作',effects:[]});
  const restored=new DshPublisher(dir,new ConnectedRuntime(c),'https://market.test',transport,()=>now);assert.equal((await restored.call('drafts',{}))[0].step,3);
  draft=await restored.call('upload',{id:draft.id});assert.equal(draft.state,'uploaded');assert.ok(uploaded);await withValidatedPack(uploaded!,async pack=>{assert.equal(pack.manifest.expressions.length,1);assert.equal(pack.manifest.expressions[0]!.revision_id,selected.revision_id);assert.equal('credentials' in pack.manifest,false);},'market');
  await assert.rejects(restored.call('submit',{id:draft.id,rights_confirmed:true}),/网络中断/);assert.equal((await restored.call('drafts',{}))[0].state,'unknown');
@@ -50,8 +50,8 @@ test('publishing persists steps, sends selected bytes only, reconciles unknown o
  review='changes_requested';draft=await restored.call('reconcile',{id:draft.id});assert.equal(draft.submission.reason,'补充说明');const revision=await restored.call('create',{release_id:source.release_id,revise_id:draft.id});assert.equal(revision.pack_id,draft.submission.pack_id);assert.notEqual(revision.submit_operation,draft.submit_operation);assert.equal(revision.state,'draft');
 });
 test('a locally invalid publishing snapshot remains editable before reserving an upload',async t=>{
- const root=await mkdtemp(join(tmpdir(),'amoji-invalid-publish-'));t.after(()=>rm(root,{recursive:true,force:true}));const source:any={release_id:randomUUID(),name:'broken',actions:[],rights:{license:'CC0-1.0'},bindings:[]};
- const runtime={scenarios:{getScenarioPack:async()=>source},readBlob:async()=>Buffer.alloc(0)} as unknown as AdapterRuntime;const transport:typeof fetch=async(input)=>{if(String(input).endsWith('/uploads'))throw Error('must not reserve invalid local content');throw Error('unexpected');};
+ const root=await mkdtemp(join(tmpdir(),'amoji-invalid-publish-'));t.after(()=>rm(root,{recursive:true,force:true}));const source:any={release_id:randomUUID(),locales:['zh-CN'],original_locale:'zh-CN',name:{'zh-CN':'broken'},expressions:[],rights:{license:'CC0-1.0'}};
+ const runtime={packs:{getPack:async()=>source},readBlob:async()=>Buffer.alloc(0)} as unknown as AdapterRuntime;const transport:typeof fetch=async(input)=>{if(String(input).endsWith('/uploads'))throw Error('must not reserve invalid local content');throw Error('unexpected');};
  await import('node:fs/promises').then(fs=>fs.writeFile(join(root,'credentials.json'),JSON.stringify({origin:'https://market.test',tokens:{access_token:'a'.repeat(64),refresh_token:'b'.repeat(64),account_id:'owner',device_id:'device',expires_at:Date.now()+900000}}),{mode:0o600}));
  const p=new DshPublisher(root,runtime,'https://market.test',transport);const d=await p.call('create',{release_id:source.release_id});await assert.rejects(p.call('upload',{id:d.id}));assert.equal((await p.call('drafts',{}))[0].state,'draft');
 });

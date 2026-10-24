@@ -3,9 +3,13 @@ import { pathToFileURL } from 'node:url';
 import { dataDirectory } from './shared-contract.js';
 import { startSharedService } from './shared-service.js';
 
-const seed = process.env.AMOJI_SAMPLE_ROOT ? pathToFileURL(`${resolve(process.env.AMOJI_SAMPLE_ROOT)}/`) : new URL(import.meta.url.endsWith('.ts') ? '../assets/base-library/base.amoji' : '../../assets/base-library/base.amoji', import.meta.url);
+// Built-in packs, in default preference order. AMOJI_SEED_PACKS (comma-separated paths) overrides them for tests.
+const assets = new URL(import.meta.url.endsWith('.ts') ? '../assets/official-packs/' : '../../assets/official-packs/', import.meta.url);
+const seeds = process.env.AMOJI_SEED_PACKS !== undefined
+  ? process.env.AMOJI_SEED_PACKS.split(',').filter(Boolean).map(path => pathToFileURL(resolve(path)))
+  : ['classic.amoji', 'office.amoji'].map(name => new URL(name, assets));
 try {
-  const service = await startSharedService(dataDirectory(), seed, Number(process.env.AMOJI_SERVICE_IDLE_MS) || 60000);
+  const service = await startSharedService(dataDirectory(), seeds, Number(process.env.AMOJI_SERVICE_IDLE_MS) || 60000);
   process.once('SIGTERM', () => { void service.close(); });
   process.once('SIGINT', () => { void service.close(); });
   // This process owns only the service. Exit after HTTP, SQLite and the writer

@@ -35,22 +35,23 @@
                 <label for="suggestion-result-name">建议名称</label><input id="suggestion-result-name" type="text">
                 <label for="suggestion-result-meaning">建议含义</label><textarea id="suggestion-result-meaning" rows="3"></textarea>
                 <label for="suggestion-result-fallback">建议替代文本</label><input id="suggestion-result-fallback" type="text">
-                <label for="suggestion-result-tone">建议语气</label><input id="suggestion-result-tone" type="text">
+                <p id="suggestion-result-act" class="hint"></p>
                 <label for="suggestion-result-use">建议适用语境 · 每行一条</label><textarea id="suggestion-result-use" rows="2"></textarea>
                 <label for="suggestion-result-avoid">建议不适用语境 · 每行一条</label><textarea id="suggestion-result-avoid" rows="2"></textarea>
                 <label for="suggestion-result-tags">建议检索标签 · 每行一条</label><textarea id="suggestion-result-tags" rows="2"></textarea>
                 <div class="actions"><button id="apply-suggestion" type="button">采用到草稿</button><button id="reject-suggestion" class="quiet" type="button">拒绝此建议</button></div>
               </section>
             </section>
-            <label for="draft-name">名称 · 最多 48 字</label><input id="draft-name" type="text">
-            <label for="draft-locale">语义语言</label><input id="draft-locale" type="text" value="zh-CN">
+            <label for="draft-act">实现的码位</label><select id="draft-act"></select>
+            <label for="draft-intensity">强度</label><select id="draft-intensity"><option value="1">轻</option><option value="2" selected>中</option><option value="3">强</option></select>
+            <label for="draft-name">名称 · 最多 40 字</label><input id="draft-name" type="text">
+            <label for="draft-locale">原文语言</label><input id="draft-locale" type="text" value="zh-CN">
             <label for="draft-meaning">含义 · 最多 240 字</label><textarea id="draft-meaning" rows="3"></textarea>
             <label for="draft-fallback">替代文本 · 最多 80 字</label><input id="draft-fallback" type="text">
-            <label for="draft-tone">语气 · 可选，最多 80 字</label><input id="draft-tone" type="text">
             <label for="draft-use">适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-use" rows="2"></textarea>
             <label for="draft-avoid">不适用语境 · 每行一条，最多 4 条，每条 64 字</label><textarea id="draft-avoid" rows="2"></textarea>
-            <label for="draft-tags">检索标签 · 每行一条，最多 12 条，每条 24 字</label><textarea id="draft-tags" rows="2"></textarea>
-            <label for="draft-license">许可说明 · 最多 120 字</label><input id="draft-license" type="text" value="仅供个人使用">
+            <label for="draft-tags">检索标签 · 每行一条，最多 8 条，每条 32 字</label><textarea id="draft-tags" rows="2"></textarea>
+            <label for="draft-license">许可说明 · 最多 120 字</label><input id="draft-license" type="text" value="仅供个人使用 / Personal use only">
             <label for="draft-creator">作者说明 · 可选，最多 120 字</label><input id="draft-creator" type="text">
             <label for="draft-source">素材来源说明 · 可选，最多 500 字</label><input id="draft-source" type="text">
           </fieldset>

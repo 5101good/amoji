@@ -1,0 +1,239 @@
+{
+  "slug": "slow-cat",
+  "pack_id": "dbd45bc2-b332-4798-8062-3b5349b41b60",
+  "version": 2,
+  "created_at": "2026-10-22T00:00:00Z",
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
+  ],
+  "name": {
+    "zh-CN": "慢半拍猫",
+    "en": "Slow Cat"
+  },
+  "description": {
+    "zh-CN": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。",
+    "en": "A watercolor cat that won't rush you. Space for thought, and a little kindness for your efforts."
+  },
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+  },
+  "expressions": [
+    {
+      "slug": "take-a-breath",
+      "realizes": "core:rest",
+      "intensity": 1,
+      "image": "images/slow-cat/take-a-breath.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "先喘口气",
+        "en": "Breather"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "先缓一缓，给自己一点喘息的空间；不用因为这句表达而催促或继续推进任务。",
+          "fallback": "[先喘口气]",
+          "use_when": [
+            "人想短暂放松时",
+            "AI 温和回应对方的疲惫时"
+          ],
+          "avoid_when": [
+            "不要据此擅自取消、暂停或修改正在运行的任务"
+          ]
+        },
+        "en": {
+          "meaning": "Let's slow down and take a breath; this is not a nudge to push the task forward.",
+          "fallback": "[breather]",
+          "use_when": [
+            "When someone wants a short break",
+            "When the AI responds gently to someone's tiredness"
+          ],
+          "avoid_when": [
+            "Don't cancel, pause or change running work based on this alone"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "先喘口气",
+          "放松",
+          "陪伴",
+          "思考"
+        ],
+        "en": [
+          "Breather",
+          "rest",
+          "companionship",
+          "reflection"
+        ]
+      }
+    },
+    {
+      "slug": "thinking",
+      "realizes": "core:working",
+      "intensity": 1,
+      "image": "images/slow-cat/thinking.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "让我想想",
+        "en": "Let me think"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我还在思考这件事，暂时没有确定的答案，希望留一点整理思路的空间。",
+          "fallback": "[让我想想]",
+          "use_when": [
+            "人需要考虑一个选择时",
+            "AI 正在梳理问题、尚无结论时"
+          ],
+          "avoid_when": [
+            "不要用它掩盖已停止的工作或承诺后台继续执行"
+          ]
+        },
+        "en": {
+          "meaning": "I'm still thinking this through and have no settled answer yet; I'd like a little room to sort my thoughts.",
+          "fallback": "[let me think]",
+          "use_when": [
+            "When a person is weighing a choice",
+            "When the AI is working through a problem with no conclusion yet"
+          ],
+          "avoid_when": [
+            "Don't hide stopped work or promise background work"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "让我想想",
+          "放松",
+          "陪伴",
+          "思考"
+        ],
+        "en": [
+          "Let me think",
+          "rest",
+          "companionship",
+          "reflection"
+        ]
+      }
+    },
+    {
+      "slug": "with-you",
+      "realizes": "core:company",
+      "intensity": 1,
+      "image": "images/slow-cat/with-you.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "陪你一会儿",
+        "en": "Here with you"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我愿意在这段对话里耐心听你说、陪你理一理，不急着给出解决方案。",
+          "fallback": "[陪你一会儿]",
+          "use_when": [
+            "对方更需要被倾听时",
+            "想先给予支持而不是建议时"
+          ],
+          "avoid_when": [
+            "不暗示持续在线、排他关系或对真实情绪的确定判断"
+          ]
+        },
+        "en": {
+          "meaning": "I'm happy to listen and help you sort things out in this conversation, without rushing to a solution.",
+          "fallback": "[here with you]",
+          "use_when": [
+            "When the other person mainly needs to be heard",
+            "When support should come before advice"
+          ],
+          "avoid_when": [
+            "Don't imply constant availability or an exclusive relationship",
+            "Don't claim certainty about anyone's actual feelings"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "陪你一会儿",
+          "放松",
+          "陪伴",
+          "思考"
+        ],
+        "en": [
+          "Here with you",
+          "rest",
+          "companionship",
+          "reflection"
+        ]
+      }
+    },
+    {
+      "slug": "small-step",
+      "realizes": "core:recognize",
+      "intensity": 1,
+      "image": "images/slow-cat/small-step.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "一小步也算",
+        "en": "Small steps count"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "虽然这一步不大，但这份实际进展和付出值得被看见。",
+          "fallback": "[一小步也算]",
+          "use_when": [
+            "完成了一个小步骤时",
+            "回应对方已经付出的努力时"
+          ],
+          "avoid_when": [
+            "没有实际进展时不要声称任务已取得成果"
+          ]
+        },
+        "en": {
+          "meaning": "This step is small, but the real progress and effort behind it deserve to be seen.",
+          "fallback": "[small steps count]",
+          "use_when": [
+            "After finishing a small step",
+            "When acknowledging effort already made"
+          ],
+          "avoid_when": [
+            "Don't claim results when there has been no real progress"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "一小步也算",
+          "放松",
+          "陪伴",
+          "思考"
+        ],
+        "en": [
+          "Small steps count",
+          "rest",
+          "companionship",
+          "reflection"
+        ]
+      }
+    }
+  ]
+}

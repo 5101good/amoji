@@ -1,15 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SampleCatalog } from '../src/sample-catalog.js';
-import { SampleRuntime } from '../src/sample-runtime.js';
 import { PanelServer } from '../src/panel-server.js';
+import { openStore, storeRuntime } from './helpers/store-runtime.js';
+
+async function runtimeFor(t: import('node:test').TestContext) {
+  const { store, directory, close } = await openStore();
+  t.after(close);
+  return { store, runtime: storeRuntime(store, directory) };
+}
 
 test('面板点选只完成对应会话的待选请求，其他会话和未授权网页不能代发', async t => {
-  const runtime = new SampleRuntime(await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)));
+  const { store, runtime } = await runtimeFor(t);
   const opened: string[] = [];
   const panel = await PanelServer.start(runtime, async url => { opened.push(url); }, new URL('../web/', import.meta.url));
   t.after(() => panel.close());
-  const a = { host: 'codex' as const, sessionId: 'a', turnId: '1' };
+  const a = { host: 'codex' as const, hostInstanceId: 'local', sessionId: 'a', turnId: '1' };
   const b = { ...a, sessionId: 'b' };
   const abortB = new AbortController();
   t.after(() => abortB.abort());
@@ -26,7 +31,8 @@ test('面板点选只完成对应会话的待选请求，其他会话和未授�
   const searchResponse = await fetch(`${url.origin}/api/search?query=${encodeURIComponent('温暖 支持')}&limit=5`, { headers });
   assert.equal(searchResponse.status, 200);
   const searched = await searchResponse.json();
-  assert.deepEqual(searched.expressions.map((expression: { name: string }) => expression.name), ['一步一步来']);
+  assert.ok(searched.expressions.length > 0 && searched.expressions.length <= 5);
+  assert.ok(searched.expressions.every((e: { kind: string }) => e.kind === 'amoji.expression'), 'the panel receives full expressions to draw');
   assert.deepEqual((await (await fetch(`${url.origin}/api/search?query=${encodeURIComponent('完全不存在')}`, { headers })).json()).expressions, []);
   assert.equal((await fetch(`${url.origin}/api/search?query=${encodeURIComponent('😀'.repeat(241))}`, { headers })).status, 400);
   assert.equal((await fetch(`${url.origin}/api/search?query=支持&limit=6`, { headers })).status, 400);
@@ -35,18 +41,18 @@ test('面板点选只完成对应会话的待选请求，其他会话和未授�
   assert.equal((await select(otherState.pending_pick)).status, 409);
   assert.equal((await select(state.pending_pick)).status, 200);
   const sent = await first;
-  assert.equal(sent.revision.revision_id, expression.revision_id);
+  assert.equal(sent.revision!.revision_id, expression.revision_id);
   const retry = await select(state.pending_pick);
   assert.equal(retry.status, 200);
   assert.equal((await retry.json()).message_id, sent.message_id);
-  assert.equal(runtime.messages(a).length, 1);
-  assert.equal(runtime.messages(b).length, 0);
+  assert.equal(store.history(a).length, 1);
+  assert.equal(store.history(b).length, 0);
   abortB.abort();
   assert.match((await second as Error).message, /取消/);
 });
 
 test('已取消请求的浏览器打开延迟失败，不会取消下一次选择', async t => {
-  const runtime = new SampleRuntime(await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)));
+  const { runtime } = await runtimeFor(t);
   let rejectFirst!: (error: Error) => void;
   let count = 0;
   const panel = await PanelServer.start(runtime, () => ++count === 1 ? new Promise((_, reject) => { rejectFirst = reject; }) : Promise.resolve());

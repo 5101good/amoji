@@ -2,13 +2,17 @@ import type { AdapterRuntime } from "../adapter-runtime.js";
 import type { SharedClient } from "../shared-client.js";
 import type { BindingContext } from "../shared-contract.js";
 import { fail } from "../shared-contract.js";
-import type { ExpressionRef } from "../sample-catalog.js";
+import { actEntry, humanSendable, searchableText, type ExpressionRef, type Family } from "../protocol/index.js";
 import type { LibraryEntry } from "../library-management.js";
+import type { ExpressInput, ReceiveInput } from "../library-store.js";
+import { runModelTool } from "../model-tools.js";
 
 export const PAGE_SIZE = 6;
+/** Picker categories are act families (RFC §5.2). */
+export const FAMILY_ORDER: Family[] = ["grounding", "steering", "progress", "epistemic", "social"];
 export type ExpressionPort = Pick<
   AdapterRuntime,
-  "catalog" | "search" | "emit" | "messages" | "receive"
+  "catalog" | "search" | "express" | "messages" | "receive" | "choose"
 >;
 export type LibraryPort = Pick<
   SharedClient,
@@ -28,6 +32,7 @@ export type LibraryPort = Pick<
   | "confirmDraft"
   | "importPack"
   | "exportPack"
+  | "listPacks"
 >;
 export interface BrowseQuery {
   query: string;
@@ -49,7 +54,10 @@ export interface BrowseWindowQuery {
   library?: boolean;
   archived?: boolean;
   category?: string;
+  /** A pack_id to show only that pack's expressions; unknown packs show all. */
+  pack?: string;
 }
+export interface PackChoice { pack_id: string; name: Record<string, string>; original_locale: string }
 
 /** Host-independent use cases. Media/UI encoding and host delivery belong to adapters. */
 export class ExpressionApplication {
@@ -80,14 +88,22 @@ export class ExpressionApplication {
         !Number.isSafeInteger(input.offset) || input.offset < 0 ||
         !Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 100)
       fail("INVALID_ARGUMENT", "无效的搜索窗口");
-    if (input.category !== undefined && !["全部", "进度", "澄清", "方向", "反馈", "其他"].includes(input.category))
-      fail("INVALID_ARGUMENT", "无效的表情场景");
-    const all = await this.matches(input);
-    const categoryOf = (entry: LibraryEntry) => entry.expression.tags?.find(tag => tag.startsWith("协作:"))?.slice(3) || "其他";
-    const categories = ["进度", "澄清", "方向", "反馈", "其他"].filter(category => all.some(entry => categoryOf(entry) === category));
-    const matches = input.category && input.category !== "全部" ? all.filter(entry => categoryOf(entry) === input.category) : all;
+    if (input.category !== undefined && !["all", ...FAMILY_ORDER].includes(input.category))
+      fail("INVALID_ARGUMENT", "无效的表情类别");
+    if (input.pack !== undefined && (typeof input.pack !== "string" || !input.pack))
+      fail("INVALID_ARGUMENT", "无效的表情包");
+    const [found, released] = await Promise.all([this.matches(input), this.library.listPacks()]);
+    // Latest release name per pack that still has visible expressions here.
+    const named = new Map<string, PackChoice & { version: number }>();
+    for (const p of released) if ((named.get(p.pack_id)?.version ?? -1) < p.version) named.set(p.pack_id, { pack_id: p.pack_id, name: p.name, original_locale: p.original_locale, version: p.version });
+    const packs: PackChoice[] = [...new Set(found.map(entry => entry.pack_id))].flatMap(id => { const p = id ? named.get(id) : undefined; return p ? [{ pack_id: p.pack_id, name: p.name, original_locale: p.original_locale }] : []; });
+    const pack = input.pack && packs.some(p => p.pack_id === input.pack) ? input.pack : "all";
+    const all = pack === "all" ? found : found.filter(entry => entry.pack_id === pack);
+    const categoryOf = (entry: LibraryEntry): Family => actEntry(entry.expression.realizes).family;
+    const categories = FAMILY_ORDER.filter(category => all.some(entry => categoryOf(entry) === category));
+    const matches = input.category && input.category !== "all" ? all.filter(entry => categoryOf(entry) === input.category) : all;
     return { items: matches.slice(input.offset, input.offset + input.limit),
-      categories, offset: input.offset, total: matches.length };
+      categories, packs, pack, offset: input.offset, total: matches.length };
   }
   private async matches(input: Pick<BrowseQuery, "query" | "library" | "archived">) {
     const [entries, available] = await Promise.all([
@@ -103,28 +119,36 @@ export class ExpressionApplication {
         input.library
           ? entry.archived === !!input.archived
           : !entry.archived &&
+            humanSendable(entry.expression) &&
             visible!.has(
               `${entry.expression.asset_id}:${entry.expression.revision_id}`,
             ),
       )
-      .filter(
-        ({ expression: e }) =>
-          !query ||
-          [
-            e.name,
-            e.semantics.meaning,
-            e.semantics.fallback,
-            ...(e.tags ?? []),
-          ].some((v) => v.toLocaleLowerCase().includes(query)),
-      );
+      .filter(({ expression: e }) => {
+        if (!query) return true;
+        const text = searchableText(e);
+        return [e.realizes, ...text.name, ...text.meaning, ...text.fallback, ...text.tags].some((v) => v.toLocaleLowerCase().includes(query));
+      });
     return matches;
   }
-  receive(context: BindingContext, ref: ExpressionRef, requestId: string) {
-    return this.expressions.receive(
-      context,
-      { asset_id: ref.asset_id, revision_id: ref.revision_id },
-      requestId,
-    );
+  receive(context: BindingContext, ref: ExpressionRef, requestId: string, extras: Omit<ReceiveInput, "ref"> = {}) {
+    return this.expressions.receive(context, { ...extras, ref: { asset_id: ref.asset_id, revision_id: ref.revision_id } }, requestId);
+  }
+  /** A person's expression named by act alone, such as a quick reply to an AI expression. */
+  receiveAct(context: BindingContext, act: string, requestId: string, extras: Omit<ReceiveInput, "ref" | "act"> = {}) {
+    return this.expressions.receive(context, { ...extras, act }, requestId);
+  }
+  choose(context: BindingContext, messageId: string, option: string) {
+    if (!this.expressions.choose) fail("CAPABILITY_UNAVAILABLE", "当前服务不支持决策作答");
+    return this.expressions.choose(context, messageId, option);
+  }
+  /** AI expressions this session still waits on: unanswered decisions and unused quick replies (newest last). */
+  async pending(context: BindingContext) {
+    const history = await this.expressions.messages(context);
+    const answered = new Set(history.flatMap((m) => (m.direction === "human_to_ai" && m.responds_to && !m.retracted_at ? [m.responds_to] : [])));
+    return history
+      .filter((m) => m.direction === "ai_to_human" && !m.retracted_at && !m.choice && !answered.has(m.message_id) && (m.options?.length || m.replies?.length))
+      .slice(-3);
   }
   history(context: BindingContext) {
     return this.expressions.messages(context);
@@ -134,10 +158,16 @@ export class ExpressionApplication {
       return Promise.reject(new Error("TURN_REQUIRED: AI 选择需要真实回合"));
     return this.expressions.search(context, query, 3);
   }
-  async emit(context: BindingContext, token: string) {
+  async express(context: BindingContext, input: ExpressInput) {
     if (!context.turnId)
       return Promise.reject(new Error("TURN_REQUIRED: AI 发送需要真实回合"));
-    return this.expressions.emit(context, token);
+    return this.expressions.express(context, input);
+  }
+  /** AI-side model tools (amoji_express / amoji_search / amoji_resolve); AI sending needs a real turn. */
+  async tool(context: BindingContext, name: string, args: Record<string, unknown>, locale?: string) {
+    if (!context.turnId)
+      return Promise.reject(new Error("TURN_REQUIRED: AI 表情需要真实回合"));
+    return runModelTool(this.expressions, context, name, args, locale);
   }
   async confirmDraft(id: string, version: number, reviewed: boolean) {
     if (reviewed !== true)

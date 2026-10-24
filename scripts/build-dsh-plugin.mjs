@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, writeFile, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { API_VERSION, DATABASE_VERSION, VERSIONED_PACKS_CAPABILITY, PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, DSH_RELIABILITY_CAPABILITY, DSH_NATIVE_CAPABILITY } from '../dist/src/shared-contract.js';
@@ -10,12 +10,16 @@ const manifest = JSON.parse(await readFile(`${out}/package.json`, 'utf8'));
 await rm(`${out}/runtime`, { recursive: true, force: true });
 await rm(`${out}/assets`, { recursive: true, force: true });
 await mkdir(`${out}/runtime/src/dsh`, { recursive: true });
-for (const name of ['adapter-runtime', 'shared-client', 'shared-contract', 'shared-service', 'claude-tickets', 'library-store', 'local-acquisition', 'marketplace-publisher', 'library-management', 'expression-appearance', 'packs', 'actions', 'collaboration', 'conversation-rules', 'conversation-envelope', 'library-migration', 'scenario-drafts', 'sample-catalog', 'media', 'drafts', 'suggestions', 'panel-server', 'projection', 'search', 'service-main']) await cp(`${root}/dist/src/${name}.js`, `${out}/runtime/src/${name}.js`);
+// Every host-independent core module (protocol and application included) runs inside the plugin's service.
+for (const name of await readdir(`${root}/dist/src`)) if (name.endsWith('.js')) await cp(`${root}/dist/src/${name}`, `${out}/runtime/src/${name}`);
+for (const dir of ['protocol', 'application']) await cp(`${root}/dist/src/${dir}`, `${out}/runtime/src/${dir}`, { recursive: true });
 await cp(`${root}/web`, `${out}/web`, { recursive: true });
-for (const name of ['host', 'host-management', 'expression-message', 'ai-suggestions', 'collaboration', 'collaboration-context', 'profile-identity', 'publisher']) await cp(`${root}/dist/src/dsh/${name}.js`, `${out}/runtime/src/dsh/${name}.js`);
+// Host-side dsh modules are the .ts sources; .tsx files are bundled into client.js below.
+for (const name of await readdir(`${root}/src/dsh`)) if (name.endsWith('.ts')) await cp(`${root}/dist/src/dsh/${name.replace(/\.ts$/, '.js')}`, `${out}/runtime/src/dsh/${name.replace(/\.ts$/, '.js')}`);
 await mkdir(`${out}/runtime/docs/specs`, { recursive: true });
-for(const version of ['0.1','0.2'])await cp(`${root}/dist/docs/specs/amoji-v${version}.schema.json`, `${out}/runtime/docs/specs/amoji-v${version}.schema.json`);
-await cp(`${root}/assets/base-library`, `${out}/assets/base-library`, { recursive: true });
+for (const name of ['amoji-0.1.schema.json', 'amoji-0.1.registry.json']) await cp(`${root}/docs/specs/${name}`, `${out}/runtime/docs/specs/${name}`);
+await mkdir(`${out}/assets/official-packs`, { recursive: true });
+for (const name of ['classic.amoji', 'office.amoji', 'LICENSE']) await cp(`${root}/assets/official-packs/${name}`, `${out}/assets/official-packs/${name}`);
 const clientBuild = await build({ metafile: true, entryPoints: [`${root}/src/dsh/client.tsx`], outfile: `${out}/client.js`, bundle: true, format: 'cjs', platform: 'browser', target: 'es2022', jsx: 'transform', tsconfigRaw: { compilerOptions: { jsx: 'react' } }, external: ['react', 'react/*'], banner: { js: 'window.__ModuleLoader__.load({id:"@amoji/dsh",factory:(require)=>{var module={exports:{}};var exports=module.exports;' }, footer: { js: 'return module.exports;}});' } });
 await mkdir(`${root}/.cache`, { recursive: true });
 await writeFile(`${root}/.cache/dsh-client-metafile.json`, JSON.stringify(clientBuild.metafile));

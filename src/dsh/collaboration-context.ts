@@ -1,4 +1,4 @@
-import { collaborationEnvelope, type CollaborationRule, type CollaborationInstruction } from '../conversation-envelope.js';
+import { collaborationEnvelope, ENVELOPE_SCHEMA, type CollaborationRule, type CollaborationInstruction } from '../conversation-envelope.js';
 export { collaborationEnvelope, type CollaborationRule, type CollaborationInstruction } from '../conversation-envelope.js';
 import { createHash } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
@@ -114,7 +114,7 @@ export class CollaborationContext {
       // Reuse only the exact current conversation's last native envelope as a
       // supersession baseline. This never recovers consent or active rules.
       const prior=agent.session.snapshotEvents().map(section).findLast(text=>{
-        if(!text)return false;try{const value=JSON.parse(text);return value.schema==='amoji.collaboration/1'&&value.scope?.profile===this.hostInstanceId&&value.scope.session===agent.id;}catch{return false;}
+        if(!text)return false;try{const value=JSON.parse(text);return value.schema===ENVELOPE_SCHEMA&&value.scope?.profile===this.hostInstanceId&&value.scope.session===agent.id;}catch{return false;}
       });
       this.states.set(agent, { rules: [], intents: new Map(), claimed: false, generation: 0, ...(prior?{text:prior}:{}) });
     }
@@ -182,7 +182,7 @@ export class CollaborationContext {
       const text = inTurn(e) && section(e); if (!text || Buffer.byteLength(text) > 8192) return false;
       try {
         const value = JSON.parse(text);
-        return value.schema === 'amoji.collaboration/1' && value.scope?.profile === this.hostInstanceId && value.scope.session === agent.id && value.scope.turnStartSeq === turn && JSON.stringify(value.instruction) === JSON.stringify(intent.action);
+        return value.schema === ENVELOPE_SCHEMA && value.scope?.profile === this.hostInstanceId && value.scope.session === agent.id && value.scope.turnStartSeq === turn && JSON.stringify(value.instruction) === JSON.stringify(intent.action);
       } catch { return false; }
     });
     if (user && snapshot) return { status: 'attached', turnStartSeq: turn, snapshotSeq: snapshot.seq, digest: hash(section(snapshot)!) };

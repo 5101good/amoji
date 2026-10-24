@@ -1,17 +1,18 @@
-import type { ActionSelection, ActionChoice, ActionIntent } from './collaboration.js';
-import type { ScenarioDraft } from './scenario-drafts.js';
-import type { ScenarioPack } from './packs.js';
+import type { EffectChoice, EffectIntent } from './effects.js';
+import type { PackDraft, ExpressInput, ExpressResult, ReceiveInput } from './library-store.js';
+import type { Expression, ExpressionRef, Pack } from './protocol/index.js';
+import type { StoredMessage } from './messages.js';
+import type { SearchResult } from './search.js';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { API_VERSION, PACKS_CAPABILITY, VERSIONED_PACKS_CAPABILITY, LIBRARY_MANAGEMENT_CAPABILITY, CREATE_DRAFT_CAPABILITY, TEXT_SUGGESTION_CAPABILITY, CLAUDE_TICKET_CAPABILITY, ServiceError, dataDirectory, fail, type ApiRange, type BindingContext, type ClaudeHookInvocation, type ClaudeTicketRequest, type ClaudeTicketContext, type ServiceDescriptor, type ServiceIdentity } from './shared-contract.js';
-import type { Expression, ExpressionRef } from './sample-catalog.js';
-import type { Candidate, SampleMessage } from './sample-runtime.js';
 
 import { PACK_LIMITS, type ImportResult } from './packs.js';
-import type { LibraryEntry, PersonalPreferences, PersonalSettings } from './library-management.js';
+import type { LibraryEntry, PersonalSettings } from './library-management.js';
+import type { Preferences } from './protocol/index.js';
 import type { Draft, DraftFields } from './drafts.js';
 import type { TextSuggestion } from './suggestions.js';
 
@@ -138,23 +139,23 @@ export class SharedClient {
       throw error;
     }
   }
-  async exportPack(refs: ExpressionRef[], name: string): Promise<Buffer> {
-    return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name }), 'application/json')).arrayBuffer());
+  async exportPack(refs: ExpressionRef[], name: string, locale?: string): Promise<Buffer> {
+    return Buffer.from(await (await this.packRequest('export', JSON.stringify({ refs, name, ...(locale ? { locale } : {}) }), 'application/json')).arrayBuffer());
   }
   publisher(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('publisher-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场投稿');return this.call('publisher',{method,args},300000);}
   marketplace(method:string,args:unknown):Promise<any>{if(!this.identity.capabilities?.includes('marketplace-v1'))fail('CAPABILITY_UNAVAILABLE','服务不支持市场');return this.call('marketplace',{method,args},60000);}
-  private scenarioCall<T>(method:string,params:unknown):Promise<T>{if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化表情包');return this.call(method,params,60000);}
-  createScenarioDraft(refs:ExpressionRef[]):Promise<ScenarioDraft>{return this.scenarioCall('createScenarioDraft',{refs});}
-  listScenarioDrafts():Promise<ScenarioDraft[]>{return this.scenarioCall('listScenarioDrafts',{});}
-  getScenarioDraft(id:string):Promise<ScenarioDraft>{return this.scenarioCall('getScenarioDraft',{draft_id:id});}
-  saveScenarioDraft(id:string,version:number,manifest:ScenarioPack):Promise<ScenarioDraft>{return this.scenarioCall('saveScenarioDraft',{draft_id:id,version,manifest});}
-  previewScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('previewScenarioDraft',{draft_id:id,version});}
-  confirmScenarioDraft(id:string,version:number):Promise<ScenarioPack>{return this.scenarioCall('confirmScenarioDraft',{draft_id:id,version});}
-  listScenarioPacks():Promise<ScenarioPack[]>{return this.scenarioCall('listScenarioPacks',{});}
-  getScenarioPack(releaseId:string):Promise<ScenarioPack>{return this.scenarioCall('getScenarioPack',{release_id:releaseId});}
-  async exportScenarioPack(releaseId:string,expressionsOnly=false):Promise<Buffer>{
-    if(!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY))fail('CAPABILITY_UNAVAILABLE','服务不支持版本化表情包');
-    return Buffer.from(await (await this.packRequest('scenario-export',JSON.stringify({release_id:releaseId,expressions_only:expressionsOnly}),'application/json')).arrayBuffer());
+  private packCall<T>(method: string, params: unknown): Promise<T> { if (!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '服务不支持表情包草稿'); return this.call(method, params, 60000); }
+  createPackDraft(refs: ExpressionRef[], name?: string): Promise<PackDraft> { return this.packCall('createPackDraft', { refs, ...(name ? { name } : {}) }); }
+  listPackDrafts(): Promise<PackDraft[]> { return this.packCall('listPackDrafts', {}); }
+  getPackDraft(id: string): Promise<PackDraft> { return this.packCall('getPackDraft', { draft_id: id }); }
+  savePackDraft(id: string, version: number, manifest: Pack): Promise<PackDraft> { return this.packCall('savePackDraft', { draft_id: id, version, manifest }); }
+  previewPackDraft(id: string, version: number): Promise<Pack> { return this.packCall('previewPackDraft', { draft_id: id, version }); }
+  confirmPackDraft(id: string, version: number): Promise<Pack> { return this.packCall('confirmPackDraft', { draft_id: id, version }); }
+  listPacks(): Promise<Pack[]> { return this.packCall('listPacks', {}); }
+  getPack(releaseId: string): Promise<Pack> { return this.packCall('getPack', { release_id: releaseId }); }
+  async exportRelease(releaseId: string, withoutEffects = false): Promise<Buffer> {
+    if (!this.identity.capabilities?.includes(VERSIONED_PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '服务不支持表情包导出');
+    return Buffer.from(await (await this.packRequest('release-export', JSON.stringify({ release_id: releaseId, without_effects: withoutEffects }), 'application/json')).arrayBuffer());
   }
   selectRevision(ref: ExpressionRef, version: number): Promise<LibraryEntry> {
     if (!this.identity.capabilities?.includes(PACKS_CAPABILITY)) fail('CAPABILITY_UNAVAILABLE', '共享服务不支持包版本选择');
@@ -166,8 +167,8 @@ export class SharedClient {
   startRevisionDraft(ref: ExpressionRef, version: number): Promise<Draft> { return this.managementCall('startRevisionDraft', { ref, version }); }
   setArchived(assetId: string, version: number, archived: boolean): Promise<LibraryEntry> { return this.managementCall('setArchived', { asset_id: assetId, version, archived }); }
   getSettings(): Promise<PersonalSettings> { return this.managementCall('getSettings', {}); }
-  updateSettings(version: number, preferences: PersonalPreferences): Promise<PersonalSettings> { return this.managementCall('updateSettings', { version, preferences }); }
-  createDraft(): Promise<Draft> { return this.draftCall('createDraft', {}); }
+  updateSettings(version: number, preferences: Preferences): Promise<PersonalSettings> { return this.managementCall('updateSettings', { version, preferences }); }
+  createDraft(locale?: string): Promise<Draft> { return this.draftCall('createDraft', locale ? { locale } : {}); }
   listDrafts(): Promise<Draft[]> { return this.draftCall('listDrafts', {}); }
   getDraft(id: string): Promise<Draft> { return this.draftCall('getDraft', { draft_id: id }); }
   saveDraft(id: string, version: number, fields: DraftFields, upload?: string): Promise<Draft> { return this.draftCall('saveDraft', { draft_id: id, version, fields, ...(upload === undefined ? {} : { upload }) }); }
@@ -191,16 +192,20 @@ export class SharedClient {
   list(): Promise<Expression[]> { return this.call('list', {}); }
   resolve(ref: ExpressionRef): Promise<Expression> { return this.call('resolve', ref); }
   blobPath(digest: string): Promise<string> { return this.call('blobPath', { digest }); }
-  search(binding: string, query: string, limit?: number): Promise<{ candidates: Candidate[]; policy: string }> { return this.call('search', { binding, query, ...(limit === undefined ? {} : { limit }) }); }
-  emit(binding: string, token: string): Promise<SampleMessage> { return this.call('emit', { binding, selection_token: token }); }
-  receive(binding: string, ref: ExpressionRef, requestId: string, action?: ActionSelection): Promise<SampleMessage> { return this.call('receive', { binding, ref, send_request_id: requestId, ...(action?{action}:{}) }); }
-  ruleChoices(binding:string):Promise<import('./conversation-rules.js').RuleChoice[]>{return this.call('ruleChoices',{binding});}
-  rules(binding:string):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('rules',{binding});}
-  changeRules(binding:string,change:import('./conversation-rules.js').RuleChange):Promise<import('./conversation-rules.js').RuleSnapshot>{return this.call('changeRules',{binding,change});}
-  removeScenarioPack(releaseId:string):Promise<void>{return this.call('removeScenarioPack',{release_id:releaseId});}
-  collaborationChoices(binding:string,ref:ExpressionRef):Promise<ActionChoice[]>{return this.call('collaborationChoices',{binding,ref});}
-  saveActionIntent(binding:string,messageId:string,update:Pick<ActionIntent,'status'|'checkpoint'|'receipt'>):Promise<void>{return this.call('saveActionIntent',{binding,message_id:messageId,update});}
-  history(binding: string): Promise<SampleMessage[]> { return this.call('history', { binding }); }
+  search(binding: string, query: string, limit?: number, locale?: string): Promise<SearchResult> { return this.call('search', { binding, query, ...(limit === undefined ? {} : { limit }), ...(locale ? { locale } : {}) }); }
+  express(binding: string, input: ExpressInput): Promise<ExpressResult> { return this.call('express', { binding, input }); }
+  receive(binding: string, input: ReceiveInput, requestId: string): Promise<StoredMessage> { return this.call('receive', { binding, input, send_request_id: requestId }); }
+  retract(binding: string, messageId: string): Promise<StoredMessage> { return this.call('retract', { binding, message_id: messageId }); }
+  choose(binding: string, messageId: string, option: string): Promise<StoredMessage> { return this.call('choose', { binding, message_id: messageId, option }); }
+  signalState(binding: string, messageId: string, state: 'delivered_to_model' | 'promoted'): Promise<StoredMessage> { return this.call('signal', { binding, message_id: messageId, state }); }
+  applied(binding: string, messageId: string): Promise<StoredMessage> { return this.call('applied', { binding, message_id: messageId }); }
+  ruleChoices(binding: string): Promise<import('./conversation-rules.js').RuleChoice[]> { return this.call('ruleChoices', { binding }); }
+  rules(binding: string): Promise<import('./conversation-rules.js').RuleSnapshot> { return this.call('rules', { binding }); }
+  changeRules(binding: string, change: import('./conversation-rules.js').RuleChange): Promise<import('./conversation-rules.js').RuleSnapshot> { return this.call('changeRules', { binding, change }); }
+  removePack(releaseId: string): Promise<void> { return this.call('removePack', { release_id: releaseId }); }
+  effectChoices(binding: string, ref: ExpressionRef): Promise<EffectChoice[]> { return this.call('effectChoices', { binding, ref }); }
+  saveEffectIntent(binding: string, messageId: string, update: Pick<EffectIntent, 'status' | 'checkpoint' | 'receipt'>): Promise<void> { return this.call('saveEffectIntent', { binding, message_id: messageId, update }); }
+  history(binding: string): Promise<StoredMessage[]> { return this.call('history', { binding }); }
   dshAttempted(binding: string, messageId: string): Promise<boolean> { return this.call('dshAttempted', { binding, message_id: messageId }); }
   dshAccepted(binding: string, messageId: string): Promise<void> { return this.call('dshAccepted', { binding, message_id: messageId }); }
   presentation(binding: string, messageId: string, presentation: 'rendered' | 'fallback'): Promise<void> { return this.call('presentation', { binding, message_id: messageId, presentation }); }

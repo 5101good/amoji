@@ -1,26 +1,28 @@
 import type { ExpressionApplication } from "../application/expressions.js";
 import type { BindingContext } from "../shared-contract.js";
-import type { SampleMessage } from "../sample-runtime.js";
-import { modelProjection } from "../projection.js";
+import type { StoredMessage } from "../messages.js";
+import { HUMAN_EXPRESSION_NOTICE, humanExpressionText } from "../projection.js";
 
 const MARKER = /\[\[amoji:([0-9a-f-]{36})\]\]/g;
 export function messageMarker(
-  message: Pick<SampleMessage, "message_id">,
+  message: Pick<StoredMessage, "message_id">,
 ): string {
   return `[[amoji:${message.message_id}]]`;
 }
-export function humanText(message: SampleMessage): string {
-  return `${messageMarker(message)}\n${modelProjection(message.revision).replaceAll("@", "\\u0040")}`;
+/** The prompt text of a human expression: its marker, then the RFC §10.2 one-sentence projection. */
+export function humanText(message: StoredMessage, locale?: string): string {
+  return `${messageMarker(message)}\n${humanExpressionText(message, locale).replaceAll("@", "\\u0040")}`;
 }
 export type MessageSegment =
   | { kind: "text"; text: string }
-  | { kind: "expression"; message: SampleMessage };
+  | { kind: "expression"; message: StoredMessage };
 /** A marker is only a local reference. The same-session journal is the authority. */
 export async function renderSegments(
   app: ExpressionApplication,
   context: BindingContext,
-  direction: SampleMessage["direction"],
+  direction: StoredMessage["direction"],
   text: string,
+  locale?: string,
 ): Promise<MessageSegment[]> {
   if (!text.includes("[[amoji:") || text.length > 100_000)
     return [{ kind: "text", text }];
@@ -33,7 +35,8 @@ export async function renderSegments(
   if (direction === "human_to_ai") {
     const first = /^\[\[amoji:([0-9a-f-]{36})\]\]/.exec(text);
     const message = first && messages.get(first[1]!);
-    return message && text === humanText(message)
+    // The projection may have been written in another UI locale; the journal message is the authority.
+    return message && text.startsWith(`${messageMarker(message)}\n${HUMAN_EXPRESSION_NOTICE}\n`)
       ? [{ kind: "expression", message }]
       : [{ kind: "text", text }];
   }

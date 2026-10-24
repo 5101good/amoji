@@ -5,7 +5,10 @@ import { createRequire } from 'node:module';
 import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SampleCatalog } from '../src/sample-catalog.js';
+import { builtin } from './helpers/builtin-expressions.js';
+import { DEFAULT_PREFERENCES } from '../src/library-management.js';
+import { actGloss, expressionText, type Expression } from '../src/protocol/index.js';
+import type { StoredMessage } from '../src/messages.js';
 import type { ClientPort } from '../src/dsh/client.js';
 import type { VisualMeta, RpcResult } from '../src/dsh/contracts.js';
 const require = createRequire(import.meta.url);
@@ -19,6 +22,8 @@ interface SlotCorePort {
 const source = new URL('../.cache/dsh-source/slots.mjs', import.meta.url).href;
 const { SlotCore } = await import(source) as { SlotCore: new () => SlotCorePort };
 const settle = () => new Promise(resolve => setTimeout(resolve, 20));
+const zh = (e: Expression) => expressionText(e, 'zh-CN');
+const metaOf = (e: Expression, messageId: string): VisualMeta => ({ kind: 'amoji', messageId, act: e.realizes, direction: 'a2h', policy: 'keep', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: actGloss(e.realizes, 'a2h', 'zh-CN').text });
 
 test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图片事件、动画封面、选择与会话切换', async t => {
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
@@ -33,19 +38,18 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   Object.assign(dom.window, { __ModuleLoader__: { load(value: { id: string; factory(require: (id: string) => unknown): unknown }) { assert.equal(value.id, '@amoji/dsh'); module = value.factory(id => { shared.push(id); assert.equal(id, 'react'); return require(id); }) as typeof module; } } });
   dom.window.eval(await readFile(new URL('../adapters/dsh/client.js', import.meta.url), 'utf8'));
   assert.ok(module); assert.deepEqual([...new Set(shared)], ['react']);
-  const catalog = await SampleCatalog.load(new URL('../assets/samples/', import.meta.url)); const expressions = catalog.all(); const e = expressions.find(e => e.visual.animated)!;
-  const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
-  const visual = { expression: e, primary: await data(e.visual.primary), poster: e.visual.poster ? await data(e.visual.poster) : null };
-  const meta: VisualMeta = { kind: 'amoji', messageId: 'message-a', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: e.semantics.fallback };
+  const { expressions, dataUrl } = await builtin(); const e = expressions.find(e => e.visual.animated)!;
+  const visual = { expression: e, primary: dataUrl(e.visual.primary), poster: e.visual.poster ? dataUrl(e.visual.poster) : null };
+  const meta = metaOf(e, 'message-a');
   const slots = new SlotCore(); slots.register({ name: 'root', children: { 'conversation.input.left': { kind: 'list', scope: 'session' }, 'conversation.composer.dock': { kind: 'list', scope: 'session' }, 'conversation.chat.node': { kind: 'keyed', scope: 'session' }, 'tool.call.toolview': { kind: 'keyed', scope: 'session' } } }, () => null);
   const disposers: Array<() => void> = [];
   const ctx: ClientPort = { slots, effect(factory) { disposers.push(factory()); }, connection: { rpc: { async call(_channel, endpoint, raw): Promise<RpcResult<unknown>> {
     const payload = raw as Record<string, unknown>; requests.push({ endpoint, payload });
-    const result = (endpoint.endsWith('/actions') || endpoint.endsWith('/collaboration.receipts')) ? [] : endpoint.endsWith('/management') ? (payload.method === 'getSettings' ? {version:1,style:'neutral',frequency:'restrained',paused:false} : []) : endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { host: { status: 'accepted' } } : null;
+    const result = (endpoint.endsWith('/effects') || endpoint.endsWith('/packs') || endpoint.endsWith('/collaboration.receipts')) ? [] : endpoint.endsWith('/management') ? (payload.method === 'getSettings' ? {version:1,...DEFAULT_PREFERENCES} : []) : endpoint.endsWith('/manage') ? { url: 'http://127.0.0.1:43219/#trusted-a' } : endpoint.endsWith('/catalog') ? [e] : endpoint.endsWith('/search') ? (payload.query === '完全不存在' ? [] : [e]) : endpoint.endsWith('/visual') ? visual : endpoint.endsWith('/history') ? [] : endpoint.endsWith('/submit') ? { meta: { ...meta, messageId: 'sent-a' }, message: { message_id: 'sent-a', act: e.realizes, direction: 'human_to_ai', presentation: 'pending' }, host: { status: 'accepted', requestId: 'amoji:sent-a' } } : null;
     return { ok: true, value: result };
   } } } };
   module.apply(ctx);
-  assert.equal(slots.entriesOfSlot('tool.call.toolview')[0]!.options.key, 'amoji_emit');
+  assert.equal(slots.entriesOfSlot('tool.call.toolview')[0]!.options.key, 'amoji_express');
   assert.equal(slots.entriesOfSlot('conversation.composer.dock').length, 0);
   const root = createRoot(dom.window.document.getElementById('root')!); unmount = async () => { await act(() => root.unmount()); };
   const Tool = slots.entriesOfSlot('tool.call.toolview')[0]!.component;
@@ -72,10 +76,10 @@ test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图
   await setSearch('刚完成的进展');
   await act(async () => { dom.window.document.querySelector<HTMLFormElement>('[aria-label="搜索 Amoji"]')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await settle(); });
   const searchRequest = requests.find(r => r.endpoint === 'amoji/search')!; assert.equal(searchRequest.payload.sessionId, 'session-a'); assert.equal(searchRequest.payload.query, '刚完成的进展'); assert.equal(searchRequest.payload.limit, 5);
-  const choose = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent?.includes(e.name)); assert.ok(choose);
-  const detail = [...dom.window.document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === `查看 ${e.name} 详情`); assert.ok(detail);
-  await act(() => detail.click());
-  const preview = dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')!; assert.match(preview.textContent!, new RegExp(e.semantics.meaning)); assert.match(preview.textContent!, new RegExp(e.semantics.avoid_when![0]!)); assert.match(preview.textContent!, new RegExp(e.revision_id));
+  const choose = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent?.includes(zh(e).name)); assert.ok(choose);
+  const detail = [...dom.window.document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === `查看 ${zh(e).name} 详情`); assert.ok(detail);
+  await act(async () => { detail.click(); await settle(); });
+  const preview = dom.window.document.querySelector('[aria-label="固定语义与精确版本"]')!; assert.ok(preview.textContent!.includes(zh(e).meaning)); assert.ok(zh(e).avoid_when.every(text => preview.textContent!.includes(text))); assert.match(preview.textContent!, new RegExp(e.revision_id));
   await act(async () => { choose.click(); await settle(); }); assert.equal(requests.find(r => r.endpoint === 'amoji/submit')!.payload.sessionId, 'session-a');
   await act(async () => { [...dom.window.document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='表情')!.click(); await settle(); });
   await setSearch('完全不存在');
@@ -113,10 +117,9 @@ test('dsh 真实 Client 遵循 prefers-reduced-motion，并在服务端缺失时
   dom.window.eval(await readFile(new URL('../adapters/dsh/client.js', import.meta.url), 'utf8'));
   const root = createRoot(dom.window.document.getElementById('root')!);
   t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, previous); dom.window.close(); });
-  const expression = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all().find(value => value.visual.animated)!;
-  const data = async (blob: { sha256: string; mime: string }) => `data:${blob.mime};base64,${(await readFile(new URL(`../assets/samples/blobs/${blob.sha256}`, import.meta.url))).toString('base64')}`;
-  const visual = { expression, primary: await data(expression.visual.primary), poster: await data(expression.visual.poster!) };
-  const meta: VisualMeta = { kind: 'amoji', messageId: 'reduced-message', ref: { asset_id: expression.asset_id, revision_id: expression.revision_id }, visualHash: expression.visual.primary.sha256, posterHash: expression.visual.poster!.sha256, alt: expression.semantics.fallback };
+  const { expressions, dataUrl } = await builtin(); const expression = expressions.find(value => value.visual.animated)!;
+  const visual = { expression, primary: dataUrl(expression.visual.primary), poster: dataUrl(expression.visual.poster!) };
+  const meta = metaOf(expression, 'reduced-message');
   const rpc: import('../src/dsh/contracts.js').DshRpc = { management: async () => { throw new Error('unused'); }, importPack: async () => { throw new Error('unused'); }, exportPack: async () => { throw new Error('unused'); },
     manage: async () => ({ url: 'http://127.0.0.1:43219/#unused' }),
     catalog: async () => [], search: async () => [], submit: async () => { throw new Error('unused'); }, history: async () => [], display: async () => {}, visual: async () => visual,
@@ -148,11 +151,12 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   dom.window.eval(await readFile(new URL('../adapters/dsh/client.js', import.meta.url), 'utf8'));
   const root = createRoot(dom.window.document.getElementById('root')!);
   t.after(async () => { await act(() => root.unmount()); Object.assign(globalThis, previous); dom.window.close(); });
-  const [e, other] = (await SampleCatalog.load(new URL('../assets/samples/', import.meta.url))).all(); assert.ok(e && other);
-  const meta: VisualMeta = { kind: 'amoji', messageId: 'history-a', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: e.semantics.fallback };
-  const row: import('../src/dsh/contracts.js').HistoryEntry = { meta, host: null, message: { message_id: meta.messageId, binding_id: 'a', direction: 'human_to_ai', created_at: '', revision: e, delivery: 'pending', presentation: 'pending' } };
+  const [e, other] = (await builtin()).expressions; assert.ok(e && other);
+  const meta = metaOf(e, 'history-a');
+  const message: StoredMessage = { message_id: meta.messageId, binding_id: 'a', registry_revision: '0.1-r3', from: { role: 'human' }, direction: 'human_to_ai', act: e.realizes, intensity: 2, revision: e, glyph_policy: 'keep', mode: 'turn', created_at: '', presentation: 'pending' };
+  const row: import('../src/dsh/contracts.js').HistoryEntry = { meta, host: null, message };
   const submits = new Map<string, { signal?: AbortSignal; finish(value: import('../src/dsh/contracts.js').HistoryEntry): void }>();
-  const searches = new Map<string, { signal?: AbortSignal; finish(value: import('../src/sample-catalog.js').Expression[]): void }>();
+  const searches = new Map<string, { signal?: AbortSignal; finish(value: Expression[]): void }>();
   const reads: Array<{ sessionId: string; messageId?: string }> = [];
   let finishHistoryB!: (value: import('../src/dsh/contracts.js').HistoryEntry[]) => void;
   const rpc: import('../src/dsh/contracts.js').DshRpc = { management: async () => { throw new Error('unused'); }, importPack: async () => { throw new Error('unused'); }, exportPack: async () => { throw new Error('unused'); },
@@ -168,11 +172,11 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   const button = (label: string) => { const value = [...dom.window.document.querySelectorAll('button')].find(b => b.textContent === label); assert.ok(value, label); return value; };
   const openPicker = async () => {
     await act(async () => { button('表情').click(); await settle(); });
-    assert.equal(button(e.name).disabled, false);
+    assert.equal(button(zh(e).name).disabled, false);
   };
   const openChoose = async () => {
     await openPicker();
-    await act(() => button(e.name).click());
+    await act(() => button(zh(e).name).click());
   };
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' }))); await openChoose();
   assert.ok(submits.has('session-a'));
@@ -180,7 +184,7 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   assert.equal(submits.get('session-a')!.signal!.aborted, true);
   await openChoose(); assert.ok(submits.has('session-b'));
   await act(async () => { submits.get('session-a')!.finish({ ...row, host: { status: 'accepted', requestId: 'old' } }); await settle(); });
-  assert.equal(button(e.name).disabled, true); assert.doesNotMatch(dom.window.document.querySelector('[role="status"]')?.textContent??'', /已接收|已观察/);
+  assert.equal(button(zh(e).name).disabled, true); assert.doesNotMatch(dom.window.document.querySelector('[role="status"]')?.textContent??'', /已接收|已观察/);
   await act(async () => { submits.get('session-b')!.finish({ ...row, host: { status: 'accepted', requestId: 'new' } }); await settle(); });
   assert.ok(!dom.window.document.querySelector('[aria-label="Amoji 表情选择"]'));
   await act(async()=>{button('表情').click();await settle();});
@@ -192,7 +196,7 @@ test('Picker 真正 pending 时切换：取消旧请求、隔离 busy/status，H
   await act(() => root.render(React.createElement(Picker, { sessionId: 'session-a' })));
   assert.equal(searches.get('session-b')!.signal!.aborted, true);
   await act(async () => { searches.get('session-b')!.finish([other]); await settle(); });
-  await openPicker(); assert.equal([...dom.window.document.querySelectorAll('button')].some(value => value.textContent === other.name), false);
+  await openPicker(); assert.equal([...dom.window.document.querySelectorAll('button')].some(value => value.textContent === zh(other).name), false);
   await act(async () => { root.render(React.createElement(History, { sessionId: 'session-a' })); await settle(); });
   assert.ok(reads.some(value => value.sessionId === 'session-a' && value.messageId === 'history-a'));
   await act(() => root.render(React.createElement(History, { sessionId: 'session-b' })));

@@ -70,10 +70,10 @@ export async function buildReleaseArtifacts() {
   assert.deepEqual([...files.keys()].sort(), packed.files.map(file => file.path).sort(), 'Packed manifest must match actual archive');
   for (const [path, bytes] of files) {
     assert.ok(/^(?:index\.mjs|client\.js|package\.json|patch\.yml|BUILD\.json|README(?:\.en)?\.md|LICENSE|NOTICE|THIRD_PARTY\.json)$/.test(path)
-      || /^(?:runtime\/|web\/|assets\/base-library\/|THIRD_PARTY_LICENSES\/)/.test(path), `Unexpected packaged path: ${path}`);
+      || /^(?:runtime\/|web\/|assets\/official-packs\/|THIRD_PARTY_LICENSES\/)/.test(path), `Unexpected packaged path: ${path}`);
     validatePublicFile(path, bytes);
   }
-  for (const path of ['index.mjs', 'client.js', 'patch.yml', 'BUILD.json', 'runtime/src/dsh/host.js', 'runtime/src/dsh/ai-suggestions.js', 'assets/base-library/base.amoji', 'assets/base-library/LICENSE', 'assets/base-library/provenance.json']) {
+  for (const path of ['index.mjs', 'client.js', 'patch.yml', 'BUILD.json', 'runtime/src/dsh/host.js', 'runtime/src/dsh/ai-suggestions.js', 'assets/official-packs/classic.amoji', 'assets/official-packs/office.amoji', 'assets/official-packs/LICENSE']) {
     assert.ok(files.has(path), `Missing required package file: ${path}`);
   }
   for (const path of ['LICENSE', 'NOTICE']) assert.ok(files.get(path)?.equals(await readFile(resolve(root, path))), `Stale ${path}`);
@@ -91,12 +91,8 @@ export async function buildReleaseArtifacts() {
   assert.equal(build.repository, 'https://github.com/5101good/amoji');
   assert.equal(build.clientSha256, thirdParty.clientSha256);
   const { withValidatedPack } = await import('../dist/src/packs.js');
-  const baseLibrary = files.get('assets/base-library/base.amoji');
-  await withValidatedPack(baseLibrary, async pack => {
-    validatePublicFile('base-library/manifest.json', Buffer.from(JSON.stringify(pack.manifest)));
-    for (const expression of pack.manifest.expressions) assert.equal(expression.rights.license, 'CC0-1.0', 'Built-in assets must retain their CC0 license');
-  });
-  await writeFile(resolve(destination, `amoji-base-library-${project.version}.amoji`), baseLibrary);
+  // The plugin ships the seed packs byte-identical to the published official packs.
+  for (const name of ['classic.amoji', 'office.amoji']) assert.ok(files.get(`assets/official-packs/${name}`)?.equals(await readFile(resolve(root, `assets/official-packs/${name}`))), `Stale seed pack ${name}`);
   // Official packs are coherent style collections; never include profile state.
   const official = JSON.parse(await readFile(resolve(root, 'assets/official-packs/catalog.json'), 'utf8'));
   for (const { slug, archive_sha256 } of official.packs) {
@@ -104,18 +100,18 @@ export async function buildReleaseArtifacts() {
       const bytes = await readFile(resolve(root, `assets/official-packs/${slug}.amoji`));
       assert.equal(createHash('sha256').update(bytes).digest('hex'), archive_sha256);
       await withValidatedPack(bytes, async pack => {
-        assert.equal(pack.manifest.schema_version, '0.2');
+        assert.equal(pack.manifest.amoji, '0.1');
         validatePublicFile(`official-packs/${slug}.manifest.json`, Buffer.from(JSON.stringify(pack.manifest)));
         for (const e of pack.manifest.expressions) assert.equal(e.rights.license, 'CC0-1.0');
       }, 'market');
       await writeFile(resolve(destination, `amoji-${slug}-${project.version}.amoji`), bytes);
   }
-  for (const file of ['LICENSE', 'provenance.json', 'generation.json']) {
+  for (const file of ['LICENSE', 'provenance.json', 'generation.json', 'provenance.classic-office.json', 'generation.classic-office.json']) {
     const bytes = await readFile(resolve(root, `assets/official-packs/${file}`));
     validatePublicFile(`official-packs/${file}`, bytes);
     await writeFile(resolve(destination, `OFFICIAL_PACKS_${file}`), bytes);
   }
-  for (const [source, name] of [['LICENSE', 'LICENSE'], ['NOTICE', 'NOTICE'], ['THIRD_PARTY.json', 'THIRD_PARTY.json'], ['assets/base-library/LICENSE', 'BASE_LIBRARY_LICENSE'], ['assets/base-library/provenance.json', 'BASE_LIBRARY_PROVENANCE.json']]) {
+  for (const [source, name] of [['LICENSE', 'LICENSE'], ['NOTICE', 'NOTICE'], ['THIRD_PARTY.json', 'THIRD_PARTY.json']]) {
     await writeFile(resolve(destination, name), files.get(source));
   }
   const notes = await readFile(resolve(root, `docs/releases/v${project.version}.md`));

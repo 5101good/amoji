@@ -18,56 +18,34 @@ test("creator snapshot keeps unchanged semantics and forks only edited immutable
   };
   const { manifest } = await archive(identity);
   const expression = manifest.expressions[0];
-  const action = {
-    action_id: crypto.randomUUID(),
-    action_revision_id: crypto.randomUUID(),
-    kind: "instruction",
-    scope: "turn",
-    locale: "zh-CN",
-    effect_summary: "先说结论",
+  const effect = {
+    effect_id: crypto.randomUUID(),
+    effect_revision_id: crypto.randomUUID(),
+    kind: "context",
     conflict_group: "explanation",
-    instruction: "先说结论",
-    rights: { license: "CC0-1.0", creator: "Original" },
+    title: { "zh-CN": "先说结论" },
+    summary: { "zh-CN": "回答先给结论" },
+    instruction: { "zh-CN": "先说结论" },
   };
-  manifest.actions = [action];
+  manifest.effects = [effect];
   manifest.bindings = [
-    {
-      expression: {
-        asset_id: expression.asset_id,
-        revision_id: expression.revision_id,
-      },
-      actions: [
-        {
-          action_id: action.action_id,
-          action_revision_id: action.action_revision_id,
-        },
-      ],
-    },
+    { target: { asset_id: expression.asset_id, revision_id: expression.revision_id }, effects: [effect.effect_id] },
+    { target: { act: "core:ack" }, effects: [effect.effect_id] },
   ];
   assert.deepEqual(buildSnapshot(manifest, manifest, identity), manifest);
   const draft = structuredClone(manifest);
   draft.expressions[0].rights.creator = "New attribution";
-  draft.actions[0].rights.creator = "New attribution";
   const result = buildSnapshot(draft, manifest, identity);
   assert.notEqual(result.expressions[0].asset_id, expression.asset_id);
   assert.notEqual(result.expressions[0].revision_id, expression.revision_id);
   assert.deepEqual(result.expressions[0].semantics, expression.semantics);
-  assert.deepEqual(result.expressions[0].derived_from, manifest.defaults[0]);
-  assert.deepEqual(result.defaults[0], result.bindings[0].expression);
-  assert.equal(result.defaults[0].asset_id, result.expressions[0].asset_id);
-  assert.notEqual(result.actions[0].action_id, action.action_id);
-  assert.equal(
-    result.bindings[0].actions[0].action_id,
-    result.actions[0].action_id,
-  );
-  assert.match(
-    result.actions[0].rights.source,
-    new RegExp(action.action_revision_id),
-  );
-  assert.equal(result.actions[0].rights.license, "CC0-1.0");
+  assert.match(result.expressions[0].rights.source, new RegExp(expression.revision_id));
+  assert.deepEqual(result.bindings[0].target, { asset_id: result.expressions[0].asset_id, revision_id: result.expressions[0].revision_id });
+  assert.deepEqual(result.bindings[1].target, { act: "core:ack" }, "act bindings never change");
+  assert.deepEqual(result.effects, manifest.effects, "effects keep their identity");
   assert.deepEqual(manifest.expressions[0], expression);
 });
-test("forking default and non-default revisions retains one default per resulting asset", async () => {
+test("forking one revision leaves the other revisions of an asset untouched", async () => {
   const identity = {
     pack_id: crypto.randomUUID(),
     release_id: crypto.randomUUID(),
@@ -75,21 +53,15 @@ test("forking default and non-default revisions retains one default per resultin
   };
   const { manifest } = await archive(identity);
   const second = structuredClone(manifest.expressions[0]);
+  second.asset_id = crypto.randomUUID();
   second.revision_id = crypto.randomUUID();
   manifest.expressions.push(second);
   for (const edited of [0, 1]) {
     const draft = structuredClone(manifest);
     draft.expressions[edited].rights.creator = "Edited creator";
     const m = buildSnapshot(draft, manifest, identity);
-    const assets = new Set(m.expressions.map((e) => e.asset_id));
-    assert.equal(m.defaults.length, assets.size);
-    assert.equal(new Set(m.defaults.map((r) => r.asset_id)).size, assets.size);
-    for (const ref of m.defaults)
-      assert.ok(
-        m.expressions.some(
-          (e) =>
-            e.asset_id === ref.asset_id && e.revision_id === ref.revision_id,
-        ),
-      );
+    assert.notEqual(m.expressions[edited].revision_id, manifest.expressions[edited].revision_id);
+    assert.deepEqual(m.expressions[1 - edited], manifest.expressions[1 - edited]);
+    assert.equal(new Set(m.expressions.map((e) => e.asset_id)).size, 2);
   }
 });

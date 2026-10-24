@@ -1,54 +1,73 @@
 {
   "kind": "amoji.pack",
-  "schema_version": "0.2",
+  "amoji": "0.1",
   "pack_id": "adae364e-69b2-4584-9845-e4fe31d707c6",
-  "release_id": "4ea711d3-d6b6-4a36-baa7-3dd43a2e3930",
-  "version": 1,
-  "name": "灵感水母 / Orbit Jelly",
-  "created_at": "2026-10-18T00:00:00Z",
-  "description": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。 / A little luminous curiosity. A place for unfinished thoughts to take shape together.",
-  "scenario": [
-    "探索",
-    "灵感",
-    "不确定",
-    "exploration",
-    "ideas",
-    "uncertainty"
+  "version": 2,
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
   ],
-  "styles": [
-    "glass"
-  ],
+  "name": {
+    "zh-CN": "灵感水母",
+    "en": "Orbit Jelly"
+  },
+  "description": {
+    "zh-CN": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。",
+    "en": "A glowing bundle of curiosity. Let half-formed ideas slowly take shape in conversation."
+  },
   "expressions": [
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "09a3ee9d-af69-4320-8418-c647c5bd5b90",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "换个可能呢",
+      "amoji": "0.1",
+      "asset_id": "f5460a85-9dce-4b06-a1c3-c220e2cc57ed",
+      "realizes": "core:idea",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "换个可能呢",
+        "en": "What if…"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我们可以试着从另一种可能性看这件事，先讨论，不急着作决定。",
-        "tone": "好奇、开放",
-        "fallback": "[换个可能呢]",
-        "use_when": [
-          "脑暴或遇到思路局限时"
+        "zh-CN": {
+          "meaning": "我们可以试着从另一种可能性看这件事，先讨论，不急着作决定。",
+          "fallback": "[换个可能呢]",
+          "use_when": [
+            "脑暴或遇到思路局限时"
+          ],
+          "avoid_when": [
+            "不据此擅自推翻已确认的需求或修改方案"
+          ]
+        },
+        "en": {
+          "meaning": "We could consider another possibility and discuss it without rushing to a decision.",
+          "fallback": "[what if]",
+          "use_when": [
+            "Brainstorming or when thinking feels stuck"
+          ],
+          "avoid_when": [
+            "Don't override agreed requirements or change plans on your own"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "换个可能呢",
+          "探索",
+          "灵感",
+          "不确定"
         ],
-        "avoid_when": [
-          "不据此擅自推翻已确认的需求或修改方案"
+        "en": [
+          "What if…",
+          "exploration",
+          "ideas",
+          "uncertainty"
         ]
       },
-      "tags": [
-        "协作:探索",
-        "画风:glass",
-        "角色:orbit-jelly",
-        "换个可能呢",
-        "探索",
-        "灵感",
-        "不确定",
-        "exploration",
-        "ideas",
-        "uncertainty"
-      ],
       "visual": {
         "primary": {
           "sha256": "ce04e4047bde8ff463eb8fa5da14bb72f829c969a228236835dca94bd16b89e4",
@@ -57,45 +76,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "2b67536f-29df-47de-8e2d-5b1c61a0657d"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "5a2b881d-e074-424d-b02e-6010d36fe630"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "cb33ebc2-2044-4599-9ffe-a6debc1e5e02",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "好像连上了",
+      "amoji": "0.1",
+      "asset_id": "9db1f601-8c8b-416a-acc5-b1c5d3549068",
+      "realizes": "core:idea",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "好像连上了",
+        "en": "A possible connection"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "这两个想法或线索之间似乎存在联系，值得一起看看是否成立。",
-        "tone": "欣喜、审慎",
-        "fallback": "[好像连上了]",
-        "use_when": [
-          "发现潜在关联时"
+        "zh-CN": {
+          "meaning": "这两个想法或线索之间似乎存在联系，值得一起看看是否成立。",
+          "fallback": "[好像连上了]",
+          "use_when": [
+            "发现潜在关联时"
+          ],
+          "avoid_when": [
+            "不把关联当作因果，也不把猜想当作事实"
+          ]
+        },
+        "en": {
+          "meaning": "These two ideas or clues seem related; it's worth checking together whether that holds.",
+          "fallback": "[a possible connection]",
+          "use_when": [
+            "Spotting a possible connection"
+          ],
+          "avoid_when": [
+            "Don't treat association as causation, or a guess as fact"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "好像连上了",
+          "探索",
+          "灵感",
+          "不确定"
         ],
-        "avoid_when": [
-          "不把关联当作因果，也不把猜想当作事实"
+        "en": [
+          "A possible connection",
+          "exploration",
+          "ideas",
+          "uncertainty"
         ]
       },
-      "tags": [
-        "协作:探索",
-        "画风:glass",
-        "角色:orbit-jelly",
-        "好像连上了",
-        "探索",
-        "灵感",
-        "不确定",
-        "exploration",
-        "ideas",
-        "uncertainty"
-      ],
       "visual": {
         "primary": {
           "sha256": "ecf28a11e691e531230171377d633bff6863d867c562017706e88ef1cdd4027e",
@@ -104,45 +146,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "557bd76c-d725-46c5-a573-60e0ce45079e"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "b5deab43-4c40-447a-868e-bb64217f477e"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "3c2b07a9-0ede-435d-a7d9-17c0671aa0a9",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "还不太确定",
+      "amoji": "0.1",
+      "asset_id": "928761db-c9b9-46ed-be39-53bd2e162109",
+      "realizes": "core:uncertain",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "还不太确定",
+        "en": "Not quite sure"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我对当前判断还没有足够把握，需要更多信息或验证才能确认。",
-        "tone": "坦诚、平和",
-        "fallback": "[还不太确定]",
-        "use_when": [
-          "证据不足或存在多个合理解释时"
+        "zh-CN": {
+          "meaning": "我对当前判断还没有足够把握，需要更多信息或验证才能确认。",
+          "fallback": "[还不太确定]",
+          "use_when": [
+            "证据不足或存在多个合理解释时"
+          ],
+          "avoid_when": [
+            "不以表情替代应该说明的具体不确定事项"
+          ]
+        },
+        "en": {
+          "meaning": "I'm not confident in this judgement yet; it needs more information or checking.",
+          "fallback": "[not quite sure]",
+          "use_when": [
+            "When evidence is thin or several explanations fit"
+          ],
+          "avoid_when": [
+            "Don't let it replace saying what exactly is uncertain"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "还不太确定",
+          "探索",
+          "灵感",
+          "不确定"
         ],
-        "avoid_when": [
-          "不以表情替代应该说明的具体不确定事项"
+        "en": [
+          "Not quite sure",
+          "exploration",
+          "ideas",
+          "uncertainty"
         ]
       },
-      "tags": [
-        "协作:探索",
-        "画风:glass",
-        "角色:orbit-jelly",
-        "还不太确定",
-        "探索",
-        "灵感",
-        "不确定",
-        "exploration",
-        "ideas",
-        "uncertainty"
-      ],
       "visual": {
         "primary": {
           "sha256": "a015789c5fc531075093ba25d809657f4888f1839139567bbc6aca24b0b78960",
@@ -151,45 +216,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "49cfb3a7-977c-4923-992b-65f5b76673e4"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "cd75c1ef-06f5-4039-850e-50132044033e"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "522cd896-18e9-4c88-9df8-16c99019bf1a",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "灵感冒泡了",
+      "amoji": "0.1",
+      "asset_id": "d12e714c-a1b5-4471-a25a-8613ab8cabf3",
+      "realizes": "core:idea",
+      "intensity": 3,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "灵感冒泡了",
+        "en": "Spark!"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "一个新想法刚刚浮现，我想把这份发现的兴奋分享给你。",
-        "tone": "灵动、兴奋",
-        "fallback": "[灵感冒泡了]",
-        "use_when": [
-          "产生一个新角度或创意时"
+        "zh-CN": {
+          "meaning": "一个新想法刚刚浮现，我想把这份发现的兴奋分享给你。",
+          "fallback": "[灵感冒泡了]",
+          "use_when": [
+            "产生一个新角度或创意时"
+          ],
+          "avoid_when": [
+            "不暗示这个想法已经可行、正确或完成实施"
+          ]
+        },
+        "en": {
+          "meaning": "A new idea just surfaced and I want to share the excitement of finding it.",
+          "fallback": "[spark]",
+          "use_when": [
+            "When a new angle or creative idea appears"
+          ],
+          "avoid_when": [
+            "Don't imply the idea is feasible, correct or already implemented"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "灵感冒泡了",
+          "探索",
+          "灵感",
+          "不确定"
         ],
-        "avoid_when": [
-          "不暗示这个想法已经可行、正确或完成实施"
+        "en": [
+          "Spark!",
+          "exploration",
+          "ideas",
+          "uncertainty"
         ]
       },
-      "tags": [
-        "协作:探索",
-        "画风:glass",
-        "角色:orbit-jelly",
-        "灵感冒泡了",
-        "探索",
-        "灵感",
-        "不确定",
-        "exploration",
-        "ideas",
-        "uncertainty"
-      ],
       "visual": {
         "primary": {
           "sha256": "09801df37072e09f2388eb206f3468a643d8aa2d0e9d332ec66a35550fe63e81",
@@ -198,39 +286,22 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "0d0bbe0b-c83b-40f4-85a8-123ed78df98a"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "7c77266a-e259-4c3d-b3d7-14448cd7c2b9"
     }
   ],
-  "defaults": [
-    {
-      "asset_id": "09a3ee9d-af69-4320-8418-c647c5bd5b90",
-      "revision_id": "2b67536f-29df-47de-8e2d-5b1c61a0657d"
-    },
-    {
-      "asset_id": "cb33ebc2-2044-4599-9ffe-a6debc1e5e02",
-      "revision_id": "557bd76c-d725-46c5-a573-60e0ce45079e"
-    },
-    {
-      "asset_id": "3c2b07a9-0ede-435d-a7d9-17c0671aa0a9",
-      "revision_id": "49cfb3a7-977c-4923-992b-65f5b76673e4"
-    },
-    {
-      "asset_id": "522cd896-18e9-4c88-9df8-16c99019bf1a",
-      "revision_id": "0d0bbe0b-c83b-40f4-85a8-123ed78df98a"
-    }
-  ],
-  "actions": [],
-  "bindings": [],
   "rights": {
     "license": "CC0-1.0",
-    "creator": "Amoji",
+    "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
-  }
+  },
+  "release_id": "f449c4d9-c082-4318-8ec1-1846549930b6"
 }

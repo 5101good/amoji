@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:amoji:schema:0.1",
+  "title": "Amoji protocol 0.1",
+  "description": "Structural rules for Amoji 0.1 objects. Cross-field rules (registry membership, direction subsets, language completeness, translation provenance, NFC, byte budgets, reference closure) are specified in amoji-0.1-rfc.md and enforced by validators in addition to this schema.",
+  "$defs": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "locale": { "type": "string", "maxLength": 48, "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$" },
+    "act": { "type": "string", "maxLength": 70, "pattern": "^(?:core|x-[a-z0-9-]{1,32}):[a-z0-9-]{1,32}$" },
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$" },
+    "direction": { "enum": ["h2a", "a2h"] },
+    "intensity": { "enum": [1, 2, 3] },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "expects": { "enum": ["none", "rephrase", "detail", "example", "correct", "realign", "decompose", "adjust", "pause", "stop", "proceed", "report", "reconsider", "input", "decision", "review"] },
+    "family": { "enum": ["grounding", "steering", "progress", "epistemic", "social"] },
+    "ref": {
+      "type": "object", "additionalProperties": false, "required": ["asset_id", "revision_id"],
+      "properties": { "asset_id": { "$ref": "#/$defs/uuid" }, "revision_id": { "$ref": "#/$defs/uuid" } }
+    },
+    "localizedName": {
+      "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/locale" },
+      "additionalProperties": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 40 }] }
+    },
+    "localizedPackName": {
+      "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/locale" },
+      "additionalProperties": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 60 }] }
+    },
+    "localizedDescription": {
+      "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/locale" },
+      "additionalProperties": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 280 }] }
+    },
+    "localizedLongText": {
+      "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/locale" },
+      "additionalProperties": { "$ref": "#/$defs/text" }
+    },
+    "situations": {
+      "type": "array", "maxItems": 4, "uniqueItems": true,
+      "items": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 64 }] }
+    },
+    "semantics": {
+      "type": "object", "additionalProperties": false, "required": ["meaning", "fallback"],
+      "properties": {
+        "meaning": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 240 }] },
+        "fallback": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 80 }] },
+        "use_when": { "$ref": "#/$defs/situations" },
+        "avoid_when": { "$ref": "#/$defs/situations" },
+        "translation": {
+          "type": "object", "additionalProperties": false, "required": ["from", "method"],
+          "properties": { "from": { "$ref": "#/$defs/locale" }, "method": { "enum": ["human", "machine", "machine-reviewed"] } }
+        }
+      }
+    },
+    "blob": {
+      "type": "object", "additionalProperties": false, "required": ["sha256", "mime", "bytes", "width", "height"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "mime": { "enum": ["image/png", "image/jpeg", "image/webp", "image/gif"] },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "width": { "type": "integer", "minimum": 1, "maximum": 2048 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 2048 }
+      }
+    },
+    "visual": {
+      "type": "object", "additionalProperties": false, "required": ["primary", "animated", "text_locale"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/blob" },
+        "animated": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "poster": { "allOf": [{ "$ref": "#/$defs/blob" }, { "properties": { "mime": { "enum": ["image/png", "image/jpeg", "image/webp"] } } }] },
+        "text_locale": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/locale" }] }
+      },
+      "if": { "properties": { "animated": { "const": true } } },
+      "then": { "required": ["duration_ms", "poster"], "properties": { "primary": { "properties": { "mime": { "enum": ["image/gif", "image/webp"] } } } } },
+      "else": {
+        "not": { "anyOf": [{ "required": ["duration_ms"] }, { "required": ["poster"] }] },
+        "properties": { "primary": { "properties": { "mime": { "enum": ["image/png", "image/jpeg", "image/webp"] } } } }
+      }
+    },
+    "rights": {
+      "type": "object", "additionalProperties": false, "required": ["license"],
+      "properties": {
+        "license": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 120 }] },
+        "creator": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 120 }] },
+        "source": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 500 }] }
+      }
+    },
+    "expression": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "amoji", "asset_id", "revision_id", "realizes", "intensity", "original_locale", "name", "semantics", "visual", "rights", "created_at"],
+      "properties": {
+        "kind": { "const": "amoji.expression" },
+        "amoji": { "const": "0.1" },
+        "asset_id": { "$ref": "#/$defs/uuid" },
+        "revision_id": { "$ref": "#/$defs/uuid" },
+        "realizes": { "$ref": "#/$defs/act" },
+        "intensity": { "$ref": "#/$defs/intensity" },
+        "directions": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/direction" } },
+        "original_locale": { "$ref": "#/$defs/locale" },
+        "name": { "$ref": "#/$defs/localizedName" },
+        "semantics": {
+          "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": { "$ref": "#/$defs/semantics" }
+        },
+        "tags": {
+          "type": "object", "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": {
+            "type": "array", "maxItems": 8, "uniqueItems": true,
+            "items": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 32 }] }
+          }
+        },
+        "visual": { "$ref": "#/$defs/visual" },
+        "rights": { "$ref": "#/$defs/rights" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "effectBase": {
+      "type": "object",
+      "required": ["effect_id", "effect_revision_id", "kind", "title", "summary"],
+      "properties": {
+        "effect_id": { "$ref": "#/$defs/uuid" },
+        "effect_revision_id": { "$ref": "#/$defs/uuid" },
+        "title": { "$ref": "#/$defs/localizedPackName" },
+        "summary": { "$ref": "#/$defs/localizedLongText" }
+      }
+    },
+    "effect": {
+      "oneOf": [
+        {
+          "allOf": [{ "$ref": "#/$defs/effectBase" }],
+          "type": "object", "additionalProperties": false,
+          "required": ["conflict_group", "instruction"],
+          "properties": {
+            "effect_id": true, "effect_revision_id": true, "title": true, "summary": true,
+            "kind": { "const": "context" },
+            "conflict_group": { "enum": ["explanation", "response-organization", "completion-report", "handoff"] },
+            "instruction": { "$ref": "#/$defs/localizedLongText" }
+          }
+        },
+        {
+          "allOf": [{ "$ref": "#/$defs/effectBase" }],
+          "type": "object", "additionalProperties": false,
+          "required": ["template", "config"],
+          "properties": {
+            "effect_id": true, "effect_revision_id": true, "title": true, "summary": true,
+            "kind": { "const": "template" },
+            "template": { "enum": ["response-organization@1", "completion-self-check@1"] },
+            "config": { "type": "object" }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "template": { "const": "response-organization@1" },
+                "config": { "type": "object", "additionalProperties": false, "required": ["layout"], "properties": { "layout": { "enum": ["answer-first", "concise", "example-first"] } } }
+              }
+            },
+            {
+              "properties": {
+                "template": { "const": "completion-self-check@1" },
+                "config": { "type": "object", "additionalProperties": false, "required": ["evidence", "unknowns"], "properties": { "evidence": { "const": "required" }, "unknowns": { "const": "explicit" } } }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false, "required": ["target", "effects"],
+      "properties": {
+        "target": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "required": ["act"], "properties": { "act": { "$ref": "#/$defs/act" } } },
+            { "$ref": "#/$defs/ref" }
+          ]
+        },
+        "effects": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/uuid" } }
+      }
+    },
+    "pack": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "amoji", "pack_id", "release_id", "version", "original_locale", "locales", "name", "description", "expressions", "rights"],
+      "properties": {
+        "kind": { "const": "amoji.pack" },
+        "amoji": { "const": "0.1" },
+        "pack_id": { "$ref": "#/$defs/uuid" },
+        "release_id": { "$ref": "#/$defs/uuid" },
+        "version": { "type": "integer", "minimum": 1 },
+        "original_locale": { "$ref": "#/$defs/locale" },
+        "locales": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/locale" } },
+        "name": { "$ref": "#/$defs/localizedPackName" },
+        "description": { "$ref": "#/$defs/localizedDescription" },
+        "expressions": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/expression" } },
+        "effects": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/effect" } },
+        "bindings": { "type": "array", "maxItems": 400, "items": { "$ref": "#/$defs/binding" } },
+        "rights": { "$ref": "#/$defs/rights" },
+        "derived_from": {
+          "type": "object", "additionalProperties": false, "required": ["pack_id", "release_id"],
+          "properties": { "pack_id": { "$ref": "#/$defs/uuid" }, "release_id": { "$ref": "#/$defs/uuid" } }
+        }
+      }
+    },
+    "anchor": {
+      "type": "object", "additionalProperties": false, "required": ["message_id"],
+      "properties": {
+        "message_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "exact": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "prefix": { "type": "string", "maxLength": 32 },
+        "suffix": { "type": "string", "maxLength": 32 },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "option": {
+      "type": "object", "additionalProperties": false, "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]{1,32}$" },
+        "label": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 60 }] }
+      }
+    },
+    "message": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "amoji", "registry_revision", "message_id", "from", "act", "glyph_policy", "mode", "created_at"],
+      "properties": {
+        "kind": { "const": "amoji.message" },
+        "amoji": { "const": "0.1" },
+        "registry_revision": { "type": "string", "pattern": "^0\\.1-r[0-9]+$" },
+        "message_id": { "$ref": "#/$defs/uuid" },
+        "from": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "required": ["role"], "properties": { "role": { "const": "human" }, "participant_id": { "type": "string", "minLength": 1, "maxLength": 200 } } },
+            { "type": "object", "additionalProperties": false, "required": ["role"], "properties": { "role": { "const": "ai" }, "agent_id": { "type": "string", "minLength": 1, "maxLength": 200 } } }
+          ]
+        },
+        "act": { "$ref": "#/$defs/act" },
+        "intensity": { "$ref": "#/$defs/intensity" },
+        "note": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 140 }] },
+        "glyph": {
+          "type": "object", "additionalProperties": false, "required": ["asset_id", "revision_id", "sha256"],
+          "properties": { "asset_id": { "$ref": "#/$defs/uuid" }, "revision_id": { "$ref": "#/$defs/uuid" }, "sha256": { "$ref": "#/$defs/sha256" } }
+        },
+        "glyph_policy": { "enum": ["keep", "prefer"] },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "mode": { "enum": ["turn", "backchannel", "interrupt"] },
+        "sent_during": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "replies": { "type": "array", "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/act" } },
+        "options": { "type": "array", "minItems": 2, "maxItems": 6, "items": { "$ref": "#/$defs/option" } },
+        "responds_to": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "rationale": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 80 }] },
+        "effects": {
+          "type": "array", "maxItems": 3,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["effect_id", "effect_revision_id"],
+            "properties": { "effect_id": { "$ref": "#/$defs/uuid" }, "effect_revision_id": { "$ref": "#/$defs/uuid" } }
+          }
+        },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        { "if": { "properties": { "mode": { "enum": ["backchannel", "interrupt"] } } }, "then": { "required": ["sent_during"] } },
+        { "if": { "properties": { "act": { "const": "core:decide" } } }, "then": { "required": ["options"] }, "else": { "not": { "required": ["options"] } } },
+        { "if": { "properties": { "from": { "properties": { "role": { "const": "human" } } } } }, "then": { "properties": { "glyph_policy": { "const": "keep" } }, "not": { "anyOf": [{ "required": ["replies"] }, { "required": ["rationale"] }] } } },
+        { "if": { "properties": { "from": { "properties": { "role": { "const": "ai" } } } } }, "then": { "not": { "required": ["note"] } } }
+      ]
+    },
+    "operation": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "amoji", "op", "target", "by", "created_at"],
+      "properties": {
+        "kind": { "const": "amoji.operation" },
+        "amoji": { "const": "0.1" },
+        "op": { "enum": ["retract", "choose"] },
+        "target": { "$ref": "#/$defs/uuid" },
+        "option": { "type": "string", "pattern": "^[a-z0-9-]{1,32}$" },
+        "by": { "$ref": "#/$defs/message/properties/from" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "if": { "properties": { "op": { "const": "choose" } } },
+      "then": { "required": ["option"] },
+      "else": { "not": { "required": ["option"] } }
+    },
+    "preferences": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "amoji", "preferred_packs", "quick_entries", "ai_expressions", "reduce_motion"],
+      "properties": {
+        "kind": { "const": "amoji.preferences" },
+        "amoji": { "const": "0.1" },
+        "preferred_packs": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/uuid" } },
+        "quick_entries": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/act" } },
+        "ai_expressions": {
+          "type": "object", "additionalProperties": false, "required": ["enabled", "max_per_window", "families"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "max_per_window": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "families": {
+              "type": "object", "additionalProperties": false,
+              "required": ["grounding", "steering", "progress", "epistemic", "social"],
+              "properties": {
+                "grounding": { "type": "boolean" }, "steering": { "type": "boolean" }, "progress": { "type": "boolean" },
+                "epistemic": { "type": "boolean" }, "social": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "reduce_motion": { "enum": ["system", "on", "off"] }
+      }
+    },
+    "registry": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "amoji", "revision", "status", "acts"],
+      "properties": {
+        "kind": { "const": "amoji.registry" },
+        "amoji": { "const": "0.1" },
+        "revision": { "type": "string", "pattern": "^0\\.1-r[0-9]+$" },
+        "status": { "enum": ["provisional", "active"] },
+        "acts": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["act", "family", "status", "authority", "forms", "grounded", "pressure_sensitive"],
+            "properties": {
+              "act": { "$ref": "#/$defs/act" },
+              "family": { "$ref": "#/$defs/family" },
+              "status": { "enum": ["provisional", "active", "deprecated"] },
+              "authority": { "enum": ["none", "reduce"] },
+              "fallback_act": { "$ref": "#/$defs/act" },
+              "forms": {
+                "type": "object", "minProperties": 1, "additionalProperties": false,
+                "properties": {
+                  "h2a": { "$ref": "#/$defs/form" },
+                  "a2h": { "$ref": "#/$defs/form" }
+                }
+              },
+              "grounded": { "type": "boolean" },
+              "pressure_sensitive": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "form": {
+      "type": "object", "additionalProperties": false, "required": ["expects", "gloss"],
+      "properties": {
+        "expects": { "$ref": "#/$defs/expects" },
+        "gloss": {
+          "type": "object", "required": ["zh-CN", "en"], "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": { "allOf": [{ "$ref": "#/$defs/text" }, { "maxLength": 80 }] }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object", "additionalProperties": false, "required": ["amoji", "registry_revision", "level", "modes", "features", "locales"],
+      "properties": {
+        "amoji": { "const": "0.1" },
+        "registry_revision": { "type": "string", "pattern": "^0\\.1-r[0-9]+$" },
+        "level": { "enum": ["basic", "interactive"] },
+        "modes": { "type": "array", "uniqueItems": true, "items": { "enum": ["turn", "backchannel", "interrupt"] } },
+        "features": { "type": "array", "uniqueItems": true, "items": { "enum": ["anchor", "replies", "options", "retract", "note", "inline", "effects"] } },
+        "transports": { "type": "array", "uniqueItems": true, "items": { "enum": ["mcp-tools", "mcp-apps", "native"] } },
+        "locales": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/locale" } }
+      }
+    }
+  }
+}

@@ -1,54 +1,73 @@
 {
   "kind": "amoji.pack",
-  "schema_version": "0.2",
+  "amoji": "0.1",
   "pack_id": "41ebd4fc-f4d3-4d43-884c-467bee6dbae1",
-  "release_id": "f3a895cf-6c6e-4a1d-9882-64c053b6d829",
-  "version": 1,
-  "name": "像素搭档 / Pixel Pal",
-  "created_at": "2026-10-18T00:00:00Z",
-  "description": "从像素世界走来的小机器人。陪你专注、找问题，也庆祝扎实的每一步。 / A tiny robot for focused work, curious debugging and well-earned checkpoints.",
-  "scenario": [
-    "专注",
-    "排障",
-    "灵感",
-    "focus",
-    "debugging",
-    "ideas"
+  "version": 2,
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
   ],
-  "styles": [
-    "pixel"
-  ],
+  "name": {
+    "zh-CN": "像素搭档",
+    "en": "Pixel Pal"
+  },
+  "description": {
+    "zh-CN": "从像素世界走来的小机器人。陪你专注、找问题，也庆祝扎实的每一步。",
+    "en": "A little robot from a pixel world. Here to help you focus, investigate problems and celebrate each solid step forward."
+  },
   "expressions": [
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "9641f01e-ba6c-49c6-ac41-3ddcc253ead3",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "认真处理中",
+      "amoji": "0.1",
+      "asset_id": "23aae35d-391e-4146-ae28-6768628e4af9",
+      "realizes": "core:working",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "认真处理中",
+        "en": "Heads down"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我此刻正在认真处理眼前这件事，暂时还没有要报告的最终结果。",
-        "tone": "专注、踏实",
-        "fallback": "[认真处理中]",
-        "use_when": [
-          "确实正在处理当前任务时"
+        "zh-CN": {
+          "meaning": "我此刻正在认真处理眼前这件事，暂时还没有要报告的最终结果。",
+          "fallback": "[认真处理中]",
+          "use_when": [
+            "确实正在处理当前任务时"
+          ],
+          "avoid_when": [
+            "不能暗示实际上不存在的后台工作或持续执行"
+          ]
+        },
+        "en": {
+          "meaning": "I'm working carefully on this right now and have no final result to report yet.",
+          "fallback": "[heads down]",
+          "use_when": [
+            "When really working on the current task"
+          ],
+          "avoid_when": [
+            "Don't imply background or ongoing work that isn't happening"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "认真处理中",
+          "专注",
+          "排障",
+          "灵感"
         ],
-        "avoid_when": [
-          "不能暗示实际上不存在的后台工作或持续执行"
+        "en": [
+          "Heads down",
+          "focus",
+          "debugging",
+          "ideas"
         ]
       },
-      "tags": [
-        "协作:专注",
-        "画风:pixel",
-        "角色:pixel-pal",
-        "认真处理中",
-        "专注",
-        "排障",
-        "灵感",
-        "focus",
-        "debugging",
-        "ideas"
-      ],
       "visual": {
         "primary": {
           "sha256": "541a7b28420047516da61a97d4f508aec3111562be601c1eb861f7b0c31eb360",
@@ -57,45 +76,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "befebb7c-1137-44ba-bd7f-957f866e0a05"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "e0c4e97d-a207-4259-b0f2-4fa817c65e4d"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "c6bbf7d7-db2b-419a-aa50-c46110e3d4c6",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "揪出小问题",
+      "amoji": "0.1",
+      "asset_id": "7ba4f140-9fca-4e50-8979-fb5117856e7a",
+      "realizes": "core:concern",
+      "intensity": 2,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "揪出小问题",
+        "en": "Something looks off"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "这里可能有一个需要排查的问题，我正在关注线索，原因尚待确认。",
-        "tone": "好奇、谨慎",
-        "fallback": "[揪出小问题]",
-        "use_when": [
-          "发现异常、开始排查时"
+        "zh-CN": {
+          "meaning": "这里可能有一个需要排查的问题，我正在关注线索，原因尚待确认。",
+          "fallback": "[揪出小问题]",
+          "use_when": [
+            "发现异常、开始排查时"
+          ],
+          "avoid_when": [
+            "未经检查不要宣称已定位原因或完成修复"
+          ]
+        },
+        "en": {
+          "meaning": "There may be a problem here worth investigating; I'm following the clues and the cause is not confirmed yet.",
+          "fallback": "[something looks off]",
+          "use_when": [
+            "When something looks wrong and investigation starts"
+          ],
+          "avoid_when": [
+            "Don't claim a confirmed cause or a fix without checking"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "揪出小问题",
+          "专注",
+          "排障",
+          "灵感"
         ],
-        "avoid_when": [
-          "未经检查不要宣称已定位原因或完成修复"
+        "en": [
+          "Something looks off",
+          "focus",
+          "debugging",
+          "ideas"
         ]
       },
-      "tags": [
-        "协作:专注",
-        "画风:pixel",
-        "角色:pixel-pal",
-        "揪出小问题",
-        "专注",
-        "排障",
-        "灵感",
-        "focus",
-        "debugging",
-        "ideas"
-      ],
       "visual": {
         "primary": {
           "sha256": "5e3e57079851c4354148e778474ed527164d84550c09e8f8b7aa900313c4ca6e",
@@ -104,46 +146,70 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "c1b8f0fc-4101-4d76-8f3b-8eddcf530250"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "6873165e-8bcc-489b-9e9f-4f40578b4d5a"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "b3121b4e-3280-42cc-8cda-4c5704edde07",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "有个小点子",
+      "amoji": "0.1",
+      "asset_id": "a21338d5-2dd6-420d-a656-6db51827dcbb",
+      "realizes": "core:idea",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "有个小点子",
+        "en": "Tiny idea"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "我想到一个可以讨论或验证的点子，先把它作为可能的方向提出。",
-        "tone": "轻快、探索",
-        "fallback": "[有个小点子]",
-        "use_when": [
-          "提出初步想法时",
-          "邀请一起讨论一个方案时"
+        "zh-CN": {
+          "meaning": "我想到一个可以讨论或验证的点子，先把它作为可能的方向提出。",
+          "fallback": "[有个小点子]",
+          "use_when": [
+            "提出初步想法时",
+            "邀请一起讨论一个方案时"
+          ],
+          "avoid_when": [
+            "点子不等于已经验证的结论或实施授权"
+          ]
+        },
+        "en": {
+          "meaning": "I have an idea worth discussing or testing; I'm offering it as one possible direction.",
+          "fallback": "[tiny idea]",
+          "use_when": [
+            "Suggesting a first idea",
+            "Inviting discussion of an approach"
+          ],
+          "avoid_when": [
+            "An idea is not a verified conclusion or permission to implement"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "有个小点子",
+          "专注",
+          "排障",
+          "灵感"
         ],
-        "avoid_when": [
-          "点子不等于已经验证的结论或实施授权"
+        "en": [
+          "Tiny idea",
+          "focus",
+          "debugging",
+          "ideas"
         ]
       },
-      "tags": [
-        "协作:专注",
-        "画风:pixel",
-        "角色:pixel-pal",
-        "有个小点子",
-        "专注",
-        "排障",
-        "灵感",
-        "focus",
-        "debugging",
-        "ideas"
-      ],
       "visual": {
         "primary": {
           "sha256": "42179a1eba2c57bcd0eb087e5d076d777411f17941d53d60321a795b6f7feb5e",
@@ -152,45 +218,68 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "90729add-a72e-4779-b972-b8693f8b2f43"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "593f9c9d-106f-48e6-9ed3-15e8196d8baa"
     },
     {
       "kind": "amoji.expression",
-      "schema_version": "0.1",
-      "asset_id": "9a3c539e-087d-4385-a6cf-6605a899352f",
-      "created_at": "2026-10-18T00:00:00Z",
-      "name": "这一关过了",
+      "amoji": "0.1",
+      "asset_id": "87055230-a662-43a3-9c25-d57610a51eb8",
+      "realizes": "core:celebrate",
+      "intensity": 1,
+      "original_locale": "zh-CN",
+      "name": {
+        "zh-CN": "这一关过了",
+        "en": "Level cleared"
+      },
       "semantics": {
-        "locale": "zh-CN",
-        "meaning": "当前这个明确的小步骤已经核实完成，可以为这一步记一个小小的里程碑。",
-        "tone": "雀跃、踏实",
-        "fallback": "[这一关过了]",
-        "use_when": [
-          "已实际验证一个步骤的结果时"
+        "zh-CN": {
+          "meaning": "当前这个明确的小步骤已经核实完成，可以为这一步记一个小小的里程碑。",
+          "fallback": "[这一关过了]",
+          "use_when": [
+            "已实际验证一个步骤的结果时"
+          ],
+          "avoid_when": [
+            "不能由一个步骤通过推断整个项目都已完成"
+          ]
+        },
+        "en": {
+          "meaning": "This specific small step is confirmed complete; let's mark it as a small milestone.",
+          "fallback": "[level cleared]",
+          "use_when": [
+            "After actually verifying the result of a step"
+          ],
+          "avoid_when": [
+            "Don't infer the whole project is done from one passing step"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "这一关过了",
+          "专注",
+          "排障",
+          "灵感"
         ],
-        "avoid_when": [
-          "不能由一个步骤通过推断整个项目都已完成"
+        "en": [
+          "Level cleared",
+          "focus",
+          "debugging",
+          "ideas"
         ]
       },
-      "tags": [
-        "协作:专注",
-        "画风:pixel",
-        "角色:pixel-pal",
-        "这一关过了",
-        "专注",
-        "排障",
-        "灵感",
-        "focus",
-        "debugging",
-        "ideas"
-      ],
       "visual": {
         "primary": {
           "sha256": "dfb5971d38423abaa506b344df4aeb2bfda564b923342ff3184dab46e856b8a7",
@@ -199,39 +288,22 @@
           "width": 512,
           "height": 512
         },
-        "animated": false
+        "animated": false,
+        "text_locale": null
       },
       "rights": {
         "license": "CC0-1.0",
-        "creator": "Amoji",
+        "creator": "Amoji contributors",
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
-      "revision_id": "6c58dc58-4170-4bf7-9c35-24a10d5bdbd8"
+      "created_at": "2026-10-22T00:00:00Z",
+      "revision_id": "d48e98ee-31ff-47dc-8bc4-ea582b6aced8"
     }
   ],
-  "defaults": [
-    {
-      "asset_id": "9641f01e-ba6c-49c6-ac41-3ddcc253ead3",
-      "revision_id": "befebb7c-1137-44ba-bd7f-957f866e0a05"
-    },
-    {
-      "asset_id": "c6bbf7d7-db2b-419a-aa50-c46110e3d4c6",
-      "revision_id": "c1b8f0fc-4101-4d76-8f3b-8eddcf530250"
-    },
-    {
-      "asset_id": "b3121b4e-3280-42cc-8cda-4c5704edde07",
-      "revision_id": "90729add-a72e-4779-b972-b8693f8b2f43"
-    },
-    {
-      "asset_id": "9a3c539e-087d-4385-a6cf-6605a899352f",
-      "revision_id": "6c58dc58-4170-4bf7-9c35-24a10d5bdbd8"
-    }
-  ],
-  "actions": [],
-  "bindings": [],
   "rights": {
     "license": "CC0-1.0",
-    "creator": "Amoji",
+    "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
-  }
+  },
+  "release_id": "28fc42d5-2c83-486d-bcec-578ddd8e38b8"
 }

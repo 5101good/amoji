@@ -1,9 +1,9 @@
 import { guidanceView } from './guidance.js';
-import { publisherView, scenarioView } from './publisher-view.js';
+import { publisherView, packView } from './publisher-view.js';
 import { marketView } from './market-view.js';
 import { creationView } from "./creation-view.js";
 import { stickerPicture, stickerPixels } from "./raster-picture.js";
-import { L, refOf } from "./transport.js";
+import { L, refOf, view, local, gloss, FAMILY_LABELS } from "./transport.js";
 import { deliveryText } from "./message-view.js";
 import { galleryLayout, galleryLabel, TILE_HEIGHT, PANE_MAX_COLUMNS } from "./gallery.js";
 import { controls } from "./controls.js";
@@ -15,6 +15,7 @@ import {
   load,
   send,
   changePreference,
+  choosePack,
   edit,
   save,
   forkLocalDraft,
@@ -23,7 +24,6 @@ import {
   invalidate,
 } from "./controller.js";
 
-const CATEGORY_EN = { "全部": "All", "进度": "Progress", "澄清": "Clarify", "方向": "Direction", "反馈": "Feedback", "其他": "Other" };
 
 export function pane($, e, s, makePicture) {
   const { Box, Text, Input, Select, Link } = $.ui.resolve(e);
@@ -112,7 +112,7 @@ export function pane($, e, s, makePicture) {
     ["settings", L(s, "偏好", "Preferences")],
     ["packs", L(s, "导入导出", "Import/export")],
   ];
-  const activeSection = s.tab === "scenario" ? "publish" : s.tab;
+  const activeSection = s.tab === "pack" ? "publish" : s.tab;
   const total = s.collection?.total;
   const tabs = s.tab === "picker"
     ? col([
@@ -143,8 +143,8 @@ export function pane($, e, s, makePicture) {
   let body;
   if (s.tab === "guidance") {
     body=guidanceView($,s,kits);
-  } else if (s.tab === "scenario" && s.scenarioDraft) {
-    body=scenarioView($,s,kits);
+  } else if (s.tab === "pack" && s.packDraft) {
+    body=packView($,s,kits);
   } else if (s.tab === "publish") {
     body=publisherView($,s,kits);
   } else if (s.tab === "market") {
@@ -153,52 +153,35 @@ export function pane($, e, s, makePicture) {
     const p = s.preferences;
     body = p
       ? col([
-          ui.caption(L(s, "选择你看到的画风，以及 AI 回应你的方式。", "Choose the artwork you see and how AI responds.")),
-          section(L(s, "外观", "Appearance"), [select(
-            "preference:appearance",
-            L(s, "表情画风", "Appearance"),
-            p.appearance,
-            [
-              [
-                "classic",
-                L(s, "经典 · 温暖手绘", "Classic · warm illustrations"),
-              ],
-              ["office", L(s, "办公 · 简洁克制", "Office · clear and calm")],
-            ],
-            (value) => changePreference($, s, "appearance", value),
+          ui.caption(L(s, "偏好只影响显示和 AI 发送规则，不改变已发送的消息。", "Preferences change display and AI sending rules only, never messages already sent.")),
+          section(L(s, "显示", "Display"), [select(
+            "preference:reduce-motion",
+            L(s, "动态效果", "Motion"),
+            p.reduce_motion,
+            [["system", L(s, "跟随系统", "Follow system")], ["on", L(s, "减少动态效果", "Reduce motion")], ["off", L(s, "正常播放", "Play normally")]],
+            (value) => changePreference($, s, (q) => ({ ...q, reduce_motion: value })),
           )]),
           section(L(s, "AI 的表达", "AI expression"), [select(
-            "preference:style",
-            L(s, "AI 语气偏好", "AI tone"),
-            p.style,
-            [
-              ["neutral", L(s, "自然", "Natural")],
-              ["warm", L(s, "温暖", "Warm")],
-              ["playful", L(s, "活泼", "Playful")],
-            ],
-            (value) => changePreference($, s, "style", value),
-          ),
-          select(
-            "preference:frequency",
-            L(s, "AI 使用频率", "AI frequency"),
-            p.frequency,
-            [
-              ["restrained", L(s, "克制", "Restrained")],
-              ["moderate", L(s, "适中", "Moderate")],
-              ["active", L(s, "活跃", "Active")],
-            ],
-            (value) => changePreference($, s, "frequency", value),
-          ),
-          select(
-            "preference:paused",
+            "preference:ai-enabled",
             L(s, "AI 表情", "AI expressions"),
-            String(p.paused),
-            [
-              ["false", L(s, "开启", "Enabled")],
-              ["true", L(s, "暂停", "Paused")],
-            ],
-            (value) => changePreference($, s, "paused", value === "true"),
-          )]),
+            String(p.ai_expressions.enabled),
+            [["true", L(s, "开启", "Enabled")], ["false", L(s, "暂停", "Paused")]],
+            (value) => changePreference($, s, (q) => ({ ...q, ai_expressions: { ...q.ai_expressions, enabled: value === "true" } })),
+          ),
+          select(
+            "preference:max-per-window",
+            L(s, "每次回答最多", "Per answer at most"),
+            String(p.ai_expressions.max_per_window),
+            ["0", "1", "2", "3"].map(n => [n, n]),
+            (value) => changePreference($, s, (q) => ({ ...q, ai_expressions: { ...q.ai_expressions, max_per_window: Number(value) } })),
+          ),
+          ...Object.keys(FAMILY_LABELS).map(family => select(
+            "preference:family:" + family,
+            L(s, ...FAMILY_LABELS[family]),
+            String(p.ai_expressions.families[family]),
+            [["true", L(s, "可以发", "Allowed")], ["false", L(s, "不发", "Off")]],
+            (value) => changePreference($, s, (q) => ({ ...q, ai_expressions: { ...q.ai_expressions, families: { ...q.ai_expressions.families, [family]: value === "true" } } })),
+          ))]),
           ui.caption(L(s, "界面语言跟随 Claude Code 的 language 配置，支持中文和英文。", "Language follows Claude Code’s language setting (Chinese or English).")),
           section(L(s, "关于 Amoji", "About Amoji"), [
             ui.body(L(s, "人看图，AI 懂语义。", "Images for people. Meaning for AI."), inner),
@@ -208,20 +191,12 @@ export function pane($, e, s, makePicture) {
       : refresh;
   } else if (s.tab === "create") {
     const d = s.draft;
-    const editField = (key, value) =>
-      edit(s, () => {
-        d.fields[key] = value;
-      });
-    const semantic = (key, value) =>
-      edit(s, () => {
-        d.fields.semantics[key] = value;
-      });
     if (s.draftConflict) {
       const latest = s.conflictLatest;
       body = col([
         t(L(s, "你的输入", "Your input")),
-        t(d.fields.name),
-        t(d.fields.semantics.meaning),
+        t(view(s, d.fields).name),
+        t(view(s, d.fields).meaning),
         s.imagePath && t(L(s, "新图片：", "New image: ") + s.imagePath, true),
         t(L(s, "另存会保留你的文字和图片。", "Save separately to keep your text and image."), true),
         t(L(s, "原草稿不会被覆盖。", "The original draft will not be overwritten."), true),
@@ -231,10 +206,10 @@ export function pane($, e, s, makePicture) {
         }),
         ...(latest ? [
           t(L(s, "已保存的最新内容", "Latest saved content")),
-          latest.preview && picture(latest.preview, latest.fields.name),
-          t(latest.fields.name),
-          t(latest.fields.semantics.meaning),
-          t(latest.fields.semantics.fallback, true),
+          latest.preview && picture(latest.preview, view(s, latest.fields).name),
+          t(view(s, latest.fields).name),
+          t(view(s, latest.fields).meaning),
+          t(view(s, latest.fields).fallback, true),
           t(L(s, "许可：", "License: ") + latest.fields.rights.license, true),
           latest.confirmed
             ? t(L(s, "此草稿已确认。如需保留你的修改，请另存。", "This draft is already confirmed. Save separately to keep your changes."), true)
@@ -259,7 +234,7 @@ export function pane($, e, s, makePicture) {
           .map((draft) =>
             button(
               "draft:" + draft.draft_id,
-              draft.fields.name || L(s, "未命名草稿", "Untitled draft"),
+              view(s, draft.fields).name || L(s, "未命名草稿", "Untitled draft"),
               async () => {
                 s.draft = await call($, s.context, "getDraft", {
                   id: draft.draft_id,
@@ -285,15 +260,16 @@ export function pane($, e, s, makePicture) {
       body = col([
         heading(L(s, "最后核对一次", "One last check")),
         ui.caption(L(s, "确认后，图片与语义将固定为一个版本。", "Confirming fixes this image and meaning as one version.")),
-        showcase(s.preview.preview, d.fields.name, [
-          ui.label(d.fields.name),
-          ui.body(d.fields.semantics.meaning),
+        showcase(s.preview.preview, view(s, d.fields).name, [
+          ui.label(view(s, d.fields).name),
+          ui.body(view(s, d.fields).meaning),
         ]),
         ui.spec([
-          [L(s, "文字回退", "FALLBACK"), d.fields.semantics.fallback],
-          [L(s, "语气", "TONE"), d.fields.semantics.tone],
-          [L(s, "适合", "USE WHEN"), (d.fields.semantics.use_when || []).join(" · ")],
-          [L(s, "避免", "AVOID"), (d.fields.semantics.avoid_when || []).join(" · ")],
+          [L(s, "码位", "ACT"), gloss(s, d.fields.realizes, d.fields.directions?.[0]) + " · " + d.fields.realizes + " · " + d.fields.intensity],
+          [L(s, "文字回退", "FALLBACK"), view(s, d.fields).fallback],
+          [L(s, "适合", "USE WHEN"), view(s, d.fields).use_when.join(" · ")],
+          [L(s, "避免", "AVOID"), view(s, d.fields).avoid_when.join(" · ")],
+          [L(s, "语言", "LANGUAGES"), Object.keys(d.fields.semantics).join(" · ")],
           [L(s, "许可", "LICENSE"), d.fields.rights.license],
         ]),
         s.preview.visual?.animated &&
@@ -443,18 +419,19 @@ export function pane($, e, s, makePicture) {
   } else if (s.detail) {
     const item = s.detail;
     const x = item.expression;
+    const v = view(s, x);
     const list = (values) => (values || []).join(" · ");
     body = col([
       button("detail-back", L(s, "‹ 返回列表", "‹ Back to list"), async () => {
         s.detail = null;
       }),
-      showcase(item.preview, x.name, [
-        heading(x.name),
-        ui.body(x.semantics.meaning, besideWidth(14)),
+      showcase(item.preview, v.name, [
+        heading(v.name),
+        ui.body(v.meaning, besideWidth(14)),
         ui.row([
           item.archived && ui.badge("warning", L(s, "已归档", "Archived")),
           ui.badge("info", item.origin === "local" ? L(s, "我的创作", "Created by you") :
-            item.origin === "builtin" ? L(s, "内置", "Built in") : L(s, "已导入", "Imported")),
+            item.origin === "builtin" ? L(s, "内置", "Built in") : item.origin === "market" ? L(s, "来自市场", "From the market") : L(s, "已导入", "Imported")),
         ]),
       ], 14, 6),
       row([
@@ -501,17 +478,18 @@ export function pane($, e, s, makePicture) {
       ]),
       ui.section(L(s, "CLAUDE 读到的语义", "WHAT CLAUDE READS")),
       ui.spec([
-        [L(s, "文字回退", "FALLBACK"), x.semantics.fallback],
-        [L(s, "语气", "TONE"), x.semantics.tone],
-        [L(s, "适合", "USE WHEN"), list(x.semantics.use_when)],
-        [L(s, "避免", "AVOID"), list(x.semantics.avoid_when)],
+        [L(s, "码位", "ACT"), gloss(s, x.realizes, x.directions?.[0]) + " · " + x.realizes + " · " + x.intensity],
+        [L(s, "文字回退", "FALLBACK"), v.fallback],
+        [L(s, "适合", "USE WHEN"), list(v.use_when)],
+        [L(s, "避免", "AVOID"), list(v.avoid_when)],
+        [L(s, "语言", "LANGUAGES"), list(Object.keys(x.semantics))],
         [L(s, "许可", "LICENSE"), x.rights.license],
       ]),
       s.revisions && ui.card({ gap: 0, children: [
         ui.label(L(s, "版本记录", "Revisions"), inner),
         ...s.revisions.map((revision) => ui.meta([
           revision.created_at.slice(0, 10),
-          revision.name,
+          view(s, revision).name,
           revision.revision_id === x.revision_id ? L(s, "当前使用", "In use") : "",
         ], inner)),
       ] }),
@@ -523,7 +501,7 @@ export function pane($, e, s, makePicture) {
           x.revision_id,
           s.revisions.map((r) => [
             r.revision_id,
-            r.name + " · " + r.created_at.slice(0, 10),
+            view(s, r).name + " · " + r.created_at.slice(0, 10),
           ]),
           (value) =>
             perform($, s, async () => {
@@ -543,6 +521,7 @@ export function pane($, e, s, makePicture) {
     const geometry = galleryLayout(e);
     const cards = (collection?.items || []).map((item) => {
       const x = item.expression;
+      const name = view(s, x).name;
       // Desktop currently draws Button.label even when Text children exist.
       // Keep captions bounded here; the image alt and detail retain full names.
       const caption = (value) => galleryLabel(value, geometry.tileWidth);
@@ -550,7 +529,7 @@ export function pane($, e, s, makePicture) {
       // Host-specific media stays in the presentation adapter.
       const visual = makePicture
         ? makePicture(item)
-        : picture(item.preview, x.name);
+        : picture(item.preview, name);
       return Box({
         key: "card:" + x.asset_id,
         width: geometry.tileWidth,
@@ -563,18 +542,18 @@ export function pane($, e, s, makePicture) {
           visual,
           s.tab === "picker"
             ? Box({ key: "send-focus:" + x.asset_id, height: 2, children: [Button({
-                key: "send:" + x.asset_id, label: caption(x.name), plain: true, dimColor: true,
+                key: "send:" + x.asset_id, label: caption(name), plain: true, dimColor: true,
                 hover: { color: "claude" },
                 onPress: () => send($, s, x, sendEpoch),
               })] })
             : s.tab === "library" && s.selecting
-              ? Button({ key: "select:" + x.asset_id, label: caption((chosen ? "✓ " : "") + x.name), plain: true,
+              ? Button({ key: "select:" + x.asset_id, label: caption((chosen ? "✓ " : "") + name), plain: true,
                   ...(chosen ? { hover: { color: "claude" } } : { dimColor: true, hover: { color: "claude" } }),
                   onPress: () => perform($, s, async () => {
                   if (s.selected[x.asset_id]) delete s.selected[x.asset_id];
                   else s.selected[x.asset_id] = refOf(x);
                 }) })
-              : Button({ key: "details:" + x.asset_id, label: caption(x.name), plain: true, dimColor: !!item.archived,
+              : Button({ key: "details:" + x.asset_id, label: caption(name), plain: true, dimColor: !!item.archived,
                   hover: { color: "claude" },
                   onPress: () => perform($, s, async () => {
                 s.detail = item;
@@ -585,16 +564,19 @@ export function pane($, e, s, makePicture) {
       });
     });
     const selectedCount = Object.keys(s.selected).length;
+    const preferred = s.preferences?.preferred_packs ?? [];
+    const rank = (p) => { const i = preferred.indexOf(p.pack_id); return i < 0 ? preferred.length : i; };
     const chip = (key, label, active, action) => Button({ key, label,
       ...(active ? { variant: "primary" } : { plain: true, dimColor: true }),
       onPress: action });
     body = col([
-      s.tab === "picker" && row([
-        ui.caption(L(s, "画风", "Artwork")),
-        ...[["classic", "经典", "Classic"], ["office", "办公", "Office"]].map(([value, zh, en]) =>
-          chip("appearance:" + value, L(s, zh, en), s.preferences?.appearance === value,
-            () => changePreference($, s, "appearance", value))),
-      ]),
+      s.tab === "picker" && Input({
+        key: "note",
+        placeholder: L(s, "附一句话（可选），例如：第 3 步没看懂", "Add a note (optional), e.g. I don't follow step 3"),
+        value: s.note || "",
+        onInput: (value) => { s.note = value.slice(0, 140); },
+        onSubmit: (value) => { s.note = value.slice(0, 140); },
+      }),
       Input({
         key: "search",
         placeholder: s.tab === "picker" ? L(s, "想表达什么？搜索心情或场景", "What do you want to say? Search a mood or moment") :
@@ -607,17 +589,22 @@ export function pane($, e, s, makePicture) {
         onSubmit: (value) =>
           perform($, s, async () => {
             s.query = value;
-            s.category = "全部";
+            s.category = "all";
             s.page = 0;
             s.collection = null;
             await load($, s);
           }),
       }),
+      s.tab === "picker" && (collection?.packs?.length ?? 0) > 1 && row([
+        ...[...collection.packs].sort((a, b) => rank(a) - rank(b)).map(p =>
+          button("pack:" + p.pack_id, local(s, p.name, p.original_locale), () => choosePack($, s, p.pack_id), collection.pack === p.pack_id)),
+        button("pack:all", L(s, "全部表情包", "All packs"), () => choosePack($, s, "all"), collection.pack === "all"),
+      ]),
       s.tab === "picker"
-        ? row(["全部", ...(collection?.categories || [])].map(category =>
-            button("category:" + category, L(s, category, CATEGORY_EN[category] || category), async () => {
+        ? row(["all", ...(collection?.categories || [])].map(category =>
+            button("category:" + category, category === "all" ? L(s, "全部", "All") : L(s, ...FAMILY_LABELS[category]), async () => {
               s.category = category; s.collection = null; await load($, s);
-            }, (s.category || "全部") === category)))
+            }, (s.category || "all") === category)))
         : col([
             row([
               chip("select-mode", L(s, s.selecting ? "完成选择" : "选择", s.selecting ? "Done" : "Select"), s.selecting, () => perform($, s, async () => {
@@ -638,9 +625,9 @@ export function pane($, e, s, makePicture) {
                 L(s, "点击表情加入选择", "Click expressions to select them"), inner),
               selectedCount > 0 && row([
                 button("create-pack", L(s,"组织为表情包","Create a pack"), async()=>{
-                  s.scenarioDraft=await call($,s.context,"scenario",{method:"create",refs:Object.values(s.selected)});
-                  s.scenarioPreview=false;s.scenarioReviewed=false;s.publicationFields=null;
-                  await navigate($,s,"scenario");
+                  s.packDraft=await call($,s.context,"packs",{method:"create",refs:Object.values(s.selected)});
+                  s.packPreview=false;s.packReviewed=false;s.publicationFields=null;
+                  await navigate($,s,"pack");
                 }, true),
                 button(
                   "export",

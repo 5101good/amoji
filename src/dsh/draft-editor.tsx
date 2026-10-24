@@ -1,21 +1,65 @@
-import { useText, message, type TextMessage } from './i18n.js';
+import { useText, useUiLocale, message, type TextMessage } from './i18n.js';
 import React,{useEffect,useRef,useState} from 'react';
 import type {SuggestionModel} from './ai-suggestions.js';
 import type {Draft,DraftFields} from '../drafts.js';
 import type {DshRpc} from './contracts.js';
-import type {Expression} from '../sample-catalog.js';
+import {REGISTRY,actGloss,expressionText,findAct,type Direction,type Expression,type Family,type Intensity,type Semantics,type Translation} from '../protocol/browser.js';
+import {FAMILY_LABELS} from './labels.js';
 import {Conflict} from './ui.js';
-export function Fields({value,onChange,showRights=true}:{value:DraftFields;onChange:(v:DraftFields)=>void;showRights?:boolean}){
+const FAMILIES:Family[]=['grounding','steering','progress','epistemic','social'];
+const lines=(text:string)=>text?text.split('\n'):[];
+/** One language column of an expression's localized text (RFC §16). */
+function LocaleFields({value,locale,onChange}:{value:DraftFields;locale:string;onChange:(v:DraftFields)=>void}){
  const t=useText();
+ const semantics=value.semantics[locale]??{meaning:'',fallback:''};
+ const setSemantics=(next:Semantics)=>onChange({...value,semantics:{...value.semantics,[locale]:next}});
+ const optionalList=(key:'use_when'|'avoid_when',text:string)=>{const next={...semantics};if(text==='')delete next[key];else next[key]=lines(text);setSemantics(next);};
+ const setTags=(text:string)=>{const tags={...value.tags};if(text==='')delete tags[locale];else tags[locale]=lines(text);const next:DraftFields={...value,tags};if(!Object.keys(tags).length)delete next.tags;onChange(next);};
+ const original=locale===value.original_locale;
+ return <div className="fields">
+  <label className="wide">{t("名称")}<input aria-label={t("名称")} placeholder={t("例如：进度如何")} value={value.name[locale]??''} onInput={e=>onChange({...value,name:{...value.name,[locale]:e.currentTarget.value}})}/></label>
+  <label className="wide">{t("固定含义")}<textarea aria-label={t("固定含义")} value={semantics.meaning} onInput={e=>setSemantics({...semantics,meaning:e.currentTarget.value})}/></label>
+  <label className="wide">{t("文字回退")}<textarea aria-label={t("文字回退")} value={semantics.fallback} onInput={e=>setSemantics({...semantics,fallback:e.currentTarget.value})}/></label>
+  <label>{t("适用场景（每行一项）")}<textarea aria-label={t("适用场景（每行一项）")} value={semantics.use_when?.join('\n')??''} onInput={e=>optionalList('use_when',e.currentTarget.value)}/></label>
+  <label>{t("避免场景（每行一项）")}<textarea aria-label={t("避免场景（每行一项）")} value={semantics.avoid_when?.join('\n')??''} onInput={e=>optionalList('avoid_when',e.currentTarget.value)}/></label>
+  <label>{t("标签（每行一项）")}<textarea aria-label={t("标签（每行一项）")} value={value.tags?.[locale]?.join('\n')??''} onInput={e=>setTags(e.currentTarget.value)}/></label>
+  {!original&&<label>{t("翻译方式")}<select aria-label={t("翻译方式")} value={semantics.translation?.method??''} onChange={e=>{const next={...semantics};if(!e.currentTarget.value)delete next.translation;else next.translation={from:value.original_locale,method:e.currentTarget.value as Translation['method']};setSemantics(next);}}><option value="">{t("未标注")}</option><option value="human">{t("人工翻译")}</option><option value="machine-reviewed">{t("机器翻译，已人工审核")}</option><option value="machine">{t("机器翻译")}</option></select></label>}
+ </div>;
+}
+export function Fields({value,onChange,showRights=true}:{value:DraftFields;onChange:(v:DraftFields)=>void;showRights?:boolean}){
+ const t=useText();const ui=useUiLocale();
+ const locales=Object.keys(value.semantics);
+ const [active,setActive]=useState(value.original_locale);const [adding,setAdding]=useState('');
+ const current=locales.includes(active)?active:value.original_locale;
+ const entry=findAct(value.realizes);
+ const allowed=(['h2a','a2h'] as Direction[]).filter(d=>!entry||entry.forms[d]);
  const optional=<T extends object>(value:T,key:keyof T,text:string):T=>{const next={...value};if(text==='')delete next[key];else next[key]=text as T[keyof T];return next;};
- const field=(label:string,key:keyof DraftFields['semantics'],list=false)=><label className={['meaning','fallback'].includes(key)?'wide':''}>{t(label)}<textarea aria-label={t(label)} value={list?(value.semantics[key] as string[]|undefined)?.join('\n')??'':value.semantics[key] as string??''} onInput={e=>onChange({...value,semantics:key==='tone'?optional(value.semantics,key,e.currentTarget.value):{...value.semantics,[key]:list?(e.currentTarget.value?e.currentTarget.value.split('\n'):[]):e.currentTarget.value}})}/></label>;
- return <div className="stack"><div className="fields"><label className="wide">{t("名称")}<input aria-label={t("名称")} placeholder={t("例如：进度如何")} value={value.name} onInput={e=>onChange({...value,name:e.currentTarget.value})}/></label>{field("固定含义",'meaning')}{field("文字回退",'fallback')}</div>
- <details className="amoji-advanced"><summary>{showRights?t("更多设置：语气、场景与来源"):t("更多设置：语气与场景")}</summary><div className="fields"><label>{t("语言")}<input aria-label={t("语言")} value={value.semantics.locale} onInput={e=>onChange({...value,semantics:{...value.semantics,locale:e.currentTarget.value}})}/></label>{field("语气",'tone')}{field("适用场景（每行一项）",'use_when',true)}{field("避免场景（每行一项）",'avoid_when',true)}<label>{t("标签（每行一项）")}<textarea aria-label={t("标签（每行一项）")} value={value.tags?.join('\n')??''} onInput={e=>onChange({...value,tags:e.currentTarget.value?e.currentTarget.value.split('\n'):[]})}/></label>{showRights&&(['license','creator','source'] as const).map(key=><label key={key}>{{license:t("使用许可"),creator:t("作者"),source:t("来源")}[key]}<input aria-label={{license:t("使用许可"),creator:t("作者"),source:t("来源")}[key]} value={value.rights[key]??''} onInput={e=>onChange({...value,rights:key==='license'?{...value.rights,[key]:e.currentTarget.value}:optional(value.rights,key,e.currentTarget.value)})}/></label>)}</div></details></div>;
-
+ const addLocale=()=>{const tag=adding.trim();if(!tag||locales.includes(tag))return;const tags=value.tags;onChange({...value,name:{...value.name,[tag]:''},semantics:{...value.semantics,[tag]:{meaning:'',fallback:''}},...(tags?{tags}:{})});setActive(tag);setAdding('');};
+ const removeLocale=(tag:string)=>{if(tag===value.original_locale)return;const drop=<T,>(map:Record<string,T>)=>Object.fromEntries(Object.entries(map).filter(([k])=>k!==tag));const next:DraftFields={...value,name:drop(value.name),semantics:drop(value.semantics),text_locale:value.text_locale===tag?null:value.text_locale};if(value.tags){const tags=drop(value.tags);if(Object.keys(tags).length)next.tags=tags;else delete next.tags;}onChange(next);setActive(value.original_locale);};
+ const setDirections=(d:Direction,on:boolean)=>{const list=new Set(value.directions??allowed);if(on)list.add(d);else list.delete(d);const next={...value};const dirs=allowed.filter(x=>list.has(x));if(!dirs.length||dirs.length===allowed.length)delete next.directions;else next.directions=dirs;onChange(next);};
+ return <div className="stack">
+  <div className="fields">
+   <label className="wide">{t("实现的码位")}<select aria-label={t("实现的码位")} value={value.realizes} onChange={e=>{const next={...value,realizes:e.currentTarget.value};delete next.directions;onChange(next);}}><option value="">{t("选择码位")}</option>{FAMILIES.map(f=><optgroup key={f} label={t(FAMILY_LABELS[f])}>{REGISTRY.acts.filter(a=>a.family===f&&a.status!=='deprecated').map(a=><option key={a.act} value={a.act}>{[a.forms.h2a&&actGloss(a.act,'h2a',ui).text,a.forms.a2h&&actGloss(a.act,'a2h',ui).text].filter(Boolean).join(' / ')} · {a.act}</option>)}</optgroup>)}</select></label>
+   <label>{t("强度")}<select aria-label={t("强度")} value={value.intensity} onChange={e=>onChange({...value,intensity:Number(e.currentTarget.value) as Intensity})}><option value={1}>{t("轻")}</option><option value={2}>{t("中")}</option><option value={3}>{t("强")}</option></select></label>
+   {allowed.length>1&&<fieldset><legend>{t("使用方向")}</legend>{allowed.map(d=><label key={d}><span><input type="checkbox" checked={(value.directions??allowed).includes(d)} onChange={e=>setDirections(d,e.currentTarget.checked)}/> {d==='h2a'?t("人发给 AI"):t("AI 发给人")}</span></label>)}</fieldset>}
+  </div>
+  <div className="row" role="tablist" aria-label={t("语言")}>{locales.map(l=><button key={l} type="button" role="tab" aria-selected={l===current} className={l===current?'primary':'quiet'} onClick={()=>setActive(l)}>{l}{l===value.original_locale?` · ${t("原文")}`:''}</button>)}<input aria-label={t("添加语言")} placeholder={t("添加语言，如 en")} value={adding} size={8} onInput={e=>setAdding(e.currentTarget.value)}/><button type="button" className="quiet" disabled={!adding.trim()} onClick={addLocale}>{t("添加")}</button>{current!==value.original_locale&&<button type="button" className="quiet" onClick={()=>removeLocale(current)}>{t("移除此语言")}</button>}</div>
+  <LocaleFields value={value} locale={current} onChange={onChange}/>
+  <details className="amoji-advanced"><summary>{showRights?t("更多设置：图中文字与来源"):t("更多设置：图中文字")}</summary><div className="fields">
+   <label>{t("原文语言")}<select aria-label={t("原文语言")} value={value.original_locale} onChange={e=>onChange({...value,original_locale:e.currentTarget.value})}>{locales.map(l=><option key={l} value={l}>{l}</option>)}</select></label>
+   <label>{t("图片中的文字")}<select aria-label={t("图片中的文字")} value={value.text_locale??''} onChange={e=>onChange({...value,text_locale:e.currentTarget.value||null})}><option value="">{t("图片不含文字")}</option>{locales.map(l=><option key={l} value={l}>{l}</option>)}</select></label>
+   {showRights&&(['license','creator','source'] as const).map(key=><label key={key}>{{license:t("使用许可"),creator:t("作者"),source:t("来源")}[key]}<input aria-label={{license:t("使用许可"),creator:t("作者"),source:t("来源")}[key]} value={value.rights[key]??''} onInput={e=>onChange({...value,rights:key==='license'?{...value.rights,[key]:e.currentTarget.value}:optional(value.rights,key,e.currentTarget.value)})}/></label>)}
+  </div></details></div>;
+}
+function PreviewSemantics({fields}:{fields:DraftFields}){
+ const t=useText();const ui=useUiLocale();const text=expressionText(fields,ui);
+ return <><strong>{text.name}</strong><p>{text.meaning}</p><details><summary>{t("完整固定语义与许可")}</summary><dl className="amoji-semantic-details"><dt>{t("实现的码位")}</dt><dd>{fields.realizes} · {t("强度")} {fields.intensity}</dd><dt>{t("文字回退")}</dt><dd>{text.fallback}</dd><dt>{t("适用场景")}</dt><dd>{text.use_when.join('；')||t("未指定")}</dd><dt>{t("避免场景")}</dt><dd>{text.avoid_when.join('；')||t("未指定")}</dd><dt>{t("标签")}</dt><dd>{text.tags.join('、')||t("无")}</dd><dt>{t("语言")}</dt><dd>{Object.keys(fields.semantics).map(l=>{const tr=fields.semantics[l]!.translation;return l===fields.original_locale?`${l}（${t("原文")}）`:tr?`${l}（${t(tr.method==='human'?"人工翻译":tr.method==='machine'?"机器翻译":"机器翻译，已人工审核")}）`:l;}).join('、')}</dd><dt>{t("图片中的文字")}</dt><dd>{fields.text_locale??t("图片不含文字")}</dd><dt>{t("使用许可")}</dt><dd>{fields.rights.license}</dd>{fields.rights.creator&&<><dt>{t("作者")}</dt><dd>{fields.rights.creator}</dd></>}{fields.rights.source&&<><dt>{t("来源")}</dt><dd>{fields.rights.source}</dd></>}</dl></details></>;
 }
 function SemanticSummary({value}:{value:DraftFields}) {
- const t=useText();
- return <div className="amoji-semantic-summary"><h4>{value.name||t("未命名表情")}</h4><p>{value.semantics.meaning||t("写下这张表情想表达的意思。")}</p>{value.semantics.fallback&&<div className="amoji-fallback"><span>{t("图片无法显示时")}</span><q>{value.semantics.fallback}</q></div>}{value.semantics.tone&&<small>{value.semantics.tone}</small>}</div>;
+ const t=useText();const ui=useUiLocale();
+ const text=expressionText(value,ui);const entry=findAct(value.realizes);
+ const direction=value.directions?.[0]??(entry?.forms.h2a?'h2a':'a2h');
+ return <div className="amoji-semantic-summary"><h4>{text.name||t("未命名表情")}</h4>{entry&&<small>{actGloss(entry.act,direction,ui).text} · {entry.act}</small>}<p>{text.meaning||t("写下这张表情想表达的意思。")}</p>{text.fallback&&<div className="amoji-fallback"><span>{t("图片无法显示时")}</span><q>{text.fallback}</q></div>}</div>;
 }
 const editorCache = new Map<string, {draft:Draft;fields:DraftFields;upload?:string;filename:string;intent:string;uncertain:boolean;artwork?:string}>();
 export function discardEditor(id:string){editorCache.delete(id);}
@@ -41,14 +85,15 @@ export function DraftEditor({rpc,sessionId,initial,onCreated,onSaved}:{rpc:DshRp
  const save=async()=>{invalidateSuggestion();const result=await rpc.management(sessionId,'saveDraft',{draft_id:draft.draft_id,version:draft.version,fields,...(upload?{upload}:{})});setDraft(result);setUpload(undefined);setUncertain(false);setStatus('草稿已保存');onSaved?.(result);return result;};
  const refresh=()=>void run(async()=>{invalidateSuggestion();const current=await rpc.management(sessionId,'getDraft',{draft_id:draft.draft_id});setError({message:'已读取当前草稿。你的输入仍保留，可继续编辑后重新保存。',current});setDraft(current);setUncertain(false);revokePreview();if(current.confirmed){setStatus('该草稿已确认，返回表情库可查看。');onCreated(await rpc.visual(sessionId,current.confirmed).then(v=>v.expression));}});
  const selectFile=async(file?:File)=>{if(!file)return;invalidate();if(file.size>10*1024*1024){setError(new Error('图片最多 10 MiB，请选择较小文件。'));return;}const token=generation.current;await run(async()=>{const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]!);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});if(token!==generation.current)return;setUpload(data);setArtwork(`data:${file.type||'image/png'};base64,${data}`);setFilename(file.name);setStatus('素材尚未保存');});};
- const hasMeaning=!!(fields.name.trim()||fields.semantics.meaning.trim());
+ const ui=useUiLocale();const shown=expressionText(fields,ui);
+ const hasMeaning=!!(shown.name.trim()||shown.meaning.trim());
  const generate=()=>{
   if(suggestionAbort.current&&!suggestionAbort.current.signal.aborted)return;
   const model=models.find(m=>JSON.stringify([m.provider,m.model])===modelKey);if(!model)return;
   const controller=new AbortController();suggestionAbort.current=controller;
   const token=++generation.current;setCandidate(undefined);setSuggesting(true);setError(undefined);setStatus('');
-  void rpc.management(sessionId,'suggestAiText',{intent,provider:model.provider,model:model.model},controller.signal)
-   .then(result=>{if(token===generation.current){setCandidate({...result.fields,rights:currentFields.current.rights});setStatus(message('由 {name}（{provider} / {model}）生成文字建议；未读取图片。请修改并确认。',{name:model.name,provider:model.provider,model:model.model}));}})
+  void rpc.management(sessionId,'suggestAiText',{intent,provider:model.provider,model:model.model,locale:fields.original_locale},controller.signal)
+   .then(result=>{if(token===generation.current){setCandidate({...result.fields,rights:currentFields.current.rights,text_locale:currentFields.current.text_locale});setStatus(message('由 {name}（{provider} / {model}）生成文字建议；未读取图片。请修改并确认。',{name:model.name,provider:model.provider,model:model.model}));}})
    .catch(e=>{if(token===generation.current)setError(e);})
    .finally(()=>{if(token===generation.current){setSuggesting(false);suggestionAbort.current=undefined;}});
  };
@@ -76,7 +121,7 @@ export function DraftEditor({rpc,sessionId,initial,onCreated,onSaved}:{rpc:DshRp
   </section>
   <div className="amoji-draft-actions"><small>{candidate?t("先采用建议，再预览确认"):!draft.visual&&!upload?t("配图后即可预览并加入表情库"):t("预览图片与含义后，再确认加入表情库")}</small><div className="row"><button type="button" onClick={()=>void run(async()=>{revokePreview();await save();})}>{t("保存草稿")}</button><button className="primary" type="button" disabled={!!candidate} onClick={()=>void run(async()=>{revokePreview();const token=previewEpoch.current;const saved=await save();const result=await rpc.management(sessionId,'previewDraft',{draft_id:saved.draft_id,version:saved.version});if(token===previewEpoch.current)setPreview({...result,token});})}>{t("保存并预览")}</button></div></div>
  </fieldset>
- {preview&&<section className="preview" aria-label={t("图文确认预览")}><h3>{t("这张表情准备好了吗？")}</h3><small>{draft.mode==='edit'?t("确认将创建新版本，旧消息中的图片和含义保持不变。"):t("核对图片与含义，确认后即可在对话中使用。")}</small><img key={`${preview.token}:${paused}`} src={paused&&preview.poster?preview.poster:preview.primary} alt={preview.draft.fields.semantics.fallback} onLoad={()=>{if(preview.token===previewEpoch.current)setLoaded(true);}} onError={()=>{if(preview.token!==previewEpoch.current)return;setLoaded(false);setChecked(false);setError(new Error('浏览器无法加载预览，不能确认，请重试预览。'));}}/>{preview.poster&&<button type="button" onClick={()=>{setPaused(!paused);setPreview({...preview,token:++previewEpoch.current});setLoaded(false);setChecked(false);}}>{paused?t("播放动图"):t("暂停动图")}</button>}<strong>{preview.draft.fields.name}</strong><p>{preview.draft.fields.semantics.meaning}</p><details><summary>{t("完整固定语义与许可")}</summary><dl className="amoji-semantic-details"><dt>{t("文字回退")}</dt><dd>{preview.draft.fields.semantics.fallback}</dd><dt>{t("语气")}</dt><dd>{preview.draft.fields.semantics.tone||t("未指定")}</dd><dt>{t("适用场景")}</dt><dd>{preview.draft.fields.semantics.use_when?.join('；')||t("未指定")}</dd><dt>{t("避免场景")}</dt><dd>{preview.draft.fields.semantics.avoid_when?.join('；')||t("未指定")}</dd><dt>{t("标签")}</dt><dd>{preview.draft.fields.tags?.join('、')||t("无")}</dd><dt>{t("使用许可")}</dt><dd>{preview.draft.fields.rights.license}</dd>{preview.draft.fields.rights.creator&&<><dt>{t("作者")}</dt><dd>{preview.draft.fields.rights.creator}</dd></>}{preview.draft.fields.rights.source&&<><dt>{t("来源")}</dt><dd>{preview.draft.fields.rights.source}</dd></>}</dl></details><label className="amoji-preview-confirm"><input type="checkbox" checked={checked} disabled={!loaded||busy} onChange={e=>{if(preview.token===previewEpoch.current&&loaded)setChecked(e.target.checked);}}/><span>{t("我已核对图片和固定语义")}</span></label><button className="primary" type="button" disabled={!loaded||!checked||busy||uncertain||!!draft.confirmed} onClick={()=>void run(async()=>{if(preview.token!==previewEpoch.current||!loaded||!checked)return;const result=await rpc.management(sessionId,'confirmDraft',{draft_id:draft.draft_id,version:preview.draft.version});setDraft({...draft,confirmed:result});setUncertain(false);setStatus('表情已加入共享库');onCreated(result);})}>{t("确认加入表情库")}</button></section>}
+ {preview&&<section className="preview" aria-label={t("图文确认预览")}><h3>{t("这张表情准备好了吗？")}</h3><small>{draft.mode==='edit'?t("确认将创建新版本，旧消息中的图片和含义保持不变。"):t("核对图片与含义，确认后即可在对话中使用。")}</small><img key={`${preview.token}:${paused}`} src={paused&&preview.poster?preview.poster:preview.primary} alt={expressionText(preview.draft.fields,ui).fallback} onLoad={()=>{if(preview.token===previewEpoch.current)setLoaded(true);}} onError={()=>{if(preview.token!==previewEpoch.current)return;setLoaded(false);setChecked(false);setError(new Error('浏览器无法加载预览，不能确认，请重试预览。'));}}/>{preview.poster&&<button type="button" onClick={()=>{setPaused(!paused);setPreview({...preview,token:++previewEpoch.current});setLoaded(false);setChecked(false);}}>{paused?t("播放动图"):t("暂停动图")}</button>}<PreviewSemantics fields={preview.draft.fields}/><label className="amoji-preview-confirm"><input type="checkbox" checked={checked} disabled={!loaded||busy} onChange={e=>{if(preview.token===previewEpoch.current&&loaded)setChecked(e.target.checked);}}/><span>{t("我已核对图片和固定语义")}</span></label><button className="primary" type="button" disabled={!loaded||!checked||busy||uncertain||!!draft.confirmed} onClick={()=>void run(async()=>{if(preview.token!==previewEpoch.current||!loaded||!checked)return;const result=await rpc.management(sessionId,'confirmDraft',{draft_id:draft.draft_id,version:preview.draft.version});setDraft({...draft,confirmed:result});setUncertain(false);setStatus('表情已加入共享库');onCreated(result);})}>{t("确认加入表情库")}</button></section>}
  <Conflict error={error} onRefresh={refresh}/>{(error as {code?:string})?.code==='ENTRY_CONFLICT'&&(error as {current?:import('../library-management.js').LibraryEntry}).current&&<button type="button" disabled={busy} onClick={()=>void run(async()=>{const entry=(error as {current:import('../library-management.js').LibraryEntry}).current;
  // Transfer the old saved primary bytes through the existing validated upload path.
  // Never inherit the newly current entry's media under a preserve-input action.

@@ -20,7 +20,7 @@ type PublicRelease = {
   row_version: number;
   cover_sha256?: string;
   expression_count?: number;
-  action_count?: number;
+  effect_count?: number;
   priority: number;
 };
 const project = (r: PublicRelease) => ({
@@ -50,10 +50,9 @@ export async function catalogRoute(
         if (
           ![
             "q",
-            "scenario",
+            "act",
             "locale",
-            "style",
-            "actions",
+            "effects",
             "cursor",
             "limit",
           ].includes(key) ||
@@ -67,9 +66,8 @@ export async function catalogRoute(
         values.push(q.normalize("NFKC").toLowerCase());
       }
       for (const [parameter, column] of [
-        ["scenario", "scenarios"],
+        ["act", "acts"],
         ["locale", "locales"],
-        ["style", "styles"],
       ]) {
         const value = url.searchParams.get(parameter!);
         if (value) {
@@ -79,11 +77,11 @@ export async function catalogRoute(
           values.push(value);
         }
       }
-      const actions = url.searchParams.get("actions");
-      if (actions) {
-        if (!["true", "false"].includes(actions)) throw Error("INVALID_QUERY");
-        filters.push("r.has_actions=?");
-        values.push(actions === "true" ? 1 : 0);
+      const effects = url.searchParams.get("effects");
+      if (effects) {
+        if (!["true", "false"].includes(effects)) throw Error("INVALID_QUERY");
+        filters.push("r.has_effects=?");
+        values.push(effects === "true" ? 1 : 0);
       }
       if (cursor) {
         const priority = (cursor as typeof cursor & { priority?: number }).priority;
@@ -95,7 +93,7 @@ export async function catalogRoute(
       values.push(limit + 1);
       const rows = (
         await env.DB.prepare(
-          `SELECT coalesce(json_extract(r.manifest,'$.expressions[0].visual.poster.sha256'),json_extract(r.manifest,'$.expressions[0].visual.primary.sha256')) AS cover_sha256,json_array_length(r.manifest,'$.expressions') AS expression_count,coalesce(json_array_length(r.manifest,'$.actions'),0) AS action_count,r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,p.priority,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'scenario',json_extract(r.manifest,'$.scenario'),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.priority DESC,p.updated_at DESC,p.pack_id DESC LIMIT ?`,
+          `SELECT coalesce(json_extract(r.manifest,'$.expressions[0].visual.poster.sha256'),json_extract(r.manifest,'$.expressions[0].visual.primary.sha256')) AS cover_sha256,json_array_length(r.manifest,'$.expressions') AS expression_count,coalesce(json_array_length(r.manifest,'$.effects'),0) AS effect_count,r.release_id,r.pack_id,r.archive_sha256,r.manifest_sha256,r.author,r.published_at,r.row_version,p.updated_at,p.priority,json_object('name',json_extract(r.manifest,'$.name'),'description',json_extract(r.manifest,'$.description'),'original_locale',json_extract(r.manifest,'$.original_locale'),'locales',json_extract(r.manifest,'$.locales'),'acts',json(r.acts),'version',json_extract(r.manifest,'$.version')) AS manifest FROM market_public_pack p JOIN market_public_release r ON r.release_id=p.release_id WHERE ${filters.join(" AND ")} ORDER BY p.priority DESC,p.updated_at DESC,p.pack_id DESC LIMIT ?`,
         )
           .bind(...values)
           .all<PublicRelease>()
@@ -107,11 +105,13 @@ export async function catalogRoute(
             ...p,
             ...(r.cover_sha256 ? { cover: { sha256: r.cover_sha256 } } : {}),
             expression_count: r.expression_count ?? 0,
-            action_count: r.action_count ?? 0,
+            effect_count: r.effect_count ?? 0,
             manifest: {
               name: p.manifest.name,
               description: p.manifest.description,
-              scenario: p.manifest.scenario,
+              original_locale: p.manifest.original_locale,
+              locales: p.manifest.locales,
+              acts: p.manifest.acts,
               version: p.manifest.version,
             },
           };

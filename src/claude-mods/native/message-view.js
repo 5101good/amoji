@@ -38,9 +38,12 @@ export function messageView($, e, s, segments, human) {
           flexDirection: "column", alignItems: human ? "flex-end" : "flex-start",
           children: [
             ...(e.surface === "desktop" && segment.preview ? [
-              rasterPicture($, e, s, { key: `message-image:${index}`, source: segment.preview, alt: segment.semantics.meaning }),
+              rasterPicture($, e, s, { key: `message-image:${index}`, source: segment.preview, alt: segment.meaning }),
             ] : []),
-            Text({ children: [segment.name || segment.semantics.fallback], dimColor: true }),
+            Text({ children: [segment.name || segment.fallback], dimColor: true }),
+            ...(segment.note ? [Text({ children: [segment.note] })] : []),
+            ...(segment.rationale ? [Text({ children: [segment.rationale], dimColor: true })] : []),
+            ...(segment.options ? [Text({ children: [segment.options.map(o => o.label).join(" · ")], dimColor: true })] : []),
           ],
         })),
     ],

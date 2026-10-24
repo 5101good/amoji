@@ -89,11 +89,12 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   await eventually(() => !doc.querySelector<HTMLElement>('#suggestion-result')!.hidden);
   assert.equal(input('draft-meaning').value, '我正在手工填写', '显示候选本身不得写入草稿表单');
   input('suggestion-result-meaning').value = '由我修改后的感谢含义';
-  input('suggestion-result-tone').value = '克制而真诚';
+  input('suggestion-result-avoid').value = '对方并未帮忙时';
   button('apply-suggestion').click();
   assert.equal(input('draft-meaning').value, '由我修改后的感谢含义');
-  assert.equal(input('draft-tone').value, '克制而真诚');
-  assert.equal((await client.getDraft((await client.listDrafts())[0]!.draft_id)).fields.semantics.meaning, '', '采用只更新待保存表单');
+  assert.equal(input('draft-avoid').value, '对方并未帮忙时');
+  assert.equal(input('draft-act').value, 'core:thanks', '采用建议也采用建议的码位');
+  assert.equal((await client.getDraft((await client.listDrafts())[0]!.draft_id)).fields.semantics['zh-CN']!.meaning, '', '采用只更新待保存表单');
 
   input('suggestion-intent').value = '想鼓励对方';
   button('request-suggestion').click();
@@ -176,7 +177,7 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   input('draft-name').value = '手工完成';
   input('draft-meaning').value = '建议不可用时仍然保留并确认我的含义';
   input('draft-fallback').value = '手工完成';
-  input('draft-tone').value = '平静';
+  input('draft-act').value = 'core:ack';
   input('draft-use').value = '建议服务不可用时';
   input('draft-avoid').value = '需要精确操作说明时';
   input('draft-license').value = '仅供个人使用';
@@ -191,6 +192,7 @@ test('真实面板DOM把建议保持为待选，支持修改采用、放弃、�
   await eventually(() => !button('confirm-draft').disabled);
   button('confirm-draft').click();
   await eventually(() => doc.querySelector('#draft-status')!.textContent!.includes('已加入共享库'));
-  const created = (await client.list()).find(item => item.name === '手工完成')!;
-  assert.equal(created.semantics.meaning, '建议不可用时仍然保留并确认我的含义');
+  const created = (await client.list()).find(item => item.name['zh-CN'] === '手工完成')!;
+  assert.equal(created.semantics['zh-CN']!.meaning, '建议不可用时仍然保留并确认我的含义');
+  assert.equal(created.realizes, 'core:ack');
 });

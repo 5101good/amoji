@@ -1,0 +1,232 @@
+{
+  "slug": "pixel-pal",
+  "pack_id": "41ebd4fc-f4d3-4d43-884c-467bee6dbae1",
+  "version": 2,
+  "created_at": "2026-10-22T00:00:00Z",
+  "original_locale": "zh-CN",
+  "locales": [
+    "zh-CN",
+    "en"
+  ],
+  "name": {
+    "zh-CN": "像素搭档",
+    "en": "Pixel Pal"
+  },
+  "description": {
+    "zh-CN": "从像素世界走来的小机器人。陪你专注、找问题，也庆祝扎实的每一步。",
+    "en": "A little robot from a pixel world. Here to help you focus, investigate problems and celebrate each solid step forward."
+  },
+  "rights": {
+    "license": "CC0-1.0",
+    "creator": "Amoji contributors",
+    "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
+  },
+  "expressions": [
+    {
+      "slug": "focus",
+      "realizes": "core:working",
+      "intensity": 2,
+      "image": "images/pixel-pal/focus.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "认真处理中",
+        "en": "Heads down"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我此刻正在认真处理眼前这件事，暂时还没有要报告的最终结果。",
+          "fallback": "[认真处理中]",
+          "use_when": [
+            "确实正在处理当前任务时"
+          ],
+          "avoid_when": [
+            "不能暗示实际上不存在的后台工作或持续执行"
+          ]
+        },
+        "en": {
+          "meaning": "I'm working carefully on this right now and have no final result to report yet.",
+          "fallback": "[heads down]",
+          "use_when": [
+            "When really working on the current task"
+          ],
+          "avoid_when": [
+            "Don't imply background or ongoing work that isn't happening"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "认真处理中",
+          "专注",
+          "排障",
+          "灵感"
+        ],
+        "en": [
+          "Heads down",
+          "focus",
+          "debugging",
+          "ideas"
+        ]
+      }
+    },
+    {
+      "slug": "bug",
+      "realizes": "core:concern",
+      "intensity": 2,
+      "image": "images/pixel-pal/bug.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "揪出小问题",
+        "en": "Something looks off"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "这里可能有一个需要排查的问题，我正在关注线索，原因尚待确认。",
+          "fallback": "[揪出小问题]",
+          "use_when": [
+            "发现异常、开始排查时"
+          ],
+          "avoid_when": [
+            "未经检查不要宣称已定位原因或完成修复"
+          ]
+        },
+        "en": {
+          "meaning": "There may be a problem here worth investigating; I'm following the clues and the cause is not confirmed yet.",
+          "fallback": "[something looks off]",
+          "use_when": [
+            "When something looks wrong and investigation starts"
+          ],
+          "avoid_when": [
+            "Don't claim a confirmed cause or a fix without checking"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "揪出小问题",
+          "专注",
+          "排障",
+          "灵感"
+        ],
+        "en": [
+          "Something looks off",
+          "focus",
+          "debugging",
+          "ideas"
+        ]
+      }
+    },
+    {
+      "slug": "idea",
+      "realizes": "core:idea",
+      "intensity": 1,
+      "image": "images/pixel-pal/idea.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "有个小点子",
+        "en": "Tiny idea"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "我想到一个可以讨论或验证的点子，先把它作为可能的方向提出。",
+          "fallback": "[有个小点子]",
+          "use_when": [
+            "提出初步想法时",
+            "邀请一起讨论一个方案时"
+          ],
+          "avoid_when": [
+            "点子不等于已经验证的结论或实施授权"
+          ]
+        },
+        "en": {
+          "meaning": "I have an idea worth discussing or testing; I'm offering it as one possible direction.",
+          "fallback": "[tiny idea]",
+          "use_when": [
+            "Suggesting a first idea",
+            "Inviting discussion of an approach"
+          ],
+          "avoid_when": [
+            "An idea is not a verified conclusion or permission to implement"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "有个小点子",
+          "专注",
+          "排障",
+          "灵感"
+        ],
+        "en": [
+          "Tiny idea",
+          "focus",
+          "debugging",
+          "ideas"
+        ]
+      }
+    },
+    {
+      "slug": "checkpoint",
+      "realizes": "core:celebrate",
+      "intensity": 1,
+      "image": "images/pixel-pal/checkpoint.webp",
+      "text_locale": null,
+      "name": {
+        "zh-CN": "这一关过了",
+        "en": "Level cleared"
+      },
+      "semantics": {
+        "zh-CN": {
+          "meaning": "当前这个明确的小步骤已经核实完成，可以为这一步记一个小小的里程碑。",
+          "fallback": "[这一关过了]",
+          "use_when": [
+            "已实际验证一个步骤的结果时"
+          ],
+          "avoid_when": [
+            "不能由一个步骤通过推断整个项目都已完成"
+          ]
+        },
+        "en": {
+          "meaning": "This specific small step is confirmed complete; let's mark it as a small milestone.",
+          "fallback": "[level cleared]",
+          "use_when": [
+            "After actually verifying the result of a step"
+          ],
+          "avoid_when": [
+            "Don't infer the whole project is done from one passing step"
+          ],
+          "translation": {
+            "from": "zh-CN",
+            "method": "machine-reviewed"
+          }
+        }
+      },
+      "tags": {
+        "zh-CN": [
+          "这一关过了",
+          "专注",
+          "排障",
+          "灵感"
+        ],
+        "en": [
+          "Level cleared",
+          "focus",
+          "debugging",
+          "ideas"
+        ]
+      }
+    }
+  ]
+}

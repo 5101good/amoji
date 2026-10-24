@@ -11,10 +11,9 @@ import { ConnectedRuntime } from '../src/adapter-runtime.js';
 import { DatabaseSync } from 'node:sqlite';
 
 const fixture = fileURLToPath(new URL('fixtures/shared-client.mjs', import.meta.url));
-const sampleRoot = fileURLToPath(new URL('../assets/samples/', import.meta.url));
 const owned = new Map<string, { children: Set<ChildProcess>; services: Set<number> }>();
 async function adapter(t: TestContext, directory: string, env: Record<string, string> = {}) {
-  const child = fork(fixture, { execArgv: ['--import', 'tsx'], env: { ...process.env, AMOJI_DATA_DIR: directory, AMOJI_SAMPLE_ROOT: sampleRoot, AMOJI_SERVICE_IDLE_MS: '500', ...env }, silent: true });
+  const child = fork(fixture, { execArgv: ['--import', 'tsx'], env: { ...process.env, AMOJI_DATA_DIR: directory, AMOJI_SERVICE_IDLE_MS: '500', ...env }, silent: true });
   owned.get(directory)!.children.add(child);
   const ready = await new Promise<any>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('客户端启动超时')), 10000);
@@ -62,6 +61,11 @@ async function sandbox(t: TestContext) {
   });
   return directory;
 }
+/** AI send by selection token; returns the sent message or the rejection reason. */
+async function express(client: { call: (operation: string, ...args: unknown[]) => Promise<any> }, binding: string, token: string) {
+  const result = await client.call('express', binding, { selection_token: token });
+  return result.status === 'sent' ? result.message : { rejected: result.reason };
+}
 function alive(pid: number): boolean {
   try { process.kill(pid, 0); return true; }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error; }
@@ -87,7 +91,7 @@ test('首次候选真实退出75后重新竞选，临时写入锁释放即可完
     assert.ok(observed, '必须观察到真实候选因写入锁被占用而退出75');
   } finally { lock.close(); }
   const client = await connecting;
-  assert.equal((await client.call('list')).length, 3);
+  assert.equal((await client.call('list')).length, 48);
   await client.call('close');
 });
 
@@ -102,7 +106,7 @@ test('停止返回前完成真实数据库关闭，立即重连不因旧写入�
   assert.equal(alive(a.identity.pid), false, '发现文件消失不能冒充持有写入锁的服务已退出');
   const b = await adapter(t, directory);
   assert.notEqual(b.identity.serviceId, a.identity.serviceId);
-  assert.equal((await b.call('list')).length, 3);
+  assert.equal((await b.call('list')).length, 48);
   await b.call('close');
 });
 
@@ -116,21 +120,21 @@ test('检索与重启清理过期未消费凭据，已消费凭据仍随消息�
   const context = { host: 'codex', sessionId: 'retention', turnId: '1' };
   const binding = await a.call('bind', context);
   const used = (await a.call('search', binding, '加油')).candidates[0].selection_token;
-  const message = await a.call('emit', binding, used);
+  const message = await express(a, binding, used);
   const expired = (await a.call('search', binding, '庆祝')).candidates[0].selection_token;
   await writeFile(clockFile, '360000');
   const next = (await a.call('search', binding, '自嘲')).candidates[0].selection_token;
-  await assert.rejects(a.call('emit', binding, expired), { code: 'SELECTION_UNAVAILABLE' });
-  assert.equal((await a.call('emit', binding, used)).message_id, message.message_id);
+  assert.deepEqual(await express(a, binding, expired), { rejected: 'invalid_selection_token' });
+  assert.equal((await express(a, binding, used)).message_id, message.message_id);
   await a.call('close');
   const name = '../src/shared-client.js';
   await (await import(name)).stopSharedService(directory, a.identity.serviceId);
   await writeFile(clockFile, '720000');
   const b = await adapter(t, directory, env);
   const resumed = await b.call('bind', context);
-  await assert.rejects(b.call('emit', resumed, next), { code: 'SELECTION_UNAVAILABLE' });
+  assert.deepEqual(await express(b, resumed, next), { rejected: 'invalid_selection_token' });
   assert.deepEqual(await b.call('history', resumed), [message]);
-  assert.equal((await b.call('emit', resumed, used)).message_id, message.message_id);
+  assert.equal((await express(b, resumed, used)).message_id, message.message_id);
   await b.call('close');
 });
 
@@ -151,11 +155,15 @@ test('适配器操作结束释放实际绑定，多回合调用不使先前在�
     assert.ok(issued.length > 0);
     for (const id of issued) await assert.rejects(client.history(id), { code: 'BINDING_UNAVAILABLE' });
   }
-  await assert.rejects(runtime.emit({ ...context, turnId: 'wrong-turn' }, choice.selection_token), /其他回合/);
+  const wrong = await runtime.express({ ...context, turnId: 'wrong-turn' }, { selection_token: choice.selection_token });
+  assert.equal(wrong.status === 'rejected' && wrong.reason, 'invalid_selection_token');
   for (const id of issued) await assert.rejects(client.history(id), { code: 'BINDING_UNAVAILABLE' });
-  const message = await client.emit(inFlight, choice.selection_token);
-  assert.equal(message.revision.revision_id, choice.revision_id);
-  assert.equal((await client.emit(inFlight, choice.selection_token)).message_id, message.message_id);
+  const sent = await client.express(inFlight, { selection_token: choice.selection_token });
+  assert.ok(sent.status === 'sent');
+  const message = sent.message;
+  assert.equal(message.revision!.revision_id, choice.revision_id);
+  const again = await client.express(inFlight, { selection_token: choice.selection_token });
+  assert.equal(again.status === 'sent' && again.message.message_id, message.message_id);
   assert.deepEqual(await runtime.messages(context), [message]);
   for (const id of issued) await assert.rejects(client.history(id), { code: 'BINDING_UNAVAILABLE' });
 });
@@ -173,18 +181,18 @@ test('两个独立客户端并发冷启动只产生一个服务，隔离会话�
   const aa = await a.call('bind', contextA);
   const bb = await b.call('bind', contextB);
   const list = await a.call('list');
-  assert.equal(list.length, 3);
+  assert.equal(list.length, 48);
   assert.deepEqual(await b.call('list'), list);
   const candidate = (await a.call('search', aa, '加油')).candidates[0];
-  await assert.rejects(b.call('emit', bb, candidate.selection_token), /其他会话/);
-  const message = await a.call('emit', aa, candidate.selection_token);
-  assert.equal(message.delivery, 'pending');
-  assert.equal((await a.call('emit', aa, candidate.selection_token)).message_id, message.message_id);
+  assert.deepEqual(await express(b, bb, candidate.selection_token), { rejected: 'invalid_selection_token' });
+  const message = await express(a, aa, candidate.selection_token);
+  assert.equal(message.presentation, 'pending');
+  assert.equal((await express(a, aa, candidate.selection_token)).message_id, message.message_id);
   assert.deepEqual(await b.call('history', bb), []);
   await a.call('close');
   const ref = { asset_id: list[0].asset_id, revision_id: list[0].revision_id };
-  const own = await b.call('receive', bb, ref, 'click-1');
-  assert.equal((await b.call('receive', bb, ref, 'click-1')).message_id, own.message_id);
+  const own = await b.call('receive', bb, { ref }, 'click-1');
+  assert.equal((await b.call('receive', bb, { ref }, 'click-1')).message_id, own.message_id);
   assert.equal((await b.call('history', bb)).length, 1);
   await b.call('close');
 });
@@ -195,7 +203,7 @@ test('服务重启后保留精确版本、动图素材、消息回执和已消�
   const context = { host: 'codex', hostInstanceId: 'local', sessionId: 'history', turnId: '1' };
   const binding = await a.call('bind', context);
   const candidate = (await a.call('search', binding, '加油')).candidates[0];
-  const message = await a.call('emit', binding, candidate.selection_token);
+  const message = await express(a, binding, candidate.selection_token);
   await a.call('presentation', binding, message.message_id, 'rendered');
   await a.call('close');
   const name = '../src/shared-client.js';
@@ -207,7 +215,7 @@ test('服务重启后保留精确版本、动图素材、消息回执和已消�
   assert.deepEqual(await b.call('resolve', { asset_id: candidate.asset_id, revision_id: candidate.revision_id }), message.revision);
   const history = await b.call('history', resumed);
   assert.deepEqual(history, [{ ...message, presentation: 'rendered' }]);
-  assert.equal((await b.call('emit', resumed, candidate.selection_token)).message_id, message.message_id);
+  assert.equal((await express(b, resumed, candidate.selection_token)).message_id, message.message_id);
   for (const blob of [message.revision.visual.primary, message.revision.visual.poster]) {
     const path = await b.call('blobPath', blob.sha256);
     assert.ok(path.startsWith(b.identity.dataRoot));
@@ -222,7 +230,7 @@ test('不兼容版本和伪造发现身份明确失败，不会覆盖正在使�
   const a = await adapter(t, directory);
   const name = '../src/shared-client.js';
   const { SharedClient, stopSharedService } = await import(name);
-  await assert.rejects(SharedClient.connect({ directory, apiRange: { min: 3, max: 3 } }), /API_INCOMPATIBLE/);
+  await assert.rejects(SharedClient.connect({ directory, apiRange: { min: 99, max: 99 } }), /API_INCOMPATIBLE/);
   await assert.rejects(stopSharedService(directory, 'wrong-identity'), /SERVICE_IDENTITY_MISMATCH/);
   await assert.rejects(stopSharedService(directory, a.identity.serviceId), /SERVICE_BUSY/);
   const path = join(directory, 'service.json');
@@ -230,6 +238,6 @@ test('不兼容版本和伪造发现身份明确失败，不会覆盖正在使�
   await writeFile(path, JSON.stringify({ ...JSON.parse(original), serviceId: 'wrong-identity' }));
   await assert.rejects(SharedClient.connect({ directory }), /SERVICE_IDENTITY_MISMATCH/);
   await writeFile(path, original);
-  assert.equal((await a.call('list')).length, 3);
+  assert.equal((await a.call('list')).length, 48);
   await a.call('close');
 });

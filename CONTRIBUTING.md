@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.en.md)
 
-欢迎通过 [Issues](https://github.com/5101good/amoji/issues) 报告可复现问题、讨论功能或提出文档改进。1.0 主要维护 dsh；新增宿主或较大行为变化请先说明使用场景与兼容边界。
+欢迎通过 [Issues](https://github.com/5101good/amoji/issues) 报告可复现问题、讨论功能或提出文档改进。2.0.0 维护 dsh 与 Claude Desktop Code 本地会话适配；新增宿主或较大行为变化请先说明使用场景与兼容边界。
 
 提交前阅读[开发指南](docs/development.md)与[架构](docs/architecture.md)。保持修改范围集中；添加行为变化所需的回归测试，运行类型检查、核心测试以及相关 dsh 测试。文档修改检查链接和中英一致性；无需为纯文字修改新增运行时测试。
 

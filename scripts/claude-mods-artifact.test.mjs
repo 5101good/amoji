@@ -13,6 +13,7 @@ import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { spawn, execFileSync } from "node:child_process";
+import yauzl from "yauzl";
 import { inspectClaudeArchive } from "./append-claude-release.mjs";
 import { buildClaudeMods } from "./build-claude-mods.mjs";
 const root = resolve(import.meta.dirname, "..");
@@ -33,6 +34,14 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     await rm(out, { recursive: true, force: true });
   });
   const result = await buildClaudeMods(out);
+  const zip = await new Promise((resolve, reject) => yauzl.open(result.archive, { lazyEntries: true }, (error, value) => error ? reject(error) : resolve(value)));
+  try {
+    for await (const entry of zip.eachEntry()) {
+      assert.equal(entry.lastModFileTime, 0, `${entry.fileName}: fixed midnight DOS time`);
+      assert.equal(entry.lastModFileDate, (20 << 9) | (1 << 5) | 1, `${entry.fileName}: fixed 2000-01-01 DOS date`);
+      assert.ok(!entry.extraFields.some(field => field.id === 0x5455), `${entry.fileName}: no timezone-dependent UTC timestamp`);
+    }
+  } finally { zip.close(); }
   const contents = await inspectClaudeArchive(result.archive);
   const extracted = join(out, "extracted");
   for (const [path, bytes] of contents) {
@@ -58,8 +67,10 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     "runtime/src/marketplace-publisher.js",
     "runtime/src/claude-mods/market.js",
     "runtime/src/claude-mods/guidance.js",
-    "runtime/docs/specs/amoji-v0.1.schema.json",
-    "assets/base-library/base.amoji",
+    "runtime/docs/specs/amoji-0.1.schema.json",
+    "runtime/docs/specs/amoji-0.1.registry.json",
+    "assets/official-packs/classic.amoji",
+    "assets/official-packs/office.amoji",
     "LICENSE",
     "NOTICE",
     "README.md",
@@ -128,7 +139,7 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     );
   });
   assert.equal(response.ok, true, JSON.stringify(response));
-  assert.equal(response.result.total, 24);
+  assert.equal(response.result.total, 40, "both built-in packs are browsable (the 40 expressions a person can send)");
   assert.ok(response.result.items[0].preview.startsWith("data:image/avif;base64,"));
   const previews = join(plugin, "assets/claude-previews");
   assert.ok((await readdir(previews)).filter(name => name.endsWith(".avif")).length >= response.result.total);

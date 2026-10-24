@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { SharedClient } from '../shared-client.js';
 import type { BindingContext } from '../shared-contract.js';
+import type { Pack } from '../protocol/index.js';
 import { fail, nonempty, object } from '../shared-contract.js';
 import { expressionRef } from '../library-management.js';
 import { draftVersion } from '../drafts.js';
@@ -31,7 +32,7 @@ export async function executeMarketBridge(client: SharedClient, context: Binding
     const a=object(raw,['method','args']);
     return client.publisher(nonempty(a.method),a.args);
   }
-  const a=object(raw,['method','refs','id','version','manifest','reviewed','path','expressionsOnly'],['method']);
+  const a=object(raw,['method','refs','id','version','manifest','reviewed','path','withoutEffects','locale'],['method']);
   switch(a.method) {
     case 'previews': {
       if(!Array.isArray(a.refs)||a.refs.length>4)fail('INVALID_ARGUMENT','一次预览最多四个表情');
@@ -40,19 +41,21 @@ export async function executeMarketBridge(client: SharedClient, context: Binding
         try{images[e.revision_id]=await cachedThumbnailImage(blob.sha256,async()=>readFile(await client.blobPath(blob.sha256)),options.previewDirectory,'gallery');}catch{images[e.revision_id]=null;}
       }return images;
     }
-    case 'list': return {packs:await client.listScenarioPacks(),drafts:await client.listScenarioDrafts()};
+    case 'list': return {packs:await client.listPacks(),drafts:(await client.listPackDrafts()).filter(d=>!d.saved)};
     case 'create': {
       if(!Array.isArray(a.refs))fail('INVALID_ARGUMENT','请选择表情');
-      return client.createScenarioDraft(a.refs.map(expressionRef));
+      return client.createPackDraft(a.refs.map(expressionRef));
     }
-    case 'save': return client.saveScenarioDraft(nonempty(a.id),draftVersion(a.version),a.manifest as Parameters<SharedClient['saveScenarioDraft']>[2]);
-    case 'preview': return client.previewScenarioDraft(nonempty(a.id),draftVersion(a.version));
+    case 'get': return client.getPackDraft(nonempty(a.id));
+    case 'save': return client.savePackDraft(nonempty(a.id),draftVersion(a.version),a.manifest as Pack);
+    case 'preview': return client.previewPackDraft(nonempty(a.id),draftVersion(a.version));
     case 'confirm': {
       if(a.reviewed!==true)fail('REVIEW_REQUIRED','请先核对图片、固定语义和许可');
-      return client.confirmScenarioDraft(nonempty(a.id),draftVersion(a.version));
+      return client.confirmPackDraft(nonempty(a.id),draftVersion(a.version));
     }
     case 'export': {
-      const bytes=await client.exportScenarioPack(nonempty(a.id),a.expressionsOnly===true);
+      // id is a confirmed release; withoutEffects drops effects and bindings (RFC §9.5).
+      const bytes=await client.exportRelease(nonempty(a.id),a.withoutEffects===true);
       await writeNewFile(nonempty(a.path),bytes);return {bytes:bytes.length};
     }
     default: fail('INVALID_ARGUMENT','未知表情包操作');

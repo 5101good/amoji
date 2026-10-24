@@ -52,17 +52,17 @@ export async function acquire($,s,expression) {
 export async function refreshPublisher($,s) {
   s.publishLogin=await publisherCall($,s,'loginStatus');
   s.publishDrafts=await publisherCall($,s,'drafts');
-  s.scenarios=await bridge($,s.context,'scenario',{method:'list'});
+  s.packs=await bridge($,s.context,'packs',{method:'list'});
 }
 export function openPublication(s,draft) {
   s.publication=draft;s.publicationFields=JSON.parse(JSON.stringify(draft.manifest));
   s.publicationRights=false;s.publicationPage=0;s.publicationVisited=new Set();
-  s.publicationActions=s.publicationFields.actions.map(a=>a.action_revision_id);
+  s.publicationEffects=(s.publicationFields.effects||[]).map(a=>a.effect_revision_id);
 }
 export async function savePublication($,s,step) {
   const d=s.publication,v=s.publicationFields;
-  const result=await publisherCall($,s,'save',{id:d.id,version:d.version,step,name:v.name,description:v.description||'',
-    license:v.rights.license,creator:v.rights.creator||'',source:v.rights.source||'',actions:s.publicationActions});
+  const result=await publisherCall($,s,'save',{id:d.id,version:d.version,step,name:v.name,description:v.description,
+    license:v.rights.license,creator:v.rights.creator||'',source:v.rights.source||'',effects:s.publicationEffects});
   openPublication(s,result);
   s.publishDrafts=await publisherCall($,s,'drafts');
 }

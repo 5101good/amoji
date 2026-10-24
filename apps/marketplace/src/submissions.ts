@@ -73,12 +73,11 @@ export async function snapshot(env: UploadEnv, u: Upload) {
     throw Error("CONTENT_INTEGRITY");
   return { bytes, files, manifest: JSON.parse(new TextDecoder().decode(raw)) };
 }
-/** These supported licenses expressly permit redistribution. Unknown licenses need a future review workflow. */
+/** These supported licenses expressly permit redistribution. Unknown licenses need a future review workflow. Effects are covered by the pack's rights (RFC §9). */
 function publicationRights(m: any) {
   for (const r of [
     m.rights,
     ...m.expressions.map((e: any) => e.rights),
-    ...m.actions.map((a: any) => a.rights),
   ]) {
     if (!["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0"].includes(r?.license))
       throw Error("DISTRIBUTION_LICENSE");
@@ -261,10 +260,10 @@ export async function submissionRoute(
             revision: e.revision_id,
             value: e,
           })),
-          ...manifest.actions.map((a: any) => ({
-            kind: "action",
-            id: a.action_id,
-            revision: a.action_revision_id,
+          ...(manifest.effects ?? []).map((a: any) => ({
+            kind: "effect",
+            id: a.effect_id,
+            revision: a.effect_revision_id,
             value: a,
           })),
         ].map(async (item) => ({

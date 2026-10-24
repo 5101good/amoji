@@ -1,16 +1,18 @@
-import { useText, AmojiLocaleProvider, type AmojiLocale, type TextMessage } from './i18n.js';
+import { useText, useUiLocale, AmojiLocaleProvider, type AmojiLocale, type TextMessage } from './i18n.js';
+import { actGloss, expressionText } from '../protocol/browser.js';
 import React, { useEffect, useState } from 'react';
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ClientPort } from './client.js';
 import type { DshRpc, HistoryEntry } from './contracts.js';
 import { expressionPresentationContent } from './expression-message.js';
 import { Styles } from './ui.js';
-import { AmojiImage, errorText } from './media.js';
+import { MessageMedia, errorText } from './media.js';
 
 interface UserProps { sessionId: string; node: { data: { seq?: number; content?: unknown; referenceLabels?: readonly string[]; skillNames?: readonly string[]; source?: { kind?: string; rpcId?: string } } } }
 function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: UserProps; messageId: string; Original: React.ComponentType<UserProps> }) {
- const t=useText();
+ const t=useText(); const locale=useUiLocale();
   const { sessionId } = props; const seq = props.node.data.seq;
+  const [busy, setBusy] = useState(false);
   const [row, setRow] = useState<HistoryEntry>(); const [error, setError] = useState<TextMessage>('');
   useEffect(() => {
     const abort = new AbortController();
@@ -22,15 +24,18 @@ function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: 
     }).catch(reason => { if (!abort.signal.aborted) setError(errorText(reason)); });
     return () => abort.abort();
   }, [rpc, sessionId, messageId, seq]);
-  const visible = row ? { ...props, node: { ...props.node, data: { ...props.node.data, content: expressionPresentationContent(props.node.data.content, row.message.revision) } } } : props;
+  const visible = row ? { ...props, node: { ...props.node, data: { ...props.node.data, content: expressionPresentationContent(props.node.data.content, row.message) } } } : props;
   if (!row) return error ? <><Original {...props}/><small role="alert">{t(error)}</small></> : <div className="amoji amoji-message amoji-message-human"><Styles/><span className="muted" role="status">{t("正在加载表情…")}</span></div>;
   const content = visible.node.data.content;
   const hasOtherContent = !Array.isArray(content) || content.length > 0 ||
     !!props.node.data.referenceLabels?.length || !!props.node.data.skillNames?.length;
   return <>{hasOtherContent && <Original {...visible}/>}
     <div className="amoji amoji-message amoji-message-human"><Styles/>
-      <AmojiImage rpc={rpc} sessionId={sessionId} refValue={row.meta.ref} meta={row.meta}/>
-      <details className="amoji-message-detail"><summary>{t("表情含义")}</summary><strong>{row.message.revision.name}</strong><p>{row.message.revision.semantics.meaning}</p><small>{t('固定版本 {revision}',{revision:row.meta.ref.revision_id})}</small></details>
+      <MessageMedia rpc={rpc} sessionId={sessionId} meta={row.meta}/>
+      {row.message.note && <p className="amoji-note-text">{row.message.note}</p>}
+      {row.message.anchor?.exact && <blockquote className="amoji-anchor">{row.message.anchor.exact}{row.message.anchor_degraded && <small> · {t("原文已变化，已改为指向整条消息")}</small>}</blockquote>}
+      <details className="amoji-message-detail"><summary>{t("表情含义")}</summary><strong>{actGloss(row.message.act,'h2a',locale).text}</strong>{row.message.revision && (() => { const text = expressionText(row.message.revision, locale); return <><p lang={text.locale}>{text.name} · {text.meaning}</p><small>{t('固定版本 {revision}',{revision:row.message.revision.revision_id})}</small></>; })()}</details>
+      {row.message.retracted_at ? <small className="muted">{t("已撤回")}</small> : rpc.retract && <button className="quiet" type="button" disabled={busy} onClick={() => { setBusy(true); void rpc.retract!(sessionId, row.message.message_id).then(rows => { const next = rows.find(r => r.message.message_id === row.message.message_id); if (next) setRow(next); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>{t("撤回")}</button>}
     </div>
   </>;
 

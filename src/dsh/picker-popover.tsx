@@ -25,12 +25,13 @@ export function PickerPopover({ anchor, onDismiss, children }: { anchor: React.R
       element.style.width = `${panelWidth}px`;
       element.style.left = `${Math.max(leftEdge + margin, Math.min(rect.left, leftEdge + width - margin - panelWidth))}px`;
       const available = upwards ? above : below;
-      const useViewport = available < Math.min(360, height - 2 * margin);
-      const panelHeight = Math.max(0, Math.min(560, useViewport ? height - 2 * margin : available));
-      // A definite height bounds percentage-sized details; a cramped composer
-      // must not reserve half the viewport at the expense of sending controls.
+      const viewportHeight = Math.max(0, height - 2 * margin);
+      // New conversations center the composer. If neither side fits the normal
+      // picker, use the viewport with room for controls and two image rows.
+      const useViewport = available < Math.min(560, viewportHeight);
+      const panelHeight = Math.min(useViewport ? 680 : 560, viewportHeight);
       element.style.height = element.style.maxHeight = `${panelHeight}px`;
-      element.style.top = useViewport ? `${top}px` : upwards ? 'auto' : `${anchorBottom + gap}px`;
+      element.style.top = useViewport ? `${topEdge + (height - panelHeight) / 2}px` : upwards ? 'auto' : `${anchorBottom + gap}px`;
       element.style.bottom = useViewport ? 'auto' : upwards ? `${view.innerHeight - anchorTop + gap}px` : 'auto';
     };
     position();

@@ -81,6 +81,63 @@ test('0.1.5-rc.2 defineTool 的真实入口：身份、回合、参数拒绝和�
   assert.equal((await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[])[0]!.message.presentation, 'fallback');
   assert.equal(f.a.events.some(event => event.type.startsWith('amoji/')), false, '不得污染原生 Session 冷恢复');
 });
+test('真实 defineTool 接受严格模型填满可选字段的 act 表情参数，保留有效内容且不修改 raw', async t => {
+  const f = await setup(t);
+  const raw = { act: 'core:welcome', selection_token: '', intensity: 2 as const, rationale: '回应用户的感谢。', responds_to: 'cc09de47-a404-4fe2-a47e-0f9d80f939b8', replies: [], options: [] };
+  const before = structuredClone(raw);
+  const result = parsed(await f.call('amoji_express', raw, f.exec(f.a)));
+  assert.equal(result.status, 'sent'); assert.equal(result.act, 'core:welcome');
+  const history = await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[];
+  assert.equal(history.length, 1);
+  assert.equal(history[0]!.message.rationale, raw.rationale); assert.equal(history[0]!.message.responds_to, raw.responds_to);
+  assert.equal(history[0]!.message.options, undefined); assert.equal(history[0]!.message.replies, undefined);
+  assert.deepEqual(raw, before, '规范化不得改写宿主保留的原始工具参数');
+  await assert.rejects(f.runtime.express({ host: 'dsh', hostInstanceId: 'fixture-host', sessionId: f.b.id, turnId: 'turn:11' }, raw), /INVALID_ARGUMENT/, '核心协议仍拒绝原始双字段输入');
+});
+
+test('真实 defineTool 接受 token 表情加空 act、空可选说明与空数组', async t => {
+  const f = await setup(t);
+  const token = parsed(await f.call('amoji_search', { query: '庆祝' }, f.exec(f.a))).candidates[0].selection_token;
+  const result = parsed(await f.call('amoji_express', { act: '', selection_token: token, intensity: 2, rationale: '', responds_to: '', replies: [], options: [] }, f.exec(f.a)));
+  assert.equal(result.status, 'sent'); assert.equal(result.act, 'core:celebrate');
+  const history = await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[];
+  assert.equal(history.length, 1); assert.equal(history[0]!.message.rationale, undefined); assert.equal(history[0]!.message.responds_to, undefined);
+});
+
+test('真实 defineTool 空占位规范化不放宽选择互斥、凭据、选项或快捷回复校验', async t => {
+  const f = await setup(t);
+  const call = (raw: unknown) => f.call('amoji_express', raw, f.exec(f.a));
+  await assert.rejects(call({ act: 'core:welcome', selection_token: '/' }), /INVALID_ARGUMENT/);
+  await assert.rejects(call({ act: '', selection_token: '' }), /INVALID_ARGUMENT/);
+  await assert.rejects(call({ act: ' ', selection_token: '' }), /INVALID_ARGUMENT/, '空白内容不是空占位，不得猜测意图');
+  await assert.rejects(call({ act: 'core:welcome', selection_token: ' ' }), /INVALID_ARGUMENT/);
+  assert.equal(parsed(await call({ act: '', selection_token: '/', replies: [], options: [] })).reason, 'invalid_selection_token');
+  assert.equal(parsed(await call({ act: 'core:decide', selection_token: '', options: [] })).reason, 'invalid_options');
+  assert.equal(parsed(await call({ act: 'core:decide', options: [{ id: 'a', label: '甲' }] })).reason, 'invalid_options');
+  assert.equal(parsed(await call({ act: 'core:decide', options: [{ id: 'a', label: '甲' }, { id: 'a', label: '乙' }] })).reason, 'invalid_options');
+  assert.equal(parsed(await call({ act: 'core:welcome', options: [{ id: 'a', label: '甲' }, { id: 'b', label: '乙' }] })).reason, 'invalid_options');
+  assert.equal(parsed(await call({ act: 'core:welcome', replies: ['not-an-act'] })).reason, 'invalid_replies');
+  await assert.rejects(call({ act: 'core:decide', options: [{ id: '', label: '甲' }, { id: 'b', label: '乙' }] }), /INVALID_ARGUMENT/);
+  await assert.rejects(call({ act: 'core:welcome', replies: [''] }), /INVALID_ARGUMENT/);
+  await assert.rejects(call({ act: 'core:welcome', selection_token: null }), /invalid arguments/i);
+  await assert.rejects(call({ act: 'core:welcome', options: '' }), /invalid arguments/i);
+  await assert.rejects(call({ act: 'core:welcome', extra: '' }), /INVALID_ARGUMENT/);
+  assert.deepEqual(await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()), [], '拒绝的输入不能写入消息');
+  assert.equal(parsed(await call({ act: 'core:decide', selection_token: '', rationale: '', responds_to: '', replies: ['core:clarify'], options: [{ id: 'a', label: '甲' }, { id: 'b', label: '乙' }] })).status, 'sent', '有效决策选项和快捷回复保留');
+});
+
+test('真实 defineTool resolve 将未选路径的空标识当作省略，搜索必填文本保持严格', async t => {
+  const f = await setup(t); const e = (await f.client.list())[0]!;
+  const byRef = parsed(await f.call('amoji_resolve', { asset_id: e.asset_id, revision_id: e.revision_id, message_id: '' }, f.exec(f.a)));
+  assert.equal(byRef.revision_id, e.revision_id);
+  const emitted = await f.call('amoji_express', { act: 'core:welcome' }, f.exec(f.a)) as { meta: { messageId: string } };
+  const byMessage = parsed(await f.call('amoji_resolve', { asset_id: '', revision_id: '', message_id: emitted.meta.messageId }, f.exec(f.a)));
+  assert.equal(byMessage.message_id, emitted.meta.messageId);
+  assert.deepEqual(parsed(await f.call('amoji_resolve', { asset_id: '', revision_id: '', message_id: '' }, f.exec(f.a))), { error: 'invalid_arguments' });
+  await assert.rejects(f.call('amoji_resolve', { asset_id: e.asset_id, revision_id: '/', message_id: '' }, f.exec(f.a)), /REVISION_NOT_FOUND/);
+  await assert.rejects(f.call('amoji_search', { query: '' }, f.exec(f.a)), /INVALID_ARGUMENT/);
+});
+
 test('idle submission 不造 turn；幂等 requestId、纯文字 prompt 与持久记录恢复', async t => {
   const f = await setup(t); f.turns.clear(); const [expression, other] = await f.client.list(); assert.ok(expression && other);
   const ref = { asset_id: expression.asset_id, revision_id: expression.revision_id };

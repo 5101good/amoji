@@ -43,17 +43,34 @@ const sameInput = (a: SubmitInput, b: SubmitInput) => JSON.stringify(a) === JSON
 
 const TOOL_PARAMETERS: Record<'amoji_express' | 'amoji_search' | 'amoji_resolve', ToolOptions['parameters']> = {
   amoji_express: {
-    act: { type: 'string', description: '注册表码位，如 core:uncertain；与 selection_token 二选一' },
-    selection_token: { type: 'string', description: '本回合 amoji_search 返回的凭据' },
+    act: { type: 'string', description: '注册表码位，如 core:uncertain；与 selection_token 二选一，不使用时省略或传空字符串' },
+    selection_token: { type: 'string', description: '本回合 amoji_search 返回的凭据；与 act 二选一，不使用时省略或传空字符串，不能猜测凭据' },
     intensity: { type: 'integer', enum: [1, 2, 3] },
-    rationale: { type: 'string', description: '不超过 80 字，说明为什么发这个表情' },
-    responds_to: { type: 'string' },
-    replies: { type: 'array', items: { type: 'string' }, description: '最多 4 个人可发出的码位作为快捷回复' },
-    options: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string', required: true }, label: { type: 'string', required: true } } }, description: 'core:decide 必填，2–6 个选项' },
+    rationale: { type: 'string', description: '不超过 80 字，说明为什么发这个表情；不使用时省略或传空字符串' },
+    responds_to: { type: 'string', description: '所回应的消息 ID；不使用时省略或传空字符串' },
+    replies: { type: 'array', items: { type: 'string' }, description: '最多 4 个人可发出的码位作为快捷回复；不使用时省略或传空数组' },
+    options: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string', required: true }, label: { type: 'string', required: true } } }, description: 'core:decide 必填，2–6 个选项；其他码位请省略或传空数组' },
   },
   amoji_search: { query: { type: 'string', required: true }, limit: { type: 'integer' } },
-  amoji_resolve: { asset_id: { type: 'string' }, revision_id: { type: 'string' }, message_id: { type: 'string' } },
+  amoji_resolve: {
+    asset_id: { type: 'string', description: '精确版本的资产 ID，与 revision_id 一起使用；按消息读取时省略或传空字符串' },
+    revision_id: { type: 'string', description: '精确版本 ID，与 asset_id 一起使用；按消息读取时省略或传空字符串' },
+    message_id: { type: 'string', description: '消息 ID；按资产和版本读取时省略或传空字符串' },
+  },
 };
+/** Some strict model transports fill optional SDK fields with empty placeholders.
+ * Normalize only those declared optional values at the dsh boundary; keep the
+ * shared protocol, nonempty values and the original host arguments unchanged. */
+function modelArguments(name: keyof typeof TOOL_PARAMETERS, raw: unknown): Record<string, unknown> {
+  const args = { ...object(raw, Object.keys(TOOL_PARAMETERS[name]), name === 'amoji_search' ? ['query'] : []) };
+  const optionalText = name === 'amoji_express' ? ['act', 'selection_token', 'responds_to', 'rationale']
+    : name === 'amoji_resolve' ? ['asset_id', 'revision_id', 'message_id'] : [];
+  for (const key of optionalText) if (args[key] === '') delete args[key];
+  if (name === 'amoji_express') {
+    for (const key of ['replies', 'options']) if (Array.isArray(args[key]) && args[key].length === 0) delete args[key];
+  }
+  return args;
+}
 const TOOL_DESCRIPTIONS = {
   amoji_express: EXPRESS_DESCRIPTION,
   amoji_search: '只在需要指定角色或细腻语气时检索；查询可用任何语言。返回候选语义与供 amoji_express 使用的 selection_token。limit 1–5，默认 3。',
@@ -91,7 +108,7 @@ export class DshAdapter {
       output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: modelText(value) }], ...(name === 'amoji_express' ? { presentationMeta: (_args: unknown, value: unknown) => (record(value).meta ?? null) as JsonValue } : {}) },
       execute: async (raw, exec): Promise<JsonValue> => {
         const frozen = this.capture(exec);
-        const args = object(raw, Object.keys(TOOL_PARAMETERS[name]), name === 'amoji_search' ? ['query'] : []);
+        const args = modelArguments(name, raw);
         const run = await runModelTool(this.runtime, frozen.context, name, args); frozen.check();
         return { text: JSON.stringify(run.result), ...(run.message ? { meta: visualMeta(run.message) as unknown as JsonValue } : {}) };
       } };

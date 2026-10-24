@@ -222,6 +222,7 @@ test("creator studio loads only on demand and saves a real local pack draft", as
   await expect(page.getByLabel("包名称 · en", { exact: true })).toHaveValue("Classic");
   await name.fill("我的协作表情");
   await expect(name).toHaveValue("我的协作表情");
+  await expect(page.locator(".studio-editor > .note")).toHaveAttribute("data-save-state", "saved");
   await page.reload();
   await expect(name).toHaveValue("我的协作表情");
   await page.getByRole("button", { name: "下一步", exact: true }).click();
@@ -235,6 +236,73 @@ test("creator studio loads only on demand and saves a real local pack draft", as
   ).toBeVisible();
   await noOverflow(page);
   await accessible(page);
+});
+
+test("a pending draft save is visible and protects refresh until the latest edit is stored", async ({ page }) => {
+  // Hold the actual IndexedDB connection before its write transaction starts.
+  await page.addInitScript(() => {
+    const open = indexedDB.open.bind(indexedDB);
+    indexedDB.open = (...args) => {
+      const request = open(...args);
+      if (window.holdDraftWrite) Object.defineProperty(request, "onsuccess", {
+        set(callback) {
+          request.addEventListener("success", event => {
+            window.releaseDraftWrite = () => callback.call(request, event);
+          });
+        },
+      });
+      return request;
+    };
+  });
+  await configure(page, { role: "creator" });
+  await page.goto("/?view=studio");
+  await page.locator("input[type=file]").setInputFiles(resolve("../../assets/official-packs/classic.amoji"));
+  const name = page.getByLabel("包名称 · zh-CN", { exact: true });
+  await expect(name).toBeEnabled();
+  await page.evaluate(() => { window.holdDraftWrite = true; });
+  await name.fill("等待写入的草稿");
+  const note = page.locator(".studio-editor > .note");
+  await expect(note).toContainText("正在保存草稿");
+  await expect(note).not.toContainText("已保存");
+  await name.fill("最后一次修改");
+  const warning = page.waitForEvent("dialog");
+  const reload = page.evaluate(() => window.location.reload());
+  const dialog = await warning;
+  expect(dialog.type()).toBe("beforeunload");
+  await dialog.dismiss();
+  await reload;
+  await expect(name).toHaveValue("最后一次修改");
+  await expect.poll(() => page.evaluate(() => typeof window.releaseDraftWrite)).toBe("function");
+  await page.evaluate(() => { window.holdDraftWrite = false; window.releaseDraftWrite(); });
+  await expect(note).toHaveAttribute("data-save-state", "saved");
+  await page.reload();
+  await expect(name).toHaveValue("最后一次修改");
+});
+
+test("a failed local save stays unsaved and the next successful edit recovers", async ({ page }) => {
+  await configure(page, { role: "creator" });
+  await page.goto("/?view=studio");
+  await page.locator("input[type=file]").setInputFiles(resolve("../../assets/official-packs/classic.amoji"));
+  const name = page.getByLabel("包名称 · zh-CN", { exact: true });
+  await expect(name).toBeEnabled();
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    window.rejectDraftWrites = true;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === "drafts" && window.rejectDraftWrites) throw new DOMException("Storage full", "QuotaExceededError");
+      return put.apply(this, args);
+    };
+  });
+  await name.fill("尚未保存的修改");
+  const note = page.locator(".studio-editor > .note");
+  await expect(note).toHaveAttribute("data-save-state", "failed");
+  await expect(note).not.toContainText("已保存");
+  await expect(page.getByRole("status")).toContainText("无法保存本地草稿");
+  await page.evaluate(() => { window.rejectDraftWrites = false; });
+  await name.fill("恢复保存的修改");
+  await expect(note).toHaveAttribute("data-save-state", "saved");
+  await page.reload();
+  await expect(name).toHaveValue("恢复保存的修改");
 });
 
 test("failed creator chunk leaves navigation, sign-out and recovery available", async ({

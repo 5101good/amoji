@@ -98,21 +98,46 @@ export function UploadPanel({
     } | null>(null);
   const status = useRef<HTMLParagraphElement>(null);
   const saveTail = useRef(Promise.resolve());
+  const saveVersion = useRef(0);
+  const unsaved = useRef(false);
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">("saved");
+  useEffect(() => {
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      if (!unsaved.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectDraft);
+    return () => window.removeEventListener("beforeunload", protectDraft);
+  }, []);
   function notify(text: string) {
     setMessage(text);
     setTimeout(() => status.current?.focus(), 0);
   }
   async function save(d: Draft | null) {
+    const version = ++saveVersion.current;
+    unsaved.current = true;
+    setSaveState("saving");
     setDraft(d);
     const work = saveTail.current.then(() => draftStore(accountId, d));
     saveTail.current = work.then(
       () => {},
       () => {},
     );
-    await work;
+    try {
+      await work;
+      if (version === saveVersion.current) {
+        unsaved.current = false;
+        setSaveState("saved");
+      }
+    } catch (error) {
+      if (version === saveVersion.current) setSaveState("failed");
+      throw error;
+    }
   }
   function edit(d: Draft) {
     setPreview(null);
+    setMessage("");
     void save({
       ...d,
       archive: undefined,
@@ -427,8 +452,10 @@ export function UploadPanel({
                 </label>
               ) : (
                 <>
-                  <p className="note">
-                    {draft.filename} · {t.saved}
+                  <p className="note" data-save-state={saveState} aria-live="polite">
+                    {draft.filename} · {saveState === "saved" ? t.saved
+                      : saveState === "saving" ? (zh ? "正在保存草稿…" : "Saving draft…")
+                      : (zh ? "草稿尚未保存，请勿关闭页面。" : "Draft not saved. Keep this page open.")}
                   </p>
                   {draft.step === 1 && (
                     <div className="editor-fields">

@@ -1,6 +1,8 @@
 import { bridge, L, refOf, errorText, local, view } from './transport.js';
 import { state, send, invalidate, navigate } from './controller.js';
 const same=(a,b)=>a.release_id===b.release_id&&a.effect_id===b.effect_id&&a.effect_revision_id===b.effect_revision_id;
+// One effect revision can ship in several releases (the same effect in two packs): a row's identity is the whole selection.
+const idOf=c=>c.selection.release_id+':'+c.selection.effect_revision_id;
 const groupOf=e=>e.kind==='context'?e.conflict_group:e.template==='response-organization@1'?'response-organization':'completion-report';
 export async function loadGuidance($,s,expression) {
   s.guidanceExpression=expression||null;
@@ -66,12 +68,12 @@ export function guidanceView($,s,k) {
     ...choices.rules.map(c=>{
       const on=active.some(r=>same(r,c.selection));
       const conflict=choices.rules.find(other=>active.some(r=>same(r,other.selection))&&groupOf(other.effect)===groupOf(c.effect)&&!same(other.selection,c.selection));
-      return ui.card({key:'guidance-card:'+c.selection.effect_revision_id,selected:on,gap:0,children:[
+      return ui.card({key:'guidance-card:'+idOf(c),selected:on,gap:0,children:[
         row([ui.label(local(s,c.effect.title,c.source.original_locale)),on&&ui.badge('success',tr('✓ 已启用','✓ On'))]),
         ui.body(effectText(s,c.effect,c.source.original_locale),inner),
         ui.meta([tr('来自 ','From ')+c.source.origin,'v'+c.source.version],inner),
         conflict&&ui.tone('warning',tr('启用后将替换：','Enabling replaces: ')+local(s,conflict.effect.title,conflict.source.original_locale),inner),
-        button('guidance-enable:'+c.selection.effect_revision_id,tr(on?'停用':conflict?'替换并启用':'启用',on?'Disable':conflict?'Replace and enable':'Enable'),async()=>{
+        button('guidance-enable:'+idOf(c),tr(on?'停用':conflict?'替换并启用':'启用',on?'Disable':conflict?'Replace and enable':'Enable'),async()=>{
           const keep=active.filter(r=>!same(r,c.selection)&&(!conflict||!same(r,conflict.selection)));
           if(!on&&keep.length>=2)throw new Error('EFFECT_LIMIT');
           s.activeGuidance=on?keep:[...keep,c.selection];s.guidanceTouched=true;s.guidanceReceipt=null;
@@ -84,11 +86,11 @@ export function guidanceView($,s,k) {
       button('guidance-market',tr('去表情市场','Open the market'),()=>navigate($,s,'market')),
     ]}),
     s.guidanceExpression&&choices.once.length>0&&ui.heading(tr('随「','Send “')+view(s,s.guidanceExpression).name+tr('」一起发送','” with guidance')),
-    ...choices.once.map(c=>ui.card({key:'guidance-once-card:'+c.selection.effect_revision_id,gap:0,children:[
+    ...choices.once.map(c=>ui.card({key:'guidance-once-card:'+idOf(c),gap:0,children:[
       ui.label(local(s,c.effect.title,c.source.original_locale),inner),
       ui.body(effectText(s,c.effect,c.source.original_locale),inner),
       ui.meta([tr('仅本次表达','This expression only'),c.source.origin],inner),
-      Button({key:'guidance-once:'+c.selection.effect_revision_id,label:tr('附带这条提示发送','Send with this guidance'),variant:'primary',onPress:()=>send($,s,s.guidanceExpression,undefined,c.selection)}),
+      Button({key:'guidance-once:'+idOf(c),label:tr('附带这条提示发送','Send with this guidance'),variant:'primary',onPress:()=>send($,s,s.guidanceExpression,undefined,c.selection)}),
     ]})),
   ]);
 }

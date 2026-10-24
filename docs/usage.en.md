@@ -2,6 +2,8 @@
 
 [中文](usage.md) · [Documentation](README.en.md)
 
+This guide covers the dsh workflow in Amoji 2.0.0. See the [Mods guide](claude-mods.en.md) for Claude Desktop Code entry points and differences. Version 2.0.0 uses the Amoji 0.1 protocol; 1.x users should read the [upgrade and backup guidance](dsh-installation.en.md#upgrade-from-1x-to-200) first.
+
 ## Send and receive
 
 Select a workspace in dsh and open Expressions in the composer. Search by name or meaning (a query in any language searches every language), then click an image to send. The details button only reveals the fixed meaning. Quick expressions at the top send an act without choosing a picture; your preferred pack supplies the artwork. You can add a note of up to 140 characters, delivered as your own words. A selection is bound to its conversation; select again after changing conversations. An expression can be the first message without preliminary text.
@@ -16,7 +18,7 @@ Classic and Office are two official packs with 24 expressions each, realizing th
 
 In the Preferences page you can reorder preferred packs; set how many AI expressions one answer may carry (default 1, or 0); switch AI expressions on or off per family (grounding, steering, progress, epistemic, social); pause AI expressions; and reduce motion (animated images then show their still cover). Preferences apply across conversations sharing the library and do not guarantee an expression every turn.
 
-The interface follows dsh's Chinese/English setting. Built-in expressions carry their Chinese original and an English meaning, each translation labeled with how it was made; English in the character packs is machine-translated. Changing the UI language shows each expression's meaning by locale fallback without rewriting the original.
+The interface follows dsh's Chinese/English setting. Built-in expressions carry their Chinese original and an English meaning, each translation labeled with how it was made; all 20 English meanings in the five character packs were machine-translated and reviewed by the maintainer, labeled `method: "machine-reviewed"` rather than represented as entirely human translations. Changing the UI language shows each expression's meaning by locale fallback without rewriting the original.
 
 ## Create an expression
 

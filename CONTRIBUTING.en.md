@@ -2,7 +2,7 @@
 
 [中文](CONTRIBUTING.md)
 
-Use [Issues](https://github.com/5101good/amoji/issues) for reproducible bugs, feature discussions, or documentation improvements. Version 1.0 primarily maintains dsh; explain use cases and compatibility boundaries before proposing a new host or substantial behavior change.
+Use [Issues](https://github.com/5101good/amoji/issues) for reproducible bugs, feature discussions, or documentation improvements. Version 2.0.0 maintains adapters for dsh and local Claude Desktop Code sessions; explain use cases and compatibility boundaries before proposing a new host or substantial behavior change.
 
 Read [development](docs/development.en.md) and [architecture](docs/architecture.en.md). Keep changes focused, add meaningful regression coverage for behavior changes, and run type checking, core tests, and relevant dsh tests. For documentation, check links and language consistency; prose-only changes do not need new runtime tests.
 

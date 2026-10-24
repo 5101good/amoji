@@ -2,53 +2,46 @@
 
 [English](release.en.md) · [文档首页](README.md)
 
-## 1.1 范围
+## 2.0.0 范围
 
-主要宿主是 dsh 0.1.5-rc.2，运行需要 Node.js >=24。主要分发形式为 [GitHub Release](https://github.com/5101good/amoji/releases) 中的 `amoji-dsh-1.1.0.tgz`，通过 dsh 官方 plugin CLI 安装；不是 npm registry 发布承诺，也不是捆绑 Node/dsh/原生依赖的离线安装器。
+Amoji 2.0.0 实现 [Amoji 0.1 协议](specs/amoji-0.1-rfc.md)：码位注册表、多语言固定语义与翻译来源、表情包与可选效果、AI 按码位表达、AI 工作时的纠偏信号与中断，以及决策选项和快捷回复。产品版本 `2.0.0`、协议 `0.1`、注册表 `0.1-r3`、共享 API `3` 和数据库 `1` 分别维护。
 
-包含双向固定语义表情、经典/办公各 24 项、原生选择器和消息展示、个人库与草稿、明确预览确认、版本与归档、包导入导出、AI 偏好和基于所选宿主模型的文字建议。界面跟随 dsh 中英语言；内置固定语义仍为中文。
+支持的分发目标是 dsh **0.1.5-rc.2** 与支持 Mods 的 **Claude Desktop Code 本地会话**（Claude Code 基线 **2.1.295+**），均需要 **Node.js >=24**。[GitHub Release](https://github.com/5101good/amoji/releases/tag/v2.0.0) 提供 `amoji-dsh-2.0.0.tgz` 和 `amoji-claude-mods-2.0.0.zip`。依赖在安装时解析，发行包不捆绑 Node、宿主或原生依赖；这不是离线安装器或 npm registry 发布承诺。
 
-1.1 新增审核制场景包市场、R2 浏览器直传、dsh 精确版本安装、可选回合提示与会话规则，以及独立 Claude Desktop Mods ZIP。数据库升级、安装方式和兼容边界见 [1.1 发布说明](releases/v1.1.0.md)。
+两套适配器提供双向表情、个人库、草稿确认、版本与归档、包导入导出、AI 偏好和文字建议，并接入审核制表情包市场、账号连接、分享投稿和可选协作提示。经典与办公各 24 个表情、实现相同的 22 个码位；七套官方包作为独立 `.amoji` 附件分发。中英界面按语言回退显示多语言语义，不自动翻译用户内容。完整范围和安装命令见 [2.0.0 发布说明](releases/v2.0.0.md)。
 
-## Amoji 0.1（源码，尚未发布）
+## 破坏性变更与升级
 
-当前源码把全部宿主、市场和官方内容迁移到 [Amoji 0.1 协议](specs/amoji-0.1-rfc.md)：码位注册表、多语言语义与翻译来源、表情包与效果、AI 按码位表达、AI 工作时的纠偏信号与中断。0.1 取代此前全部格式，不提供兼容层：1.x 的 `.amoji` 包不能导入，共享 API 升为 `3`，本地数据库从版本 `1` 重新开始，市场目录需执行迁移 `0010-amoji-0.1.sql`。
+Amoji 0.1 取代此前全部格式，不提供兼容层。1.x 的 `.amoji` 包不能导入，1.x 数据库没有就地迁移路径；数据库从 `1` 重新编号不表示旧库兼容。2.0.0 在原目录使用 `library-0.1.sqlite`，保留旧 `library.sqlite`，继续使用 `blobs/`，不要求空目录。升级前关闭所有旧客户端、等待共享服务退出并备份完整目录；需要隔离试用时可另设 `AMOJI_DATA_DIR`。不要删除旧库、改数据库文件名或版本号，也不要同时运行共用同一目录的新旧服务。共享库的 dsh 与 Claude Mods 应同时使用 2.0.0。详见[升级与回退](dsh-installation.md#从-1x-升级到-200)。
 
-已知差距：
-
-- dsh 尚不能识别宿主中的待决确认，因此 pressure_sensitive 码位的“待决确认时禁用”只在 `core:decide` 之后生效。
-- RFC 允许的自适应频率未实现，AI 表情只按每个回应窗口的固定上限限制。
-- dsh 界面尚未提供锚定到消息原文的选择菜单；协议与服务端已支持锚定。
-- 五套角色包的英文语义为机器翻译，未经人工审核。
-
-## 证据分层
-
-已有历史证据包括 macOS arm64 上的实际插件安装、浏览器选图与双向显示、生命周期恢复，以及一次成功的 Flash AI 文字建议生成、修改、采用和保存。这些是开发阶段的观察，不是对对应发行包的替代验收；1.0 的历史结果见[发布审计](release-audit.md)，1.1 的交付范围见[发布说明](releases/v1.1.0.md)。旧记录可在 Git 历史追溯。
-
-最终发行包的检查结果应由其对应工作流与发布验收记录证明。源码存在、自动测试通过、安装退出码为 0、浏览器展示成功和完整真实模型回合成功是不同结论，不相互替代。
+市场服务另需迁移 `0010-amoji-0.1.sql` 并发布兼容的包版本；插件发行不证明生产市场已完成迁移或部署。运营操作见[市场运营与恢复](marketplace-operations.md)。
 
 ## 已知限制
 
-- macOS arm64 是已有实际宿主证据的平台；Linux、Windows、其他 dsh 版本没有完整真机矩阵。
+- dsh 尚不能识别宿主中的待决确认，因此 pressure_sensitive 码位的“待决确认时禁用”只在 `core:decide` 之后生效。
+- RFC 允许的自适应频率未实现；AI 表情按每个回应窗口的固定上限限制。
+- dsh 界面尚未提供锚定到消息原文的选择菜单；协议与服务端支持锚定。
+- 五套角色包全部 20 条英文已由维护者人工审校确认，标为机器翻译后人工审核（`method: "machine-reviewed"`）；[审校记录](releases/v2.0.0-english-review.md)与生产市场审核分别维护。
+- macOS arm64 有历史真机记录；Linux、Windows、其他 dsh 版本没有完整真机矩阵。历史结果不能代替本次候选包验收。
 - AI 原生图片以 direct tools 路径为验证目标。Code Dispatch / PTC 嵌套调用可能丢失视觉元数据，不保证渲染。
-- 某提供方 Flash 路由的 AI 检索、发送和显示成功后，后续模型请求因要求 `reasoning_text` 返回 HTTP 400。它属于宿主/提供方续答兼容边界；Amoji 不能保证所有模型完整工具回合成功。
-- 建议能力依赖宿主模型服务和凭据；超时、取消、配额、模型列表或输出格式问题会明确失败，不自动重试或伪装成本地模板结果。
-- 切换 UI 语言按语言回退显示已有语义，不会自动翻译名称、含义、标签和用户文字；未保存草稿输入不跨页面刷新保留。
-- 旧 Codex/Claude hook 适配器作为 legacy 保留。当前源码中的 Claude Desktop Mods 是独立适配器；范围和验证状态见 [Mods 指南](claude-mods.md)。1.1 开始提供此适配器的独立 ZIP。
+- 部分模型的工具续答存在宿主/提供方兼容问题；历史 Flash 路由曾因缺少 `reasoning_text` 返回 HTTP 400。Amoji 不保证所有模型完成完整工具回合。
+- 文字建议依赖宿主模型服务与凭据。超时、取消、配额、模型列表和输出格式错误会明确失败，无自动重试或伪装成本地模板结果。
+- Claude Mods 的文件输入采用本地路径，动画显示静态封面；普通 Chat、Cowork、云端会话不在其适配范围。详见 [Mods 指南](claude-mods.md)。
+- 独立真人易用性研究未作为已完成项；旧 Codex/Claude hook 适配器仍为 legacy。
+
+## 证据分层
+
+源码实现、自动测试、发行包完整性、安装退出码、浏览器/原生绘制、完整真实模型回合和生产服务部署是不同结论，分别提供证据。最终发行包应能追溯到对应提交、标签、Actions 工作流、附件摘要及实际验收记录；本地构建不证明已公开发布。
+
+历史材料包括 [1.0 发布审计](release-audit.md)、[1.1 发布说明](releases/v1.1.0.md)与 [Claude 历史真机记录](claude-mods.md#历史真机验证记录)。其中的安装、模型、备份、恢复与公网结果只对应原记录，不能转用为 2.0.0 的验收结论。
 
 ## 维护者发布流程
 
-1. 将根包、dsh 包与 Claude Mods 清单版本保持一致，更新中英指南和发布正文；产品版本与 Schema/API/数据库版本分别维护。
-2. 从候选提交执行类型检查、核心测试和完整 dsh 测试，检查构建包清单、内置官方包数量、许可、隐私与个人路径。
-3. 对最终候选执行实际安装和适用的 UI/模型验收，记录失败与未验证项。费用型请求按明确范围执行。
-4. 推送对应 `v1.1.0` 标签，由仓库官方 GitHub Actions 构建、校验并发布同一版本的 tgz、`SHA256SUMS` 校验和、发布说明及 `BUILD_PROVENANCE.json`（提交、标签与 Actions 运行地址）。具体工作流见 [Actions](https://github.com/5101good/amoji/actions)。
-5. 核对 Release 附件、SHA-256、标签提交及实际下载包；工作流定义存在不代表已成功发布。
+1. 将根 `package.json` 与锁文件、dsh 包和 Claude Mods 清单同步为 `2.0.0`，更新中英指南与 `docs/releases/v2.0.0.md`。产品、协议、API 和数据库版本分别维护；历史发行文件不重写。
+2. 从最终候选提交执行类型检查、核心测试、完整 dsh 测试、Claude Mods strict 校验/控件测试和制品测试；检查官方包、构建清单、依赖许可、隐私与个人路径。
+3. 对最终候选执行实际安装和适用的 UI/模型验收，分别记录通过、失败与未验证项。费用型请求保持在明确范围内；英文语义只有经过真人确认后才可标为人工审校。
+4. 构建统一附件：`node scripts/release-artifacts.mjs` 按根版本读取 `docs/releases/v2.0.0.md`，`node scripts/append-claude-release.mjs` 校验并加入 Claude ZIP，生成统一的 `SHA256SUMS` 和 `BUILD_PROVENANCE.json`。本地检查不能替代远端工作流。
+5. 推送对应 `v2.0.0` 标签，由仓库官方 [CI and release 工作流](../.github/workflows/ci.yml)从同一提交构建、校验并发布 tgz、ZIP、七套官方包、许可、发布正文、摘要和 provenance（提交、标签、Actions 运行地址）。
+6. 检查对应 [Actions](https://github.com/5101good/amoji/actions) 的实际结果；下载 Release 附件，核对 SHA-256、标签提交与 provenance。工作流文件存在不代表成功发布，插件 Release 也不代表市场服务已部署或第三方目录已更新。
 
-代码及技术文档 MIT；官方表情包的素材、固定语义与提示 CC0-1.0。依赖许可清单以实际构建为准，Sharp/libvips 等依赖保持自身许可。参见 [NOTICE](../NOTICE) 与[官方表情包](../assets/official-packs/README.md)。
-
-
-## Claude Mods 构建附加包
-
-当前 CI 还会构建 `amoji-claude-mods-<版本>.zip`，解压验证、安装锁定的生产依赖并启动真实桥接，同时执行官方 CLI strict 校验及控件测试。ZIP 不携带 node_modules、私有配置或原生二进制，所有文件经过个人路径及凭据格式扫描。
-
-`append-claude-release.mjs` 将已校验 ZIP 加入同一发布目录、SHA-256 和 provenance。只增加后续候选的附件，不重写已发布的 1.0.0。[Claude 原生验收](claude-mods.md) 与自动测试分别记录；本地构建不是发布记录。每次发行以对应标签的 Actions 和附件为准。
+代码及技术文档为 MIT；官方表情包的素材、固定语义与提示为 CC0-1.0。依赖许可清单以实际构建为准，Sharp/libvips 等依赖保留自身许可。参见 [NOTICE](../NOTICE) 与[官方表情包](../assets/official-packs/README.md)。

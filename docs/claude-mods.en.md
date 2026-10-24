@@ -4,11 +4,11 @@
 
 Targets **Claude Desktop → Code → local sessions**, using native AbovePrompt, Pane and message rendering with the shared local Amoji library. Ordinary Claude Chat/MCP Apps is a separate host surface and is not covered by this adapter.
 
-See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. Version 1.1.0 includes the base Claude adapter. Market and publishing support are new in the current source and have not shipped in a new tagged release.
+See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. Version 2.0.0 adopts the Amoji 0.1 protocol and includes expressions, the marketplace, publishing and optional guidance. See the [2.0.0 release notes](releases/v2.0.0.md) for older library and pack compatibility.
 
 ## Expression market and sharing
 
-These additions are in the current source. The existing v1.1.0 Claude release ZIP does not contain the new entries; build from the current source to try them.
+The 2.0.0 Claude Mods ZIP includes the following marketplace and publishing capabilities.
 
 1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
 2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
@@ -33,13 +33,13 @@ src/application: interaction use cases, range browsing, confirmation and suggest
 SharedClient → shared service → LibraryStore / immutable assets and messages
 ```
 
-The shared layer imports no Claude `$`, controls, events, markers or model SDK. A future Codex adapter can reuse the use cases while implementing its own identity, presentation, submission and generation. dsh retains its validated protocol without migrating user data.
+The shared layer imports no Claude `$`, controls, events, markers or model SDK. A future Codex adapter can reuse the use cases while implementing its own identity, presentation, submission and generation. The 2.0.0 dsh and Claude Mods adapters use the same protocol and library. There is no in-place migration for 1.x data. Version 2.0.0 uses `library-0.1.sqlite` in the same directory and preserves `library.sqlite`; stop the old service and back up the complete directory before upgrading.
 
 Mods statically follows `$` only inside one file, so readable modules in `src/claude-mods/native/` are bundled into `hooks/register.js`. Domain and Node code remain outside that restricted environment.
 
 ## Two-way messages
 
-Human sending first creates a frozen, request-idempotent shared-service message, then calls `$.prompt.submit`. Only a text marker and fixed meaning enter the conversation. AI tools accept a query or a selection token from the current turn; session and turn identity come from host events. Subagents cannot borrow the main turn.
+Human sending first creates a frozen, request-idempotent shared-service message, then calls `$.prompt.submit`. Only a text marker and fixed meaning enter the conversation. AI uses `amoji_express` with an act or a search token from the current turn, plus `amoji_search` for search and `amoji_resolve` for meaning lookup. Session and turn identity come from host events; subagents cannot borrow the main turn.
 
 Rendering resolves only persisted markers from the same session and direction, preserving surrounding prose. Unknown, forged, cross-session or altered human payloads retain their original text. History uses frozen revisions regardless of preferred-pack changes, archiving or later edits.
 
@@ -83,7 +83,9 @@ Mods exposes no file chooser, so file input uses local paths. UI language follow
 `.cache/claude-mods` is a local marketplace. The portable ZIP carries locked dependencies without embedding Sharp/libvips. CI builds and validates it before adding it to GitHub Release checksums and provenance. Publishing occurs only when a version tag is explicitly pushed.
 
 
-## Native verification scope
+## Historical native verification
+
+These records retain their original dates and version context. They do not establish acceptance of the final 2.0.0 archive; see the [2.0.0 release notes](releases/v2.0.0.md) for this release’s scope.
 
 On 2026-10-11, an isolated local project and Amoji library in Claude Desktop 2.31226.1 / embedded Claude Code 2.1.295 were tested with Haiku 5.5 at low effort:
 

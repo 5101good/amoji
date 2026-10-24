@@ -1,6 +1,6 @@
 # Amoji
 
-[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 1.1](https://github.com/5101good/amoji/releases/tag/v1.1.0)
+[中文](README.md) · [Get started](#install) · [Documentation](docs/README.en.md) · [Download 2.0.0](https://github.com/5101good/amoji/releases/tag/v2.0.0)
 
 **Working with AI needs room for expression.**
 
@@ -14,7 +14,7 @@ AI-native expressions: people see the artwork; AI reads its fixed meaning. A sha
 
 ## The Amoji 0.1 protocol
 
-The current source implements [Amoji 0.1](docs/specs/amoji-0.1-rfc.md). Every expression realizes one **act** from a shared registry (for example `core:uncertain`, “I'm not sure yet”). Packs provide artwork and fixed meanings in several languages; optional **effects** are text guidance that a person explicitly enables. AI expresses an act, and the host picks the artwork from your preferred packs. Version 0.1 replaces every earlier format, so 1.x `.amoji` packs cannot be imported directly. The published 1.1 release still uses the earlier format; the next release adopts 0.1.
+Amoji 2.0.0 implements [Amoji 0.1](docs/specs/amoji-0.1-rfc.md). Every expression realizes one **act** from a shared registry (for example `core:uncertain`, “I'm not sure yet”). Packs provide artwork and fixed meanings in several languages; optional **effects** are text guidance that a person explicitly enables. AI expresses an act, and the host picks the artwork from your preferred packs. Version 0.1 replaces every earlier format, so 1.x `.amoji` packs cannot be imported directly. Product version 2.0.0 and protocol version 0.1 are maintained separately. Read the [compatibility and backup guidance](docs/dsh-installation.en.md#upgrade-from-1x-to-200) before upgrading.
 
 ## Expression marketplace
 
@@ -63,7 +63,7 @@ An expression can accompany an explanation or result, making the tone clearer. Y
 
 ## Starting with dsh
 
-Our vision is an expression system that can travel across models and clients. **Version 1.0 starts with native dsh integration**, bringing selection, sending, interpretation, and library management into one workflow:
+Our vision is an expression system that can travel across models and clients. **Version 2.0.0 provides native dsh integration**, bringing selection, sending, interpretation, and library management into one workflow:
 
 - **Native expressions in both directions:** click to send from the composer. While AI is working, steering expressions arrive as signals and “Hold on” stops the turn. AI expresses an act, and images appear directly in the conversation.
 - **Classic and Office official packs:** 24 expressions each, realizing the same 22 acts for both human-to-AI expression and AI replies.
@@ -72,7 +72,7 @@ Our vision is an expression system that can travel across models and clients. **
 - **Chinese and English, UI and meaning:** the UI follows dsh's language setting; built-in expressions carry their Chinese original and an English meaning, each translation labeled with how it was made.
 
 <details>
-<summary>See Amoji in dsh: Classic, Office, and fixed meanings (screenshots from 1.1)</summary>
+<summary>See Amoji in dsh: Classic, Office, and fixed meanings</summary>
 
 ![Classic expressions](adapters/dsh/screenshots/classic.png)
 ![Office expressions](adapters/dsh/screenshots/office.png)
@@ -85,20 +85,20 @@ Our vision is an expression system that can travel across models and clients. **
 If you already use dsh’s `web` profile, install the public Release package directly and restart that profile:
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v1.1.0/amoji-dsh-1.1.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.0.0/amoji-dsh-2.0.0.tgz --ignore-scripts
 ```
 
 For a separate profile and checksum verification:
 
-1. Use **Node.js 24 or newer**. The verified baseline is **dsh 0.1.5-rc.2 on macOS arm64**.
-2. Download `amoji-dsh-1.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
+1. Use **Node.js 24 or newer**. The host baseline is **dsh 0.1.5-rc.2 on macOS arm64**; see the [release notes](docs/releases/v2.0.0.md) for this release’s validation scope.
+2. Download `amoji-dsh-2.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
 3. Install into your dsh profile, restart that profile, select a workspace, and open Expressions in the composer.
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-1.1.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -114,7 +114,7 @@ The [user guide](docs/usage.en.md) covers draft confirmation, revisions, import/
 
 ## Verification and limits
 
-Version 1.1 primarily supports dsh. Marketplace installation, real browser interactions and complete expression/text turns with a low-cost model have been verified on macOS arm64; model requests use text semantics without image input. The marketplace has passed private R2 backup, isolated recovery and public first-page checks. These results do not cover every region, model, platform or host version; independent human usability research remains separate.
+Version 2.0.0 provides adapters for dsh and local Claude Desktop Code sessions. Automated tests, final archives, live interfaces and real model turns are recorded separately; historical installation, marketplace backup and recovery results do not establish acceptance of this release. All 20 English meanings in the five character packs have been reviewed and confirmed by the maintainer, retaining accurate machine-translated, human-reviewed provenance (`machine-reviewed`). Independent human usability research is also not claimed as complete. See the [2.0.0 release notes](docs/releases/v2.0.0.md).
 
 Linux, Windows, and other dsh versions have not completed live host acceptance. Images are not guaranteed for nested Code Dispatch / PTC tools. Older Codex/Claude hook implementations remain legacy; the new Claude Desktop Mods adapter has its own integration and validation scope. See [release scope and known limitations](docs/release.en.md).
 
@@ -141,4 +141,4 @@ Code and technical documentation use [MIT](LICENSE). Official pack artwork, fixe
 
 ## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): two-way expressions, library, creation and preferences. Version 1.1 includes a separate ZIP for local sessions in the Claude Desktop Code tab; the current source adopts Amoji 0.1 and adds market browsing and installation, device pairing, publishing and optional collaboration guidance. These additions are not in the already-published v1.1.0 Claude ZIP; build from current source to use them.
+[Native Code adapter guide](docs/claude-mods.en.md): the separate 2.0.0 ZIP adopts Amoji 0.1 for local sessions in the Claude Desktop Code tab. It includes two-way expressions, the library, creation and preferences, plus marketplace browsing and installation, account pairing, publishing and optional collaboration guidance.

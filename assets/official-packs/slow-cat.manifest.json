@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "dbd45bc2-b332-4798-8062-3b5349b41b60",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。",
-    "en": "A watercolor cat with no hurry. Room to think, and a little kindness for the effort."
+    "en": "A watercolor cat that won't rush you. Space for thought, and a little kindness for your efforts."
   },
   "expressions": [
     {
@@ -45,14 +45,14 @@
           "fallback": "[breather]",
           "use_when": [
             "When someone wants a short break",
-            "When the AI gently answers signs of tiredness"
+            "When the AI responds gently to someone's tiredness"
           ],
           "avoid_when": [
-            "Never cancel, pause or change running work because of it"
+            "Don't cancel, pause or change running work based on this alone"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -87,7 +87,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "e990864c-dcc5-41c1-8eeb-c6cc28f9e2d7"
+      "revision_id": "649aa7f4-1791-4b95-8104-4b272df424ce"
     },
     {
       "kind": "amoji.expression",
@@ -124,7 +124,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -159,7 +159,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "c6905e85-6fe2-4984-bebb-5326d4822d1c"
+      "revision_id": "4012b311-2287-478b-9a0f-d3d9df5c4af6"
     },
     {
       "kind": "amoji.expression",
@@ -192,11 +192,12 @@
             "When support should come before advice"
           ],
           "avoid_when": [
-            "No promise of constant presence or claims about real feelings"
+            "Don't imply constant availability or an exclusive relationship",
+            "Don't claim certainty about anyone's actual feelings"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -231,7 +232,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "91dc57c1-677e-49f2-8887-3a32112e735b"
+      "revision_id": "58e2c2a3-a820-44e4-ac24-43be6264a40e"
     },
     {
       "kind": "amoji.expression",
@@ -268,7 +269,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -303,7 +304,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "a454d6e2-4ed5-4243-b61b-cb981058297e"
+      "revision_id": "392cb67a-19b7-46d1-8e1f-d193fba92bb6"
     }
   ],
   "rights": {
@@ -311,5 +312,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "79a7c35f-e0d3-43fc-ab4c-e09246d28914"
+  "release_id": "a74a39d4-5f52-4aae-89d9-602e7101bcbc"
 }

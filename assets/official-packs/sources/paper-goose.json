@@ -1,7 +1,7 @@
 {
   "slug": "paper-goose",
   "pack_id": "c4d192ee-1e20-4744-9ca1-544d8c32427c",
-  "version": 1,
+  "version": 2,
   "created_at": "2026-10-22T00:00:00Z",
   "original_locale": "zh-CN",
   "locales": [
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。",
-    "en": "A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections."
+    "en": "A little theatrical, but never over the top. A paper-cut goose that greets surprises, highlights what matters and keeps conversations light."
   },
   "rights": {
     "license": "CC0-1.0",
@@ -54,7 +54,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -69,7 +69,7 @@
           "Hold on, honk",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       }
     },
@@ -95,7 +95,7 @@
           ]
         },
         "en": {
-          "meaning": "That's a lot of information; let's take the key point first and expand step by step.",
+          "meaning": "That's a lot of information; let's start with the key points and expand step by step.",
           "fallback": "[that's a lot]",
           "use_when": [
             "When a reply is too long or too detailed"
@@ -105,7 +105,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -120,7 +120,7 @@
           "That's a lot",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       }
     },
@@ -154,11 +154,11 @@
             "When refocusing on the agreed goal"
           ],
           "avoid_when": [
-            "Don't use it to ignore a new request or correction"
+            "Don't ignore the user's new requests or corrections"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -173,7 +173,7 @@
           "Back on track",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       }
     },
@@ -185,7 +185,7 @@
       "text_locale": null,
       "name": {
         "zh-CN": "竟然还能这样",
-        "en": "Didn't see that coming"
+        "en": "What a pleasant surprise"
       },
       "semantics": {
         "zh-CN": {
@@ -200,7 +200,7 @@
         },
         "en": {
           "meaning": "This result or angle surprised me in a good way, and I think it works.",
-          "fallback": "[didn't see that coming]",
+          "fallback": "[what a pleasant surprise]",
           "use_when": [
             "When an unexpected finding turns out well"
           ],
@@ -209,7 +209,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -221,10 +221,10 @@
           "简化"
         ],
         "en": [
-          "Didn't see that coming",
+          "What a pleasant surprise",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       }
     }

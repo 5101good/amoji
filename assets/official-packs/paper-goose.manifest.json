@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "c4d192ee-1e20-4744-9ca1-544d8c32427c",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "有一点戏，但很有分寸。用剪纸小鹅接住意外、提醒重点，把沟通变轻松。",
-    "en": "A little theatrical, always considerate. Paper-cut wit for surprises and gentle course corrections."
+    "en": "A little theatrical, but never over the top. A paper-cut goose that greets surprises, highlights what matters and keeps conversations light."
   },
   "expressions": [
     {
@@ -50,7 +50,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -65,7 +65,7 @@
           "Hold on, honk",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       },
       "visual": {
@@ -85,7 +85,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "fdee1883-311d-4284-be80-902959043f4b"
+      "revision_id": "2a91dc5a-1d25-4bef-9c73-4a3e3abd1a52"
     },
     {
       "kind": "amoji.expression",
@@ -110,7 +110,7 @@
           ]
         },
         "en": {
-          "meaning": "That's a lot of information; let's take the key point first and expand step by step.",
+          "meaning": "That's a lot of information; let's start with the key points and expand step by step.",
           "fallback": "[that's a lot]",
           "use_when": [
             "When a reply is too long or too detailed"
@@ -120,7 +120,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -135,7 +135,7 @@
           "That's a lot",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       },
       "visual": {
@@ -155,7 +155,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "039d91cf-3228-4b80-ae33-8b7e831b8a2e"
+      "revision_id": "3035e02f-8293-4551-8d1b-74583103f358"
     },
     {
       "kind": "amoji.expression",
@@ -188,11 +188,11 @@
             "When refocusing on the agreed goal"
           ],
           "avoid_when": [
-            "Don't use it to ignore a new request or correction"
+            "Don't ignore the user's new requests or corrections"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -207,7 +207,7 @@
           "Back on track",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       },
       "visual": {
@@ -227,7 +227,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "13daef0c-1359-4ded-befc-299915e1f1a3"
+      "revision_id": "726c842b-873f-4ac6-bec6-c7f271364d0c"
     },
     {
       "kind": "amoji.expression",
@@ -238,7 +238,7 @@
       "original_locale": "zh-CN",
       "name": {
         "zh-CN": "竟然还能这样",
-        "en": "Didn't see that coming"
+        "en": "What a pleasant surprise"
       },
       "semantics": {
         "zh-CN": {
@@ -253,7 +253,7 @@
         },
         "en": {
           "meaning": "This result or angle surprised me in a good way, and I think it works.",
-          "fallback": "[didn't see that coming]",
+          "fallback": "[what a pleasant surprise]",
           "use_when": [
             "When an unexpected finding turns out well"
           ],
@@ -262,7 +262,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -274,10 +274,10 @@
           "简化"
         ],
         "en": [
-          "Didn't see that coming",
+          "What a pleasant surprise",
           "humor",
           "reminders",
-          "clarity"
+          "simplification"
         ]
       },
       "visual": {
@@ -297,7 +297,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "56166268-cd58-439a-91fc-8d76a3a24987"
+      "revision_id": "700c122d-75d1-44f8-86c4-a4a16b8605c9"
     }
   ],
   "rights": {
@@ -305,5 +305,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "ad75d5e4-6453-42b8-aaa6-8280b920f1ec"
+  "release_id": "41584405-83f8-4722-95f4-3daee8bfda0c"
 }

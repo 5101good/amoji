@@ -1,7 +1,7 @@
 {
   "slug": "slow-cat",
   "pack_id": "dbd45bc2-b332-4798-8062-3b5349b41b60",
-  "version": 1,
+  "version": 2,
   "created_at": "2026-10-22T00:00:00Z",
   "original_locale": "zh-CN",
   "locales": [
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "一只不催你的水彩小猫。给思考留点空白，也给努力留一点温柔。",
-    "en": "A watercolor cat with no hurry. Room to think, and a little kindness for the effort."
+    "en": "A watercolor cat that won't rush you. Space for thought, and a little kindness for your efforts."
   },
   "rights": {
     "license": "CC0-1.0",
@@ -49,14 +49,14 @@
           "fallback": "[breather]",
           "use_when": [
             "When someone wants a short break",
-            "When the AI gently answers signs of tiredness"
+            "When the AI responds gently to someone's tiredness"
           ],
           "avoid_when": [
-            "Never cancel, pause or change running work because of it"
+            "Don't cancel, pause or change running work based on this alone"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -109,7 +109,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -158,11 +158,12 @@
             "When support should come before advice"
           ],
           "avoid_when": [
-            "No promise of constant presence or claims about real feelings"
+            "Don't imply constant availability or an exclusive relationship",
+            "Don't claim certainty about anyone's actual feelings"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -215,7 +216,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },

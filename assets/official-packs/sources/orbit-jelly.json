@@ -1,7 +1,7 @@
 {
   "slug": "orbit-jelly",
   "pack_id": "adae364e-69b2-4584-9845-e4fe31d707c6",
-  "version": 1,
+  "version": 2,
   "created_at": "2026-10-22T00:00:00Z",
   "original_locale": "zh-CN",
   "locales": [
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。",
-    "en": "A little luminous curiosity. A place for unfinished thoughts to take shape together."
+    "en": "A glowing bundle of curiosity. Let half-formed ideas slowly take shape in conversation."
   },
   "rights": {
     "license": "CC0-1.0",
@@ -44,17 +44,17 @@
           ]
         },
         "en": {
-          "meaning": "Let's look at this from another possibility first and discuss it before deciding.",
+          "meaning": "We could consider another possibility and discuss it without rushing to a decision.",
           "fallback": "[what if]",
           "use_when": [
             "Brainstorming or when thinking feels stuck"
           ],
           "avoid_when": [
-            "Don't overturn confirmed requirements or the plan with it"
+            "Don't override agreed requirements or change plans on your own"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -81,7 +81,7 @@
       "text_locale": null,
       "name": {
         "zh-CN": "好像连上了",
-        "en": "Something connects"
+        "en": "A possible connection"
       },
       "semantics": {
         "zh-CN": {
@@ -96,16 +96,16 @@
         },
         "en": {
           "meaning": "These two ideas or clues seem related; it's worth checking together whether that holds.",
-          "fallback": "[something connects]",
+          "fallback": "[a possible connection]",
           "use_when": [
             "Spotting a possible connection"
           ],
           "avoid_when": [
-            "Don't treat a connection as cause, or a guess as fact"
+            "Don't treat association as causation, or a guess as fact"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -117,7 +117,7 @@
           "不确定"
         ],
         "en": [
-          "Something connects",
+          "A possible connection",
           "exploration",
           "ideas",
           "uncertainty"
@@ -156,7 +156,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -203,11 +203,11 @@
             "When a new angle or creative idea appears"
           ],
           "avoid_when": [
-            "Don't imply the idea is feasible, correct or already done"
+            "Don't imply the idea is feasible, correct or already implemented"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },

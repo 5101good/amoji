@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "41ebd4fc-f4d3-4d43-884c-467bee6dbae1",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "从像素世界走来的小机器人。陪你专注、找问题，也庆祝扎实的每一步。",
-    "en": "A tiny robot for focused work, curious debugging and well-earned checkpoints."
+    "en": "A little robot from a pixel world. Here to help you focus, investigate problems and celebrate each solid step forward."
   },
   "expressions": [
     {
@@ -46,11 +46,11 @@
             "When really working on the current task"
           ],
           "avoid_when": [
-            "Never imply background work that isn't happening"
+            "Don't imply background or ongoing work that isn't happening"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -85,7 +85,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "3eef3e49-663e-42ac-89d7-653abb73fcca"
+      "revision_id": "e0c4e97d-a207-4259-b0f2-4fa817c65e4d"
     },
     {
       "kind": "amoji.expression",
@@ -96,7 +96,7 @@
       "original_locale": "zh-CN",
       "name": {
         "zh-CN": "揪出小问题",
-        "en": "Found a glitch"
+        "en": "Something looks off"
       },
       "semantics": {
         "zh-CN": {
@@ -111,16 +111,16 @@
         },
         "en": {
           "meaning": "There may be a problem here worth investigating; I'm following the clues and the cause is not confirmed yet.",
-          "fallback": "[found a glitch]",
+          "fallback": "[something looks off]",
           "use_when": [
             "When something looks wrong and investigation starts"
           ],
           "avoid_when": [
-            "Don't claim the cause is found or fixed before checking"
+            "Don't claim a confirmed cause or a fix without checking"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -132,7 +132,7 @@
           "灵感"
         ],
         "en": [
-          "Found a glitch",
+          "Something looks off",
           "focus",
           "debugging",
           "ideas"
@@ -155,7 +155,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "d912eb77-9dd5-430c-b01b-1afc9f56e570"
+      "revision_id": "6873165e-8bcc-489b-9e9f-4f40578b4d5a"
     },
     {
       "kind": "amoji.expression",
@@ -192,7 +192,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -227,7 +227,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "cc74cd46-ffc3-4fc4-9302-f8d7db9d9e12"
+      "revision_id": "593f9c9d-106f-48e6-9ed3-15e8196d8baa"
     },
     {
       "kind": "amoji.expression",
@@ -252,7 +252,7 @@
           ]
         },
         "en": {
-          "meaning": "This specific small step has been verified; it deserves a small milestone.",
+          "meaning": "This specific small step is confirmed complete; let's mark it as a small milestone.",
           "fallback": "[level cleared]",
           "use_when": [
             "After actually verifying the result of a step"
@@ -262,7 +262,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -297,7 +297,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "be904209-6754-4b24-81de-f0b6560c5204"
+      "revision_id": "d48e98ee-31ff-47dc-8bc4-ea582b6aced8"
     }
   ],
   "rights": {
@@ -305,5 +305,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "b8ed50ef-e8e2-4715-a270-6cad98f228db"
+  "release_id": "28fc42d5-2c83-486d-bcec-578ddd8e38b8"
 }

@@ -27,7 +27,7 @@ The specification is the [Amoji 0.1 RFC](specs/amoji-0.1-rfc.md). It replaces ev
 
 | Object | Current version | Source |
 | --- | --- | --- |
-| Product / dsh package | 1.1.0 (implements Amoji 0.1) | `package.json` / `adapters/dsh/package.json` |
+| Product / dsh package | 2.0.0 (implements Amoji 0.1) | `package.json` / `adapters/dsh/package.json` |
 | Protocol and pack format | `amoji: "0.1"` | [JSON Schema](specs/amoji-0.1.schema.json) |
 | Act registry | `0.1-r3` (33 `core:*` acts) | [Registry](specs/amoji-0.1.registry.json) |
 | Shared API | `3` | `src/shared-contract.ts` |

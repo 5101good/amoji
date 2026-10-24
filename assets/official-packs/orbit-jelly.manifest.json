@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "adae364e-69b2-4584-9845-e4fe31d707c6",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "一团会发光的好奇心。让还没成形的想法，在对话里慢慢浮现。",
-    "en": "A little luminous curiosity. A place for unfinished thoughts to take shape together."
+    "en": "A glowing bundle of curiosity. Let half-formed ideas slowly take shape in conversation."
   },
   "expressions": [
     {
@@ -40,17 +40,17 @@
           ]
         },
         "en": {
-          "meaning": "Let's look at this from another possibility first and discuss it before deciding.",
+          "meaning": "We could consider another possibility and discuss it without rushing to a decision.",
           "fallback": "[what if]",
           "use_when": [
             "Brainstorming or when thinking feels stuck"
           ],
           "avoid_when": [
-            "Don't overturn confirmed requirements or the plan with it"
+            "Don't override agreed requirements or change plans on your own"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -85,7 +85,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "507021fb-424b-4c97-a643-206363251b8d"
+      "revision_id": "5a2b881d-e074-424d-b02e-6010d36fe630"
     },
     {
       "kind": "amoji.expression",
@@ -96,7 +96,7 @@
       "original_locale": "zh-CN",
       "name": {
         "zh-CN": "好像连上了",
-        "en": "Something connects"
+        "en": "A possible connection"
       },
       "semantics": {
         "zh-CN": {
@@ -111,16 +111,16 @@
         },
         "en": {
           "meaning": "These two ideas or clues seem related; it's worth checking together whether that holds.",
-          "fallback": "[something connects]",
+          "fallback": "[a possible connection]",
           "use_when": [
             "Spotting a possible connection"
           ],
           "avoid_when": [
-            "Don't treat a connection as cause, or a guess as fact"
+            "Don't treat association as causation, or a guess as fact"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -132,7 +132,7 @@
           "不确定"
         ],
         "en": [
-          "Something connects",
+          "A possible connection",
           "exploration",
           "ideas",
           "uncertainty"
@@ -155,7 +155,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "8075e0c6-d789-4721-9e57-bc887609e97e"
+      "revision_id": "b5deab43-4c40-447a-868e-bb64217f477e"
     },
     {
       "kind": "amoji.expression",
@@ -190,7 +190,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -225,7 +225,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "2aede66a-cdbe-44d9-ad84-102d0ba91c0d"
+      "revision_id": "cd75c1ef-06f5-4039-850e-50132044033e"
     },
     {
       "kind": "amoji.expression",
@@ -256,11 +256,11 @@
             "When a new angle or creative idea appears"
           ],
           "avoid_when": [
-            "Don't imply the idea is feasible, correct or already done"
+            "Don't imply the idea is feasible, correct or already implemented"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -295,7 +295,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "b872b392-5e62-44ef-9f23-e08c29cafd27"
+      "revision_id": "7c77266a-e259-4c3d-b3d7-14448cd7c2b9"
     }
   ],
   "rights": {
@@ -303,5 +303,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "64195e49-ebe0-4f02-9d54-e4789cfb50ea"
+  "release_id": "f449c4d9-c082-4318-8ec1-1846549930b6"
 }

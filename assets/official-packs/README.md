@@ -20,7 +20,7 @@
 
 `catalog.json` 给出下载身份、数量与 SHA-256；同名 `manifest.json` 是可检查的完整语义和素材清单。每个包独立满足市场 10 MiB 上传限制。这里的“官方”指项目制作并分发的内容，不代表社区上传者填写同样署名就获得认证。
 
-固定语义的原文是中文，并提供英文语义：经典与办公的英文为机器翻译后人工审核，五套角色包的英文为机器翻译，均在清单中标明。素材、语义和生成提示按 [CC0-1.0](LICENSE) 提供。经典/办公的生成提示与来源见 `generation.classic-office.json` 和 `provenance.classic-office.json`；角色素材由 Codex 内置 imagegen 逐张生成，提示与参考关系见 `generation.json`，来源摘要与编码过程见 `provenance.json`。`images/` 保存随项目分发的透明 WebP 成品。
+固定语义的原文是中文，并提供机器翻译后人工审核的英文语义，均在清单中标为 `machine-reviewed`。五套角色包的全部 20 条英文已于 2026-10-24 经维护者逐项人工审校确认，五包版本升为 `2`；[审校记录](../../docs/releases/v2.0.0-english-review.md)保留范围与确认依据。这不是纯人工翻译。素材、语义和生成提示按 [CC0-1.0](LICENSE) 提供。经典/办公的生成提示与来源见 `generation.classic-office.json` 和 `provenance.classic-office.json`；角色素材由 Codex 内置 imagegen 逐张生成，提示与参考关系见 `generation.json`，来源摘要与编码过程见 `provenance.json`。`images/` 保存随项目分发的透明 WebP 成品。
 
 维护者运行 `npm run build && node scripts/build-official-packs.mjs` 可从已有成品重新封装；不调用模型。制作新素材时可传入仅本地使用的源图目录，按 `<pack>/<expression>.png` 组织。脚本检查透明通道，标准化为 512px，验证完整包并生成确定性 ZIP。修改已发布内容必须递增版本并产生新发布身份，不能覆盖旧版本。
 

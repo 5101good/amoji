@@ -27,7 +27,7 @@ flowchart LR
 
 | 对象 | 当前版本 | 依据 |
 | --- | --- | --- |
-| 产品 / dsh 包 | 1.1.0（实现 Amoji 0.1） | `package.json` / `adapters/dsh/package.json` |
+| 产品 / dsh 包 | 2.0.0（实现 Amoji 0.1） | `package.json` / `adapters/dsh/package.json` |
 | 协议与包格式 | `amoji: "0.1"` | [JSON Schema](specs/amoji-0.1.schema.json) |
 | 码位注册表 | `0.1-r3`（33 个 `core:*` 码位） | [注册表](specs/amoji-0.1.registry.json) |
 | 共享 API | `3` | `src/shared-contract.ts` |

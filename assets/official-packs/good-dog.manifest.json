@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "2a01ad10-a763-4839-866f-5f78b0897ee0",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -14,7 +14,7 @@
   },
   "description": {
     "zh-CN": "热情但不抢戏的毛绒搭档。接住你的消息，也认真回应每一份善意。",
-    "en": "A soft, enthusiastic teammate. Every message received, every kindness returned."
+    "en": "A plush teammate, enthusiastic without stealing the spotlight. Ready to receive your messages and respond thoughtfully to every kindness."
   },
   "expressions": [
     {
@@ -45,14 +45,14 @@
           "fallback": "[high five]",
           "use_when": [
             "After finishing a step together",
-            "When answering good news"
+            "When responding to someone sharing good news"
           ],
           "avoid_when": [
             "Don't treat celebration as proof that unverified work is done"
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -87,7 +87,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "34de2aec-bac8-4fc7-a9e3-6b179c681dc0"
+      "revision_id": "bae07f2f-0ddd-4d94-b16d-633eab3685dc"
     },
     {
       "kind": "amoji.expression",
@@ -124,7 +124,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -159,7 +159,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "08a38f60-dbdc-4c79-8468-78439215d501"
+      "revision_id": "fe79c173-f61a-4955-9ba6-2c2bc6f28dd0"
     },
     {
       "kind": "amoji.expression",
@@ -196,7 +196,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -231,7 +231,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "82059718-88e4-4d15-b4b9-7fb6f8fd89b7"
+      "revision_id": "7fdea718-3daf-472d-85f8-061a4ddc2ff7"
     },
     {
       "kind": "amoji.expression",
@@ -242,7 +242,7 @@
       "original_locale": "zh-CN",
       "name": {
         "zh-CN": "多亏有你",
-        "en": "Couldn't without you"
+        "en": "Thanks to you"
       },
       "semantics": {
         "zh-CN": {
@@ -258,7 +258,7 @@
         },
         "en": {
           "meaning": "Thank you for the help or support just now; it really helped me.",
-          "fallback": "[thank you]",
+          "fallback": "[thanks to you]",
           "use_when": [
             "When a person thanks the AI for help",
             "When the AI thanks someone for info or a correction"
@@ -268,7 +268,7 @@
           ],
           "translation": {
             "from": "zh-CN",
-            "method": "machine"
+            "method": "machine-reviewed"
           }
         }
       },
@@ -280,7 +280,7 @@
           "回应"
         ],
         "en": [
-          "Couldn't without you",
+          "Thanks to you",
           "encouragement",
           "thanks",
           "acknowledgement"
@@ -303,7 +303,7 @@
         "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
       },
       "created_at": "2026-10-22T00:00:00Z",
-      "revision_id": "380275b5-5cc3-46a5-b728-b6d23a472286"
+      "revision_id": "c7388b41-bc12-4957-9f46-ca1adfd44708"
     }
   ],
   "rights": {
@@ -311,5 +311,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "d881fc73-53c9-42ca-988c-e31d58f34c22"
+  "release_id": "7d0f9c50-c91c-4006-abbc-600046dbf0e8"
 }

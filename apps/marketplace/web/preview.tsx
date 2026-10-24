@@ -1,7 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "./ui";
 import { expressionText } from "../../../src/protocol/text";
+import { lookupLocale } from "../../../src/protocol/locale";
+import type { Expression } from "../../../src/protocol/types";
 import { actLabel, pick, uiLocale } from "./acts";
+import type { Locale } from "./ui";
+
+const languageNames = {
+  zh: new Intl.DisplayNames(["zh-CN"], { type: "language" }),
+  en: new Intl.DisplayNames(["en"], { type: "language" }),
+};
+function languageName(language: string, locale: Locale): string {
+  if (language.toLowerCase() === "zh-cn") return locale === "zh" ? "简体中文" : "Simplified Chinese";
+  if (language.toLowerCase() === "en") return locale === "zh" ? "英文" : "English";
+  try {
+    return languageNames[locale].of(language) ?? language;
+  } catch {
+    // An unrecognized tag must not prevent the pack from being previewed.
+    return language;
+  }
+}
+
+function LanguageNotice({ expression, language, locale }: {
+  expression: Expression;
+  language: string;
+  locale: Locale;
+}) {
+  const fallback = !lookupLocale([language], uiLocale(locale));
+  const machine = expression.semantics[language]?.translation?.method === "machine";
+  if (!fallback && !machine) return null;
+  const name = languageName(language, locale);
+  return <p className="language-notice">
+    {fallback && (locale === "zh"
+      ? `当前显示${name}说明。`
+      : `Description shown in ${name}.`)}
+    {fallback && machine && " "}
+    {machine && (locale === "zh" ? "机器翻译，未经人工审校。" : "Machine translation, not human-reviewed.")}
+  </p>;
+}
+
 export const previewWords = {
   zh: {
     title: "创作者工作台",
@@ -36,7 +73,7 @@ export const previewWords = {
       "可选择保留包内协作效果。效果是可选提示，不会因安装或发送表情而自动启用。",
     noEffects: "这个包只有表情，没有协作效果。",
     meaning: "固定语义",
-    locale: "原始语义语言",
+    locale: "原文语言",
     full: "完整内容与元数据",
     new: "新建另一份草稿",
     busy: "处理中…",
@@ -51,7 +88,7 @@ export const previewWords = {
     expression: "表情",
     effect: "效果",
     act: "码位",
-    languages: "语言",
+    languages: "含义说明支持",
     translation: "翻译",
     context: "协作提示",
     template: "会话习惯",
@@ -99,7 +136,7 @@ export const previewWords = {
     noEffects:
       "This pack contains expressions only, with no collaboration effects.",
     meaning: "Fixed semantics",
-    locale: "Original semantic language",
+    locale: "Original language",
     full: "Complete content and metadata",
     new: "Start another draft",
     busy: "Working…",
@@ -116,7 +153,7 @@ export const previewWords = {
     expression: "Expression",
     effect: "Effect",
     act: "Act",
-    languages: "Languages",
+    languages: "Meaning descriptions available in",
     translation: "Translation",
     context: "Collaboration hint",
     template: "Conversation habit",
@@ -183,9 +220,6 @@ export function Preview({
         <div className="preview-heading">
           <h3>{local(manifest.name)}</h3>
           <p>{local(manifest.description)}</p>
-          <p>
-            {t.languages}: {manifest.locales.join(" · ")}
-          </p>
         </div>
       )}
       {hideHeading && (
@@ -193,6 +227,7 @@ export function Preview({
           <h2>{zh ? "表情与含义" : "Expressions & meanings"}</h2>
         </div>
       )}
+      <p>{t.languages}: {manifest.locales.map((language: string) => languageName(language, locale)).join(" · ")}</p>
       <div className="expression-grid">
         {manifest.expressions.map((e: any) => {
           const x = expressionText(e, lang);
@@ -223,15 +258,13 @@ export function Preview({
               <p>
                 {t.act}: {actLabel(e.realizes, locale)} · {e.realizes}
               </p>
+              <LanguageNotice expression={e} language={x.locale} locale={locale} />
               <p lang={x.locale}>{x.meaning}</p>
-              <p>
-                {t.locale}: <span lang={e.original_locale}>{e.original_locale}</span>
-                {" · "}
-                {t.languages}: {Object.keys(e.semantics).join(" · ")}
-              </p>
               <details>
                 <summary>{t.full}</summary>
-                <pre>{JSON.stringify({ realizes: e.realizes, intensity: e.intensity, directions: e.directions, name: e.name, semantics: e.semantics, tags: e.tags }, null, 2)}</pre>
+                <p>{t.locale}: {languageName(e.original_locale, locale)}</p>
+                <p>{t.languages}: {Object.keys(e.semantics).map(language => languageName(language, locale)).join(" · ")}</p>
+                <pre tabIndex={0}>{JSON.stringify({ realizes: e.realizes, intensity: e.intensity, directions: e.directions, name: e.name, semantics: e.semantics, tags: e.tags }, null, 2)}</pre>
                 <p>
                   {e.rights.license} · {e.rights.creator}
                 </p>
@@ -261,7 +294,7 @@ export function Preview({
             ) : (
               <details>
                 <summary>{t.full}</summary>
-                <pre>
+                <pre tabIndex={0}>
                   {JSON.stringify(
                     { template: a.template, config: a.config },
                     null,
@@ -280,12 +313,12 @@ export function Preview({
       {manifest.derived_from && (
         <details>
           <summary>{t.source}</summary>
-          <pre>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
+          <pre tabIndex={0}>{JSON.stringify(manifest.derived_from, null, 2)}</pre>
         </details>
       )}
       <details>
         <summary>{t.full}</summary>
-        <pre>{JSON.stringify(manifest, null, 2)}</pre>
+        <pre tabIndex={0}>{JSON.stringify(manifest, null, 2)}</pre>
       </details>
       {zoom && (
         <Modal
@@ -298,6 +331,7 @@ export function Preview({
             src={mediaUrl(zoom.visual.primary)}
             alt={zoomed.fallback}
           />
+          <LanguageNotice expression={zoom} language={zoomed.locale} locale={locale} />
           <p lang={zoomed.locale}>{zoomed.meaning}</p>
         </Modal>
       )}

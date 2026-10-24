@@ -150,9 +150,64 @@ test("language is remembered across detail navigation without changing fixed sem
     page.getByRole("link", { name: "Download exact release" }),
   ).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.locator('[lang="zh-CN"]').first()).toBeVisible();
+  const card = page.locator(".expression-grid article").first();
+  await expect(card.locator('p[lang="en"]')).toBeVisible();
+  await expect(page.getByText("Original semantic language", { exact: false })).toHaveCount(0);
+  await expect(card.getByText("Original language:", { exact: false })).toBeHidden();
+  await expect(card.locator(".language-notice")).toHaveCount(0);
+  await expect(page.locator(".pack-preview > p").first()).toContainText("Chinese");
+  await expect(page.locator(".pack-preview > p").first()).toContainText("English");
+  await card.getByText("Complete content and metadata", { exact: true }).click();
+  await expect(card.getByText("Original language:", { exact: false })).toBeVisible();
   await accessible(page);
 });
+
+for (const locale of ["zh", "en"]) {
+  test(`language notices describe the displayed meaning only (${locale})`, async ({ page }) => {
+    const { packs } = await configure(page);
+    const pack = packs[0];
+    const target = locale === "zh" ? "zh-CN" : "en";
+    const original = locale === "zh" ? "en" : "zh-CN";
+    await page.route(`**/v1/packs/${pack.pack_id}/releases/${pack.release_id}`, async route => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.manifest.locales = [original];
+      data.manifest.expressions = data.manifest.expressions.slice(0, 4).map((e, index) => {
+        e.original_locale = original;
+        delete e.semantics[original].translation;
+        e.semantics[target].translation = {
+          from: original,
+          method: ["human", "machine", "machine-reviewed", "human"][index],
+        };
+        if (index === 3) {
+          delete e.semantics[target];
+          delete e.name[target];
+        }
+        return e;
+      });
+      await route.fulfill({ response, json: data });
+    });
+    await page.goto("/");
+    if (locale === "en") await page.getByRole("button", { name: "Switch to English" }).click();
+    await page.goto(`/packs/${pack.pack_id}/releases/${pack.release_id}`);
+    const cards = page.locator(".expression-grid article");
+    await expect(cards).toHaveCount(4);
+    for (const index of [0, 2]) await expect(cards.nth(index).locator(".language-notice")).toHaveCount(0);
+    const machine = locale === "zh" ? "机器翻译，未经人工审校。" : "Machine translation, not human-reviewed.";
+    const fallback = locale === "zh" ? "当前显示英文说明。" : "Description shown in Simplified Chinese.";
+    await expect(cards.nth(1).locator(".language-notice")).toHaveText(machine);
+    await expect(cards.nth(3).locator(".language-notice")).toHaveText(fallback);
+    await expect(cards.nth(3).locator(`p[lang="${original}"]`)).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 812 });
+    for (const [index, notice] of [[1, machine], [3, fallback]]) {
+      await cards.nth(index).locator(".image-preview-button").click();
+      await expect(page.getByRole("dialog").locator(".language-notice")).toHaveText(notice);
+      await noOverflow(page);
+      await page.keyboard.press("Escape");
+    }
+    await noOverflow(page);
+  });
+}
 
 test("creator studio loads only on demand and saves a real local pack draft", async ({
   page,

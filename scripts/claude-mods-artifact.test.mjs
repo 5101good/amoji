@@ -13,6 +13,7 @@ import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { spawn, execFileSync } from "node:child_process";
+import yauzl from "yauzl";
 import { inspectClaudeArchive } from "./append-claude-release.mjs";
 import { buildClaudeMods } from "./build-claude-mods.mjs";
 const root = resolve(import.meta.dirname, "..");
@@ -33,6 +34,14 @@ test("可安装包包含生成 hooks、锁定运行时、许可和共享素材�
     await rm(out, { recursive: true, force: true });
   });
   const result = await buildClaudeMods(out);
+  const zip = await new Promise((resolve, reject) => yauzl.open(result.archive, { lazyEntries: true }, (error, value) => error ? reject(error) : resolve(value)));
+  try {
+    for await (const entry of zip.eachEntry()) {
+      assert.equal(entry.lastModFileTime, 0, `${entry.fileName}: fixed midnight DOS time`);
+      assert.equal(entry.lastModFileDate, (20 << 9) | (1 << 5) | 1, `${entry.fileName}: fixed 2000-01-01 DOS date`);
+      assert.ok(!entry.extraFields.some(field => field.id === 0x5455), `${entry.fileName}: no timezone-dependent UTC timestamp`);
+    }
+  } finally { zip.close(); }
   const contents = await inspectClaudeArchive(result.archive);
   const extracted = join(out, "extracted");
   for (const [path, bytes] of contents) {

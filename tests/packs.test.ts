@@ -2,12 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { ZipFile } from 'yazl';
 import { withValidatedPack } from '../src/packs.js';
 import type { Pack } from '../src/protocol/index.js';
 import { OFFICIAL, openStore } from './helpers/store-runtime.js';
 
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+const run = promisify(execFile);
 async function zip(entries: Array<[string, Buffer]>): Promise<Buffer> {
   const archive = new ZipFile(); const parts: Buffer[] = [];
   const done = (async () => { for await (const part of archive.outputStream) parts.push(Buffer.from(part)); return Buffer.concat(parts); })();
@@ -39,6 +42,25 @@ test('an official pack imports idempotently and exports to the same deterministi
     assert.equal(store.listEntries().filter(e => e.pack_id === f.manifest.pack_id).length, 4);
     assert.equal(digest(await store.exportRelease(f.manifest.release_id)), digest(f.bytes), 'export reproduces the archive byte for byte');
   } finally { await close(); }
+});
+
+test('pack exports are byte-identical across process time zones', async () => {
+  const script = `
+    import { readFile } from 'node:fs/promises';
+    import { createHash } from 'node:crypto';
+    import { exportManifest, withValidatedPack } from ${JSON.stringify(new URL('../src/packs.ts', import.meta.url).href)};
+    const bytes = await readFile(new URL(${JSON.stringify(new URL('pixel-pal.amoji', OFFICIAL).href)}));
+    const exported = await withValidatedPack(bytes, pack => exportManifest(pack.manifest, pack.readBlob));
+    process.stdout.write(createHash('sha256').update(exported).digest('hex'));
+  `;
+  const zones = ['UTC', 'Asia/Shanghai', 'America/Los_Angeles', 'Asia/Kathmandu'];
+  const hashes = await Promise.all(zones.map(async TZ => {
+    const { stdout } = await run(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval', script], {
+      cwd: new URL('..', import.meta.url), env: { ...process.env, TZ },
+    });
+    return stdout;
+  }));
+  for (const [index, hash] of hashes.entries()) assert.equal(hash, hashes[0], `archive bytes differ in ${zones[index]}`);
 });
 
 test('invalid packs are rejected whole and leave nothing behind', async () => {

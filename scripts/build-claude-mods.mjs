@@ -163,7 +163,10 @@ export async function buildClaudeMods(
       if (entry.isDirectory()) await append(file);
       else if (entry.isFile())
         zip.addFile(file, relative(destination, file).split("\\").join("/"), {
-          mtime: new Date("2000-01-01T00:00:00Z"),
+          // DOS fields use local calendar time; the UTC extra field would
+          // otherwise make identical builds differ across machine time zones.
+          mtime: new Date(2000, 0, 1),
+          forceDosTimestamp: true,
           mode: 0o100644,
         });
       else throw new Error("Unexpected non-file in portable package");

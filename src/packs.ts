@@ -18,7 +18,9 @@ export const MARKET_PACK_LIMITS = Object.freeze({ ...PACK_LIMITS, archive: 10 * 
 export interface ImportResult { pack_id: string; release_id: string; added: number; existing: number; effects: number }
 export type PackInput = Uint8Array | AsyncIterable<Uint8Array>;
 export interface ValidatedPack { manifest: Pack; readBlob(blob: BlobRef): Promise<Buffer> }
-const ZIP_TIME = new Date(Date.UTC(2026, 0, 1));
+// yazl encodes DOS calendar fields in local time. Omit the UTC extra field
+// below so this fixed wall-clock date produces the same bytes in every zone.
+const ZIP_TIME = new Date(2026, 0, 1);
 function limit(condition: boolean, message: string): void { if (condition) fail('PACK_LIMIT_EXCEEDED', message); }
 
 export { validatePack as validatePackManifest };
@@ -107,7 +109,7 @@ export async function exportManifest(value: Pack, readBlob: (blob: BlobRef) => P
     const zip = new ZipFile(); const path = join(directory, 'complete.amoji');
     const done = pipeline(zip.outputStream, createWriteStream(path, { flags: 'wx', mode: 0o600 }));
     zip.on('error', error => (zip.outputStream as Readable).destroy(error));
-    const options = { mtime: ZIP_TIME, mode: 0o100644 };
+    const options = { mtime: ZIP_TIME, forceDosTimestamp: true, mode: 0o100644 };
     zip.addBuffer(raw, 'manifest.json', options);
     for (const digest of [...blobs.keys()].sort()) zip.addFile(blobs.get(digest)!, `blobs/${digest}`, options);
     zip.end(); await done;

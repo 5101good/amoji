@@ -16,7 +16,7 @@ One coherent collection, one companion with its own character. People see artwor
 
 Seven packs contain 68 expressions. Classic and Office have 24 expressions each, realizing the same 22 acts as separate complete packs; the five character packs add 20 expressions.
 
-Classic and Office ship with the plugin. Import any other `.amoji` in dsh's Import and export area, or use the marketplace to install a pack or collect individual expressions. Classic and Office each carry five optional effects (collaboration guidance); installing or sending expressions never enables them. The five character packs contain expressions only.
+Classic and Office ship with the plugin. Import any other `.amoji` in dsh's Import and export area, or use the marketplace to install a pack or collect individual expressions. Classic and Office each carry five expression effects, bound to “I'm lost”, “Elaborate pls”, “Like what?”, “What's the holdup?”, “Any updates?” and “Carry on”, and applied whenever those expressions are sent. The five character packs contain expressions only.
 
 `catalog.json` records identities, counts and SHA-256 digests. Each matching `manifest.json` exposes all semantics and media references. Every archive independently meets the marketplace's 10 MiB budget. “Official” describes project-authored content, not a verification badge that community uploaders can obtain by copying an attribution name.
 

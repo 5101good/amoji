@@ -1,4 +1,4 @@
-import { loadGuidance } from './guidance.js';
+import { effectFor, effectTitle } from './guidance.js';
 import { refreshMarket, refreshPublisher } from './market.js';
 import { bridge, refOf, L, errorText, uiLocale, view } from "./transport.js";
 import { rememberMessage } from "./message-view.js";
@@ -133,7 +133,6 @@ export async function load($, s) {
     });
     s.collection = { ...s.galleryBuffer, items: s.galleryBuffer.items.slice(0, WINDOW_LIMIT) };
   }
-  if (s.tab === "guidance") await loadGuidance($,s,s.guidanceExpression);
   if (s.tab === "market" && !s.marketRows) await refreshMarket($,s);
   if (s.tab === "publish") await refreshPublisher($,s);
   if (s.tab === "create") s.currentModel = await $.session.model();
@@ -210,13 +209,23 @@ export async function open($) {
   });
   invalidate($);
 }
-export async function send($, s, expression, epoch, action) {
+/** Details name the effect that sending will bring along, so it is never a surprise. */
+export async function openDetail($, s, item) {
+  s.detail = item;
+  s.revisions = null;
+  s.detailEffect = null;
+  s.detailEffect = await effectFor($, s, item.expression);
+}
+export async function send($, s, expression, epoch) {
   if (s.viewAgentId || (epoch !== undefined && epoch !== s.pictureEpoch)) return;
   await perform($, s, async () => {
     const delivery = { name: view(s, expression).name, phase: "preparing" };
     s.delivery = delivery;
     invalidate($);
     try {
+      // The bound effect, if any, always goes with the expression (RFC §7).
+      const effect = await effectFor($, s, expression);
+      if (effect) delivery.effect = effectTitle(s, effect);
       const requestId = `${s.context.sessionId}:${await $.clock.now()}:${++sequence}`;
       const prepared = await bridge($, s.context, "receive", {
         ref: refOf(expression),
@@ -226,7 +235,7 @@ export async function send($, s, expression, epoch, action) {
       if (prepared.segments)
         rememberMessage(s, "human_to_ai:" + uiLocale(s) + ":" + prepared.text, prepared.segments);
       delivery.text = prepared.text;
-      if(action)delivery.guidance={ref:refOf(expression),selection:action};
+      if (effect) delivery.guidance = { ref: refOf(expression), selection: effect.selection };
       delivery.phase = "submitting";
       let result;
       try {

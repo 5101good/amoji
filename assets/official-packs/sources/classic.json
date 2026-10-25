@@ -1,7 +1,7 @@
 {
   "slug": "classic",
   "pack_id": "9a18f5b6-c6cd-48fa-b0d4-baee5249b604",
-  "version": 1,
+  "version": 2,
   "created_at": "2026-10-22T00:00:00Z",
   "original_locale": "zh-CN",
   "locales": [
@@ -1363,14 +1363,14 @@
     {
       "slug": "answer-first",
       "effect_id": "c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6",
-      "effect_revision_id": "5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1",
+      "effect_revision_id": "338f4832-c873-48ae-a574-c380e28057e0",
       "title": {
-        "zh-CN": "当前会话先结论后依据",
-        "en": "Answer first in this conversation"
+        "zh-CN": "先结论后依据",
+        "en": "Answer first, then reasons"
       },
       "summary": {
-        "zh-CN": "当前会话先结论后依据",
-        "en": "Answer first in this conversation"
+        "zh-CN": "先结论后依据",
+        "en": "Answer first, then reasons"
       },
       "kind": "template",
       "template": "response-organization@1",
@@ -1400,14 +1400,14 @@
     {
       "slug": "completion-self-check",
       "effect_id": "05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5",
-      "effect_revision_id": "ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f",
+      "effect_revision_id": "3a34ce90-5ef9-4fbc-8633-2d47c0d1a959",
       "title": {
-        "zh-CN": "当前会话完成时说明依据和未知",
-        "en": "Completion evidence and unknowns in this conversation"
+        "zh-CN": "完成时说明依据和未知",
+        "en": "Report evidence and unknowns when done"
       },
       "summary": {
-        "zh-CN": "当前会话完成时说明依据和未知",
-        "en": "Completion evidence and unknowns in this conversation"
+        "zh-CN": "完成时说明依据和未知",
+        "en": "Report evidence and unknowns when done"
       },
       "kind": "template",
       "template": "completion-self-check@1",
@@ -1448,6 +1448,22 @@
       },
       "effects": [
         "evidence-and-unknowns"
+      ]
+    },
+    {
+      "target": {
+        "expression": "progress"
+      },
+      "effects": [
+        "answer-first"
+      ]
+    },
+    {
+      "target": {
+        "expression": "continue"
+      },
+      "effects": [
+        "completion-self-check"
       ]
     }
   ]

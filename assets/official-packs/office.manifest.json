@@ -2,7 +2,7 @@
   "kind": "amoji.pack",
   "amoji": "0.1",
   "pack_id": "2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1",
-  "version": 1,
+  "version": 2,
   "original_locale": "zh-CN",
   "locales": [
     "zh-CN",
@@ -1810,14 +1810,14 @@
     },
     {
       "effect_id": "c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6",
-      "effect_revision_id": "5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1",
+      "effect_revision_id": "338f4832-c873-48ae-a574-c380e28057e0",
       "title": {
-        "zh-CN": "当前会话先结论后依据",
-        "en": "Answer first in this conversation"
+        "zh-CN": "先结论后依据",
+        "en": "Answer first, then reasons"
       },
       "summary": {
-        "zh-CN": "当前会话先结论后依据",
-        "en": "Answer first in this conversation"
+        "zh-CN": "先结论后依据",
+        "en": "Answer first, then reasons"
       },
       "kind": "template",
       "template": "response-organization@1",
@@ -1845,14 +1845,14 @@
     },
     {
       "effect_id": "05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5",
-      "effect_revision_id": "ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f",
+      "effect_revision_id": "3a34ce90-5ef9-4fbc-8633-2d47c0d1a959",
       "title": {
-        "zh-CN": "当前会话完成时说明依据和未知",
-        "en": "Completion evidence and unknowns in this conversation"
+        "zh-CN": "完成时说明依据和未知",
+        "en": "Report evidence and unknowns when done"
       },
       "summary": {
-        "zh-CN": "当前会话完成时说明依据和未知",
-        "en": "Completion evidence and unknowns in this conversation"
+        "zh-CN": "完成时说明依据和未知",
+        "en": "Report evidence and unknowns when done"
       },
       "kind": "template",
       "template": "completion-self-check@1",
@@ -1898,6 +1898,24 @@
       "effects": [
         "f3907920-5c96-470f-85da-ae28d34316d8"
       ]
+    },
+    {
+      "target": {
+        "asset_id": "c2223ce8-1d29-407f-ba58-bc485fa0cb40",
+        "revision_id": "357c511b-a739-4b33-aac0-a08bdfe4815d"
+      },
+      "effects": [
+        "c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6"
+      ]
+    },
+    {
+      "target": {
+        "asset_id": "8ce320ea-0340-48a7-a52f-4ac44ec099f8",
+        "revision_id": "31d426e7-115b-42f4-a179-8956071603b6"
+      },
+      "effects": [
+        "05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5"
+      ]
     }
   ],
   "rights": {
@@ -1905,5 +1923,5 @@
     "creator": "Amoji contributors",
     "source": "https://github.com/5101good/amoji/tree/main/assets/official-packs"
   },
-  "release_id": "13b3fb1e-78aa-4023-97e1-7e2fc45f1b06"
+  "release_id": "beee5676-8d7e-42eb-921f-c4a270f4c461"
 }

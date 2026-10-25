@@ -42,7 +42,7 @@ function LanguageNotice({ expression, language, locale }: {
 export const previewWords = {
   zh: {
     title: "创作者工作台",
-    steps: ["选择内容", "说明与许可", "可选效果", "预览投稿"],
+    steps: ["选择内容", "说明与许可", "表情效果", "预览投稿"],
     choose: "选择 .amoji 表情包",
     next: "下一步",
     back: "上一步",
@@ -70,8 +70,8 @@ export const previewWords = {
     rights:
       "仅支持 CC0-1.0、CC-BY-4.0、CC-BY-SA-4.0；包和每个表情均须填写创作者，衍生包须保留来源。不会自动改变导入内容的许可。修改表情的署名/许可会创建新身份并保留来源。",
     effects:
-      "可选择保留包内协作效果。效果是可选提示，不会因安装或发送表情而自动启用。",
-    noEffects: "这个包只有表情，没有协作效果。",
+      "选择要保留的表情效果。保留的效果随它绑定的表情发送时生效；不保留时会一并去掉绑定。",
+    noEffects: "这个包只有表情，没有表情效果。",
     meaning: "固定语义",
     locale: "原文语言",
     full: "完整内容与元数据",
@@ -132,9 +132,9 @@ export const previewWords = {
     rights:
       "Supported: CC0-1.0, CC-BY-4.0 and CC-BY-SA-4.0. The pack and every expression require creator attribution; derivatives require provenance. Imported licenses are never changed automatically. Editing an expression's attribution or license creates a new identity and preserves provenance.",
     effects:
-      "Choose which included collaboration effects to keep. They are optional guidance, never enabled by installation or by sending an expression.",
+      "Choose which expression effects to keep. A kept effect applies whenever its bound expression is sent; dropping one also drops its bindings.",
     noEffects:
-      "This pack contains expressions only, with no collaboration effects.",
+      "This pack contains expressions only, with no expression effects.",
     meaning: "Fixed semantics",
     locale: "Original language",
     full: "Complete content and metadata",
@@ -276,7 +276,7 @@ export function Preview({
       </div>
       {!!manifest.effects?.length && (
         <h2 className="preview-section-title">
-          {zh ? "可选协作效果" : "Optional collaboration effects"}
+          {zh ? "表情效果" : "Expression effects"}
         </h2>
       )}
       {manifest.effects?.map((a: any) => {

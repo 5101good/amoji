@@ -1,6 +1,6 @@
 # Amoji
 
-[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 2.0.0](https://github.com/5101good/amoji/releases/tag/v2.0.0)
+[English](README.en.md) · [开始使用](#安装) · [文档](docs/README.md) · [下载 2.1.0](https://github.com/5101good/amoji/releases/tag/v2.1.0)
 
 **人机协作，也需要表情。**
 
@@ -14,11 +14,11 @@ AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励�
 
 ## Amoji 0.1 协议
 
-Amoji 2.0.0 实现 [Amoji 0.1](docs/specs/amoji-0.1-rfc.md)：每个表情实现注册表中的一个**码位**（如 `core:uncertain`「暂时没把握」），表情包提供图片与多语言固定语义，可选的**表情效果**是用户明确启用的、给 AI 的一句回答要求。AI 按码位表达，宿主按你的首选表情包选图。0.1 取代此前的全部格式，1.x 的 `.amoji` 包不能直接导入；产品版本 2.0.0 与协议版本 0.1 分别维护；升级前请阅读[兼容与备份说明](docs/dsh-installation.md#从-1x-升级到-200)。
+Amoji 2.1.0 实现 [Amoji 0.1](docs/specs/amoji-0.1-rfc.md)：每个表情实现注册表中的一个**码位**（如 `core:uncertain`「暂时没把握」），表情包提供图片与多语言固定语义，**表情效果**是绑定在表情上的一句给 AI 的回答要求，发送那个表情时一起生效。AI 按码位表达，宿主按你的首选表情包选图。0.1 取代此前的全部格式，1.x 的 `.amoji` 包不能直接导入；产品版本 2.1.0 与协议版本 0.1 分别维护；升级前请阅读[兼容与备份说明](docs/dsh-installation.md#从-1x-升级到-200)。
 
 ## 表情包市场
 
-[审核制市场](https://amoji.ai-web.ai)提供表情包的浏览、安装和独立收藏。在 dsh「表情 → 市场」安装；安装不会启用任何效果。参阅[运营与恢复说明](docs/marketplace-operations.md)。
+[审核制市场](https://amoji.ai-web.ai)提供表情包的浏览、安装和独立收藏。在 dsh「表情 → 市场」安装；带效果的表情会标明效果，发送时一起生效。参阅[运营与恢复说明](docs/marketplace-operations.md)。
 
 ## 为什么我们需要它
 
@@ -63,7 +63,7 @@ Amoji 想让这种能力更普遍。你用一张图表达感受与意图，AI �
 
 ## 从 dsh 开始
 
-Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**2.0.0 提供 dsh 原生交互**，把选择、发送、理解和管理放进同一个工作流：
+Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**2.1.0 提供 dsh 原生交互**，把选择、发送、理解和管理放进同一个工作流：
 
 - **原生双向表情**：输入区点选即发送；AI 工作时，纠偏类表情作为信号送达，「先等一下」可直接让 AI 停下。AI 按码位表达，图片直接显示在会话中。
 - **经典与办公两套官方表情包**：各 24 个表情、实现相同的 22 个码位，覆盖人向 AI 表达和 AI 回应人的场景。
@@ -85,20 +85,20 @@ Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**2.0
 已经在使用 dsh 的 `web` profile，可以直接安装公开发布包，然后重启该 profile：
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.0.0/amoji-dsh-2.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
 ```
 
 需要独立 profile 或先核验下载文件时：
 
-1. 使用 Node.js **24 或更新版本**。宿主基线为 **dsh 0.1.5-rc.2 / macOS arm64**；本次发行的验证范围见[发布说明](docs/releases/v2.0.0.md)。
-2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-2.0.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
+1. 使用 Node.js **24 或更新版本**。宿主基线为 **dsh 0.1.5-rc.2 / macOS arm64**；本次发行的验证范围见[发布说明](docs/releases/v2.1.0.md)。
+2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-2.1.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
 3. 安装到自己的 dsh profile，重启该 profile，选择工作区后打开输入区的“表情”。
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -114,7 +114,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## 验证与边界
 
-2.0.0 提供 dsh 与 Claude Desktop Code 本地会话适配。自动测试、最终发行包检查、真机界面和真实模型回合分别记录；历史安装、市场备份与恢复结果不代替本次发行验收。五套角色包的全部 20 条英文已由维护者人工审校确认，来源仍如实标为机器翻译后人工审核（`machine-reviewed`）；独立真人易用性研究未作为已完成项。参见[2.0.0 发布说明](docs/releases/v2.0.0.md)。
+2.1.0 提供 dsh 与 Claude Desktop Code 本地会话适配。自动测试、最终发行包检查、真机界面和真实模型回合分别记录；历史安装、市场备份与恢复结果不代替本次发行验收。五套角色包的全部 20 条英文已由维护者人工审校确认，来源仍如实标为机器翻译后人工审核（`machine-reviewed`）；独立真人易用性研究未作为已完成项。参见[2.1.0 发布说明](docs/releases/v2.1.0.md)。
 
 Linux、Windows 和其他 dsh 版本未完成真实宿主验收。Code Dispatch / PTC 嵌套工具不保证图片展示。旧 Codex/Claude hook 实现作为 legacy 保留；新的 Claude Desktop Mods 有独立适配和验证范围。详见[发布与已知限制](docs/release.md)。
 
@@ -141,4 +141,4 @@ npm run test:dsh
 
 ## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：2.0.0 的独立 ZIP 采用 Amoji 0.1，适用于 Claude Desktop Code 页签的本地会话，包含双向表情、个人库、创建与偏好，以及市场浏览与安装、账号连接、分享投稿和表情效果。
+[原生 Code 适配指南](docs/claude-mods.md)：2.1.0 的独立 ZIP 采用 Amoji 0.1，适用于 Claude Desktop Code 页签的本地会话，包含双向表情、个人库、创建与偏好，以及市场浏览与安装、账号连接、分享投稿和表情效果。

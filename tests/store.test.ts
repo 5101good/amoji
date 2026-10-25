@@ -10,6 +10,26 @@ const context = (turn = 'turn:1'): BindingContext => ({ host: 'dsh', hostInstanc
 const classic = JSON.parse(await readFile(new URL('../assets/official-packs/classic.manifest.json', import.meta.url), 'utf8'));
 const office = JSON.parse(await readFile(new URL('../assets/official-packs/office.manifest.json', import.meta.url), 'utf8'));
 
+test('sending carries one effect: newest release, exact revision over act, none for interrupts', async () => {
+  const { store, directory, close } = await openStore();
+  try {
+    const { exportManifest } = await import('../src/packs.js'); const { randomUUID } = await import('node:crypto');
+    const ref = (realizes: string, name?: string) => { const e = classic.expressions.find((x: { realizes: string; name: Record<string, string> }) => x.realizes === realizes && (!name || x.name['zh-CN'] === name)); return { asset_id: e.asset_id, revision_id: e.revision_id }; };
+    const progress = store.effectChoices(context(), ref('core:checkin', '进度如何'));
+    assert.equal(progress.length, 1); assert.deepEqual(progress[0]!.effect.kind === 'template' && progress[0]!.effect.config, { layout: 'answer-first' });
+    assert.equal(store.effectChoices(context(), ref('core:checkin', '还在吗')).length, 0, 'unbound expressions carry nothing');
+    assert.equal(store.effectChoices(context(), ref('core:hold')).length, 0);
+    const done = store.effectChoices(context(), ref('core:continue'));
+    assert.equal(done.length, 1); assert.equal(done[0]!.effect.kind === 'template' && done[0]!.effect.template, 'completion-self-check@1');
+    // A newer release of the same pack replaces the current one's bindings instead of adding to them.
+    const newer = { ...store.getPack(classic.release_id), release_id: randomUUID(), version: classic.version + 1, bindings: [{ target: { act: 'core:continue' }, effects: [classic.effects[0].effect_id] }] };
+    await store.importPack(await exportManifest(newer, blob => readFile(`${directory}/blobs/${blob.sha256}`)));
+    const carry = store.effectChoices(context(), ref('core:continue'));
+    assert.equal(carry.length, 1); assert.equal(carry[0]!.selection.release_id, newer.release_id); assert.equal(carry[0]!.effect.effect_id, classic.effects[0].effect_id);
+    assert.equal(store.effectChoices(context(), ref('core:checkin', '进度如何')).length, 0);
+  } finally { await close(); }
+});
+
 test('built-in packs seed the library; preferred packs order glyph choice', async () => {
   const { store, close } = await openStore();
   try {

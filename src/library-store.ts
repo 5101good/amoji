@@ -4,7 +4,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile, rename, access, rm } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
-import {
+import { validateAuthoredPack,
   actAllows, actEntry, backchannelEligible, findAct, interruptEligible, lookupLocale, PROTOCOL, REGISTRY_REVISION,
   type Anchor, type BlobRef, type DecisionOption, type Direction, type Expression, type ExpressionRef, type Intensity, type Mode, type Pack,
 } from './protocol/index.js';
@@ -224,7 +224,7 @@ export class LibraryStore {
     });
   }
   async previewPackDraft(id: string, version: number): Promise<Pack> {
-    const d = this.packDraft(id, version); validatePackManifest(d.manifest);
+    const d = this.packDraft(id, version); validateAuthoredPack(d.manifest);
     for (const e of d.manifest.expressions) await validateExpressionMedia(e, blob => this.readBlob(blob));
     this.packDraft(id, version); return d.manifest;
   }
@@ -619,15 +619,22 @@ export class LibraryStore {
     return { pack_id: pack.pack_id, release_id: pack.release_id, version: pack.version, original_locale: pack.original_locale,
       origin: install?.origin ?? (source?.startsWith('market:') ? source.slice(7) : source === 'imported' ? 'imported-file' : source ?? 'local') };
   }
-  /** Effects bound to this exact expression, or to its act inside the same pack (RFC §7.3). */
+  /** The one effect sending this expression carries: bound to its exact revision, or else to its act (RFC §7.3). */
   effectChoices(context: BindingContext, ref: ExpressionRef): EffectChoice[] {
     if (!['dsh', 'claude-code'].includes(context.host)) fail('CAPABILITY_UNAVAILABLE', '此宿主不支持协作效果');
-    return this.listPacks().flatMap(pack => {
+    const active = this.listPacks().filter(pack => this.releaseActive(pack.release_id));
+    // Sending carries at most one effect (RFC §7.3): the newest release of a pack replaces its
+    // earlier ones, and the most recently added pack decides when packs share an expression.
+    return active.flatMap(pack => {
       const expression = pack.expressions.find(e => e.asset_id === ref.asset_id && e.revision_id === ref.revision_id);
-      if (!expression || !pack.effects?.length || !this.releaseActive(pack.release_id)) return [];
-      const ids = new Set((pack.bindings ?? []).filter(b => 'act' in b.target ? b.target.act === expression.realizes : b.target.asset_id === ref.asset_id && b.target.revision_id === ref.revision_id).flatMap(b => b.effects));
+      // Stopping never carries a request, even from an older pack that bound one.
+      if (!expression || !pack.effects?.length || interruptEligible(expression.realizes) || active.some(p => p.pack_id === pack.pack_id && p.version > pack.version)) return [];
+      // An exact-revision binding is more specific than its act's, so it wins; either way one effect travels.
+      const exact = (pack.bindings ?? []).find(b => !('act' in b.target) && b.target.asset_id === ref.asset_id && b.target.revision_id === ref.revision_id);
+      const binding = exact ?? (pack.bindings ?? []).find(b => 'act' in b.target && b.target.act === expression.realizes);
+      const ids = new Set(binding?.effects.slice(0, 1));
       return pack.effects.filter(effect => ids.has(effect.effect_id)).map(effect => ({ selection: { release_id: pack.release_id, effect_id: effect.effect_id, effect_revision_id: effect.effect_revision_id }, effect, source: this.effectSource(pack) }));
-    });
+    }).slice(0, 1);
   }
   ruleChoices(context: BindingContext): RuleChoice[] {
     if (!['dsh', 'claude-code'].includes(context.host)) fail('CAPABILITY_UNAVAILABLE', '此宿主不支持会话规则');

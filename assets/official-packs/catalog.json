@@ -8,12 +8,12 @@
         "en": "Classic"
       },
       "pack_id": "9a18f5b6-c6cd-48fa-b0d4-baee5249b604",
-      "release_id": "f56f4f65-44aa-4891-b572-caf912185293",
-      "version": 1,
+      "release_id": "5e9b2b01-f9f1-4cb4-87ed-2adb63598511",
+      "version": 2,
       "expressions": 24,
       "effects": 5,
-      "archive_sha256": "ca23b70161d1ec743b7ef3001b772c8594a41c57052021e949efe200856ef204",
-      "bytes": 4789179
+      "archive_sha256": "ff89c51b2c55fea99fe5d1b883af7444fc4c5550df336ee304c36d7641d9f7ee",
+      "bytes": 4789238
     },
     {
       "slug": "office",
@@ -22,12 +22,12 @@
         "en": "Office"
       },
       "pack_id": "2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1",
-      "release_id": "13b3fb1e-78aa-4023-97e1-7e2fc45f1b06",
-      "version": 1,
+      "release_id": "beee5676-8d7e-42eb-921f-c4a270f4c461",
+      "version": 2,
       "expressions": 24,
       "effects": 5,
-      "archive_sha256": "147af21a8e00e48c4ae9af83d0f72bc3f2cd7023f5e6d4048840ec5b5c8d6c71",
-      "bytes": 2645717
+      "archive_sha256": "df9f95f803264afdd669265891e59510b423960741b9d2a4e2b93242f6834c76",
+      "bytes": 2645775
     },
     {
       "slug": "slow-cat",

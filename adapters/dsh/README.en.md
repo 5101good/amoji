@@ -2,17 +2,17 @@
 
 [中文](README.md) · [Project and documentation](https://github.com/5101good/amoji)
 
-Native expressions for people and AI: people see artwork, models read fixed meaning. Version 2.0.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**. Historical live-host records are from macOS arm64; see the [2.0.0 release notes](https://github.com/5101good/amoji/blob/v2.0.0/docs/releases/v2.0.0.md) for this release’s scope.
+Native expressions for people and AI: people see artwork, models read fixed meaning. Version 2.1.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**. Historical live-host records are from macOS arm64; see the [2.1.0 release notes](https://github.com/5101good/amoji/blob/v2.1.0/docs/releases/v2.1.0.md) for this release’s scope.
 
 ## Install and use
 
-Download and verify `amoji-dsh-2.0.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
+Download and verify `amoji-dsh-2.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
 
 The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -24,7 +24,7 @@ The UI follows dsh's Chinese/English language without rewriting stored semantics
 
 ## Data and compatibility
 
-The Host connects to the local shared service. Product version 2.0.0 uses the Amoji 0.1 protocol, shared API `3` and database `1`. The macOS default directory is `~/Library/Application Support/Amoji/prototype`; use `AMOJI_DATA_DIR` for isolation. Before upgrading from 1.x, stop the old service and back up the complete directory. Version 2.0.0 uses a new `library-0.1.sqlite` and preserves the old `library.sqlite`; an empty directory is not required. In-place migration and imports of old `.amoji` packs are unsupported; never edit the database version number. Uninstalling does not proactively delete the library.
+The Host connects to the local shared service. Product version 2.1.0 uses the Amoji 0.1 protocol, shared API `3` and database `1`. The macOS default directory is `~/Library/Application Support/Amoji/prototype`; use `AMOJI_DATA_DIR` for isolation. Before upgrading from 1.x, stop the old service and back up the complete directory. Version 2.1.0 uses a new `library-0.1.sqlite` and preserves the old `library.sqlite`; an empty directory is not required. In-place migration and imports of old `.amoji` packs are unsupported; never edit the database version number. Uninstalling does not proactively delete the library.
 
 Browsers use host-authenticated RPC; models use three text tools. `accepted` means the host queued the input while native user-message persistence still awaits reconciliation. `observed` means the matching native message was observed; `rendered` separately records successful media loading. Reconcile original requests after disconnection or uncertain outcomes instead of sending another request.
 
@@ -40,7 +40,7 @@ Full [installation/recovery](https://github.com/5101good/amoji/blob/main/docs/ds
 
 ### Expression marketplace
 
-Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Installation never enables an effect. Updates show semantic and effect differences and require explicit adoption, which disables the previous pack's rules. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
+Open the marketplace from the picker to anonymously search, preview exact releases, install packs, or collect individual expressions. Expressions with an effect are marked in the picker and apply it when sent. Updates show semantic and effect differences and require explicit adoption. Retained older expression revisions remain selectable in library management. Removing a pack preserves independent collections, other imports and history.
 
 The Host startup environment fixes `AMOJI_MARKET_ORIGIN` (defaulting to the public marketplace `https://amoji.ai-web.ai`). Explicit local tests may use a loopback HTTP origin. Clients and packs cannot override it. Stop hosts and the shared service using that library before changing this deployment setting and restarting. Isolate tests with `DSH_HOME` and `AMOJI_DATA_DIR`.
 

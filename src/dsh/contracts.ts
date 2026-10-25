@@ -44,14 +44,10 @@ export interface HistoryEntry { effect?: import('./collaboration-context.js').Co
 export interface VisualData { expression: Expression; primary: string; poster: string | null }
 /** What a person submits from the dsh UI. The host decides the mode (RFC §8.3). */
 export interface SubmitInput { ref?: ExpressionRef; act?: string; note?: string; respondsTo?: string; anchor?: { message_id: string; exact?: string; prefix?: string; suffix?: string }; effect?: import('../effects.js').EffectSelection }
-export interface PackSummary { pack_id: string; release_id: string; version: number; name: Record<string, string>; original_locale: string; assets: string[] }
+export interface PackSummary { pack_id: string; release_id: string; version: number; name: Record<string, string>; original_locale: string; assets: string[]; effected?: string[] }
 export interface DshRpc extends ManagementRpc {
   publisher?(sessionId:string,method:string,args:unknown):Promise<any>;
   marketplace?(sessionId:string,method:string,args:unknown):Promise<any>;
-  rules?(sessionId:string):Promise<import('../conversation-rules.js').RuleView>;
-  enableRule?(sessionId:string,selection:import('../effects.js').EffectSelection,generation:number,replace:import('../effects.js').EffectSelection|null):Promise<import('../conversation-rules.js').RuleView>;
-  disableRule?(sessionId:string,selection:import('../effects.js').EffectSelection,generation:number):Promise<import('../conversation-rules.js').RuleView>;
-  disableAllRules?(sessionId:string,generation:number):Promise<import('../conversation-rules.js').RuleView>;
 
   reconnect?(sessionId: string, signal?: AbortSignal): Promise<void>;
   manage(sessionId: string, signal?: AbortSignal): Promise<{ url: string }>;

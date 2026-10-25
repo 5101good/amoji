@@ -156,7 +156,9 @@ export class DshAdapter {
       const assets = pack.expressions.map(e => e.asset_id).filter(id => available.has(id));
       const current = latest.get(pack.pack_id);
       if (!assets.length || (current && current.version >= pack.version)) continue;
-      latest.set(pack.pack_id, { pack_id: pack.pack_id, release_id: pack.release_id, version: pack.version, name: pack.name, original_locale: pack.original_locale, assets });
+      // Expressions whose sending also carries an effect, so the grid can mark them (RFC §7).
+      const effected = pack.effects?.length ? pack.expressions.filter(e => !interruptEligible(e.realizes) && (pack.bindings ?? []).some(b => 'act' in b.target ? b.target.act === e.realizes : b.target.asset_id === e.asset_id && b.target.revision_id === e.revision_id)).map(e => `${e.asset_id}:${e.revision_id}`) : [];
+      latest.set(pack.pack_id, { pack_id: pack.pack_id, release_id: pack.release_id, version: pack.version, name: pack.name, original_locale: pack.original_locale, assets, effected });
     }
     return [...latest.values()];
   }
@@ -164,7 +166,7 @@ export class DshAdapter {
     const reconnect = endpoint === 'amoji/reconnect';
     signal = AbortSignal.any([signal, this.lifecycle, ...(!reconnect && this.runtime.connectionSignal ? [this.runtime.connectionSignal] : [])]);
     signal.throwIfAborted();
-    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], packs: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.rules': ['sessionId'], 'collaboration.enable': ['sessionId', 'selection', 'generation', 'replace'], 'collaboration.disable': ['sessionId', 'selection', 'generation'], 'collaboration.disableAll': ['sessionId', 'generation'], 'collaboration.capabilities': ['sessionId'], 'collaboration.receipts': ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], effects: ['sessionId', 'ref'], submit: ['sessionId', 'input', 'requestId'], retract: ['sessionId', 'messageId'], choose: ['sessionId', 'messageId', 'option'], display: ['sessionId', 'messageId', 'hash', 'state'] };
+    const allowed: Record<string, string[]> = { reconnect: ['sessionId'], management: ['sessionId', 'method', 'args'], manage: ['sessionId'], catalog: ['sessionId'], packs: ['sessionId'], search: ['sessionId', 'query', 'limit'], history: ['sessionId'], 'collaboration.capabilities': ['sessionId'], 'collaboration.receipts': ['sessionId'], visual: ['sessionId', 'ref', 'messageId'], effects: ['sessionId', 'ref'], submit: ['sessionId', 'input', 'requestId'], retract: ['sessionId', 'messageId'], choose: ['sessionId', 'messageId', 'option'], display: ['sessionId', 'messageId', 'hash', 'state'] };
     const method = endpoint.replace(/^amoji\//, ''); if (method.startsWith('marketplace.') || method.startsWith('publisher.')) allowed[method] = ['sessionId', 'args']; const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
@@ -196,14 +198,7 @@ export class DshAdapter {
       if (this.ctx.sessions.get(sessionId) !== session) fail('DSH_CONTEXT_CHANGED', '创建面板的会话已变化');
       return { url: panel.url(context) };
     }
-    if (['collaboration.rules', 'collaboration.enable', 'collaboration.disable', 'collaboration.disableAll'].includes(method)) {
-      if (!this.collaboration) return method === 'collaboration.rules' ? { generation: 0, rules: [], choices: [], identity: 'pending' } : fail('CAPABILITY_UNAVAILABLE', '当前宿主身份待恢复');
-      await this.session(sessionId, signal);
-      if (method === 'collaboration.rules') return this.collaboration.rules(sessionId);
-      if (!Number.isSafeInteger(args.generation) || Number(args.generation) < 0) fail('INVALID_ARGUMENT', '无效规则 generation');
-      return this.collaboration.change(sessionId, { kind: method.slice('collaboration.'.length) as 'enable' | 'disable' | 'disableAll', generation: Number(args.generation), ...(args.selection ? { selection: effectSelection(args.selection) } : {}), ...(args.replace ? { replace: effectSelection(args.replace) } : { replace: null }) });
-    }
-    if (method === 'collaboration.capabilities') return { supported: !!this.collaboration && !!this.runtime.collaboration, scopes: ['turn', 'conversation'], reason: this.collaboration && this.runtime.collaboration ? null : 'host-context-unavailable' };
+    if (method === 'collaboration.capabilities') return { supported: !!this.collaboration && !!this.runtime.collaboration, scopes: ['turn'], reason: this.collaboration && this.runtime.collaboration ? null : 'host-context-unavailable' };
     if (method === 'collaboration.receipts') return (await this.rows(sessionId, events)).filter(row => row.effect);
     if (method === 'effects') {
       if (!this.runtime.collaboration || !this.collaboration) fail('CAPABILITY_UNAVAILABLE', '当前宿主不支持协作效果，可明确选择仅发送');
@@ -296,11 +291,18 @@ export class DshAdapter {
     const open = this.openTurn(session);
     const act = input.act ?? (input.ref ? (await this.runtime.catalog.resolve(input.ref)).realizes : '');
     const mode: Mode = open === undefined ? 'turn' : interruptEligible(act) ? 'interrupt' : backchannelEligible(act) ? 'backchannel' : 'turn';
-    if (input.effect && mode !== 'turn') fail('EFFECT_UNAVAILABLE', 'AI 工作时不能附带协作效果，可仅发送表情');
+    // An effect travels with its expression in every mode: a steered signal is
+    // claimed into the running turn, a promoted one into the next (RFC §7, §8.3).
+    // An interrupt ends the turn instead, so it carries none.
+    if (mode === 'interrupt' && input.effect) { const { effect: _ignored, ...plain } = input; input = plain; }
+    // Installing a pack is the consent: an expression with a bound effect always carries it.
+    else if (!input.effect && input.ref && this.runtime.collaboration && this.collaboration) {
+      const [bound] = await this.runtime.collaboration.choices(context, input.ref);
+      if (bound) input = { ...input, effect: bound.selection };
+    }
     if (input.effect) {
       const existing = (await this.runtime.messages(context)).find(m => m.effect_intent?.requestId === requestId);
       if (!existing) {
-        await this.collaboration!.rules(sessionId);
         const choice = (await this.runtime.collaboration!.choices(context, input.ref!)).find(c => JSON.stringify(c.selection) === JSON.stringify(input.effect));
         if (!choice) fail('EFFECT_UNAVAILABLE', '此精确效果不可用于所选表情');
         this.collaboration!.validate(sessionId, choice, input.ref!);
@@ -352,7 +354,7 @@ export function installDsh(ctx: HostPort, runtime: AdapterRuntime, hostInstanceI
     const dispose = async () => { await Promise.all(releases.splice(0).reverse().map(async release => release())); };
     try {
       releases.push(...installPackRoutes(ctx, runtime, (id, signal) => adapter.rpc('amoji/history', { sessionId: id }, signal)));
-      for (const method of [...['beginLogin', 'loginStatus', 'cancelLogin', 'logout', 'drafts', 'create', 'save', 'upload', 'submit', 'retrySubmit', 'reconcile', 'submissions', 'withdraw'].map(m => 'publisher.' + m), ...['search', 'detail', 'install', 'installStatus', 'collect', 'uncollect', 'remove', 'updateCheck', 'local', 'visual', 'refreshRevocations'].map(m => 'marketplace.' + m), 'reconnect', 'catalog', 'packs', 'search', 'history', 'visual', 'collaboration.rules', 'collaboration.enable', 'collaboration.disable', 'collaboration.disableAll', 'collaboration.capabilities', 'collaboration.receipts', 'effects', 'submit', 'retract', 'choose', 'display', 'manage', 'management']) {
+      for (const method of [...['beginLogin', 'loginStatus', 'cancelLogin', 'logout', 'drafts', 'create', 'save', 'upload', 'submit', 'retrySubmit', 'reconcile', 'submissions', 'withdraw'].map(m => 'publisher.' + m), ...['search', 'detail', 'install', 'installStatus', 'collect', 'uncollect', 'remove', 'updateCheck', 'local', 'visual', 'refreshRevocations'].map(m => 'marketplace.' + m), 'reconnect', 'catalog', 'packs', 'search', 'history', 'visual', 'collaboration.capabilities', 'collaboration.receipts', 'effects', 'submit', 'retract', 'choose', 'display', 'manage', 'management']) {
         const endpoint = `amoji/${method}`;
         releases.push(ctx.connection.fetch.register({ path: `/api/${endpoint}`, methods: ['POST'], requestBody: 'buffered', fetch: async request => {
           if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('content type must be application/json', { status: 415 });

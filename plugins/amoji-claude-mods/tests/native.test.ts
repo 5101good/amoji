@@ -111,6 +111,7 @@ function backend(
         fields: emptyFields,
       };
     if (request.command === "listDrafts") result = [];
+    if (request.command === "guidance") result = { once: [] };
     if (request.command === "suggestionRequest")
       result = {
         prompt: JSON.stringify({ intent: request.args.intent }),
@@ -991,12 +992,12 @@ test('发布先设备授权并预览许可，上传与投稿分开确认，未�
  await ui.unmount();
 });
 
-test('表情效果只由用户选择后附加，安装和模型工具不能启用；停用后传空快照',async($,on)=>{
- const calls:any[]=[],contexts:any[]=[],origins:any[]=[];
+test('表情效果随绑定的表情自动附上；没有效果的表情和其他消息不带',async($,on)=>{
+ const calls:any[]=[],contexts:any[]=[],origins:any[]=[];let bound=true;let broken=false;
  const selection={release_id:'r1',effect_id:'a1',effect_revision_id:'ar1'};
  const choice={selection,source:{pack_id:'p1',release_id:'r1',version:1,origin:'local',original_locale:'zh-CN'},effect:{effect_id:'a1',effect_revision_id:'ar1',kind:'template',template:'response-organization@1',config:{layout:'answer-first'},title:{'zh-CN':'先给答案'},summary:{'zh-CN':'先给答案'}}};
  backend(on,calls,false,()=> 'haiku',(r,result)=>{
-   if(r.command==='guidance')return r.args.method==='choices'?{rules:[choice],once:[]}:{text:JSON.stringify({effects:r.args.rules}),rules:r.args.rules,removed:0};
+   if(r.command==='guidance'){if(r.args.method==='choices')return {once:bound?[choice]:[]};if(broken)throw Object.assign(new Error('EFFECT_UNAVAILABLE'),{code:'EFFECT_UNAVAILABLE'});return {text:JSON.stringify({effects:[r.args.once.selection]})};}
    return result;
  });
  let forwarding=false;
@@ -1010,19 +1011,25 @@ test('表情效果只由用户选择后附加，安装和模型工具不能启�
  });
  const ui=await $.ui.mount(pane);
  await ui.press({key:'send:asset-1'});
- expect(contexts[0]).toBeUndefined();
- await navigateTo(ui,'guidance');
+ expect(origins[0]).toEqual({kind:'plugin',name:'amoji',asUser:true});
+ expect(JSON.parse(contexts[0][0]).effects).toEqual([selection]);
+ const band=await $.ui.mount({plugin:'amoji',component:'AbovePrompt',surface:'desktop',props:{}});
+ expect(await band.find({type:'Text',text:/已发送.*附带效果「先给答案」/})).toBeDefined();await band.unmount();
+ expect(calls.some(c=>c.command==='guidance'&&c.args.rules)).toBe(false);
+ await navigateTo(ui,'library');
+ expect(await ui.find({key:'tab:guidance'})).toBeUndefined();
+ await ui.press({key:'details:asset-1'});
+ expect(await ui.find({type:'Text',text:'发送时附带效果：先给答案'})).toBeDefined();
  expect(await ui.find({type:'Text',text:'先给答案，再说明依据。'})).toBeDefined();
  expect(await ui.find({type:'Text',text:/"template"|response-organization@1/})).toBeUndefined();
- await ui.press({key:'guidance-enable:r1:ar1'});
- await navigateTo(ui,'picker');await ui.press({key:'send:asset-1'});
- expect(origins[1]).toEqual({kind:'plugin',name:'amoji',asUser:true});
- expect(JSON.parse(contexts[1][0]).effects.length).toBe(1);
- await navigateTo(ui,'guidance');await ui.press({key:'guidance-clear'});
- await navigateTo(ui,'picker');await ui.press({key:'send:asset-1'});
- expect(JSON.parse(contexts[2][0]).effects.length).toBe(0);
+ expect(await ui.find({key:'detail-guidance'})).toBeUndefined();
+ await navigateTo(ui,'picker');
+ // A source removed after choosing never turns into a plain send.
+ broken=true;await ui.press({key:'send:asset-1'});expect(contexts.length).toBe(1);broken=false;
+ bound=false;await ui.press({key:'send:asset-1'});
+ expect(contexts[1]).toBeUndefined();
  await $.prompt.submit({text:'外部插件消息',asUser:true});
- expect(contexts[3]).toBeUndefined();
+ expect(contexts[2]).toBeUndefined();
  await ui.unmount();
 });
 
@@ -1086,11 +1093,11 @@ test(`各页面在 ${surface} 都能完整绘制`, async ($, on) => {
     if (r.command === "marketplace") return r.args.method === "local" ? { installs: [], collections: [] } : { packs: [], stale: false };
     if (r.command === "publisher") return r.args.method === "drafts" ? [] : { state: "signed_out" };
     if (r.command === "scenario") return { packs: [], drafts: [] };
-    if (r.command === "guidance") return { rules: [], once: [] };
+    if (r.command === "guidance") return { once: [] };
     return result;
   });
   const ui = await $.ui.mount({ ...pane, surface });
-  for (const tab of ["library", "market", "publish", "guidance", "create", "settings", "packs", "picker"]) {
+  for (const tab of ["library", "market", "publish", "create", "settings", "packs", "picker"]) {
     await navigateTo(ui, tab, false);
     expect(await ui.find({ key: "tab:picker" }) || await ui.find({ key: "tab:library" })).toBeDefined();
   }
@@ -1127,18 +1134,5 @@ test("未设置 language 时按系统语言显示界面", async ($, on) => {
   backend(on, [], false, () => "haiku", (_request, result) => result, null, { LANG: "en_US.UTF-8" });
   const ui = await $.ui.mount(pane);
   expect(await ui.find({ type: "Text", text: "Say it with an expression" })).toBeDefined();
-  await ui.unmount();
-});
-test("同一效果随多个发布包出现时，表情效果页仍能绘制（真实官方包形状）", async ($, on) => {
-  const real = {"rules":[{"selection":{"release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","effect_id":"b6d32e2b-d937-4a98-85ec-ac80ae0ecfdd","effect_revision_id":"b7b62180-0318-43f4-82f7-aa0c1bf88271"},"effect":{"effect_id":"b6d32e2b-d937-4a98-85ec-ac80ae0ecfdd","effect_revision_id":"b7b62180-0318-43f4-82f7-aa0c1bf88271","title":{"zh-CN":"换一种简单说法","en":"Explain more simply"},"summary":{"zh-CN":"换一种简单说法","en":"Explain more simply"},"kind":"context","conflict_group":"explanation","instruction":{"zh-CN":"本回合请用简单语言重新解释当前问题，指出尚需澄清之处；不要假装已经理解未提供的信息。","en":"For this turn, explain the current problem in plain language and identify what needs clarification. Do not pretend missing information is known."}},"source":{"pack_id":"2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1","release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","effect_id":"4db52514-f649-44f6-8477-ffd607e48fb5","effect_revision_id":"5c5bff72-e626-4d62-8dfd-44feb695fd46"},"effect":{"effect_id":"4db52514-f649-44f6-8477-ffd607e48fb5","effect_revision_id":"5c5bff72-e626-4d62-8dfd-44feb695fd46","title":{"zh-CN":"先给具体示例","en":"Give a concrete example first"},"summary":{"zh-CN":"先给具体示例","en":"Give a concrete example first"},"kind":"context","conflict_group":"response-organization","instruction":{"zh-CN":"本回合先给一个与当前问题相关的具体例子，明确它只是示例，再简短解释。","en":"For this turn, start with a concrete example relevant to the current question, label it as an example, then explain briefly."}},"source":{"pack_id":"2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1","release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","effect_id":"c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6","effect_revision_id":"5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1"},"effect":{"effect_id":"c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6","effect_revision_id":"5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1","title":{"zh-CN":"当前会话先结论后依据","en":"Answer first in this conversation"},"summary":{"zh-CN":"当前会话先结论后依据","en":"Answer first in this conversation"},"kind":"template","template":"response-organization@1","config":{"layout":"answer-first"}},"source":{"pack_id":"2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1","release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","effect_id":"f3907920-5c96-470f-85da-ae28d34316d8","effect_revision_id":"aacea09a-729b-414b-859d-045d8632129a"},"effect":{"effect_id":"f3907920-5c96-470f-85da-ae28d34316d8","effect_revision_id":"aacea09a-729b-414b-859d-045d8632129a","title":{"zh-CN":"说明证据与未知","en":"State evidence and unknowns"},"summary":{"zh-CN":"说明证据与未知","en":"State evidence and unknowns"},"kind":"context","conflict_group":"completion-report","instruction":{"zh-CN":"本回合区分已经核实的事实、尚未知的事项和可执行的下一步；没有实际验证时明确说未验证，不把计划当完成。","en":"For this turn, separate verified facts, unknowns and an actionable next step. Explicitly say unverified when no check was performed; a plan is not completion."}},"source":{"pack_id":"2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1","release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","effect_id":"05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5","effect_revision_id":"ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f"},"effect":{"effect_id":"05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5","effect_revision_id":"ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f","title":{"zh-CN":"当前会话完成时说明依据和未知","en":"Completion evidence and unknowns in this conversation"},"summary":{"zh-CN":"当前会话完成时说明依据和未知","en":"Completion evidence and unknowns in this conversation"},"kind":"template","template":"completion-self-check@1","config":{"evidence":"required","unknowns":"explicit"}},"source":{"pack_id":"2a1a4f64-5aab-4b0a-bf27-4ad8b0b9abb1","release_id":"13b3fb1e-78aa-4023-97e1-7e2fc45f1b06","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"f56f4f65-44aa-4891-b572-caf912185293","effect_id":"b6d32e2b-d937-4a98-85ec-ac80ae0ecfdd","effect_revision_id":"b7b62180-0318-43f4-82f7-aa0c1bf88271"},"effect":{"effect_id":"b6d32e2b-d937-4a98-85ec-ac80ae0ecfdd","effect_revision_id":"b7b62180-0318-43f4-82f7-aa0c1bf88271","title":{"zh-CN":"换一种简单说法","en":"Explain more simply"},"summary":{"zh-CN":"换一种简单说法","en":"Explain more simply"},"kind":"context","conflict_group":"explanation","instruction":{"zh-CN":"本回合请用简单语言重新解释当前问题，指出尚需澄清之处；不要假装已经理解未提供的信息。","en":"For this turn, explain the current problem in plain language and identify what needs clarification. Do not pretend missing information is known."}},"source":{"pack_id":"9a18f5b6-c6cd-48fa-b0d4-baee5249b604","release_id":"f56f4f65-44aa-4891-b572-caf912185293","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"f56f4f65-44aa-4891-b572-caf912185293","effect_id":"4db52514-f649-44f6-8477-ffd607e48fb5","effect_revision_id":"5c5bff72-e626-4d62-8dfd-44feb695fd46"},"effect":{"effect_id":"4db52514-f649-44f6-8477-ffd607e48fb5","effect_revision_id":"5c5bff72-e626-4d62-8dfd-44feb695fd46","title":{"zh-CN":"先给具体示例","en":"Give a concrete example first"},"summary":{"zh-CN":"先给具体示例","en":"Give a concrete example first"},"kind":"context","conflict_group":"response-organization","instruction":{"zh-CN":"本回合先给一个与当前问题相关的具体例子，明确它只是示例，再简短解释。","en":"For this turn, start with a concrete example relevant to the current question, label it as an example, then explain briefly."}},"source":{"pack_id":"9a18f5b6-c6cd-48fa-b0d4-baee5249b604","release_id":"f56f4f65-44aa-4891-b572-caf912185293","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"f56f4f65-44aa-4891-b572-caf912185293","effect_id":"c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6","effect_revision_id":"5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1"},"effect":{"effect_id":"c17b8dfd-3eb3-49bd-8f5f-eb6f3d28fac6","effect_revision_id":"5a6b22ec-11d9-4cb9-85b2-a5c1b89096f1","title":{"zh-CN":"当前会话先结论后依据","en":"Answer first in this conversation"},"summary":{"zh-CN":"当前会话先结论后依据","en":"Answer first in this conversation"},"kind":"template","template":"response-organization@1","config":{"layout":"answer-first"}},"source":{"pack_id":"9a18f5b6-c6cd-48fa-b0d4-baee5249b604","release_id":"f56f4f65-44aa-4891-b572-caf912185293","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"f56f4f65-44aa-4891-b572-caf912185293","effect_id":"f3907920-5c96-470f-85da-ae28d34316d8","effect_revision_id":"aacea09a-729b-414b-859d-045d8632129a"},"effect":{"effect_id":"f3907920-5c96-470f-85da-ae28d34316d8","effect_revision_id":"aacea09a-729b-414b-859d-045d8632129a","title":{"zh-CN":"说明证据与未知","en":"State evidence and unknowns"},"summary":{"zh-CN":"说明证据与未知","en":"State evidence and unknowns"},"kind":"context","conflict_group":"completion-report","instruction":{"zh-CN":"本回合区分已经核实的事实、尚未知的事项和可执行的下一步；没有实际验证时明确说未验证，不把计划当完成。","en":"For this turn, separate verified facts, unknowns and an actionable next step. Explicitly say unverified when no check was performed; a plan is not completion."}},"source":{"pack_id":"9a18f5b6-c6cd-48fa-b0d4-baee5249b604","release_id":"f56f4f65-44aa-4891-b572-caf912185293","version":1,"original_locale":"zh-CN","origin":"builtin"}},{"selection":{"release_id":"f56f4f65-44aa-4891-b572-caf912185293","effect_id":"05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5","effect_revision_id":"ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f"},"effect":{"effect_id":"05e8cd9c-fd0f-473f-830c-a0bf7d8c0ac5","effect_revision_id":"ba2a4fe3-e33e-4627-8dfe-aacb9aaec91f","title":{"zh-CN":"当前会话完成时说明依据和未知","en":"Completion evidence and unknowns in this conversation"},"summary":{"zh-CN":"当前会话完成时说明依据和未知","en":"Completion evidence and unknowns in this conversation"},"kind":"template","template":"completion-self-check@1","config":{"evidence":"required","unknowns":"explicit"}},"source":{"pack_id":"9a18f5b6-c6cd-48fa-b0d4-baee5249b604","release_id":"f56f4f65-44aa-4891-b572-caf912185293","version":1,"original_locale":"zh-CN","origin":"builtin"}}],"once":[]};
-  backend(on, [], false, () => "haiku", (r, result) => {
-    if (r.command === "guidance") return real;
-    return result;
-  });
-  const ui = await $.ui.mount(pane);
-  await navigateTo(ui, "guidance", false);
-  expect(await ui.find({ key: "tab:picker" })).toBeDefined();
-  // Ten selections, each its own card, even when one effect ships in several releases.
-  expect((await ui.findAll({ type: "Box" })).filter((n: any) => String(n.props.key || "").startsWith("guidance-card:")).length).toBe(10);
   await ui.unmount();
 });

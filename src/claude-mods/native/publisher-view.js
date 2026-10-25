@@ -84,7 +84,7 @@ export function publisherView($,s,k) {
           input('publish-source-url',tr('许可来源','License source'),v.rights.source||'',x=>{v.rights.source=x;}),
         ]),
         d.step===2&&col([
-          ui.caption(tr('选择要一起分享的表情效果，使用者需要自己启用。','Choose expression effects to share. People turn them on themselves.'),inner),
+          ui.caption(tr('选择要一起分享的表情效果；使用者发送对应表情时会自动附上。','Choose expression effects to share; they apply whenever people send the matching expression.'),inner),
           ...(s.packs?.packs.find(p=>p.release_id===d.source_release_id)?.effects||[]).map(a=>check('publish-effect:'+a.effect_revision_id,s.publicationEffects.includes(a.effect_revision_id),local(s,a.title,v.original_locale),async()=>{
             s.publicationEffects=s.publicationEffects.includes(a.effect_revision_id)?s.publicationEffects.filter(x=>x!==a.effect_revision_id):[...s.publicationEffects,a.effect_revision_id];
           })),

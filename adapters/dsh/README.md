@@ -2,17 +2,17 @@
 
 [English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-面向人和 AI 的原生表情：人看图，模型读固定语义。2.0.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**。历史真机记录来自 macOS arm64，本次发行范围见[2.0.0 发布说明](https://github.com/5101good/amoji/blob/v2.0.0/docs/releases/v2.0.0.md)。
+面向人和 AI 的原生表情：人看图，模型读固定语义。2.1.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**。历史真机记录来自 macOS arm64，本次发行范围见[2.1.0 发布说明](https://github.com/5101good/amoji/blob/v2.1.0/docs/releases/v2.1.0.md)。
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-2.0.0.tgz`，在文件所在目录执行：
+从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-2.1.0.tgz`，在文件所在目录执行：
 
 第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -24,7 +24,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 
 ## 数据与兼容
 
-Host 连接本地共享服务；产品版本为 2.0.0，协议为 Amoji 0.1，共享 API 为 `3`，数据库为 `1`。macOS 默认数据目录为 `~/Library/Application Support/Amoji/prototype`，可用 `AMOJI_DATA_DIR` 隔离。从 1.x 升级前须停止旧服务并备份完整目录。2.0.0 使用新的 `library-0.1.sqlite`，保留旧 `library.sqlite`，不要求空目录；不支持旧库就地迁移或旧 `.amoji` 包导入。不要手改数据库版本号。卸载插件不主动删除共享库。
+Host 连接本地共享服务；产品版本为 2.1.0，协议为 Amoji 0.1，共享 API 为 `3`，数据库为 `1`。macOS 默认数据目录为 `~/Library/Application Support/Amoji/prototype`，可用 `AMOJI_DATA_DIR` 隔离。从 1.x 升级前须停止旧服务并备份完整目录。2.1.0 使用新的 `library-0.1.sqlite`，保留旧 `library.sqlite`，不要求空目录；不支持旧库就地迁移或旧 `.amoji` 包导入。不要手改数据库版本号。卸载插件不主动删除共享库。
 
 浏览器只使用宿主认证 RPC，模型只使用三个文字工具。`accepted` 表示宿主已接收入队，原生用户消息是否落盘仍需核对；`observed` 表示已观察到对应原生消息，图片 `rendered` 是独立的加载证据。断连或结果未知时核对原请求，避免另发。
 
@@ -40,7 +40,7 @@ direct tools 是 AI 图像展示的验证路径；Code Dispatch/PTC 嵌套工具
 
 ### 表情市场
 
-在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装表情包或独立收藏单张表情。安装不会启用任何效果。检查更新会列出语义和效果差异，采用后停用旧包规则；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
+在选择器点击「表情市场」，可匿名搜索、预览精确版本、安装表情包或独立收藏单张表情。带效果的表情在选择器里有角标，发送时效果一起生效。检查更新会列出语义和效果差异，需明确采用；仍可在库管理中选择已经保留的旧表情版本。移除包不会删除独立收藏、其他导入或历史。
 
 Host 启动环境的 `AMOJI_MARKET_ORIGIN` 固定市场 origin（默认正式市场 `https://amoji.ai-web.ai`）；显式本地测试可使用 loopback HTTP origin。客户端及包不能覆盖它。修改此部署配置前应关闭使用同一库的宿主及共享服务，再重新启动。用 `DSH_HOME` 和 `AMOJI_DATA_DIR` 隔离测试。
 

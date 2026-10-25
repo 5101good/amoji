@@ -6,10 +6,11 @@ import type { DshRpc } from './contracts.js';
 import { AmojiImage } from './media.js';
 
 export function CloseIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>; }
+export function SparkIcon() { return <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>; }
 export function SmileIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="9"/><path d="M8 14s1 3 4 3 4-3 4-3"/><path d="M8 8v2m8-2v2"/></svg>; }
-export function ExpressionTile({rpc,sessionId,expression,selected,disabled,onSelect}:{rpc:DshRpc;sessionId:string;expression:Expression;selected:boolean;disabled?:boolean;onSelect:()=>void}) {
- const text=expressionText(expression,useUiLocale());
- return <button type="button" className="amoji-expression-tile" aria-label={text.name} aria-pressed={selected} title={text.meaning} lang={text.locale} disabled={disabled} onClick={onSelect}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{text.name}</span></button>;
+export function ExpressionTile({rpc,sessionId,expression,selected,disabled,effect,onSelect}:{rpc:DshRpc;sessionId:string;expression:Expression;selected:boolean;disabled?:boolean;effect?:boolean;onSelect:()=>void}) {
+ const t=useText();const text=expressionText(expression,useUiLocale());
+ return <button type="button" className="amoji-expression-tile" aria-label={effect?t('{name}（带表情效果）',{name:text.name}):text.name} aria-pressed={selected} title={effect?`${text.meaning}\n${t('发送时会附带表情效果')}`:text.meaning} lang={text.locale} disabled={disabled} onClick={onSelect}>{effect&&<span className="amoji-effect-mark" aria-hidden="true"><SparkIcon/></span>}<AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{text.name}</span></button>;
 }
 
 export const styles = `
@@ -33,6 +34,8 @@ export const styles = `
 .amoji-expression-choice{position:relative;min-width:0}.amoji-expression-choice>.amoji-expression-tile{width:100%}.amoji button.amoji-expression-detail{position:absolute;right:3px;top:3px;min-height:26px;padding:2px 6px;font-size:11px;background:var(--amoji-bg);opacity:.86}
 .amoji button.amoji-expression-tile{border:1px solid transparent;border-radius:10px;background:transparent;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px;min-width:0;min-height:114px;color:var(--amoji-ink)}
 .amoji button.amoji-expression-tile[aria-pressed=true]{background:var(--amoji-selected);border-color:var(--amoji-accent)}
+.amoji button.amoji-expression-tile{position:relative}.amoji-effect-mark{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--amoji-accent);color:var(--amoji-bg);flex:none}.amoji-expression-tile>.amoji-effect-mark{position:absolute;left:4px;top:4px;z-index:1;box-shadow:0 0 0 2px var(--amoji-bg)}
+.amoji-once-effect{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--amoji-wash)}.amoji-once-effect>div{display:grid;gap:3px;min-width:0}.amoji-once-effect>.amoji-effect-mark{margin-top:2px}
 .amoji-expression-label{font-size:12px;line-height:18px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .amoji .amoji-media{display:flex;position:relative;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0;width:152px;min-height:152px;max-width:100%}.amoji .amoji-media img{display:block;width:152px;height:152px;max-width:100%;object-fit:contain}
 .amoji .amoji-thumbnail{width:76px;height:76px;min-height:76px}.amoji .amoji-thumbnail img{width:76px;height:76px}

@@ -1,5 +1,5 @@
 import { validatePackSchema } from "amoji-schema";
-import { Problems, checkPackRules } from "../../../src/protocol/rules";
+import { Problems, checkAuthoredEffects, checkPackRules } from "../../../src/protocol/rules";
 import type { Pack } from "../../../src/protocol/types";
 
 /**
@@ -14,5 +14,7 @@ export function packProblems(manifest: unknown): string[] {
     );
   const problems = new Problems();
   checkPackRules(manifest as Pack, problems);
+  // New submissions follow the authoring rules: effects travel with expressions.
+  checkAuthoredEffects(manifest as Pack, problems);
   return problems.items;
 }

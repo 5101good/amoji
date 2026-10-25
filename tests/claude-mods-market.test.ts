@@ -38,7 +38,7 @@ test('Claude market bridge: local packs and creator drafts survive separate clie
   await assert.rejects(call('marketplace',{method:'search',args:{query:'',origin:'https://evil.test'}}),/INVALID_ARGUMENT/);
 });
 
-test('Claude guidance requires explicit exact selections and revalidates removed sources',async t=>{
+test('Claude attaches only the effect bound to the sent expression and revalidates removed sources',async t=>{
  const {randomUUID}=await import('node:crypto');
  const directory=await mkdtemp(join(tmpdir(),'amoji-claude-guidance-'));
  const service=await startSharedService(directory,SEEDS);
@@ -50,21 +50,19 @@ test('Claude guidance requires explicit exact selections and revalidates removed
  const e=(await client.list())[0]!,ref={asset_id:e.asset_id,revision_id:e.revision_id};
  const d=await client.createPackDraft([ref]);
  const text=(v:string)=>Object.fromEntries(d.manifest.locales.map(l=>[l,v]));
- const rule={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'template' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},title:text('先给答案'),summary:text('先给答案')};
- const once={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'context' as const,conflict_group:'explanation' as const,title:text('解释原因'),summary:text('解释原因'),instruction:text('解释当前结论的原因。')};
- const saved=await client.savePackDraft(d.draft_id,d.version,{...d.manifest,effects:[rule,once],bindings:[{target:ref,effects:[once.effect_id]}]});
+ const byAct={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'template' as const,template:'response-organization@1' as const,config:{layout:'answer-first' as const},title:text('先给答案'),summary:text('先给答案')};
+ const exact={effect_id:randomUUID(),effect_revision_id:randomUUID(),kind:'context' as const,conflict_group:'explanation' as const,title:text('解释原因'),summary:text('解释原因'),instruction:text('解释当前结论的原因。')};
+ const saved=await client.savePackDraft(d.draft_id,d.version,{...d.manifest,effects:[byAct,exact],bindings:[{target:ref,effects:[exact.effect_id]},{target:{act:e.realizes},effects:[byAct.effect_id]}]});
  const pack=await client.confirmPackDraft(saved.draft_id,saved.version);
  const own=(choices:any[])=>choices.filter(c=>c.selection.release_id===pack.release_id);
- const choices=await call({method:'choices',ref});assert.equal(own(choices.rules).length,2,'any effect can be a conversation rule');assert.deepEqual(own(choices.once).map((c:any)=>c.effect.effect_id),[once.effect_id],'only bound effects accompany one expression');
- assert.equal(JSON.parse((await call({method:'compile',rules:[]})).text).effects.length,0,'installation is not consent');
- const ruleChoice=own(choices.rules).find((c:any)=>c.effect.effect_id===rule.effect_id)!;
- const compiled=await call({method:'compile',rules:[ruleChoice.selection],once:{ref,selection:own(choices.once)[0].selection}});
- assert.equal(JSON.parse(compiled.text).effects.length,2);assert.equal(compiled.rules.length,1);
- await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:{...own(choices.once)[0].selection,effect_revision_id:randomUUID()}}}),/EFFECT_UNAVAILABLE/);
- const b=await client.bind(context);assert.equal((await client.rules(b)).rules.length,0,'compilation never silently persists consent');await client.unbind(b);
+ const choices=await call({method:'choices',ref});assert.deepEqual(own(choices.once).map((c:any)=>c.effect.effect_id),[exact.effect_id],'the exact binding wins over the act binding; one effect travels');
+ await assert.rejects(call({method:'compile'}),/INVALID_ARGUMENT/);
+ const compiled=JSON.parse((await call({method:'compile',once:{ref,selection:own(choices.once)[0].selection}})).text);
+ assert.equal(compiled.effects.length,1);assert.equal(compiled.effects[0].scope,'turn');
+ await assert.rejects(call({method:'compile',once:{ref,selection:{...own(choices.once)[0].selection,effect_revision_id:randomUUID()}}}),/EFFECT_UNAVAILABLE/);
+ const b=await client.bind(context);assert.equal((await client.rules(b)).rules.length,0,'sending never persists a conversation rule');await client.unbind(b);
  await client.removePack(pack.release_id);
- assert.equal((await call({method:'compile',rules:[ruleChoice.selection]})).rules.length,0);
- await assert.rejects(call({method:'compile',rules:[],once:{ref,selection:own(choices.once)[0].selection}}),/EFFECT_UNAVAILABLE/);
+ await assert.rejects(call({method:'compile',once:{ref,selection:own(choices.once)[0].selection}}),/EFFECT_UNAVAILABLE/);
 });
 
 test('Claude downloads a verified release, renders a bounded preview, sends its meaning and keeps frozen history after removal',async t=>{

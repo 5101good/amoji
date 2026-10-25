@@ -1,4 +1,3 @@
-import { compiledRule, type RuleView, type RuleChange } from '../conversation-rules.js';
 import { effectConflictGroup, effectGuidance, type EffectChoice } from '../effects.js';
 import type { ExpressionRef } from '../protocol/index.js';
 import { SessionId } from '@deepseek-ai/dsh-session/types';
@@ -27,29 +26,11 @@ export class DshCollaboration {
     }));
   }
   private readonly invalidated=new WeakSet<Agent>();
+  // Effects travel only with the expression that carries them (RFC §7), so a
+  // conversation never accumulates standing rules; rules an older client saved stay unused.
   private async load(agent:Agent):Promise<void>{
-    if(!this.runtime.rules)return;
     const messages=await this.runtime.messages(this.binding(agent.id));
     for(const message of messages)if(message.effect_intent?.receipt?.reason==='safety_removed')this.context.revoke(agent,`amoji:${message.message_id}`);
-    const snapshot=await this.runtime.rules.read(this.binding(agent.id));
-    if(!snapshot.checkpoint || this.invalidated.has(agent) || !this.context.matchesIdentity(agent,snapshot.checkpoint))return;
-    this.context.authorize(agent);
-    this.context.setRules(agent,snapshot.rules.filter(r=>r.enabled).map(r=>({...compiledRule(r),generation:r.generation})));
-  }
-  async rules(sessionId:string):Promise<RuleView>{
-    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前客户端不支持表情效果');
-    const agent=this.agent(sessionId);await this.load(agent);
-    const snapshot=await this.runtime.rules.read(this.binding(sessionId));
-    const ready=!snapshot.checkpoint || (!this.invalidated.has(agent)&&this.context.matchesIdentity(agent,snapshot.checkpoint));
-    return {...snapshot,identity:ready?'ready':'pending',choices:await this.runtime.rules.choices(this.binding(sessionId)),rules:snapshot.rules.map(r=>({...r,...(!r.enabled?{status:'disabled' as const}:!ready?{status:'unsupported' as const,reason:'identity-not-restored'}:this.context.ruleStatus(agent,{...compiledRule(r),generation:r.generation}))}))};
-  }
-  async change(sessionId:string,change:Omit<RuleChange,'checkpoint'>):Promise<RuleView>{
-    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前客户端不支持表情效果');
-    const agent=this.agent(sessionId);this.context.authorize(agent);
-    const snapshot=await this.runtime.rules.read(this.binding(sessionId));
-    if(change.kind!=='disableAll' && snapshot.checkpoint && (this.invalidated.has(agent)||!this.context.matchesIdentity(agent,snapshot.checkpoint)) && snapshot.rules.some(r=>r.enabled))fail('RULE_IDENTITY','身份待恢复；请先全部停用，再显式启用');
-    await this.runtime.rules.change(this.binding(sessionId),{...change,checkpoint:this.context.checkpoint(agent)});
-    this.invalidated.delete(agent);await this.load(agent);return this.rules(sessionId);
   }
   private agent(sessionId:string):Agent { const agent=this.ctx.agents.get(SessionId(sessionId));if(!agent || this.ctx.sessions.get(SessionId(sessionId))!==agent.session)fail('DSH_CONTEXT_UNAVAILABLE','缺少当前原生会话');return agent; }
   private binding(sessionId:string){return{host:'dsh' as const,hostInstanceId:this.profile,sessionId};}

@@ -106,7 +106,7 @@ export function pane($, e, s, makePicture) {
   const managerSections = [
     ["library", L(s, "表情库", "Library")],
     ["market", L(s, "市场", "Market")],
-    ["guidance", L(s, "协作提示", "Guidance")],
+    ["guidance", L(s, "表情效果", "Effects")],
     ["create", L(s, "创作", "Create")],
     ["publish", L(s, "投稿", "Publish")],
     ["settings", L(s, "偏好", "Preferences")],
@@ -451,7 +451,7 @@ export function pane($, e, s, makePicture) {
           ),
           () => revise($, s, item),
         ),
-        button("detail-guidance",L(s,"协作提示","Guidance"),async()=>{s.guidanceExpression=x;await navigate($,s,"guidance");}),
+        button("detail-guidance",L(s,"带效果发送","Send with effect"),async()=>{s.guidanceExpression=x;await navigate($,s,"guidance");}),
         button("versions", L(s, s.revisions ? "刷新版本" : "查看版本", s.revisions ? "Refresh revisions" : "Show revisions"), async () => {
           s.revisions = await call($, s.context, "revisions", {
             assetId: x.asset_id,

@@ -40,7 +40,7 @@ export function publisherView($,s,k) {
   const tone=state=>({published:'success',changes_requested:'warning',unknown:'warning',withdrawn:'info'})[state]||'info';
   const check=(key,on,text,action)=>button(key,(on?'☑ ':'☐ ')+text,action);
   const next=async step=>{await savePublication($,s,step);if(step===3)await publicationPreview($,s);};
-  const steps=[tr('介绍与许可','Details'),tr('协作提示','Guidance'),tr('预览与投稿','Review')];
+  const steps=[tr('介绍与许可','Details'),tr('表情效果','Effects'),tr('预览与投稿','Review')];
   return col([
     ui.caption(tr('将你选择的作品投稿到市场，审核后公开。会话和模型设置不会上传。','Submit selected work to the market for review. Conversations and model settings stay on your device.')),
     ui.card({selected:login.state==='authenticated',children:[
@@ -84,7 +84,7 @@ export function publisherView($,s,k) {
           input('publish-source-url',tr('许可来源','License source'),v.rights.source||'',x=>{v.rights.source=x;}),
         ]),
         d.step===2&&col([
-          ui.caption(tr('选择要一起分享的协作提示，使用者仍需自行启用。','Choose guidance to share. Recipients must still enable it themselves.'),inner),
+          ui.caption(tr('选择要一起分享的表情效果，使用者需要自己启用。','Choose expression effects to share. People turn them on themselves.'),inner),
           ...(s.packs?.packs.find(p=>p.release_id===d.source_release_id)?.effects||[]).map(a=>check('publish-effect:'+a.effect_revision_id,s.publicationEffects.includes(a.effect_revision_id),local(s,a.title,v.original_locale),async()=>{
             s.publicationEffects=s.publicationEffects.includes(a.effect_revision_id)?s.publicationEffects.filter(x=>x!==a.effect_revision_id):[...s.publicationEffects,a.effect_revision_id];
           })),

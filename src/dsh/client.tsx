@@ -27,12 +27,13 @@ export interface ClientPort {
   };
 }
 interface SessionProps { sessionId: string }
+import { effectRequest } from './effect-text.js';
 import { AmojiImage, MessageMedia, createRpc, parseMeta, errorText } from './media.js';
 export { AmojiImage, createRpc, parseMeta } from './media.js';
 const FAMILIES: Family[] = ['grounding', 'steering', 'progress', 'epistemic', 'social'];
 export function deliveryText(row: HistoryEntry): TextMessage {
   if (row.effect) {
-    return ({ prepared: '效果已准备，尚未投递。', dispatched: '表达已排队，效果等待匹配回合领取。', bound: '效果已绑定匹配回合，尚待核对附加。', attached: '效果已附加到原生用户上下文；不代表模型遵从。', failed: '效果未应用；宿主未提交匹配上下文。可另选仅发送表达。', cancelled: '效果已取消，不会用于后续回合。', unknown: '效果结果待核对；不会再次提交原请求。', unsupported: '当前宿主不支持效果，可明确选择仅发送。' } as const)[row.effect.status];
+    return ({ prepared: '效果已准备，尚未发出。', dispatched: '已发出，效果会附在 AI 的下一次回答上。', bound: '效果已对应到 AI 的下一次回答，正在确认。', attached: '效果已附上；AI 不一定照做。', failed: '效果没能附上，可以只发送表情。', cancelled: '效果已取消，不会再使用。', unknown: '还不确定效果是否附上；不会重复发送。', unsupported: '当前客户端不支持表情效果，可以只发送表情。' } as const)[row.effect.status];
   }
   const m = row.message;
   if (m.retracted_at) return '已撤回；历史保留这条记录。';
@@ -75,14 +76,14 @@ export function createComponents(rpc: DshRpc) {
       selectionEpoch.current++; const epoch = selectionEpoch.current; setSent(undefined); setStatus(''); setChoices([]); setEffectIndex(0); setRequestId('');
       if (!rpc.effects) { if (detail) setSelected(expression); else void send({ ref: expression }, expression); return; }
       setSelected(expression); setEffectsLoading(true);
-      try { const values = await rpc.effects(sessionId, expression, lifetime.current.abort.signal); if (selectionEpoch.current !== epoch) return; if (!Array.isArray(values)) throw new Error('当前宿主不支持效果，可明确选择仅发送。'); setChoices(values); if (!values.length && !detail) void send({ ref: expression }, expression); }
+      try { const values = await rpc.effects(sessionId, expression, lifetime.current.abort.signal); if (selectionEpoch.current !== epoch) return; if (!Array.isArray(values)) throw new Error('当前客户端不支持表情效果，可以只发送表情。'); setChoices(values); if (!values.length && !detail) void send({ ref: expression }, expression); }
       catch (e) { if (selectionEpoch.current === epoch) setStatus(errorText(e)); }
       finally { if (selectionEpoch.current === epoch) setEffectsLoading(false); }
     };
     const refreshReceipts = async () => {
       if (!rpc.receipts || !target) return;
       const owner = lifetime.current; const generation = owner.generation;
-      try { const rows = await rpc.receipts(sessionId, owner.abort.signal); if (!Array.isArray(rows)) throw new Error('协作回执暂不可用，请重新核对。'); if (!owner.abort.signal.aborted && owner.generation === generation) setReceipts(rows); }
+      try { const rows = await rpc.receipts(sessionId, owner.abort.signal); if (!Array.isArray(rows)) throw new Error('效果记录暂时读不到，请稍后再核对。'); if (!owner.abort.signal.aborted && owner.generation === generation) setReceipts(rows); }
       catch (error) { if (!owner.abort.signal.aborted && owner.generation === generation) setStatus(errorText(error)); }
     };
     const previousReopen = useRef(reopen);
@@ -219,12 +220,12 @@ export function createComponents(rpc: DshRpc) {
           {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={() => void choose(e)} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情', { name: expressionText(e, locale).name })} disabled={busy || uncertain} onClick={() => void choose(e, true)}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}
         </div>
         {(!!receipts.length || !!selected || !!status || !!sent || unavailable || uncertain) && <footer className="amoji-picker-footer">
-          {!!receipts.length && <details><summary>{t('协作效果记录')}</summary><button type="button" onClick={() => void refreshReceipts()}>{t('核对协作记录')}</button>{receipts.map(row => <p role="status" key={row.message.message_id}>{actGloss(row.message.act, 'h2a', locale).text} · {t(deliveryText(row))} {row.effect?.reason} {row.effect?.turnStartSeq !== undefined && <> · turn {row.effect.turnStartSeq} · snapshot {row.effect.snapshotSeq ?? '—'}</>}</p>)}</details>}
+          {!!receipts.length && <details><summary>{t('表情效果记录')}</summary><button type="button" onClick={() => void refreshReceipts()}>{t('核对效果记录')}</button>{receipts.map(row => <p role="status" key={row.message.message_id}>{actGloss(row.message.act, 'h2a', locale).text} · {t(deliveryText(row))} {row.effect?.reason} {row.effect?.turnStartSeq !== undefined && <> · turn {row.effect.turnStartSeq} · snapshot {row.effect.snapshotSeq ?? '—'}</>}</p>)}</details>}
           {selected && text ? <section className="amoji-selection" aria-label={t("固定语义与精确版本")} lang={text.locale}><div className="amoji-selection-title"><strong>{text.name}</strong><small className="muted">{actGloss(selected.realizes, 'h2a', locale).text}</small></div><p>{text.meaning}</p><details><summary>{t("查看含义与适用场景")}</summary><p>{text.use_when.join('；')}</p><p>{text.avoid_when.join('；')}</p><small>{selected.realizes} · {t('版本 {revision}', { revision: selected.revision_id })}</small></details></section> : null}
-          {selected && !sent && <section aria-label={t('一次性协作提示')}>
-            {effectsLoading && <p role="status">{t('正在读取可选效果…')}</p>}
-            {!!choices.length && <><label>{t('一次性协作提示')}<select aria-label={t('选择协作提示')} value={effectIndex} disabled={busy || uncertain} onChange={e => setEffectIndex(Number(e.target.value))}>{choices.map((c, i) => <option key={`${c.selection.release_id}:${c.selection.effect_revision_id}`} value={i}>{localizedText(c.effect.title, locale, c.source.original_locale)}</option>)}</select></label><p>{choices[effectIndex] && localizedText(choices[effectIndex]!.effect.summary, locale, choices[effectIndex]!.source.original_locale)}</p><small>{choices[effectIndex]?.source.origin} · {choices[effectIndex]?.source.release_id} · {choices[effectIndex]?.selection.effect_revision_id}</small><p>{t('仅用于关联消息的一个回合；提示不保证模型遵从。')}</p></>}
-            <div className="row"><button className={choices.length ? undefined : 'primary'} type="button" disabled={busy || uncertain || effectsLoading} onClick={() => void send({ ref: selected }, selected, '')}>{t('仅发送')}</button>{!!choices.length && <button type="button" disabled={busy || uncertain || effectsLoading} onClick={() => void send({ ref: selected, effect: choices[effectIndex]!.selection as EffectSelection }, selected, '')}>{t('发送并应用一次')}</button>}</div>
+          {selected && !sent && <section className="amoji-once" aria-label={t('表情效果（仅本次）')}>
+            {effectsLoading && <p role="status">{t('正在读取表情效果…')}</p>}
+            {!!choices.length && <><label>{t('这个表情可以带效果（仅本次）')}<select aria-label={t('选择表情效果')} value={effectIndex} disabled={busy || uncertain} onChange={e => setEffectIndex(Number(e.target.value))}>{choices.map((c, i) => <option key={`${c.selection.release_id}:${c.selection.effect_revision_id}`} value={i}>{localizedText(c.effect.title, locale, c.source.original_locale)}</option>)}</select></label><p>{choices[effectIndex] && effectRequest(choices[effectIndex]!.effect, locale, choices[effectIndex]!.source.original_locale, t)}</p><small className="muted">{t('只对 AI 这一次回答生效，AI 不一定照做。')}</small></>}
+            <div className="row"><button className={choices.length ? undefined : 'primary'} type="button" disabled={busy || uncertain || effectsLoading} onClick={() => void send({ ref: selected }, selected, '')}>{t('发送')}</button>{!!choices.length && <button className="primary" type="button" disabled={busy || uncertain || effectsLoading} onClick={() => void send({ ref: selected, effect: choices[effectIndex]!.selection as EffectSelection }, selected, '')}>{t('带效果发送')}</button>}</div>
           </section>}
           {!sent && status && <p className="amoji-notice" role="status">{t(status)}</p>}
           {sent && !uncertain && <details className="amoji-notice" open={!!sent.effect}><summary>{t("上次发送记录")}</summary><p role="status">{t(status)}{sent.effect?.reason && <> ({sent.effect.reason})</>}{sent.effect?.turnStartSeq !== undefined && <> · turn {sent.effect.turnStartSeq} · snapshot {sent.effect.snapshotSeq ?? '—'} · {sent.effect.digest ?? ''}</>}</p><button type="button" disabled={busy} onClick={() => void check()}>{t("核对投递状态")}</button></details>}

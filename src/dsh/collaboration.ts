@@ -37,14 +37,14 @@ export class DshCollaboration {
     this.context.setRules(agent,snapshot.rules.filter(r=>r.enabled).map(r=>({...compiledRule(r),generation:r.generation})));
   }
   async rules(sessionId:string):Promise<RuleView>{
-    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前宿主不支持会话规则');
+    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前客户端不支持表情效果');
     const agent=this.agent(sessionId);await this.load(agent);
     const snapshot=await this.runtime.rules.read(this.binding(sessionId));
     const ready=!snapshot.checkpoint || (!this.invalidated.has(agent)&&this.context.matchesIdentity(agent,snapshot.checkpoint));
     return {...snapshot,identity:ready?'ready':'pending',choices:await this.runtime.rules.choices(this.binding(sessionId)),rules:snapshot.rules.map(r=>({...r,...(!r.enabled?{status:'disabled' as const}:!ready?{status:'unsupported' as const,reason:'identity-not-restored'}:this.context.ruleStatus(agent,{...compiledRule(r),generation:r.generation}))}))};
   }
   async change(sessionId:string,change:Omit<RuleChange,'checkpoint'>):Promise<RuleView>{
-    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前宿主不支持会话规则');
+    if(!this.runtime.rules)fail('CAPABILITY_UNAVAILABLE','当前客户端不支持表情效果');
     const agent=this.agent(sessionId);this.context.authorize(agent);
     const snapshot=await this.runtime.rules.read(this.binding(sessionId));
     if(change.kind!=='disableAll' && snapshot.checkpoint && (this.invalidated.has(agent)||!this.context.matchesIdentity(agent,snapshot.checkpoint)) && snapshot.rules.some(r=>r.enabled))fail('RULE_IDENTITY','身份待恢复；请先全部停用，再显式启用');

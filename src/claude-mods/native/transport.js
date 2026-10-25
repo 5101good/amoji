@@ -43,7 +43,7 @@ export function gloss(s, act, direction = "h2a") {
 }
 export function errorText(s, error) {
   const code = String(error?.message || error);
-  if (/EFFECT_LIMIT|ACTION_LIMIT/.test(code))return L(s,"协作提示超出数量或文字预算，请减少后重试。","Too much collaboration guidance. Reduce the selected rules or text and retry.");
+  if (/EFFECT_LIMIT|ACTION_LIMIT/.test(code))return L(s,"最多同时启用 2 个表情效果，先停用一个再试。","Up to 2 expression effects can be on. Turn one off and try again.");
   if (/PUBLISHER_LOGIN|UNAUTHENTICATED|PAIRING_EXPIRED/.test(code))return L(s,"市场授权已失效，请重新连接账号；草稿已保留。","Market authorization expired. Reconnect your account; drafts are preserved.");
   if (/PUBLISHER_OFFLINE|MARKET_UNAVAILABLE/.test(code))return L(s,"市场暂不可用。请稍后刷新或核对原操作，已安装的表情仍可使用。","Market unavailable. Refresh or check the original operation later. Installed expressions remain usable.");
   if (/RELEASE_REMOVED|SAFETY_REMOVED|EFFECT_UNAVAILABLE/.test(code))return L(s,"此版本或提示已不可用，请刷新后选择其他内容。","This release or guidance is unavailable. Refresh and choose another.");

@@ -14,7 +14,7 @@ AI-native expressions: people see the artwork; AI reads its fixed meaning. A sha
 
 ## The Amoji 0.1 protocol
 
-Amoji 2.0.0 implements [Amoji 0.1](docs/specs/amoji-0.1-rfc.md). Every expression realizes one **act** from a shared registry (for example `core:uncertain`, “I'm not sure yet”). Packs provide artwork and fixed meanings in several languages; optional **effects** are text guidance that a person explicitly enables. AI expresses an act, and the host picks the artwork from your preferred packs. Version 0.1 replaces every earlier format, so 1.x `.amoji` packs cannot be imported directly. Product version 2.0.0 and protocol version 0.1 are maintained separately. Read the [compatibility and backup guidance](docs/dsh-installation.en.md#upgrade-from-1x-to-200) before upgrading.
+Amoji 2.0.0 implements [Amoji 0.1](docs/specs/amoji-0.1-rfc.md). Every expression realizes one **act** from a shared registry (for example `core:uncertain`, “I'm not sure yet”). Packs provide artwork and fixed meanings in several languages; optional **expression effects** are short requests to the AI that a person explicitly turns on. AI expresses an act, and the host picks the artwork from your preferred packs. Version 0.1 replaces every earlier format, so 1.x `.amoji` packs cannot be imported directly. Product version 2.0.0 and protocol version 0.1 are maintained separately. Read the [compatibility and backup guidance](docs/dsh-installation.en.md#upgrade-from-1x-to-200) before upgrading.
 
 ## Expression marketplace
 
@@ -141,4 +141,4 @@ Code and technical documentation use [MIT](LICENSE). Official pack artwork, fixe
 
 ## Claude Desktop Mods
 
-[Native Code adapter guide](docs/claude-mods.en.md): the separate 2.0.0 ZIP adopts Amoji 0.1 for local sessions in the Claude Desktop Code tab. It includes two-way expressions, the library, creation and preferences, plus marketplace browsing and installation, account pairing, publishing and optional collaboration guidance.
+[Native Code adapter guide](docs/claude-mods.en.md): the separate 2.0.0 ZIP adopts Amoji 0.1 for local sessions in the Claude Desktop Code tab. It includes two-way expressions, the library, creation and preferences, plus marketplace browsing and installation, account pairing, publishing and expression effects.

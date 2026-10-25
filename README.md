@@ -14,7 +14,7 @@ AI 原生表情：人看图，AI 读固定语义。让感谢、迟疑、鼓励�
 
 ## Amoji 0.1 协议
 
-Amoji 2.0.0 实现 [Amoji 0.1](docs/specs/amoji-0.1-rfc.md)：每个表情实现注册表中的一个**码位**（如 `core:uncertain`「暂时没把握」），表情包提供图片与多语言固定语义，可选的**效果**是用户明确启用的文字协作提示。AI 按码位表达，宿主按你的首选表情包选图。0.1 取代此前的全部格式，1.x 的 `.amoji` 包不能直接导入；产品版本 2.0.0 与协议版本 0.1 分别维护；升级前请阅读[兼容与备份说明](docs/dsh-installation.md#从-1x-升级到-200)。
+Amoji 2.0.0 实现 [Amoji 0.1](docs/specs/amoji-0.1-rfc.md)：每个表情实现注册表中的一个**码位**（如 `core:uncertain`「暂时没把握」），表情包提供图片与多语言固定语义，可选的**表情效果**是用户明确启用的、给 AI 的一句回答要求。AI 按码位表达，宿主按你的首选表情包选图。0.1 取代此前的全部格式，1.x 的 `.amoji` 包不能直接导入；产品版本 2.0.0 与协议版本 0.1 分别维护；升级前请阅读[兼容与备份说明](docs/dsh-installation.md#从-1x-升级到-200)。
 
 ## 表情包市场
 
@@ -141,4 +141,4 @@ npm run test:dsh
 
 ## Claude Desktop Mods
 
-[原生 Code 适配指南](docs/claude-mods.md)：2.0.0 的独立 ZIP 采用 Amoji 0.1，适用于 Claude Desktop Code 页签的本地会话，包含双向表情、个人库、创建与偏好，以及市场浏览与安装、账号连接、分享投稿和可选协作提示。
+[原生 Code 适配指南](docs/claude-mods.md)：2.0.0 的独立 ZIP 采用 Amoji 0.1，适用于 Claude Desktop Code 页签的本地会话，包含双向表情、个人库、创建与偏好，以及市场浏览与安装、账号连接、分享投稿和表情效果。

@@ -222,9 +222,7 @@ export async function send($, s, expression, epoch, action) {
         ref: refOf(expression),
         requestId,
         locale: uiLocale(s),
-        ...(s.note?.trim() ? { note: s.note.trim() } : {}),
       });
-      s.note = "";
       if (prepared.segments)
         rememberMessage(s, "human_to_ai:" + uiLocale(s) + ":" + prepared.text, prepared.segments);
       delivery.text = prepared.text;

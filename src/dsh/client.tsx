@@ -61,9 +61,9 @@ export function createComponents(rpc: DshRpc) {
     const pending = pendingSelections.get(sessionId);
     const anchor = useRef<HTMLButtonElement>(null);
     const [target, setTarget] = useState<string>(); const [catalog, setCatalog] = useState<Expression[]>([]); const [packs, setPacks] = useState<PackSummary[]>([]); const [pack, setPack] = useState<string>('all');
-    const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState(''); const [note, setNote] = useState(pending?.input.note ?? '');
+    const [selected, setSelected] = useState<Expression | undefined>(pending?.selected); const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false); const [searchStatus, setSearchStatus] = useState<TextMessage>(''); const [requestId, setRequestId] = useState(pending?.requestId ?? ''); const [busy, setBusy] = useState(false); const [status, setStatus] = useState<TextMessage>(pending ? '原投递结果尚待核对，请重新连接并核对原请求。' : '');
-    const [choices, setChoices] = useState<EffectChoice[]>([]); const [effectIndex, setEffectIndex] = useState(0); const [effectsLoading, setEffectsLoading] = useState(false); const [moreQuick, setMoreQuick] = useState(false);
+    const [choices, setChoices] = useState<EffectChoice[]>([]); const [effectIndex, setEffectIndex] = useState(0); const [effectsLoading, setEffectsLoading] = useState(false);
     const selectionEpoch = useRef(0);
     const sendLock = useRef(false);
     const [settings, setSettings] = useState<PersonalSettings>();
@@ -93,7 +93,6 @@ export function createComponents(rpc: DshRpc) {
     const familyOf = (e: Expression) => actEntry(e.realizes).family;
     const categories = FAMILIES.filter(c => packCatalog.some(e => familyOf(e) === c));
     const visibleCatalog = category === 'all' ? packCatalog : packCatalog.filter(e => familyOf(e) === category);
-    const quickEntries = (settings?.quick_entries ?? []).slice(0, moreQuick ? 8 : 4);
     useEffect(() => { void refreshReceipts(); }, [target, sent?.meta?.messageId]);
     useEffect(() => {
       const owner = lifetime.current; owner.generation++; owner.abort = new AbortController();
@@ -124,7 +123,7 @@ export function createComponents(rpc: DshRpc) {
       sendLock.current = true;
       const owner = lifetime.current; const generation = owner.generation; const frozen = target; const signal = owner.abort.signal;
       const current = () => !signal.aborted && owner.generation === generation && owner.sessionId === frozen;
-      const input: SubmitInput = { ...base, ...(note.trim() ? { note: note.trim() } : {}) };
+      const input: SubmitInput = { ...base };
       const previous = pendingSelections.get(frozen);
       const id = retryRequestId && previous && inputKey(previous.input) === inputKey(input) ? retryRequestId : crypto.randomUUID();
       setSelected(shown); setRequestId(id);
@@ -140,7 +139,7 @@ export function createComponents(rpc: DshRpc) {
         if (current()) {
           setSent(result); setUncertain(result.host?.status === 'unknown'); setStatus(deliveryText(result));
           if (!result.effect && (result.host?.status === 'accepted' || result.host?.status === 'observed')) {
-            setSelected(undefined); setNote(''); setTarget(undefined); anchor.current?.focus({ preventScroll: true });
+            setSelected(undefined); setTarget(undefined); anchor.current?.focus({ preventScroll: true });
           }
         }
       } catch (e) {
@@ -209,14 +208,12 @@ export function createComponents(rpc: DshRpc) {
       }}><SmileIcon/><span>{t("表情")}</span></button>
       {target === sessionId && <PickerPopover anchor={anchor} onDismiss={dismiss}>
         <header className="amoji-picker-head"><h2>{t("用表情表达")}</h2><div className="row"><button className="quiet" type="button" onClick={() => { dismiss(false); onMarket(); }}>{t("表情市场")}</button><button className="quiet" type="button" onClick={() => { dismiss(false); onManage(); }}>{t("管理表情")}</button><button className="icon-button" type="button" aria-label={t("关闭")} onClick={() => dismiss()}><CloseIcon/></button></div></header>
-        {!!quickEntries.length && <nav className="amoji-quick" aria-label={t("快捷表达")}>{quickEntries.map(act => <button type="button" key={act} disabled={busy || uncertain || unavailable} onClick={() => void send({ act })}>{actGloss(act, 'h2a', locale).text}</button>)}{(settings?.quick_entries.length ?? 0) > 4 && <button className="quiet" type="button" aria-expanded={moreQuick} onClick={() => setMoreQuick(v => !v)}>{moreQuick ? t("收起") : t("更多")}</button>}</nav>}
         {packs.length > 1 && <div className="amoji-appearance" aria-label={t("表情包")}><span className="muted">{t("表情包")}</span>{[...packs].sort((a, b) => (settings?.preferred_packs.indexOf(a.pack_id) ?? -1) - (settings?.preferred_packs.indexOf(b.pack_id) ?? -1)).map(p => <button type="button" key={p.pack_id} aria-pressed={pack === p.pack_id} disabled={busy || uncertain} onClick={() => void changePack(p.pack_id)}>{localizedText(p.name, locale, p.original_locale)}</button>)}<button type="button" aria-pressed={pack === 'all'} disabled={busy || uncertain} onClick={() => void changePack('all')}>{t("全部")}</button></div>}
         <form className="amoji-picker-search" aria-label={t("搜索 Amoji")} onSubmit={event => { event.preventDefault(); setCategory('all'); void load(query); }}>
           <input aria-label={t("搜索表情")} value={query} onInput={event => setQuery(event.currentTarget.value)} placeholder={t("想表达什么？")} />
           <button type="submit" disabled={busy || uncertain}>{searching ? t("搜索中…") : t("搜索")}</button>
           {query && <button className="quiet" type="button" disabled={busy || uncertain} onClick={() => { setQuery(''); void load(''); }}>{t("显示全部")}</button>}
         </form>
-        <label className="amoji-note"><span className="amoji-sr">{t("附一句话（可选）")}</span><input aria-label={t("附一句话（可选）")} maxLength={140} value={note} disabled={busy || uncertain} onInput={event => setNote(event.currentTarget.value)} placeholder={`${t("附一句话（可选）")} · ${t("例如：第 3 步没看懂")}`}/></label>
         {categories.length > 1 && <nav className="amoji-categories" aria-label={t("表情类别")}>{(['all', ...categories] as const).map(c => <button className="quiet" type="button" key={c} aria-pressed={category === c} disabled={busy || uncertain} onClick={() => { setCategory(c); setSelected(undefined); setSent(undefined); setStatus(''); selectionEpoch.current++; }}>{t(c === 'all' ? '全部' : FAMILY_LABELS[c])}</button>)}</nav>}
         <div className="amoji-picker-body" aria-busy={searching}>
           {visibleCatalog.length ? <div className="amoji-expression-grid">{visibleCatalog.map(e => <div className="amoji-expression-choice" key={`${e.asset_id}:${e.revision_id}`}><ExpressionTile rpc={rpc} sessionId={target} expression={e} disabled={busy || unavailable || uncertain} selected={false} onSelect={() => void choose(e)} /><button className="amoji-expression-detail" type="button" aria-label={t('查看 {name} 详情', { name: expressionText(e, locale).name })} disabled={busy || uncertain} onClick={() => void choose(e, true)}>{t("详情")}</button></div>)}</div> : <p className="amoji-empty">{searching ? t("正在打开表情库…") : t(searchStatus) || t("暂无可用表情，可以在管理中添加。")}</p>}

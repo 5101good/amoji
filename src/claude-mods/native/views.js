@@ -570,13 +570,6 @@ export function pane($, e, s, makePicture) {
       ...(active ? { variant: "primary" } : { plain: true, dimColor: true }),
       onPress: action });
     body = col([
-      s.tab === "picker" && Input({
-        key: "note",
-        placeholder: L(s, "附一句话（可选），例如：第 3 步没看懂", "Add a note (optional), e.g. I don't follow step 3"),
-        value: s.note || "",
-        onInput: (value) => { s.note = value.slice(0, 140); },
-        onSubmit: (value) => { s.note = value.slice(0, 140); },
-      }),
       Input({
         key: "search",
         placeholder: s.tab === "picker" ? L(s, "想表达什么？搜索心情或场景", "What do you want to say? Search a mood or moment") :

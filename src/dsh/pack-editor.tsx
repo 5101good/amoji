@@ -43,7 +43,7 @@ export function PackEditor({rpc,sessionId,refs,refreshEpoch}:{refreshEpoch?:numb
  const bound=(target:Binding['target'],effectId:string)=>!!value?.bindings?.find(b=>targetKey(b)===targetKey({target,effects:[]}))?.effects.includes(effectId);
  const acts=value?[...new Set(value.expressions.map(e=>e.realizes))]:[];
  const localeInputs=(label:string,map:Record<string,string>,onChange:(next:Record<string,string>)=>void,multiline=false)=>value!.locales.map(l=><label key={l}>{t(label)} · {l}{multiline?<textarea aria-label={`${t(label)} ${l}`} value={map[l]??''} onInput={e=>onChange({...map,[l]:e.currentTarget.value})}/>:<input aria-label={`${t(label)} ${l}`} value={map[l]??''} onInput={e=>onChange({...map,[l]:e.currentTarget.value})}/>}</label>);
- return <section className="stack"><h3>{t('表情包与可选效果')}</h3><p>{t('协作效果与表情语义分开保存。表情包可以不含效果；安装不会启用效果。')}</p>
+ return <section className="stack"><h4>{t('表情包与可选效果')}</h4><p>{t('协作效果与表情语义分开保存。表情包可以不含效果；安装不会启用效果。')}</p>
  <button type="button" disabled={busy||!refs.length} onClick={()=>void run(async()=>{open(await rpc.management(sessionId,'createPackDraft',{refs:refs.map(r=>({asset_id:r.asset_id,revision_id:r.revision_id})),name:t('我的表情包')}));await refresh();})}>{t('用所选表情创建表情包')}</button>
  {drafts.filter(d=>!d.saved).map(d=><div key={d.draft_id}>{title(d.manifest)} <button type="button" disabled={busy} onClick={()=>void run(async()=>open(await rpc.management(sessionId,'getPackDraft',{draft_id:d.draft_id})))}>{t('继续编辑表情包草稿')}</button></div>)}
  {draft&&value&&!draft.saved&&<fieldset disabled={busy} className="stack"><legend>{t('编辑表情包草稿')}</legend>

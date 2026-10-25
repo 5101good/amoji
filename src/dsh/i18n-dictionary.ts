@@ -533,4 +533,10 @@ export const english = {
   "纠偏信号排队中：AI 的下一步会先看到它。": "Correction queued: the AI sees it before its next step.",
   "纠偏信号已送达，AI 在本次回答中已看到。": "Correction delivered; the AI saw it during this answer.",
   "AI 已结束上一回合，纠偏信号已转为一条新消息。": "The AI finished its turn; the correction became a new message.",
+  "还没有从市场安装表情包。": "No packs installed from the market yet.",
+  "还没有单独收藏的表情。": "No individually collected expressions yet.",
+  "已安装": "Installed",
+  "可更新": "Update available",
+  "市场暂时不可用，已安装的表情仍可使用。": "The market is unavailable right now; installed expressions still work.",
+  "重试": "Retry",
 } as const;

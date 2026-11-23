@@ -26,12 +26,6 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Resolve patched marketplace auth lockfile
-        working-directory: apps/marketplace
-        run: |
-          cp package-lock.json "$RUNNER_TEMP/amoji-before.json"
-          npm install --package-lock-only --ignore-scripts --no-audit --save-exact better-auth@1.7.27 --registry=https://registry.npmjs.org
-          node --input-type=commonjs -e 'const fs=require("node:fs");const before=require(process.env.RUNNER_TEMP+"/amoji-before.json").packages;const after=require("./package-lock.json").packages;for(const name of new Set([...Object.keys(before),...Object.keys(after)])){if(JSON.stringify(before[name])!==JSON.stringify(after[name]))console.log("LOCK_ENTRY="+JSON.stringify([name,after[name]??null]))}'
       - name: Install locked dependencies
         run: npm ci --registry=https://registry.npmjs.org
       - name: Install marketplace locked dependencies

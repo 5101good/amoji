@@ -26,7 +26,7 @@ function publicContracts(adapter: DshAdapter, slots: SlotRegistry, views: Return
 }
 void publicContracts;
 
-test('0.2.2-rc.5 真实 Session + 持久化读取器：原生 rpcId 冷恢复，自定义事件被拒绝', () => {
+test('真实 Session + 持久化读取器：原生 rpcId 冷恢复，自定义事件被拒绝', () => {
   const session = Session.create(SessionId('amoji-contract-session'));
   session.append('user/message', { role: 'user', id: 'native-message' as never, content: [{ type: 'text', text: '固定语义' }], source: { kind: 'user', rpcId: 'amoji:message-id' as never } }, { surfaceOp: 'append' });
   const encoded = JSON.stringify(session.snapshotEvents());

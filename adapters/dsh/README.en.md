@@ -2,18 +2,16 @@
 
 [中文](README.md) · [Project and documentation](https://github.com/5101good/amoji)
 
-Native expressions for people and AI: people see artwork, models read fixed meaning. Version 2.1.0 targets **dsh 0.1.5-rc.2**, requires **Node.js >=24**. Historical live-host records are from macOS arm64; see the [2.1.0 release notes](https://github.com/5101good/amoji/blob/v2.1.0/docs/releases/v2.1.0.md) for this release’s scope.
+Native expressions for people and AI. The plugin follows the DSH npm latest release and macOS desktop nightly. Requires Node.js 24+.
 
 ## Install and use
 
-Download and verify `amoji-dsh-2.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases). Run from its directory:
-
-The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
+Build the plugin using the [current installation guide](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.en.md). From the tarball directory, run the commands below.
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help
+npx @deepseek-ai/dsh@latest plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@latest --profile amoji
 ```
 
 Replace the example profile `amoji` with your own. Save work before installing into an existing profile, then restart. Select a workspace and open Expressions in the composer without sending preliminary text. Click artwork to send; details only reveal meaning. Fresh libraries have 24 expressions in each of Classic and Office, realizing the same 22 acts and totaling 48 assets. The picker only offers expressions people can send.

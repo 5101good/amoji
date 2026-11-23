@@ -13,7 +13,7 @@ async function humanMessage(t: { after(fn: () => unknown): void }, pick: (e: imp
   return { e, message };
 }
 
-test('原生用户 renderer 包装保留原组件全部 props、locale，卸载恢复且不用 history dock', () => {
+test('原生 steering renderer 包装保留原组件全部 props、locale，卸载恢复且不用 history dock', () => {
   const core = new SlotCore();
   core.register({ name: 'root', children: {
     'conversation.input.left': { kind: 'list', scope: 'session' },
@@ -27,7 +27,7 @@ test('原生用户 renderer 包装保留原组件全部 props、locale，卸载�
   const ctx = { slots: { register: core.register.bind(core), entries: core.entries.bind(core), subscribe: core.subscribe.bind(core), inject: (_key: string, factory: () => () => void) => factory() }, effect(factory: () => () => void) { cleanup.push(factory()); }, connection: { rpc: { call: async () => ({ ok: true, value: [] }) } } } as unknown as ClientPort;
   apply(ctx);
   const entry = core.entriesOfSlot('conversation.chat.node')[0]!;
-  assert.notEqual(entry.component, Original, '必须在原生 user 行包装');
+  assert.notEqual(entry.component, Original, '必须在原生 steering 行包装');
   assert.equal(entry.locale, 'chat');
   const props = { sessionId: 's', node: { data: { content: '文字', source: { kind: 'user', rpcId: 'normal' } } }, attachment: '附件', reference: '引用', t: '词典' };
   assert.equal(renderToStaticMarkup(React.createElement(entry.component as any, props)), '<p>文字|附件|引用|词典</p>');
@@ -36,7 +36,7 @@ test('原生用户 renderer 包装保留原组件全部 props、locale，卸载�
   assert.equal(core.entriesOfSlot('conversation.chat.node')[0]!.component, Original);
 });
 
-test('原生用户行按 rpcId 加图，普通消息不查库；只在正确图像 load 后写回执', async t => {
+test('原生 steering 行按 rpcId 加图，普通消息不查库；只在正确图像 load 后写回执', async t => {
   const { JSDOM } = await import('jsdom'); const { createRoot } = await import('react-dom/client'); const { act } = React;
   const { visualMeta } = await import('../src/dsh/host.js');
   const dom = new JSDOM('<div id="root"></div>'); const before = { window: globalThis.window, document: globalThis.document };

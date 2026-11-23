@@ -82,27 +82,17 @@ Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**2.1
 
 ## 安装
 
-已经在使用 dsh 的 `web` profile，可以直接安装公开发布包，然后重启该 profile：
+Amoji 跟随 DSH 的 npm latest 和 macOS 桌面版 nightly。使用 Node.js 24 或更新版本，在仓库根目录构建插件。将最后一行输出的绝对路径粘贴到桌面版插件管理器，启用 @amoji/dsh。
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
+npm ci
+npm run build:dsh
+mkdir -p .local/desktop
+npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
+realpath .local/desktop/amoji-dsh-2.1.0.tgz
 ```
 
-需要独立 profile 或先核验下载文件时：
-
-1. 使用 Node.js **24 或更新版本**。宿主基线为 **dsh 0.1.5-rc.2 / macOS arm64**；本次发行的验证范围见[发布说明](docs/releases/v2.1.0.md)。
-2. 从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载 `amoji-dsh-2.1.0.tgz`，按同次发布的 `SHA256SUMS` 核对 SHA-256。
-3. 安装到自己的 dsh profile，重启该 profile，选择工作区后打开输入区的“表情”。
-
-第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
-
-```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
-```
-
-`amoji` 是示例 profile 名称；使用已有 profile 时替换它。源码安装参见[构建步骤](docs/dsh-installation.md)。插件安装成功与运行激活是两项不同检查。
+[CLI 安装与 profile 配置](docs/dsh-installation.md)
 
 ## 使用
 

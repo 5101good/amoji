@@ -26,10 +26,6 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Resolve native tool executor
-        run: |
-          npm view @deepseek-ai/dsh-tool-executor-native@0.2.2-rc.5 dist.integrity --registry=https://registry.npmjs.org
-          npm install -D -E @deepseek-ai/dsh-tool-executor-native@0.2.2-rc.5 --ignore-scripts --no-audit --registry=https://registry.npmjs.org
       - name: Install locked dependencies
         run: npm ci --registry=https://registry.npmjs.org
       - name: Install marketplace locked dependencies

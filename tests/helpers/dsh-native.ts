@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { Context } from '@deepseek-ai/cordis';
@@ -47,7 +48,7 @@ export async function nativeHost(includeRuntimeContext = true, profile?: string)
       for (const fiber of fibers.reverse()) await fiber.dispose();
       if (process.env.AMOJI_NATIVE_EVIDENCE) {
         await mkdir(dirname(process.env.AMOJI_NATIVE_EVIDENCE), { recursive: true });
-        await appendFile(process.env.AMOJI_NATIVE_EVIDENCE, JSON.stringify({ driver: '@deepseek-ai/dsh-agent-loop@0.2.2-rc.5', cost: 0, networkRequests: 0, events, requests: provider.requests.map(r => ({ session: r.sessionId, model: r.model, messages: r.messages })) }) + '\n');
+        await appendFile(process.env.AMOJI_NATIVE_EVIDENCE, JSON.stringify({ driver: '@deepseek-ai/dsh-agent-loop@' + createRequire(import.meta.url)('@deepseek-ai/dsh-agent-loop/package.json').version, cost: 0, networkRequests: 0, events, requests: provider.requests.map(r => ({ session: r.sessionId, model: r.model, messages: r.messages })) }) + '\n');
       }
     } };
 }

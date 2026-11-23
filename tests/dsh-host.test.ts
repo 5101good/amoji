@@ -58,7 +58,7 @@ async function setup(t: TestContext) {
   return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call, disposers };
 }
 
-test('0.2.2-rc.5 defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
+test('defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
   const f = await setup(t);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, { callId: 'x', signal: signal() }), /DSH_CONTEXT_UNAVAILABLE/);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, f.exec(new Session(f.a.id))), /DSH_CONTEXT_UNAVAILABLE/);

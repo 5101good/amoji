@@ -102,7 +102,11 @@ export class CollaborationContext {
       // DSH refreshes the accepted assembly immediately before each provider request.
       // Update our own interpolation variable so the final snapshot reflects admission.
       if (state.variables?.[VARIABLE] === previous) state.variables[VARIABLE] = state.text ?? '';
-      return decision;
+      if (state.text) return decision;
+      const messages = decision.messages.filter(({ source }) =>
+        source.kind !== 'runtime-context' || source.form !== 'snapshot' ||
+        !source.sections?.length || !source.sections.every(s => s.name === COLLABORATION_CONTEXT && s.text === previous));
+      return { ...decision, messages };
     }, { prepend: true }));
   }
   private valid(agent: Agent): State | undefined { return this.ctx.agents.get(agent.id) === agent && this.ctx.sessions.get(agent.id) === agent.session ? this.states.get(agent) : undefined; }

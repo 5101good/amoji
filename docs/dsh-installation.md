@@ -4,11 +4,11 @@
 
 ## 要求
 
-- Amoji 2.1.0 需要 Node.js >=24；宿主基线是 dsh 0.1.5-rc.2。历史真机记录来自 macOS arm64，本次发行的验证范围见[发布说明](releases/v2.1.0.md)。
+- 需要 Node.js 24 或更新版本。主分支针对 npm latest 和 macOS 桌面版 nightly 更新源发布的 SDK 运行兼容测试。
 - 模型由 dsh 配置。发送用户表情会触发正常宿主会话；AI 文字建议使用 dsh 已配置的文本模型。
 - Linux/Windows 有路径处理实现，尚未完成实际宿主验证。不要把构建成功等同于跨平台兼容。
 
-## macOS 桌面版 0.2.2-rc.5
+## macOS 桌面版
 
 从含桌面适配的源码构建插件，在仓库根目录运行以下命令。复制最后一行输出的绝对路径，粘贴到桌面版插件管理器的安装来源，完成安装后按提示启用。进入工作区后，输入框左侧会显示表情选择器。
 
@@ -22,33 +22,21 @@ realpath .local/desktop/amoji-dsh-*.tgz
 
 插件管理器应显示包名 `@amoji/dsh`。仓库 Git URL 安装的是开发包 `amoji`，会收到 `not-bundle`。
 
-## 安装发布包
+## 安装到 CLI profile
 
-从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-2.1.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
-
-```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
-```
-
-第一条命令从官方 Web 模板初始化独立 `amoji` profile 并显示帮助，不会启动服务。自定义 profile 必须先初始化 Web 模板，再安装插件。若安装到已有 profile，替换命令中的名称并先保存工作、退出该 profile。插件通过官方 plugin 命令安装，依赖由宿主包管理器解析。tgz 不包含 `node_modules` 或原生二进制，安装需要网络访问依赖源；它不是离线安装器。
-
-重启后选择工作区，打开输入区“表情”。新会话无需先发送普通文字；新库包含经典与办公两套内置表情包，共 48 个表情，默认优先经典包；选择器只提供可由人发送的表情。已有个人内容的库可能更多。安装返回 0 只说明安装命令成功；实际入口、图片加载和一次发送应分别检查。
-
-## 从公开链接安装
-
-已有 `web` profile 的用户也可以直接安装版本固定的发布包：
+使用上面构建的插件包。以下命令初始化 Web profile，安装插件，再启动 DSH。
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help
+npx @deepseek-ai/dsh@latest plugin --profile amoji add "$PWD/.local/desktop/amoji-dsh-2.1.0.tgz" --ignore-scripts
+npx @deepseek-ai/dsh@latest --profile amoji
 ```
 
-安装后重启该 profile。下载和安装不需要 GitHub 登录，也不需要单独的 Amoji API Key。已有 dsh CLI 时使用 `dsh`；否则替换为 `npx @deepseek-ai/dsh@0.1.5-rc.2`。
+已发布的历史归档按对应标签所列的宿主版本安装。
 
 ## 插件市场
 
-目前已提交 [Awesome DSH Plugin / dshmarket.com 收录申请](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5624)和 [dsh.market 收录申请](https://github.com/2BingLing/dsh-market/issues/179)，尚待各自审核或同步。公开市场可搜索状态以实际目录为准；等待期间可使用上面的公开链接安装。
+目前已提交 [Awesome DSH Plugin / dshmarket.com 收录申请](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5624)和 [dsh.market 收录申请](https://github.com/2BingLing/dsh-market/issues/179)，尚待各自审核或同步。公开市场可搜索状态以实际目录为准；等待期间可使用上面的本地包安装。
 
 市场条目必须使用预构建 Release 包。仓库根包用于开发，`adapters/dsh` 源码目录也不包含所有生成文件；不要把根仓库 Git URL 当作可直接安装的插件。
 
@@ -96,7 +84,7 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 使用唯一路径保存新版 tgz，对相同 profile 再次执行 `plugin ... add`，然后重启。卸载：
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji remove @amoji/dsh
+npx @deepseek-ai/dsh@latest plugin --profile amoji remove @amoji/dsh
 ```
 
 卸载不主动删除共享库。重新安装时保留原数据目录；不要通过删库解决连接问题。共享服务在最后一个连接离开后默认空闲 60 秒退出；其他客户端仍连接时继续运行。

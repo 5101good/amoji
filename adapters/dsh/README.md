@@ -2,18 +2,16 @@
 
 [English](README.en.md) · [项目与文档](https://github.com/5101good/amoji)
 
-面向人和 AI 的原生表情：人看图，模型读固定语义。2.1.0 以 dsh **0.1.5-rc.2** 为基线，需要 Node.js **>=24**。历史真机记录来自 macOS arm64，本次发行范围见[2.1.0 发布说明](https://github.com/5101good/amoji/blob/v2.1.0/docs/releases/v2.1.0.md)。
+面向人和 AI 的原生表情。插件跟随 DSH 的 npm latest 和 macOS 桌面版 nightly，需要 Node.js 24 或更新版本。
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/5101good/amoji/releases) 下载并核对 `amoji-dsh-2.1.0.tgz`，在文件所在目录执行：
-
-第一条命令为新 profile 初始化 Web 模板并显示帮助；随后安装并启动。
+按[当前安装说明](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)构建插件，在生成的 tgz 所在目录运行以下命令。
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help
+npx @deepseek-ai/dsh@latest plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@latest --profile amoji
 ```
 
 `amoji` 是示例 profile，替换为自己的名称。安装到已有 profile 时先保存工作，安装后重启。选择工作区即可从输入区打开“表情”，无需先发送普通文字。点图发送，详情只查看含义；新库的经典与办公各有 24 个表情、实现相同的 22 个码位，共 48 个资产。选择器只提供可由人发送的表情。

@@ -38,7 +38,7 @@ async function setup(t: TestContext) {
     sessionProjections: { stateOf: session => ({ openTurnStartSeq: turns.get(session.id) ?? null }) },
     sessionController: {
       resolveAgent: async id => { const session = sessions.get(id); return session ? { agent: { id, session } } : { error: new Error('session not found') }; },
-      inspect: async id => { const session = sessions.get(id); if (!session) throw new Error('session not found'); return { events: session.snapshotEvents() }; },
+      events: async ({ address }) => { const session = sessions.get(address.sessionId); if (!session) throw new Error('session not found'); return { records: session.snapshotEvents().map(event => ({ type: 'event', event })), hasMore: false }; },
       prompt: async request => { prompts.push(request); return { accepted: true }; },
     },
     connection: { fetch: { register: () => async () => {} } },
@@ -58,7 +58,7 @@ async function setup(t: TestContext) {
   return { directory, client, runtime, ctx, a, b, sessions, turns, tools, prompts, adapter, exec, call, disposers };
 }
 
-test('0.1.5-rc.2 defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
+test('defineTool 的真实入口：身份、回合、参数拒绝和双会话精确版本', async t => {
   const f = await setup(t);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, { callId: 'x', signal: signal() }), /DSH_CONTEXT_UNAVAILABLE/);
   await assert.rejects(f.call('amoji_search', { query: '庆祝' }, f.exec(new Session(f.a.id))), /DSH_CONTEXT_UNAVAILABLE/);
@@ -362,7 +362,7 @@ test('真实 Session 零文字首发表情，经 flush 文件重建后 native rp
   f.ctx.sessions.get = key => key === id ? session : undefined;
   f.ctx.sessions.flush = async () => { await writeFile(file, JSON.stringify({ header: session.header, events: session.snapshotEvents() })); return true; };
   f.ctx.sessionController.resolveAgent = async () => ({ agent: { id, session } });
-  f.ctx.sessionController.inspect = async () => ({ events: session.snapshotEvents() });
+  f.ctx.sessionController.events = async () => ({ records: session.snapshotEvents().map(event => ({ type: 'event', event })), hasMore: false });
   f.ctx.sessionController.prompt = async request => {
     session.append('user/message', { role: 'user', id: 'native-user-message' as never, content: [...request.content], source: { kind: 'user', rpcId: request.requestId as never } }, { surfaceOp: 'append' });
     return { accepted: true };
@@ -399,16 +399,22 @@ test('accepted 必须在 prompt 后 flush 成功，且共享回执拒绝跨会�
 
 test('真实 Connection 允许网关 /api interceptor 与 Amoji exact routes 共存、派发与卸载', async t => {
   const { Context } = await import('@deepseek-ai/cordis');
-  const { HostConnectionService } = await import('@deepseek-ai/dsh-client-connection');
+  const { apply: mountConnection, HostConnectionService } = await import('@deepseek-ai/dsh-client-connection');
   const f = await setup(t); const context = new Context();
-  const connection = new HostConnectionService(context, [], {} as never);
+  context.provide('credentials', { modifyRecord: (_key: unknown, change: (current: undefined) => Promise<unknown>) => change(undefined) });
+  await mountConnection(context);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const connection = context.connection;
+  assert.ok(connection instanceof HostConnectionService);
   const gateway = connection.rpc.intercept('/api', endpoint => endpoint === 'session/native', async () => ({ ok: true, value: 'native gateway' }));
   t.after(gateway);
   f.ctx.connection = connection as unknown as HostPort['connection'];
   const cleanup: Array<() => void | Promise<void>> = []; f.ctx.effect = factory => { cleanup.push(factory()); };
   installDsh(f.ctx, f.runtime, 'fixture-host', defineTool);
   const handler = connection.createSharedFetchHandler('/api');
-  const call = (endpoint: string, payload: unknown, method = endpoint) => handler.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture-rpc', method, payload }) }));
+  const owner = connection.createPeer({ principal: { kind: 'owner' } });
+  t.after(() => owner.dispose());
+  const call = (endpoint: string, payload: unknown, method = endpoint) => handler.fetch(new Request(`http://localhost/api/${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture-rpc', method, payload }) }), owner);
   assert.equal((await (await call('session/native', {})).json()).result.value, 'native gateway');
   const catalog = await (await call('amoji/catalog', { sessionId: f.a.id })).json();
   assert.equal(catalog.type, 'server-response'); assert.equal(catalog.rpcId, 'fixture-rpc'); assert.equal(catalog.result.value.length, (await f.client.list()).filter(humanSendable).length);
@@ -623,7 +629,6 @@ test('桌面版被动历史读取与发送回执使用同一原生请求', async
   const f = await setup(t);
   f.turns.clear();
   const controller = f.ctx.sessionController;
-  delete controller.inspect;
   controller.events = async ({ address, maxMessages }, signal) => {
     signal.throwIfAborted();
     assert.deepEqual(address, { kind: 'session', sessionId: f.a.id });

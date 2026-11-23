@@ -101,7 +101,7 @@ test('toggle at completion and tool continuation cannot add inference; the next 
       agent.followup(input('first')); await agent.whenIdle();
       assert.equal(host.provider.requests.length, 2); assert.equal(assemblies, 2);
       if (enabled) {
-        const snapshots = agent.session.snapshotEvents().filter(e => e.type === 'user/message' && e.data.source.kind === 'plugin');
+        const snapshots = agent.session.snapshotEvents().filter(e => e.type === 'user/message' && e.data.source.kind === 'runtime-context');
         assert.equal(snapshots.length, 1, 'tool continuation reuses stable native snapshot');
         assert.ok(JSON.stringify(snapshots).includes('{{unknown_variable}}'));
       }
@@ -142,7 +142,7 @@ test('real JSONL cold resume reconciles original rpcId, while copy/fork/import/c
     assert.equal(resumed.provider.requests.length, 0);
     live.followup(input('after-restart')); await live.whenIdle();
     assert.equal(resumed.provider.requests.length, 1);
-    const newSnapshots = live.session.snapshotEvents().slice(seed.length).filter(e => e.type === 'user/message' && e.data.source.kind === 'plugin');
+    const newSnapshots = live.session.snapshotEvents().slice(seed.length).filter(e => e.type === 'user/message' && e.data.source.kind === 'runtime-context');
     assert.ok(!JSON.stringify(newSnapshots).includes('ONCE ONLY')); assert.ok(!JSON.stringify(newSnapshots).includes('NEVER RETRY'));
     const wrongProfile = new CollaborationContext(resumed.ctx, copiedIdentity.id); assert.equal(wrongProfile.restore(live, saved), false); wrongProfile.dispose();
     const fork = (await resumed.ctx.agents.create({ sessionId: SessionId('fork'), seed, meta: { parentSession: SessionId('resume'), isSeeded: true }, inheritedEventCount: SessionLogOffset(seed.length), agentOptions: { provider: 'amoji-recording', model: 'no-network-no-cost' } })).agent;
@@ -192,7 +192,7 @@ test('admission guard retains other plugins when removing an unadmitted one-time
   const host = await nativeHost();
   try {
     host.ctx.systemPrompt.context({ name: 'other:context', order: 0, text: 'OTHER CONTEXT REMAINS' });
-    host.ctx.on('agent/pre-step', async (_p, next) => { const d = await next(); return d.kind === 'enter' ? { ...d, messages: d.messages.filter(m => m.source.kind !== 'user').map(m => ({ ...m, content: [...m.content, { type: 'text' as const, text: 'EXTRA PLUGIN TEXT' }] })) } : d; });
+    host.ctx.on('agent/pre-step', async (_p, next) => { const d = await next(); return d.kind === 'enter' ? { ...d, messages: [...d.messages.filter(m => m.source.kind !== 'user'), input('other-plugin', 'EXTRA PLUGIN TEXT')] } : d; });
     const adapter = new CollaborationContext(host.ctx, 'profile'); const { agent } = await host.create('other-context'); adapter.authorize(agent);
     adapter.prepare(agent, 'amoji:filtered', { id: 'once', revision: 'v1', instruction: 'MUST NOT APPLY', conflictGroup: 'explanation' });
     agent.followup(input('amoji:filtered')); await agent.whenIdle();
@@ -268,7 +268,7 @@ test('known safety removal replaces prior hook and instruction snapshot with dis
   agent.followup(input('unsafe-once'));await agent.whenIdle();assert.equal(adapter.receipt(agent,'unsafe-once').status,'attached');
   adapter.revoke(agent,'unsafe-once');adapter.setRules(agent,[]);assert.equal(host.provider.requests.length,1);
   agent.followup(input('after-revocation'));await agent.whenIdle();assert.equal(host.provider.requests.length,2);
-  const snapshots=agent.session.snapshotEvents().flatMap((e:any)=>e.type==='user/message'&&e.data.source.kind==='plugin'?(e.data.source.sections??[]).filter((s:any)=>s.name==='amoji:collaboration').map((s:any)=>JSON.parse(s.text)):[]);
+  const snapshots=agent.session.snapshotEvents().flatMap((e:any)=>e.type==='user/message'&&e.data.source.kind==='runtime-context'?(e.data.source.sections??[]).filter((s:any)=>s.name==='amoji:collaboration').map((s:any)=>JSON.parse(s.text)):[]);
   const current=snapshots.at(-1);assert.equal(current.instruction,null);assert.deepEqual(current.rules,[]);assert.match(current.state,/已停用/);
  }finally{await host.close();}
 });

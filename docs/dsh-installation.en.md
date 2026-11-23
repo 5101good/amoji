@@ -4,11 +4,11 @@
 
 ## Requirements
 
-- Amoji 2.1.0 requires Node.js >=24 and targets dsh 0.1.5-rc.2. Historical live-host records are from macOS arm64; see the [release notes](releases/v2.1.0.md) for this release’s validation scope.
+- Use Node.js 24+. The main branch tests the SDKs published to npm latest and the macOS desktop nightly channel.
 - Configure models in dsh. Sending a user expression starts a normal host conversation; AI suggestions use configured text models.
 - Linux/Windows path handling exists but has not completed live host validation. A successful build does not establish platform compatibility.
 
-## macOS Desktop 0.2.2-rc.5
+## macOS Desktop
 
 Build from a checkout containing desktop support. Run these commands at the repository root and paste the absolute path printed at the end into the desktop plugin manager. Enable the installed plugin, then open a workspace to see the picker beside the composer.
 
@@ -22,35 +22,21 @@ realpath .local/desktop/amoji-dsh-*.tgz
 
 The package name in the manager should be `@amoji/dsh`. Installing the repository Git URL selects the development package `amoji` and fails with `not-bundle`.
 
-## Install a release
+## Install into a CLI profile
 
-The first command initializes the custom `amoji` profile from the official Web template and prints help without starting a server. Initialize this template before installing into a new custom profile.
-
-Download `amoji-dsh-2.1.0.tgz` and `SHA256SUMS` from the same [release](https://github.com/5101good/amoji/releases). Verify SHA-256, then run from your download directory:
+Use the tarball built above. These commands initialize a Web profile, install the plugin, and start DSH.
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
+npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help
+npx @deepseek-ai/dsh@latest plugin --profile amoji add "$PWD/.local/desktop/amoji-dsh-2.1.0.tgz" --ignore-scripts
+npx @deepseek-ai/dsh@latest --profile amoji
 ```
 
-This example uses a separate `amoji` profile. Substitute your existing profile when appropriate, after saving work and exiting it. The official plugin command installs the package and resolves dependencies through the host package manager. The archive includes neither `node_modules` nor native binaries; dependency installation requires network access. It is not an offline installer.
-
-Restart, select a workspace, and open Expressions in the composer. A new conversation needs no preliminary text message. A fresh library contains the 48 expressions of the built-in Classic and Office packs, with Classic preferred; the picker only offers expressions people can send. Existing personal content may increase the library count. Exit code 0 establishes installation only: check the UI entry point, image loading, and delivery separately.
-
-## Install from a public URL
-
-If you already use the `web` profile, install the version-pinned release directly:
-
-```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
-```
-
-Restart that profile after installation. Downloading and installing require neither GitHub authentication nor a separate Amoji API key. If `dsh` is not on your PATH, replace it with `npx @deepseek-ai/dsh@0.1.5-rc.2`.
+Release archives keep the host requirements of their original tag.
 
 ## Plugin markets
 
-Submissions to [Awesome DSH Plugin / dshmarket.com](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5624) and [dsh.market](https://github.com/2BingLing/dsh-market/issues/179) are pending review or synchronization. Check the actual public catalogs for availability; use the public URL above while waiting.
+Submissions to [Awesome DSH Plugin / dshmarket.com](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5624) and [dsh.market](https://github.com/2BingLing/dsh-market/issues/179) are pending review or synchronization. Check the actual public catalogs for availability; use the locally built archive above while waiting.
 
 Market entries must install the prebuilt Release package. The repository root is a development package, and the `adapters/dsh` source directory does not include every generated file. Do not install the repository root Git URL as a plugin.
 
@@ -98,7 +84,7 @@ Do not delete the old library, rename database files, edit schema numbers, or ru
 Keep the new archive at a unique path, run `plugin ... add` again for the same profile, and restart. To uninstall:
 
 ```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji remove @amoji/dsh
+npx @deepseek-ai/dsh@latest plugin --profile amoji remove @amoji/dsh
 ```
 
 Uninstalling does not proactively delete the shared library. Preserve its directory when reinstalling instead of deleting it to fix a connection. The shared service exits after a default 60 idle seconds once the last client disconnects; other connected clients keep it running.

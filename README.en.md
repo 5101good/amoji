@@ -82,27 +82,17 @@ Our vision is an expression system that can travel across models and clients. **
 
 ## Install
 
-If you already use dsh’s `web` profile, install the public Release package directly and restart that profile:
+Amoji follows the current DSH npm @latest release and macOS desktop nightly. From the repository root, build the plugin with Node.js 24+, then paste the absolute path printed below into the desktop plugin manager and enable @amoji/dsh.
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
+npm ci
+npm run build:dsh
+mkdir -p .local/desktop
+npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
+realpath .local/desktop/amoji-dsh-2.1.0.tgz
 ```
 
-For a separate profile and checksum verification:
-
-1. Use **Node.js 24 or newer**. The host baseline is **dsh 0.1.5-rc.2 on macOS arm64**; see the [release notes](docs/releases/v2.1.0.md) for this release’s validation scope.
-2. Download `amoji-dsh-2.1.0.tgz` from [GitHub Releases](https://github.com/5101good/amoji/releases) and check its SHA-256 against `SHA256SUMS` from the same release.
-3. Install into your dsh profile, restart that profile, select a workspace, and open Expressions in the composer.
-
-The first command initializes the Web template for a new profile and prints help; the next commands install and start it.
-
-```sh
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
-npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
-```
-
-`amoji` is an example profile name; substitute your existing profile if appropriate. For source installation, follow the [build steps](docs/dsh-installation.en.md). Successful installation alone does not prove runtime activation.
+[CLI installation and profiles](docs/dsh-installation.en.md)
 
 ## Use
 

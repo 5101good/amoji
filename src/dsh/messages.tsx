@@ -55,11 +55,11 @@ export function mountUserMessages(slots: ClientPort['slots'], rpc: DshRpc, local
       if (original === ours?.original) continue;
       ours?.dispose(); owners.delete(key);
       if (!original) continue; // Declaration may arrive before its shipped renderer.
-      if (original.children) {
+      if (key === 'user') {
         // Desktop owns the message bubble and its child declarations. Contribute
         // to its chain only for our exact RPC IDs, leaving native rendering intact.
         const before = 'conversation.chat.user.before';
-        if (key !== 'user' || !Object.hasOwn(original.children, before)) continue;
+        if (!original.children || !Object.hasOwn(original.children, before)) continue;
         const Before = ({ sessionId, matched }: { sessionId: string; matched: string }) =>
           <AmojiLocaleProvider locale={locale}><UserMessage key={matched} rpc={rpc}
             props={{ sessionId, node: { data: {} } }} messageId={matched} Original={EmptyMessage}/></AmojiLocaleProvider>;

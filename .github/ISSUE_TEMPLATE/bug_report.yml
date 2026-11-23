@@ -11,7 +11,7 @@ body:
     attributes:
       label: 版本 / Versions
       description: Amoji 插件版本、dsh 版本、Node.js 版本、操作系统 / Amoji plugin, dsh, Node.js, and OS versions
-      placeholder: Amoji 1.0.0; dsh 0.1.5-rc.2; Node.js 24.x; macOS ...
+      placeholder: Amoji 1.0.0; dsh 0.2.2-rc.5; Node.js 24.x; macOS ...
     validations:
       required: true
   - type: textarea

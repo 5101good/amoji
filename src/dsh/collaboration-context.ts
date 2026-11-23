@@ -3,8 +3,12 @@ export { collaborationEnvelope, type CollaborationRule, type CollaborationInstru
 import { createHash } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
-import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
-import { joinContextSections } from '@deepseek-ai/dsh-system-prompt';
+import type { ContextFormed } from '@deepseek-ai/dsh-llm';
+
+// The loop owns this durable message source. Its public entry may omit the type-only augmentation.
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap { 'runtime-context': { kind: 'runtime-context' } & ContextFormed }
+}
 import type { SessionEvent } from '@deepseek-ai/dsh-session';
 
 export const COLLABORATION_CONTEXT = 'amoji:collaboration';
@@ -12,7 +16,7 @@ const VARIABLE = 'amoji_collaboration_text';
 export interface CollaborationReceipt { status: 'prepared' | 'dispatched' | 'bound' | 'attached' | 'cancelled' | 'unknown' | 'failed' | 'unsupported'; turnStartSeq?: number; snapshotSeq?: number; digest?: string; reason?: string }
 interface Intent { action: CollaborationInstruction; status: CollaborationReceipt['status']; turn?: number }
 export interface CollaborationCheckpoint { version: 1; profile: string; session: string; createdAt: number; lineage?: {parentSession?:string;isSeeded:boolean}; anchor?: { seq: number; digest: string }; rules: CollaborationRule[]; intents: [string, Intent][] }
-interface State { rules: CollaborationRule[]; intents: Map<string, Intent>; claimed: boolean; turn?: number; text?: string; generation: number; failure?: string }
+interface State { rules: CollaborationRule[]; intents: Map<string, Intent>; claimed: boolean; turn?: number; text?: string; generation: number; variables?: Record<string, unknown>; failure?: string }
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const openTurn = (agent: Agent): number | undefined => {
   for (const event of agent.session.snapshotEvents().toReversed()) {
@@ -23,7 +27,7 @@ const openTurn = (agent: Agent): number | undefined => {
 function section(event: SessionEvent): string | undefined {
   if (event.type !== 'user/message') return;
   const source = event.data.source;
-  if (source.kind !== 'plugin' || !('sections' in source)) return;
+  if (source.kind !== 'runtime-context' || source.form !== 'snapshot') return;
   return source.sections?.find(s => s.name === COLLABORATION_CONTEXT)?.text;
 }
 
@@ -33,7 +37,7 @@ export class CollaborationContext {
   private readonly states = new WeakMap<Agent, State>();
   private readonly disposers: (() => unknown)[] = [];
   constructor(private readonly ctx: Context, readonly hostInstanceId: string, private readonly loadRules?: (agent:Agent)=>Promise<void>) {
-    this.disposers.push(ctx.on('agent/session-start', ({ agent, source }) => { if (source === 'clear') this.forget(agent); }));
+    this.disposers.push(ctx.on('agent/created', ({ agent, source }) => { if (source === 'clear') this.forget(agent); }));
     this.disposers.push(ctx.on('agent/inbox/claimed', ({ agent, message }) => {
       this.claimed.add(agent);
       const state = this.valid(agent); if (!state) return;
@@ -77,6 +81,7 @@ export class CollaborationContext {
       if (!state.text) return assembly;
       assembly.contexts.push({ name: COLLABORATION_CONTEXT, text: `{{${VARIABLE}}}` });
       assembly.variables[VARIABLE] = state.text;
+      state.variables = assembly.variables;
       return assembly;
     }));
     // Outermost cooperative waterfall: validate the downstream decision before admission.
@@ -94,15 +99,13 @@ export class CollaborationContext {
       const previous = state.text;
       const remaining = entries.find(([rpcId]) => users.some(m => 'rpcId' in m.source && m.source.rpcId === rpcId))?.[1].action;
       state.text = users.length && (state.rules.length || remaining) ? collaborationEnvelope(this.hostInstanceId, agent.id, turn, state.rules, remaining) : undefined;
-      const messages: UserMessage[] = [];
-      for (const message of decision.messages) {
-        const source = message.source;
-        if (source.kind !== 'plugin' || !('sections' in source) || !source.sections?.some(c => c.name === COLLABORATION_CONTEXT && c.text === previous)) { messages.push(message); continue; }
-        const sections = source.sections.flatMap(c => c.name !== COLLABORATION_CONTEXT ? [c] : state.text ? [{ ...c, text: state.text }] : []);
-        const originalText = joinContextSections(source.sections);
-        const content = message.content.flatMap(block => block.type === 'text' && block.text === originalText ? (sections.length ? [{ ...block, text: joinContextSections(sections) }] : []) : [block]);
-        if (content.length) messages.push(createUserMessage({ content, source: { ...source, sections } }));
-      }
+      // DSH refreshes the accepted assembly immediately before each provider request.
+      // Update our own interpolation variable so the final snapshot reflects admission.
+      if (state.variables?.[VARIABLE] === previous) state.variables[VARIABLE] = state.text ?? '';
+      if (state.text) return decision;
+      const messages = decision.messages.filter(({ source }) =>
+        source.kind !== 'runtime-context' || source.form !== 'snapshot' ||
+        !source.sections?.length || !source.sections.every(s => s.name === COLLABORATION_CONTEXT && s.text === previous));
       return { ...decision, messages };
     }, { prepend: true }));
   }

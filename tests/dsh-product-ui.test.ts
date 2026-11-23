@@ -79,7 +79,7 @@ for(const mixed of [false,true])test(`可信历史以图片呈现，${mixed?'保
  f.rpc.history=async()=>[{message,meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
  const core=new SlotCore();core.register({name:'root',children:{'conversation.chat.node':{kind:'keyed',scope:'session'}}} as any,()=>null);
  const Original=(p:any)=>React.createElement('div',{'data-original':true},JSON.stringify(p.node.data.content));
- core.register({name:'conversation.chat.node',key:'user'} as any,Original);
+ core.register({name:'conversation.chat.node',key:'steering'} as any,Original);
  const release=mountUserMessages(core as unknown as ClientPort['slots'],f.rpc);t.after(release);
  const View=core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
  const content=[{type:'text',text:expressionMessageText(message)},...(mixed?[{type:'text',text:'普通文字不能丢失'},{type:'image',url:'attachment.png'}]:[])];
@@ -102,7 +102,7 @@ test('纯表情仍保留宿主引用标签和技能信息',async t=>{
  f.rpc.history=async()=>[{message,meta,host:{status:'observed',requestId:'amoji:m',seq:1}}] as any;
  const core=new SlotCore();core.register({name:'root',children:{'conversation.chat.node':{kind:'keyed',scope:'session'}}} as any,()=>null);
  const Original=(p:any)=>React.createElement('div',{'data-original':true},JSON.stringify(p.node.data));
- core.register({name:'conversation.chat.node',key:'user'} as any,Original);
+ core.register({name:'conversation.chat.node',key:'steering'} as any,Original);
  const release=mountUserMessages(core as unknown as ClientPort['slots'],f.rpc);t.after(release);
  const View=core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
  await act(async()=>f.root.render(React.createElement(View,{sessionId:'s',node:{data:{content:[{type:'text',text:expressionMessageText(message)}],referenceLabels:['引用的对话'],skillNames:['project-skill'],seq:1,source:{kind:'user',rpcId:'amoji:m'}}}})));

@@ -1,5 +1,4 @@
 {
-  "version": "0.1.5-rc.2",
   "packages": [
     "@deepseek-ai/dsh-tools",
     "@deepseek-ai/dsh-session",
@@ -14,6 +13,7 @@
     "@deepseek-ai/dsh-agent",
     "@deepseek-ai/dsh-system-prompt",
     "@deepseek-ai/dsh-agent-loop",
-    "@deepseek-ai/dsh-session-persistence-jsonl"
+    "@deepseek-ai/dsh-session-persistence-jsonl",
+    "@deepseek-ai/dsh-tool-executor-native"
   ]
 }

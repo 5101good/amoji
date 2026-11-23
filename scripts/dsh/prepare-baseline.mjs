@@ -6,15 +6,16 @@ const root = resolve(import.meta.dirname, '../..');
 const require = createRequire(import.meta.url);
 const manifest = JSON.parse(await readFile(new URL('./baseline.json', import.meta.url), 'utf8'));
 const lock = JSON.parse(await readFile(resolve(root, 'package-lock.json'), 'utf8'));
+const version = require('../../package.json').devDependencies['@deepseek-ai/dsh-tools'];
 const integrity = {};
 const source = resolve(root, '.cache/dsh-source');
 await mkdir(source, { recursive: true });
 for (const name of manifest.packages) {
   const pkg = require(`${name}/package.json`);
   const pinned = lock.packages[`node_modules/${name}`];
-  if (!pinned?.integrity || pinned.version !== manifest.version) throw new Error(`Missing pinned integrity: ${name}`);
+  if (!pinned?.integrity || pinned.version !== version) throw new Error(`Missing pinned integrity: ${name}`);
   integrity[name] = pinned.integrity;
-  if (pkg.version !== manifest.version) throw new Error(`Wrong dsh contract ${name}: ${pkg.version}`);
+  if (pkg.version !== version) throw new Error(`Wrong dsh contract ${name}: ${pkg.version}`);
 }
 await writeFile(resolve(source, 'tools.mjs'), `export { defineTool } from '@deepseek-ai/dsh-tools';\n`);
 await writeFile(resolve(source, 'slots.mjs'), `import { readFileSync } from 'node:fs';
@@ -25,5 +26,5 @@ new Function('window', readFileSync(require.resolve('@deepseek-ai/dsh-client-ui-
 export class SlotCore extends renderer.SlotRegistry { constructor() { super(new Context()); } }
 `);
 await build({ entryPoints: [resolve(root, 'adapters/dsh/index.mjs')], bundle: true, format: 'esm', platform: 'node', packages: 'external', outfile: resolve(source, 'host-entry.mjs'), plugins: [{ name: 'preserve-core-runtime', setup(b) { b.onResolve({ filter: /^\.\/runtime\// }, args => ({ path: resolve(root, 'adapters/dsh', args.path), external: true })); } }] });
-await writeFile(resolve(source, 'VERIFIED.json'), JSON.stringify({ ...manifest, integrity }, null, 2));
-console.log(`Verified real npm dsh ${manifest.version} packages; using published defineTool and SlotCore`);
+await writeFile(resolve(source, 'VERIFIED.json'), JSON.stringify({ ...manifest, version, integrity }, null, 2));
+console.log(`Verified real npm dsh ${version} packages; using published defineTool and SlotCore`);

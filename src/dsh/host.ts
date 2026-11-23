@@ -116,7 +116,22 @@ export class DshAdapter {
   private async flush(session: DshSession): Promise<void> {
     if (!await this.ctx.sessions.flush(session)) fail('DSH_PERSISTENCE_UNAVAILABLE', '宿主未启用会话持久化；无法确认记录保存');
   }
-  private async inspect(sessionId: string, signal: AbortSignal): Promise<readonly DshEvent[]> { signal.throwIfAborted(); const result = await this.ctx.sessionController.inspect(sessionId, signal); signal.throwIfAborted(); return result.events; }
+  private async inspect(sessionId: string, signal: AbortSignal): Promise<readonly DshEvent[]> {
+    signal.throwIfAborted();
+    const controller = this.ctx.sessionController;
+    if (controller.inspect) {
+      const snapshot = await controller.inspect(sessionId, signal);
+      signal.throwIfAborted();
+      return snapshot.events;
+    }
+    if (!controller.events) fail('DSH_CONTEXT_UNAVAILABLE', '宿主未提供会话历史接口');
+    // Desktop exposes the passive log as message-aligned pages. Request the full
+    // cut so an older acknowledgement cannot be lost when reconciling a send.
+    const page = await controller.events({ address: { kind: 'session', sessionId }, maxMessages: Number.MAX_SAFE_INTEGER }, signal);
+    signal.throwIfAborted();
+    if (page.hasMore) fail('DSH_CONTEXT_UNAVAILABLE', '宿主返回了不完整的会话历史');
+    return page.records.map(record => record.event);
+  }
   private async session(sessionId: string, signal: AbortSignal): Promise<DshSession> {
     signal.throwIfAborted(); const result = await this.ctx.sessionController.resolveAgent(sessionId); signal.throwIfAborted();
     if ('error' in result) throw result.error;

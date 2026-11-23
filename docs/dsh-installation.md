@@ -8,6 +8,20 @@
 - 模型由 dsh 配置。发送用户表情会触发正常宿主会话；AI 文字建议使用 dsh 已配置的文本模型。
 - Linux/Windows 有路径处理实现，尚未完成实际宿主验证。不要把构建成功等同于跨平台兼容。
 
+## macOS 桌面版 0.2.2-rc.5
+
+从含桌面适配的源码构建插件，在仓库根目录运行以下命令。复制最后一行输出的绝对路径，粘贴到桌面版插件管理器的安装来源，完成安装后按提示启用。进入工作区后，输入框左侧会显示表情选择器。
+
+```sh
+npm ci
+npm run build:dsh
+mkdir -p .local/desktop
+npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
+realpath .local/desktop/amoji-dsh-*.tgz
+```
+
+插件管理器应显示包名 `@amoji/dsh`。仓库 Git URL 安装的是开发包 `amoji`，会收到 `not-bundle`。
+
 ## 安装发布包
 
 从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-2.1.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：

@@ -20,7 +20,7 @@ export interface ClientPort {
   connection: { rpc: { call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<RpcResult<unknown>> } };
   effect(factory: () => (() => void), label?: string): unknown;
   slots: {
-    register(options: { name: string; key?: string; id?: string; priority?: number; locale?: string; inject?: StoredEntry['inject']; store?: StoredEntry['store'] }, component: React.ComponentType<any>): () => void;
+    register(options: { name: string; key?: string; id?: string; priority?: number; locale?: string; select?: (owner: { kind?: string; source?: { kind?: string; rpcId?: string } }) => string | null; inject?: StoredEntry['inject']; store?: StoredEntry['store'] }, component: React.ComponentType<any>): () => void;
     inject(name: string, factory: () => (() => void)): () => void;
     entries(name: string): readonly StoredEntry[];
     subscribe(name: string, listener: () => void): () => void;

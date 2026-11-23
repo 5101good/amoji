@@ -182,3 +182,21 @@ test('settled AI 表情错误展示原始失败并给文字fallback，不能继�
   const codeOnly = renderToStaticMarkup(React.createElement(Tool, { sessionId: 's', block: { kind: 'tool-result', isError: true, error: { code: 'TURN_LIMIT' } } }));
   assert.match(codeOnly, /TURN_LIMIT/); assert.doesNotMatch(codeOnly, /等待/);
 });
+
+test('桌面版在原生用户消息的子插槽中显示表情并保留宿主组件', async () => {
+  const { mountUserMessages } = await import('../src/dsh/messages.js');
+  const core = new SlotCore();
+  const slot = 'conversation.chat.node';
+  const before = 'conversation.chat.user.before';
+  core.register({ name: 'root', children: { [slot]: { kind: 'keyed', scope: 'session' } } } as never, () => null);
+  const Original = () => null;
+  core.register({ name: slot, key: 'user', children: { [before]: { kind: 'chain', scope: 'session' } } } as never, Original);
+  const dispose = mountUserMessages(core as unknown as ClientPort['slots'], {} as import('../src/dsh/contracts.js').DshRpc);
+  assert.equal(core.entries(slot)[0]?.component, Original);
+  const select = core.entries(before)[0]?.select as ((owner: { source: { kind: string; rpcId: string } }) => unknown) | undefined;
+  assert.ok(select);
+  assert.equal(select({ source: { kind: 'user', rpcId: 'ordinary' } }), null);
+  assert.equal(select({ source: { kind: 'user', rpcId: 'amoji:123' } }), '123');
+  dispose();
+  assert.equal(core.entries(before).length, 0);
+});

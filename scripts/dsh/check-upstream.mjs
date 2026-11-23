@@ -24,6 +24,11 @@ if (pkg.devDependencies['@deepseek-ai/dsh-tools'] === version) {
   for (const name of Object.keys(pkg.devDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh-')) pkg.devDependencies[name] = version;
   }
+  const registry = await fetch(`https://registry.npmjs.org/@deepseek-ai%2fdsh/${version}`, { signal: AbortSignal.timeout(30000) });
+  assert.ok(registry.ok, `Missing published SDK for DSH ${version}`);
+  const cordis = (await registry.json()).dependencies['@deepseek-ai/cordis'];
+  assert.equal(typeof cordis, 'string');
+  pkg.devDependencies['@deepseek-ai/cordis'] = cordis;
   const lock = read('package-lock.json');
   for (const name of Object.keys(lock.packages)) {
     if (name.includes('node_modules/@deepseek-ai/')) delete lock.packages[name];

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   REGISTRY, actGloss, backchannelEligible, interruptEligible, lookupLocale, expressionText,
-  validatePack, validateExpression, validateMessage, validatePreferences, validateRegistry,
+  validatePack, validateAuthoredPack, validateExpression, validateMessage, validatePreferences, validateRegistry,
 } from '../src/protocol/index.js';
 
 const classic = JSON.parse(await readFile(new URL('../assets/official-packs/classic.manifest.json', import.meta.url), 'utf8'));
@@ -51,6 +51,20 @@ test('official packs validate; registry-only fields and incomplete languages are
   assert.throws(() => validateExpression(decomposed), /NFC/);
   const unbound = structuredClone(classic); unbound.bindings[0].effects = ['20000000-0000-4000-8000-000000000009'];
   assert.throws(() => validatePack(unbound), /不在本包内/);
+});
+
+test('authored packs bind every effect once per target, never to an interrupt (RFC §7)', () => {
+  validateAuthoredPack(classic);
+  const loose = structuredClone(classic); loose.bindings = loose.bindings.filter((b: { effects: string[] }) => b.effects[0] !== classic.effects[0].effect_id);
+  validatePack(loose);
+  assert.throws(() => validateAuthoredPack(loose), /效果必须绑定/, 'installing tolerates older packs; authoring does not');
+  const doubled = structuredClone(classic); doubled.bindings.push({ ...structuredClone(doubled.bindings[0]), effects: [classic.effects[1].effect_id] });
+  assert.throws(() => validateAuthoredPack(doubled), /只能绑定一个效果/);
+  const many = structuredClone(classic); many.bindings[0].effects = [classic.effects[0].effect_id, classic.effects[1].effect_id];
+  assert.throws(() => validateAuthoredPack(many), /只能指定一个效果/);
+  const hold = classic.expressions.find((e: { realizes: string }) => interruptEligible(e.realizes));
+  const interrupt = structuredClone(classic); interrupt.bindings.push({ target: { act: hold.realizes }, effects: [classic.effects[0].effect_id] });
+  assert.throws(() => validateAuthoredPack(interrupt), /中断类码位不能绑定效果/);
 });
 
 test('messages follow direction, mode and decision rules', () => {

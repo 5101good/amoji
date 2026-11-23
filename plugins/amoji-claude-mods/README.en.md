@@ -8,7 +8,7 @@ Requires Claude Code with Mods (validation baseline: 2.1.295+) and Node.js 24+. 
 
 ## Install
 
-Download `amoji-claude-mods-2.0.0.zip` from [v2.0.0](https://github.com/5101good/amoji/releases/tag/v2.0.0) and verify it with that release's `SHA256SUMS`, or build from source. Extract the complete `.claude-plugin/` and `plugin/` directories.
+Download `amoji-claude-mods-2.1.0.zip` from [v2.1.0](https://github.com/5101good/amoji/releases/tag/v2.1.0) and verify it with that release's `SHA256SUMS`, or build from source. Extract the complete `.claude-plugin/` and `plugin/` directories.
 
 From the extracted directory:
 
@@ -40,21 +40,21 @@ AI receives three text expression tools: `amoji_express`, `amoji_search` and `am
 
 ## Expression market and sharing
 
-The 2.0.0 Claude Mods ZIP includes the following marketplace and publishing capabilities.
+The 2.1.0 Claude Mods ZIP includes the following marketplace and publishing capabilities.
 
-1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
-2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
+1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and expression effects. Install a pack or collect one expression without signing in. Downloads are verified; expressions that carry an effect say so in their details.
+2. Installed content works offline. Review old and new meanings and effects before adopting an update. Removing a pack or collection does not rewrite message history.
 3. Open **Share and publish**, connect your market account, verify the device code in your browser, then choose **I authorized it — check connection**. The plugin never receives your account password. Device credentials remain in the shared service's private local directory.
 4. Choose an imported pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
-5. Review the description, license, optional guidance and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
+5. Review the description, license, expression effects and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
 
-**Collaboration guidance** is separate from fixed meaning. Explicitly enable up to two predefined conversation rules and confirm replacements within the same group. An installed expression's details also offer one-time guidance when available. Each submission revalidates exact source revisions; removed sources are disabled. Only user messages in the current main conversation receive guidance, never grants to other plugins, schedules or subagents. Re-enable after restarting or switching conversations.
+**Expression effects** are short requests to the AI bound to particular expressions; sending “Like what?”, for example, makes the AI give an example before explaining. An expression's details show its effect, and sending it always brings the effect along for Claude's next answer only; the status above the prompt names the effect that went with it. If you don't want the effect, pick another expression or type. Each submission revalidates the exact source; if it was removed, nothing is sent, so refresh and choose again. Effects travel only with expression messages you send from Amoji, never with typed text, other plugins, scheduled tasks or subagents.
 
-Guidance is attached as user text through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance. Disabling it sends an empty guidance snapshot with subsequent user messages; existing model responses and historical context cannot be undone.
+An effect is attached as user text to that one message through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance.
 
 ## Data and recovery
 
-Version 2.0.0 uses the local Amoji 0.1 library, including dsh’s library at the same version, with shared API `3`, database `1` and messages isolated by host and session. There is no direct migration for 1.x libraries or packs. Close all old clients, wait for the shared service to exit and back up the complete directory. Version 2.0.0 uses `library-0.1.sqlite` in the same directory and preserves the old `library.sqlite`; an empty directory is not required. Never edit the database version number; rollback requires stopping the new service and restoring the old application and library. Set `AMOJI_DATA_DIR` for an isolated test library or `AMOJI_NODE` for a specific Node 24 executable. Do not delete a database to fix compatibility problems.
+Version 2.1.0 uses the local Amoji 0.1 library, including dsh’s library at the same version, with shared API `3`, database `1` and messages isolated by host and session. There is no direct migration for 1.x libraries or packs. Close all old clients, wait for the shared service to exit and back up the complete directory. Version 2.1.0 uses `library-0.1.sqlite` in the same directory and preserves the old `library.sqlite`; an empty directory is not required. Never edit the database version number; rollback requires stopping the new service and restoring the old application and library. Set `AMOJI_DATA_DIR` for an isolated test library or `AMOJI_NODE` for a specific Node 24 executable. Do not delete a database to fix compatibility problems.
 
 For an older shared service, close windows still using the older Amoji and retry. After an unknown outcome, inspect the conversation or library before repeating an action. Errors retain your input; use Save draft to persist it.
 

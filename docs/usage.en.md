@@ -2,7 +2,7 @@
 
 [中文](usage.md) · [Documentation](README.en.md)
 
-This guide covers the dsh workflow in Amoji 2.0.0. See the [Mods guide](claude-mods.en.md) for Claude Desktop Code entry points and differences. Version 2.0.0 uses the Amoji 0.1 protocol; 1.x users should read the [upgrade and backup guidance](dsh-installation.en.md#upgrade-from-1x-to-200) first.
+This guide covers the dsh workflow in Amoji 2.1.0. See the [Mods guide](claude-mods.en.md) for Claude Desktop Code entry points and differences. Version 2.1.0 uses the Amoji 0.1 protocol; 1.x users should read the [upgrade and backup guidance](dsh-installation.en.md#upgrade-from-1x-to-200) first.
 
 ## Send and receive
 
@@ -42,6 +42,6 @@ Select several expressions in the library and choose Create a pack: fill in the 
 
 For connection or delivery problems, follow the [recovery guide](dsh-installation.en.md) and reconcile the original request. Repeated clicks or changing selections do not resolve an unknown delivery outcome.
 
-## Optional collaboration effects
+## Expression effects
 
-[Seven official expression packs](../assets/official-packs/README.en.md) are importable; public marketplace versions require independent review. A pack can include effects: text guidance for the AI, such as “Answer first, then the evidence.” Clicking an expression with effects offers Send only and Send and apply once; one-time guidance affects only its linked turn and cannot accompany a send while the AI is working. Conversation rules require explicit activation in the current conversation, allow at most two (one per group), and can be disabled individually or together. Disabling stops future attachment without deleting history or guaranteeing forgetting. Effects are guidance, not enforcement; installing, collecting and AI sends never enable them.
+[Seven official expression packs](../assets/official-packs/README.en.md) are importable; public marketplace versions require independent review. Some expressions carry an **expression effect**: a short request to the AI that changes how it answers; sending “Any updates?”, for example, makes the AI answer first and give reasons after. Expressions with an effect are marked in the picker and their details show the effect; sending one always brings the effect along for the AI's next answer only, never later messages. While the AI is working, the effect goes with the expression as a steer or in the queue, just like typed text; stopping expressions such as “Hold on” carry none. If you don't want an effect, pick another expression or type. Effects are suggestions, not enforced control; expressions the AI sends carry no effect.

@@ -1,5 +1,5 @@
 import { applyGuidance } from './guidance.js';
-import { state, load, loadGalleryWindow, open, send, call, invalidate, perform, navigate, loadCards, answer, quickReply, retryUnsent } from "./controller.js";
+import { state, load, loadGalleryWindow, open, openDetail, send, call, invalidate, perform, navigate, loadCards, answer, quickReply, retryUnsent } from "./controller.js";
 import { L, errorText, refOf, uiLocale, view } from "./transport.js";
 import { pane } from "./views.js";
 import { controls } from "./controls.js";
@@ -22,11 +22,7 @@ export function register(on) {
     // as re-entry. applyGuidance still requires the exact in-flight user send.
     if(next.error.kind === "re-entry")return applyGuidance($,e,next);
     if(next.called)throw new Error("AMOJI_GUIDANCE_OUTCOME_UNKNOWN");
-    return {drop:"Amoji guidance could not be attached. Review the guidance settings and retry."};
-  });
-  on("session.end",async($,e,next)=>{
-    const s=await state($);s.activeGuidance=[];s.guidanceTouched=true;s.guidanceReceipt=null;
-    return next(e);
+    return {drop:"Amoji could not attach this expression's effect. Refresh and send it again."};
   });
   on("session.start", async ($, e, next) => {
     await $.command.register({
@@ -239,7 +235,7 @@ export function register(on) {
         const id = item.expression.asset_id;
         if (s.selected[id]) delete s.selected[id];
         else s.selected[id] = refOf(item.expression);
-      } else { s.detail = item; s.revisions = null; }
+      } else await openDetail($, s, item);
     });
     return {};
   });

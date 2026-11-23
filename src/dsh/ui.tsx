@@ -6,10 +6,11 @@ import type { DshRpc } from './contracts.js';
 import { AmojiImage } from './media.js';
 
 export function CloseIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>; }
+export function SparkIcon() { return <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>; }
 export function SmileIcon() { return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="9"/><path d="M8 14s1 3 4 3 4-3 4-3"/><path d="M8 8v2m8-2v2"/></svg>; }
-export function ExpressionTile({rpc,sessionId,expression,selected,disabled,onSelect}:{rpc:DshRpc;sessionId:string;expression:Expression;selected:boolean;disabled?:boolean;onSelect:()=>void}) {
- const text=expressionText(expression,useUiLocale());
- return <button type="button" className="amoji-expression-tile" aria-label={text.name} aria-pressed={selected} title={text.meaning} lang={text.locale} disabled={disabled} onClick={onSelect}><AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{text.name}</span></button>;
+export function ExpressionTile({rpc,sessionId,expression,selected,disabled,effect,onSelect}:{rpc:DshRpc;sessionId:string;expression:Expression;selected:boolean;disabled?:boolean;effect?:boolean;onSelect:()=>void}) {
+ const t=useText();const text=expressionText(expression,useUiLocale());
+ return <button type="button" className="amoji-expression-tile" aria-label={effect?t('{name}（带表情效果）',{name:text.name}):text.name} aria-pressed={selected} title={effect?`${text.meaning}\n${t('发送时会附带表情效果')}`:text.meaning} lang={text.locale} disabled={disabled} onClick={onSelect}>{effect&&<span className="amoji-effect-mark" aria-hidden="true"><SparkIcon/></span>}<AmojiImage rpc={rpc} sessionId={sessionId} refValue={expression} thumbnail/><span className="amoji-expression-label">{text.name}</span></button>;
 }
 
 export const styles = `
@@ -21,7 +22,8 @@ export const styles = `
 .amoji button[aria-pressed=true]{background:var(--amoji-selected);border-color:var(--amoji-accent)}
 .amoji button.primary{background:#4468dc;color:#fff;border-color:transparent;font-weight:600}.amoji button.primary:hover:not(:disabled){background:#3658c4}
 .amoji :focus-visible{outline:2px solid var(--amoji-accent);outline-offset:3px}.amoji label{display:grid;gap:6px}.amoji textarea{min-height:76px;resize:vertical}.amoji input:not([type=checkbox]),.amoji textarea{width:100%}.amoji input::placeholder,.amoji textarea::placeholder{color:var(--amoji-muted)}
-.amoji h2{font-size:18px;font-weight:600;letter-spacing:-.2px;margin:0}.amoji h3{font-size:15px;font-weight:600;margin:0}.amoji p{margin:0}.amoji small,.amoji .muted{color:var(--amoji-muted);font-size:12px}.amoji pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.amoji summary{cursor:pointer;color:var(--amoji-muted);font-size:12px;padding:4px 0}.amoji details[open]>summary{margin-bottom:8px}.amoji .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.amoji .stack{display:grid;gap:16px}.amoji .amoji-download{display:inline-block;justify-self:start;color:var(--amoji-accent);text-decoration:underline;text-underline-offset:3px;padding:8px 0}.amoji .quiet{border-color:transparent;background:transparent;color:var(--amoji-muted);padding:6px 8px}.amoji .icon-button{width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;background:transparent;flex:none}
+.amoji h2{font-size:18px;font-weight:600;letter-spacing:-.2px;margin:0}.amoji h3{font-size:15px;font-weight:600;margin:0}
+.amoji h4{font-size:14px;font-weight:600;margin:0}.amoji p{margin:0}.amoji small,.amoji .muted{color:var(--amoji-muted);font-size:12px}.amoji pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.amoji summary{cursor:pointer;color:var(--amoji-muted);font-size:12px;padding:4px 0}.amoji details[open]>summary{margin-bottom:8px}.amoji .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.amoji .stack{display:grid;gap:16px}.amoji .amoji-download{display:inline-block;justify-self:start;color:var(--amoji-accent);text-decoration:underline;text-underline-offset:3px;padding:8px 0}.amoji .quiet{border-color:transparent;background:transparent;color:var(--amoji-muted);padding:6px 8px}.amoji .icon-button{width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;background:transparent;flex:none}
 .amoji button.amoji-trigger{display:flex;align-items:center;gap:5px;border-color:transparent;background:transparent;padding:2px 7px;color:inherit;height:28px;min-height:28px;font-size:13px;line-height:20px}.amoji .amoji-trigger[aria-expanded=true]{background:var(--amoji-selected);color:var(--amoji-accent)}
 .amoji-picker{display:flex;flex-direction:column;border:1px solid var(--amoji-line);border-radius:16px;background:var(--amoji-bg);color:var(--amoji-ink);padding:0;box-shadow:0 12px 44px #0003;min-height:0}
 .amoji-picker-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;padding:8px 10px 0 18px}.amoji-picker-head h2{font-size:15px}
@@ -32,13 +34,15 @@ export const styles = `
 .amoji-expression-choice{position:relative;min-width:0}.amoji-expression-choice>.amoji-expression-tile{width:100%}.amoji button.amoji-expression-detail{position:absolute;right:3px;top:3px;min-height:26px;padding:2px 6px;font-size:11px;background:var(--amoji-bg);opacity:.86}
 .amoji button.amoji-expression-tile{border:1px solid transparent;border-radius:10px;background:transparent;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px;min-width:0;min-height:114px;color:var(--amoji-ink)}
 .amoji button.amoji-expression-tile[aria-pressed=true]{background:var(--amoji-selected);border-color:var(--amoji-accent)}
+.amoji button.amoji-expression-tile{position:relative}.amoji-effect-mark{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--amoji-accent);color:var(--amoji-bg);flex:none}.amoji-expression-tile>.amoji-effect-mark{position:absolute;left:4px;top:4px;z-index:1;box-shadow:0 0 0 2px var(--amoji-bg)}
+.amoji-once-effect{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--amoji-wash)}.amoji-once-effect>div{display:grid;gap:3px;min-width:0}.amoji-once-effect>.amoji-effect-mark{margin-top:2px}
 .amoji-expression-label{font-size:12px;line-height:18px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .amoji .amoji-media{display:flex;position:relative;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0;width:152px;min-height:152px;max-width:100%}.amoji .amoji-media img{display:block;width:152px;height:152px;max-width:100%;object-fit:contain}
 .amoji .amoji-thumbnail{width:76px;height:76px;min-height:76px}.amoji .amoji-thumbnail img{width:76px;height:76px}
 .amoji-media-loading{display:block;width:72%;aspect-ratio:1;border-radius:24px;background:var(--amoji-wash)}
 .amoji-media-fallback{font-size:13px;padding:12px;background:var(--amoji-wash);border-radius:10px;overflow-wrap:anywhere;text-align:center}.amoji-media-fallback small{display:block;margin-top:4px}
 .amoji button.amoji-playback{padding:2px 8px;min-height:28px;font-size:11px;border-color:transparent;background:transparent;color:var(--amoji-muted)}
-.amoji-picker-footer{border-top:1px solid var(--amoji-line);padding:12px 16px;flex:0 1 auto;min-height:0;max-height:40%;overflow:auto;display:block}.amoji-selection{min-height:0}.amoji-selection>p{color:var(--amoji-muted);font-size:13px;line-height:1.5;margin-top:4px}.amoji-selection>details{margin-top:4px}.amoji-selection small{overflow-wrap:anywhere}.amoji-send-row{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--amoji-bg);border-top:1px solid var(--amoji-line)}.amoji-notice{font-size:12px;line-height:1.5;margin-top:8px!important;color:var(--amoji-muted)}.amoji-empty{padding:32px 16px;color:var(--amoji-muted);text-align:center;font-size:13px}
+.amoji-picker-footer{border-top:1px solid var(--amoji-line);padding:12px 16px;flex:0 1 auto;min-height:0;max-height:58%;overflow:auto;display:block}.amoji-selection{min-height:0}.amoji-selection>p{color:var(--amoji-muted);font-size:13px;line-height:1.5;margin-top:4px}.amoji-selection>details{margin-top:4px}.amoji-selection small{overflow-wrap:anywhere}.amoji-send-row{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--amoji-bg);border-top:1px solid var(--amoji-line)}.amoji-notice{font-size:12px;line-height:1.5;margin-top:8px!important;color:var(--amoji-muted)}.amoji-empty{padding:32px 16px;color:var(--amoji-muted);text-align:center;font-size:13px}
 .amoji.amoji-message{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin:12px 0 18px}.amoji.amoji-message-human{align-items:flex-end}.amoji-message-detail{max-width:340px}.amoji-message-detail summary{text-align:right;font-size:11px}.amoji-message-detail[open]{border:1px solid var(--amoji-line);background:var(--amoji-bg);border-radius:10px;padding:8px 12px}.amoji-message-detail p{margin:6px 0;color:var(--amoji-muted);font-size:13px}.amoji-message-detail small{overflow-wrap:anywhere}
 .amoji .draft-list{align-self:start;align-content:start;grid-auto-rows:max-content}.amoji .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}.amoji .tile{display:flex;flex-direction:column;align-items:center;min-width:0;padding:8px;border-radius:10px}.amoji .tile>button{width:100%;overflow-wrap:anywhere}.amoji .split{display:grid;grid-template-columns:minmax(180px,.65fr) minmax(290px,1.6fr);gap:24px}.amoji .preview{display:grid;gap:12px;background:var(--amoji-wash);border-radius:12px;padding:20px}.amoji .preview img{width:160px;height:160px;object-fit:contain;border-radius:10px}.amoji .error{border-left:3px solid #d06b67;padding:10px 12px;background:var(--amoji-wash);font-size:13px}.amoji-dialog{width:min(1000px,calc(100vw - 32px));height:min(780px,calc(100dvh - 48px));max-height:calc(100dvh - 32px);margin:auto;padding:24px;background:var(--amoji-bg);color:var(--amoji-ink);border:1px solid var(--amoji-line);border-radius:16px;overflow:auto}.amoji-dialog::backdrop{background:#0007;backdrop-filter:blur(3px)}.amoji .toolbar{position:sticky;top:-24px;background:var(--amoji-bg);padding:12px 0;z-index:1;justify-content:space-between;border-bottom:1px solid var(--amoji-line);margin-bottom:20px}.amoji .tabs{margin-bottom:20px}.amoji [role=status]:empty{display:none}.amoji .fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.amoji .wide{grid-column:1/-1}
 
@@ -57,10 +61,92 @@ export const styles = `
 .amoji-composer-controls{display:flex;align-items:center;gap:12px;min-width:0}.amoji-model-label{display:flex!important;align-items:center;gap:8px!important;flex:1;min-width:0}.amoji-model-label>span{font-size:12px;color:var(--amoji-muted);white-space:nowrap}.amoji-model-label select{min-width:0;width:100%;font-size:12px;border:0;background:transparent;padding:6px 20px 6px 2px;text-overflow:ellipsis}.amoji-composer-controls>button{flex:none;font-size:13px}.amoji-composer-note{display:flex;align-items:center;justify-content:space-between;gap:8px}.amoji-composer-note small{font-size:11px}.amoji .amoji-composer-note button{font-size:11px;min-height:24px;padding:2px 0}
 .amoji-semantic-card{min-width:0;border:1px solid var(--amoji-line);border-radius:12px;padding:18px 20px;display:grid;gap:14px}.amoji-semantic-card>header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.amoji-semantic-card>header h3{font-size:12px;color:var(--amoji-muted);font-weight:500}.amoji-semantic-card>header span{font-size:11px;color:var(--amoji-muted)}.amoji-semantic-summary{display:grid;gap:8px;min-width:0}.amoji-semantic-summary h4{font-size:18px;line-height:1.4;font-weight:600;letter-spacing:-.2px;margin:0}.amoji-semantic-summary>p{font-size:14px;line-height:1.7;overflow-wrap:anywhere;max-width:68ch}.amoji-fallback{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:4px}.amoji-fallback>span{color:var(--amoji-muted);font-size:11px}.amoji-fallback q{font-size:13px;color:var(--amoji-muted)}.amoji-semantic-summary>small{font-size:11px}
 .amoji-semantic-edit>summary{display:inline-flex;color:var(--amoji-accent);font-size:12px;list-style:none;padding:4px 0}.amoji-semantic-edit>summary::-webkit-details-marker{display:none}.amoji-semantic-edit>summary::after{content:'＋';margin-left:6px}.amoji-semantic-edit[open]>summary::after{content:'−'}.amoji-semantic-edit[open]>.stack{margin-top:12px}.amoji-semantic-edit .fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.amoji-semantic-edit .fields label{min-width:0;font-size:12px}.amoji-semantic-edit .fields textarea{min-height:66px}.amoji-saved-semantics{gap:8px!important}.amoji-candidate-actions{display:flex;gap:10px;align-items:center}.amoji-draft-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--amoji-line);padding-top:18px;margin-top:2px}.amoji-draft-actions>small{font-size:11px}.amoji-draft-actions button{font-size:13px}
+/* Picker: details on demand, a spaced selection title. */
+.amoji .amoji-appearance button{border-radius:999px;border-color:transparent;background:transparent;color:var(--amoji-muted)}
+.amoji .amoji-appearance button[aria-pressed=true]{background:var(--amoji-selected);color:var(--amoji-accent);border-color:transparent}
+.amoji button.amoji-expression-detail{opacity:0;transition:opacity .12s}
+.amoji-expression-choice:hover .amoji-expression-detail,.amoji .amoji-expression-detail:focus-visible{opacity:.92}
+@media(hover:none){.amoji button.amoji-expression-detail{opacity:.86}}
+.amoji-selection-title{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+/* Forms: checkboxes sit beside their words; groups read as soft panels. */
+.amoji label:has(>input[type=checkbox]),.amoji label>span:has(>input[type=checkbox]){display:flex;align-items:center;gap:8px}
+.amoji input[type=checkbox]{flex:0 0 16px;width:16px;height:16px;min-height:16px;margin:0;padding:0;accent-color:var(--amoji-accent)}
+.amoji fieldset{border:1px solid var(--amoji-line);border-radius:12px;padding:10px 16px 14px;margin:0;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 16px}
+.amoji fieldset>:not(label){grid-column:1/-1}
+.amoji fieldset.stack{grid-template-columns:minmax(0,1fr)}
+.amoji legend{padding:0 6px;font-size:12px;font-weight:500;color:var(--amoji-muted)}
+.amoji .stack>button,.amoji .stack>a{justify-self:start}
+.amoji input[type=file]{min-height:auto;padding:10px}
+.amoji input[type=file]::file-selector-button{border:1px solid var(--amoji-line);border-radius:6px;background:var(--amoji-bg);color:var(--amoji-ink);font:inherit;padding:5px 10px;margin-right:10px;cursor:pointer}
+/* Manager pages: a heading block, then cards. Words take a full line; actions flow. */
+.amoji-section-head{display:grid;gap:4px}
+.amoji-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;overflow-wrap:anywhere}
+.amoji-manager-content article{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 16px;border:1px solid var(--amoji-line);border-radius:12px;background:var(--amoji-bg);min-width:0}
+.amoji-manager-content article>*{flex:1 0 100%;min-width:0}
+.amoji-manager-content article>:is(button,a){flex:0 0 auto}
+.amoji-manager-content article>.row{flex-basis:100%}
+.amoji-manager-content article h4{font-size:14px;font-weight:600;margin:0}
+.amoji-manager-content article.is-active{border-color:var(--amoji-accent);background:var(--amoji-selected)}
+.amoji-effects{display:grid;gap:18px;align-content:start;max-width:720px}
+.amoji-effects-example{margin-top:6px!important;padding:10px 14px;border-radius:10px;background:var(--amoji-wash);font-size:13px}
+.amoji-effects-group{display:grid;gap:10px}
+.amoji-effects-group-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.amoji-count{font-size:12px;color:var(--amoji-muted)}
+.amoji-effect-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.amoji-effect-text{display:grid;gap:4px;min-width:0}
+.amoji-effect-text p{font-size:13px;color:var(--amoji-muted)}
+.amoji-effect-row>button{flex:none;min-width:72px}
+.amoji-effect-status{font-size:12px;color:var(--amoji-accent)}
+.amoji-fineprint{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--amoji-line);font-size:12px;color:var(--amoji-muted)}
+.amoji-once{display:grid;gap:8px;margin-top:10px}
+.amoji-once label{font-size:12px;color:var(--amoji-muted)}
+.amoji-once p{font-size:13px;line-height:1.55}
+.amoji-market{display:grid;gap:16px;align-content:start;min-width:0}
+.amoji-market h4{font-size:14px;font-weight:600;margin:0}
+.amoji-market-search{display:grid;gap:10px}
+.amoji-market-query{display:flex;gap:8px}
+.amoji-market-query input{flex:1;min-width:0}
+.amoji-market-query button{flex:none}
+.amoji-market-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.amoji-market-filters label{font-size:12px;color:var(--amoji-muted);gap:4px}
+.amoji-market-filters select,.amoji-market-filters input{font-size:13px;min-height:34px;padding:6px 10px;color:var(--amoji-ink)}
+.amoji-market-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--amoji-muted)}
+.amoji-market-meta:empty,.amoji-market [role=status]:empty{display:none}
+.amoji-warn{color:#b26b00}
+.amoji-market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.amoji-manager-content article.amoji-market-card{flex-wrap:nowrap;align-items:flex-start;gap:12px;padding:12px}
+.amoji-manager-content article.amoji-market-card>*{flex:none}
+.amoji-manager-content article.amoji-market-card[aria-current=true]{border-color:var(--amoji-accent);background:var(--amoji-selected)}
+.amoji-market-cover{display:block;width:56px;height:56px;border-radius:12px;background:var(--amoji-wash);object-fit:contain;flex:none}
+.amoji-manager-content article .amoji-market-card-body{flex:1 1 auto;display:grid;gap:4px;min-width:0}
+.amoji .amoji-market-title{justify-self:start;border:0;background:transparent;padding:0;min-height:0;font-weight:600;text-align:left}
+.amoji .amoji-market-title:hover:not(:disabled){background:transparent;color:var(--amoji-accent)}
+.amoji-market-card-body p{font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.amoji-market-facts{font-size:11px}
+.amoji-manager-content article.amoji-market-release{display:grid;gap:12px;padding:18px 20px}
+.amoji-market-release>header{display:grid;gap:4px}
+.amoji-market-effects{display:grid;gap:6px}
+.amoji-market-effects details{border:1px solid var(--amoji-line);border-radius:10px;padding:6px 12px}
+.amoji-market-effects details p{font-size:13px;margin:4px 0}
+.amoji-market-expressions{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.amoji-market-expression{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:12px;background:var(--amoji-wash);min-width:0}
+.amoji-market-expression>img,.amoji-market-expression>p,.amoji-market-placeholder{flex:none;width:72px!important;height:72px!important;border-radius:10px;background:var(--amoji-bg)}
+.amoji-market-expression>p{display:grid;place-items:center;font-size:11px;text-align:center;overflow:hidden}
+.amoji-market-placeholder{display:block;flex:none;background:var(--amoji-line)!important;animation:amoji-pulse 1.4s ease-in-out infinite}
+@keyframes amoji-pulse{50%{opacity:.55}}
+.amoji-market-expression>div{display:grid;gap:4px;min-width:0}
+.amoji-market-expression>div>p:nth-child(2){font-size:13px}
+.amoji-market-expression .row button{font-size:12px;min-height:30px;padding:4px 10px}
+.amoji-market-diff{display:grid;gap:10px;padding:16px;border:1px solid var(--amoji-accent);border-radius:12px}
+.amoji-market-diff>button{justify-self:start}
+.amoji-market-local{display:grid;gap:8px}
+.amoji-market-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:10px;background:var(--amoji-wash);font-size:13px}
+.amoji-manager-nav{scrollbar-width:none}
+.amoji-market-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--amoji-line);border-radius:10px}
 @media(max-width:850px){.amoji-creation-workspace{grid-template-columns:128px minmax(0,1fr);gap:16px}.amoji-artwork-upload{min-height:156px}.amoji-composer-controls{align-items:stretch;flex-direction:column;gap:6px}.amoji-composer-controls>button{align-self:flex-end}.amoji-draft-switcher{flex-wrap:wrap}.amoji-draft-switcher>label{flex-basis:50%}}
 @media(max-width:650px){.amoji-draft-switcher{flex-wrap:nowrap;gap:8px}.amoji-draft-switcher>label{flex-basis:auto}.amoji-draft-switcher>label>span{display:none}.amoji-draft-switcher>button{font-size:11px;padding:5px 7px}.amoji-create-page{gap:20px}.amoji-create-heading h3{font-size:18px}.amoji-creation-workspace{display:flex;flex-direction:column-reverse;gap:18px}.amoji-ai-composer{width:100%}.amoji-artwork{width:100%}.amoji-artwork-upload{min-height:76px;flex-direction:row!important;gap:12px!important;padding:12px;justify-content:flex-start}.amoji-artwork-upload>svg{width:28px;height:28px;margin:0}.amoji-artwork-upload img{width:64px;height:64px}.amoji-artwork>p{text-align:left;font-size:10px}.amoji-artwork>p br{display:none}.amoji-composer-controls{flex-direction:row;align-items:center}.amoji-model-label>span{display:none}.amoji-semantic-card{padding:16px}.amoji-semantic-card>header{align-items:start;flex-direction:column;gap:2px}.amoji-draft-actions>.row{margin-left:auto}.amoji-semantic-edit .fields{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:850px){.amoji-manager-layout{grid-template-columns:132px minmax(0,1fr)}.amoji-library-layout.has-selection{grid-template-columns:minmax(0,1fr)}.amoji-library-inspector{position:sticky;top:0;max-height:calc(100dvh - 240px);overflow:auto;scrollbar-width:thin;border-left:0;border-top:1px solid var(--amoji-line);padding:16px 0 0}.amoji-manager-content{padding:16px}}
-@media(max-width:650px){.amoji .split,.amoji .fields{grid-template-columns:1fr}.amoji-dialog{padding:16px;width:calc(100vw - 16px);height:calc(100dvh - 24px)}.amoji .toolbar{top:-16px}.amoji .grid{grid-template-columns:repeat(auto-fill,minmax(95px,1fr))}.amoji-expression-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.amoji-manager{padding:0}.amoji-manager-head{padding:12px 16px}.amoji-manager-head p{display:none}.amoji-manager-layout{display:flex;flex-direction:column}.amoji-manager-nav{flex-direction:row;flex:none;overflow-x:auto;padding:8px;gap:2px;border-right:0;border-bottom:1px solid var(--amoji-line)}.amoji-manager-nav>button{white-space:nowrap;font-size:12px;padding:8px}.amoji-nav-bottom{margin:0;display:flex;flex:none}.amoji-nav-bottom button{white-space:nowrap}.amoji-manager-content{flex:1;min-height:0;padding:16px}.amoji-library-search{gap:8px}.amoji-library-search input{min-width:100%}.amoji-library-layout.has-selection .amoji-library-collection{display:none}.amoji-library-inspector{position:relative;max-height:none;border:0;padding:0;overflow:visible}}
+@media(max-width:650px){.amoji .split,.amoji .fields,.amoji-market-filters{grid-template-columns:1fr}.amoji-dialog{padding:16px;width:calc(100vw - 16px);height:calc(100dvh - 24px)}.amoji .toolbar{top:-16px}.amoji .grid{grid-template-columns:repeat(auto-fill,minmax(95px,1fr))}.amoji-expression-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.amoji-manager{padding:0}.amoji-manager-head{padding:12px 16px}.amoji-manager-head p{display:none}.amoji-manager-layout{display:flex;flex-direction:column}.amoji-manager-nav{flex-direction:row;flex:none;overflow-x:auto;padding:8px;gap:2px;border-right:0;border-bottom:1px solid var(--amoji-line)}.amoji-manager-nav>button{white-space:nowrap;font-size:12px;padding:8px}.amoji-nav-bottom{margin:0;display:flex;flex:none}.amoji-nav-bottom button{white-space:nowrap}.amoji-manager-content{flex:1;min-height:0;padding:16px}.amoji-library-search{gap:8px}.amoji-library-search input{min-width:100%}.amoji-library-layout.has-selection .amoji-library-collection{display:none}.amoji-library-inspector{position:relative;max-height:none;border:0;padding:0;overflow:visible}}
 @media(max-height:650px) and (min-width:651px){.amoji-manager-head{padding:14px 24px}.amoji-manager-content{padding:16px 24px}.amoji-create-page{gap:16px}.amoji-draft-switcher{padding-bottom:12px}.amoji-create-heading h3{font-size:18px}.amoji-create-heading p{display:none}.amoji-draft-editor{gap:14px!important}.amoji-intent-label textarea{height:116px;min-height:100px}.amoji-artwork-upload{min-height:148px}}
 @media(max-height:460px){
 .amoji-picker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto}
@@ -72,7 +158,8 @@ export const styles = `
 .amoji-picker-body .amoji-expression-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.amoji-picker-body .amoji-expression-tile{min-height:78px;padding:4px 2px;gap:2px}.amoji-picker-body .amoji-thumbnail,.amoji-picker-body .amoji-thumbnail img{width:48px;height:48px;min-height:48px}
 .amoji-send-row{padding:6px 12px}.amoji-picker-footer .row{gap:4px}.amoji-picker-footer button{font-size:12px;padding:6px}
 }
-@media(prefers-reduced-motion:reduce){.amoji button{transition:none}}
+@media(prefers-reduced-motion:reduce){.amoji button{transition:none}
+.amoji-market-placeholder{animation:none}}
 `;
 export function Styles(){return <style>{styles}</style>;}
 export function Conflict({error,onRefresh}:{error:unknown;onRefresh?:()=>void}) {

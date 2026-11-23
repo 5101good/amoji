@@ -97,7 +97,7 @@ test('发布向导中文状态、许可占位、中英切换与步骤焦点保�
  const rpc={management:async()=>[manifest],publisher:async(_s:string,method:string,args:any)=>{if(method==='loginStatus')return{state:'signed_out'};if(method==='drafts')return[d];if(method==='save'){d={...d,version:d.version+1,step:args.step};return d;}throw Error(method);}} as unknown as DshRpc;
  await f.render(React.createElement(Publisher,{rpc,sessionId:'s'}));assert.match(f.dom.window.document.body.textContent!,/编辑中/);assert.doesNotMatch(f.dom.window.document.body.textContent!,/· draft/);
  await act(async()=>f.button('恢复发布草稿').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 2：说明与许可');assert.ok([...f.dom.window.document.querySelectorAll('option')].some(o=>o.selected&&o.textContent==='请选择允许公开分发的许可'));
- await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：可选效果');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Optional effects/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
+ await act(async()=>f.button('保存并继续').click());assert.equal(f.dom.window.document.activeElement?.textContent,'步骤 3：表情效果');await act(()=>f.locale.setLocale('en'));assert.match(f.dom.window.document.body.textContent!,/Step 3: Expression effects/);assert.match(f.dom.window.document.body.textContent!,/固定包名/);assert.match(f.dom.window.document.body.textContent!,/Draft/);
 });
 test('发布网络与授权错误按当前英文locale显示，原始诊断单独保留',async t=>{
  const f=await fixture(t);await act(()=>f.locale.setLocale('en'));

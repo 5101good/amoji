@@ -27,7 +27,7 @@ The specification is the [Amoji 0.1 RFC](specs/amoji-0.1-rfc.md). It replaces ev
 
 | Object | Current version | Source |
 | --- | --- | --- |
-| Product / dsh package | 2.0.0 (implements Amoji 0.1) | `package.json` / `adapters/dsh/package.json` |
+| Product / dsh package | 2.1.0 (implements Amoji 0.1) | `package.json` / `adapters/dsh/package.json` |
 | Protocol and pack format | `amoji: "0.1"` | [JSON Schema](specs/amoji-0.1.schema.json) |
 | Act registry | `0.1-r3` (33 `core:*` acts) | [Registry](specs/amoji-0.1.registry.json) |
 | Shared API | `3` | `src/shared-contract.ts` |
@@ -84,7 +84,7 @@ Use `observed` to reconcile the native user message; `accepted` alone does not p
 
 An `.amoji` file is a ZIP containing `manifest.json` and content-addressed `blobs/`. The manifest records `amoji: "0.1"`, pack and release identity, version, the complete language list, names and descriptions per language, the license, expressions, and optional effects with bindings. Import validates the schema, rules, paths, CRC, SHA-256, actual decoded format, media and expansion budgets, and rejects conflicting immutable revisions.
 
-An **effect** is optional text guidance inside a pack, in two kinds: `context` carries the pack author's instruction per language plus a conflict group; `template` uses fixed host text (three layouts of `response-organization@1`, and `completion-self-check@1`). A binding attaches effects to an act or an exact revision. Effects apply only when a person explicitly chooses them: as one-time guidance sent with an expression (only with an ordinary turn, never with a correction signal or interrupt), or as conversation rules attached to later messages (at most two, one per group). Installing, browsing or AI sends never enable an effect, and a complete context over 8 KiB is refused rather than truncated.
+An **effect** (shown as “expression effect” in the UI) is an optional text request to the AI inside a pack, in two kinds: `context` carries the pack author's instruction per language plus a conflict group; `template` uses fixed host text (three layouts of `response-organization@1`, and `completion-self-check@1`). A binding attaches an effect to an act or an exact revision: every effect must be bound, each target carries one effect, an exact revision wins over its act, and stopping acts cannot be bound. Sending an expression with an effect always brings that effect along for the AI's next answer only; while the AI works the effect steers or queues with the expression, and interrupts carry none. There are no conversation-wide effects, expressions the AI sends carry none, and a complete context over 8 KiB is refused rather than truncated. Authoring and marketplace submissions use the strict rules (`validateAuthoredPack`); importing an older pack ignores unbound effects.
 
 ## Creation
 

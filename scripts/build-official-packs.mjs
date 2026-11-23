@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 import { exportManifest, withValidatedPack } from '../src/packs.ts';
+import { validateAuthoredPack } from '../src/protocol/index.ts';
 
 const root = resolve(import.meta.dirname, '../assets/official-packs');
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -66,6 +67,8 @@ for (const file of (await readdir(resolve(root, 'sources'))).filter(name => name
     expressions, ...(effects.length ? { effects } : {}), ...(bindings.length ? { bindings } : {}), rights: source.rights,
   };
   manifest.release_id = derived('amoji-release', canonical(manifest));
+  // Official packs follow the authoring rules: every effect bound, one per target (RFC §7).
+  validateAuthoredPack(manifest);
   const previous = await readFile(resolve(root, `${source.slug}.manifest.json`), 'utf8').then(JSON.parse).catch(e => { if (e.code !== 'ENOENT') throw e; });
   if (previous?.amoji === '0.1' && previous.release_id !== manifest.release_id && previous.version >= manifest.version) throw Error(`Bump ${source.slug} version before changing an immutable release`);
   const bytes = await exportManifest(manifest, async blob => blobs.get(blob.sha256));

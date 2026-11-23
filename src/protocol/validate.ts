@@ -3,7 +3,7 @@ import schema from '../../docs/specs/amoji-0.1.schema.json' with { type: 'json' 
 import { fail } from '../errors.js';
 import { actAllows, findAct, backchannelEligible, interruptEligible, REGISTRY } from './registry.js';
 import type { Expression, Operation, Pack, Preferences, ProtocolMessage, Sender } from './types.js';
-import { LIMITS, Problems as RuleProblems, checkExpressionRules, checkNfc, checkPackRules } from './rules.js';
+import { LIMITS, Problems as RuleProblems, checkAuthoredEffects, checkExpressionRules, checkNfc, checkPackRules } from './rules.js';
 
 export { LIMITS };
 
@@ -56,6 +56,15 @@ export function validatePack(value: unknown): Pack {
   const pack = value as Pack;
   checkPackRules(pack, p);
   p.throwIfAny();
+  return pack;
+}
+
+/** A pack someone is creating or submitting: every effect bound, one per target (RFC §7). */
+export function validateAuthoredPack(value: unknown): Pack {
+  const pack = validatePack(value);
+  const p = new Problems();
+  checkAuthoredEffects(pack, p);
+  p.throwIfAny('EFFECT_UNBOUND');
   return pack;
 }
 

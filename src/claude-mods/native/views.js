@@ -1,4 +1,4 @@
-import { guidanceView } from './guidance.js';
+import { effectText, effectTitle } from './guidance.js';
 import { publisherView, packView } from './publisher-view.js';
 import { marketView } from './market-view.js';
 import { creationView } from "./creation-view.js";
@@ -14,6 +14,7 @@ import {
   navigate,
   load,
   send,
+  openDetail,
   changePreference,
   choosePack,
   edit,
@@ -106,7 +107,6 @@ export function pane($, e, s, makePicture) {
   const managerSections = [
     ["library", L(s, "表情库", "Library")],
     ["market", L(s, "市场", "Market")],
-    ["guidance", L(s, "协作提示", "Guidance")],
     ["create", L(s, "创作", "Create")],
     ["publish", L(s, "投稿", "Publish")],
     ["settings", L(s, "偏好", "Preferences")],
@@ -141,9 +141,7 @@ export function pane($, e, s, makePicture) {
   const stack = (children) => Box({ flexDirection: "column", flexGrow: 1, minWidth: 0, children: children.filter(Boolean) });
   const kits = { besideWidth, Input, col, row, stack, t, heading, button, input, select, picture, thumb, showcase, Link, Button, ui, inner };
   let body;
-  if (s.tab === "guidance") {
-    body=guidanceView($,s,kits);
-  } else if (s.tab === "pack" && s.packDraft) {
+  if (s.tab === "pack" && s.packDraft) {
     body=packView($,s,kits);
   } else if (s.tab === "publish") {
     body=publisherView($,s,kits);
@@ -434,6 +432,11 @@ export function pane($, e, s, makePicture) {
             item.origin === "builtin" ? L(s, "内置", "Built in") : item.origin === "market" ? L(s, "来自市场", "From the market") : L(s, "已导入", "Imported")),
         ]),
       ], 14, 6),
+      s.detailEffect && ui.card({ key: "detail-effect", gap: 0, children: [
+        ui.label(L(s, `发送时附带效果：${effectTitle(s, s.detailEffect)}`, `Sending also applies: ${effectTitle(s, s.detailEffect)}`), inner),
+        ui.body(effectText(s, s.detailEffect.effect, s.detailEffect.source.original_locale), inner),
+        ui.caption(L(s, "只对 Claude 接下来的这一次回答生效，Claude 不一定照做。", "Affects only Claude’s next answer, which may not follow it."), inner),
+      ] }),
       row([
         !item.archived &&
           Button({
@@ -451,7 +454,6 @@ export function pane($, e, s, makePicture) {
           ),
           () => revise($, s, item),
         ),
-        button("detail-guidance",L(s,"协作提示","Guidance"),async()=>{s.guidanceExpression=x;await navigate($,s,"guidance");}),
         button("versions", L(s, s.revisions ? "刷新版本" : "查看版本", s.revisions ? "Refresh revisions" : "Show revisions"), async () => {
           s.revisions = await call($, s.context, "revisions", {
             assetId: x.asset_id,
@@ -555,10 +557,7 @@ export function pane($, e, s, makePicture) {
                 }) })
               : Button({ key: "details:" + x.asset_id, label: caption(name), plain: true, dimColor: !!item.archived,
                   hover: { color: "claude" },
-                  onPress: () => perform($, s, async () => {
-                s.detail = item;
-                s.revisions = null;
-              }) }),
+                  onPress: () => perform($, s, () => openDetail($, s, item)) }),
 
         ],
       });
@@ -570,13 +569,6 @@ export function pane($, e, s, makePicture) {
       ...(active ? { variant: "primary" } : { plain: true, dimColor: true }),
       onPress: action });
     body = col([
-      s.tab === "picker" && Input({
-        key: "note",
-        placeholder: L(s, "附一句话（可选），例如：第 3 步没看懂", "Add a note (optional), e.g. I don't follow step 3"),
-        value: s.note || "",
-        onInput: (value) => { s.note = value.slice(0, 140); },
-        onSubmit: (value) => { s.note = value.slice(0, 140); },
-      }),
       Input({
         key: "search",
         placeholder: s.tab === "picker" ? L(s, "想表达什么？搜索心情或场景", "What do you want to say? Search a mood or moment") :

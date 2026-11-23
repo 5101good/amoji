@@ -4,17 +4,17 @@
 
 ## 要求
 
-- Amoji 2.0.0 需要 Node.js >=24；宿主基线是 dsh 0.1.5-rc.2。历史真机记录来自 macOS arm64，本次发行的验证范围见[发布说明](releases/v2.0.0.md)。
+- Amoji 2.1.0 需要 Node.js >=24；宿主基线是 dsh 0.1.5-rc.2。历史真机记录来自 macOS arm64，本次发行的验证范围见[发布说明](releases/v2.1.0.md)。
 - 模型由 dsh 配置。发送用户表情会触发正常宿主会话；AI 文字建议使用 dsh 已配置的文本模型。
 - Linux/Windows 有路径处理实现，尚未完成实际宿主验证。不要把构建成功等同于跨平台兼容。
 
 ## 安装发布包
 
-从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-2.0.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
+从 [Releases](https://github.com/5101good/amoji/releases) 获取同次发布的 `amoji-dsh-2.1.0.tgz` 与 `SHA256SUMS`。核对 SHA-256 后，在下载目录运行：
 
 ```sh
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji --from-default-profile web --help
-npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.0.0.tgz --ignore-scripts
+npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji add ./amoji-dsh-2.1.0.tgz --ignore-scripts
 npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 ```
 
@@ -27,7 +27,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 --profile amoji
 已有 `web` profile 的用户也可以直接安装版本固定的发布包：
 
 ```sh
-dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.0.0/amoji-dsh-2.0.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz --ignore-scripts
 ```
 
 安装后重启该 profile。下载和安装不需要 GitHub 登录，也不需要单独的 Amoji API Key。已有 dsh CLI 时使用 `dsh`；否则替换为 `npx @deepseek-ai/dsh@0.1.5-rc.2`。
@@ -53,7 +53,7 @@ mkdir -p .local/release
 npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 ```
 
-`test:dsh` 包含 `build:dsh` 与固定公开合同准备。只构建可运行 `npm run build:dsh`。`npm pack` 的文件名由 `adapters/dsh/package.json` 决定；2.0.0 为 `amoji-dsh-2.0.0.tgz`。安装自己刚生成的文件，而非旧缓存包。源码依赖由根目录 `package-lock.json` 锁定，宿主安装后的实际依赖由其 profile 锁文件记录。
+`test:dsh` 包含 `build:dsh` 与固定公开合同准备。只构建可运行 `npm run build:dsh`。`npm pack` 的文件名由 `adapters/dsh/package.json` 决定；2.1.0 为 `amoji-dsh-2.1.0.tgz`。安装自己刚生成的文件，而非旧缓存包。源码依赖由根目录 `package-lock.json` 锁定，宿主安装后的实际依赖由其 profile 锁文件记录。
 
 ## 数据与备份
 
@@ -63,7 +63,7 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 | Linux | `$XDG_DATA_HOME/amoji`，未设置时为 `~/.local/share/amoji` |
 | Windows | `%LOCALAPPDATA%/Amoji`，未设置时为用户目录下 `AppData/Local/Amoji` |
 
-`prototype` 是兼容历史图片引用保留的目录名。`AMOJI_DATA_DIR` 可覆盖位置；测试使用独立目录。2.0.0 运行库主要包括 `library-0.1.sqlite` 和 `blobs/`；旧 `library.sqlite` 保留但不会自动导入，服务发现文件可能含本地访问凭据。不要公开上传整个目录。
+`prototype` 是兼容历史图片引用保留的目录名。`AMOJI_DATA_DIR` 可覆盖位置；测试使用独立目录。2.1.0 运行库主要包括 `library-0.1.sqlite` 和 `blobs/`；旧 `library.sqlite` 保留但不会自动导入，服务发现文件可能含本地访问凭据。不要公开上传整个目录。
 
 升级前保存草稿，保留 dsh profile 的持久会话与锁文件。备份数据库应使用 SQLite 一致备份，或关闭全部相关客户端、等共享服务退出后复制完整数据目录；不要在写入过程中只复制一个 SQLite 文件。表情包导出只包含选定版本及素材，不是会话、草稿和偏好的完整备份。
 
@@ -73,7 +73,7 @@ npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/release
 
 1. 在旧版本中保存工作，关闭所有连接该 Amoji 库的 dsh、Claude 和其他客户端，等待共享服务退出；保留完整旧数据目录、宿主持久会话和旧版安装包。
 2. 2.0.0 可继续使用原数据目录：它创建 `library-0.1.sqlite`，保留旧 `library.sqlite` 并继续使用 `blobs/`，不要求空目录。需要隔离试用时，可在启动宿主的环境中另设 `AMOJI_DATA_DIR`。共享新库的 dsh 与 Claude Mods 应使用相同目录和 2.0.0 版本。
-3. 按上面的安装步骤安装 2.0.0 并重启。新库初始化经典与办公包；其他内容须使用 Amoji 0.1 格式重新创作或取得兼容版本。
+3. 按上面的安装步骤安装当前版本并重启。新库初始化经典与办公包；其他内容须使用 Amoji 0.1 格式重新创作或取得兼容版本。
 
 不要删除旧库、修改数据库文件名或版本号，也不要同时运行共用同一目录的新旧服务。回退时先停止全部新版客户端及共享服务，再恢复旧版插件并指向保留的旧库；2.0.0 新库中的内容不会自动回写旧库。
 
@@ -87,7 +87,7 @@ npx @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile amoji remove @amoji/dsh
 
 卸载不主动删除共享库。重新安装时保留原数据目录；不要通过删库解决连接问题。共享服务在最后一个连接离开后默认空闲 60 秒退出；其他客户端仍连接时继续运行。
 
-2.0.0 使用 Amoji 0.1 协议、共享 API `3`、数据库 `1`，保留原生投递、可靠投递、库管理与包管理等能力握手。不兼容时会拒绝连接，不会自动降级数据库。退出旧核心的全部使用端后再重新连接；不要强行启动第二个写入进程或按过期 PID 杀进程。
+2.1.0 使用 Amoji 0.1 协议、共享 API `3`、数据库 `1`，保留原生投递、可靠投递、库管理与包管理等能力握手。不兼容时会拒绝连接，不会自动降级数据库。退出旧核心的全部使用端后再重新连接；不要强行启动第二个写入进程或按过期 PID 杀进程。
 
 ## 故障恢复
 

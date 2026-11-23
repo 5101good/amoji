@@ -12,7 +12,7 @@ const words = {
     q: "关键词",
     act: "码位",
     locale: "语言",
-    effects: "协作效果",
+    effects: "表情效果",
     all: "全部",
     yes: "含效果",
     no: "仅表情",
@@ -29,7 +29,7 @@ const words = {
     dsh: "在 dsh 表情市场搜索此包 ID：",
     support: "宿主支持",
     supportText:
-      "表情可供支持 Amoji 0.1 的宿主使用。协作效果由宿主适配；不支持时效果停用。提示不保证模型遵从，安装不会自动启用效果。",
+      "表情可供支持 Amoji 0.1 的宿主使用。表情效果绑定在表情上，发送那个表情时一起生效，只作用于 AI 的下一次回答；宿主不支持时不附带。效果不保证模型遵从。",
     update: "更新说明",
     review: "审核工作台",
     inspect: "查看精确内容",
@@ -75,7 +75,7 @@ const words = {
     dsh: "Search this pack ID in the dsh marketplace:",
     support: "Host support",
     supportText:
-      "Expressions work in hosts supporting Amoji 0.1. Hosts adapt collaboration effects and disable them where unsupported. Guidance does not guarantee compliance, and installation never enables effects.",
+      "Expressions work in hosts supporting Amoji 0.1. Expression effects are bound to expressions and apply to the AI's next answer whenever one is sent; hosts without support leave them out. Effects do not guarantee compliance.",
     update: "Release notes",
     review: "Review workspace",
     inspect: "Inspect exact content",
@@ -499,8 +499,8 @@ export function Catalog({
             <p>
               {tombstone.state === "safety_removed"
                 ? zh
-                  ? "安全下架：此版本的协作效果不可再启用。"
-                  : "Safety removal: collaboration effects in this release must stay disabled."
+                  ? "安全下架：此版本的表情效果不再附带。"
+                  : "Safety removal: expression effects in this release no longer apply."
                 : zh
                   ? "作者或账号状态已停止此版本的分发。"
                   : "Distribution of this release has ended."}
@@ -591,8 +591,8 @@ export function Catalog({
               </details>
               <p className="note">
                 {zh
-                  ? "安装不会自动启用协作效果，需要你在宿主中明确选择。"
-                  : "Installation never enables effects. Collaboration guidance requires your explicit choice in the host."}
+                  ? "安装后，发送绑定的表情时效果一起生效。"
+                  : "Once installed, sending a bound expression always brings its effect along."}
               </p>
               <CopyButton
                 value={detail.share_url}

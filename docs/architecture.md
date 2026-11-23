@@ -27,7 +27,7 @@ flowchart LR
 
 | 对象 | 当前版本 | 依据 |
 | --- | --- | --- |
-| 产品 / dsh 包 | 2.0.0（实现 Amoji 0.1） | `package.json` / `adapters/dsh/package.json` |
+| 产品 / dsh 包 | 2.1.0（实现 Amoji 0.1） | `package.json` / `adapters/dsh/package.json` |
 | 协议与包格式 | `amoji: "0.1"` | [JSON Schema](specs/amoji-0.1.schema.json) |
 | 码位注册表 | `0.1-r3`（33 个 `core:*` 码位） | [注册表](specs/amoji-0.1.registry.json) |
 | 共享 API | `3` | `src/shared-contract.ts` |
@@ -84,7 +84,7 @@ AI 表情按 RFC §10.2 依次检查：用户是否暂停、码位是否存在�
 
 `.amoji` 是 ZIP，包含 `manifest.json` 与内容寻址 `blobs/`。清单记录 `amoji: "0.1"`、包与发布身份、版本、完整的语言列表、多语言名称与介绍、许可、表情，以及可选的效果和绑定。导入验证 Schema、规则、路径、CRC、SHA-256、实际解码格式、媒体和展开预算，并拒绝冲突的不可变版本。
 
-**效果**是包内可选的文字协作提示，分两类：`context` 携带包作者写的多语言指令和冲突组；`template` 使用宿主提供的固定文字（`response-organization@1` 的三种布局，`completion-self-check@1`）。绑定把效果关联到一个码位或一个精确版本。效果只在用户明确选择时附加：作为一次性提示随某个表情发送（只随普通回合发送，不用于纠偏信号或中断），或作为会话规则持续附加（最多两条，同组互斥）。安装、浏览、AI 发送都不会启用效果；完整上下文超过 8 KiB 时拒绝而不截断。
+**效果**（界面上叫「表情效果」）是包内可选的、给 AI 的文字要求，分两类：`context` 携带包作者写的多语言指令和冲突组；`template` 使用宿主提供的固定文字（`response-organization@1` 的三种布局，`completion-self-check@1`）。绑定把效果关联到一个码位或一个精确版本：每个效果都必须绑定，每个目标只绑定一个效果，精确版本优先于码位，叫停类码位不能绑定。发送带效果的表情时，宿主一定附上它绑定的效果，只作用于 AI 接下来的一次回答；AI 工作时效果随表情一起插话或排队，中断不带效果。没有会话级的持续效果；AI 发送的表情不带效果；完整上下文超过 8 KiB 时拒绝而不截断。创作和市场投稿使用严格规则（`validateAuthoredPack`）；导入更早的包时，未绑定的效果被忽略。
 
 ## 创作
 

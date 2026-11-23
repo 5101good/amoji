@@ -1,5 +1,5 @@
 import { L, view, local as localText, gloss, ACTS } from './transport.js';
-import { send, navigate, perform } from './controller.js';
+import { send, perform } from './controller.js';
 import { effectText } from './guidance.js';
 import { marketCall, refreshMarket, showRelease, loadMarketImages, acquire, settleInstall } from './market.js';
 
@@ -11,13 +11,16 @@ export function marketView($,s,k) {
   const owned=e=>local.collections.some(c=>c.ref.revision_id===e.revision_id)||local.installs.some(i=>i.refs.some(r=>r.revision_id===e.revision_id));
   // Search rows carry counts only; releases and installs carry full manifests.
   const counts=(expressions,effects)=>[tr(`${expressions} 个表情`,`${expressions} EXPR`),
-    effects?tr(`${effects} 条提示`,`${effects} GUIDANCE`):''];
+    effects?tr(`${effects} 个表情效果`,`${effects} EFFECTS`):''];
   const countsOf=m=>counts(m.expressions.length,m.effects?.length||0);
   const facts=parts=>ui.mono(parts.filter(Boolean).join(' · '));
-  const effectCard=(m,a,key)=>{const bound=(m.bindings||[]).filter(b=>b.effects.includes(a.effect_id));return ui.card({key,gap:0,children:[
-    ui.row([ui.label(lo(a.title,m.original_locale)),ui.badge('info',bound.length?tr('可随表情','WITH EXPRESSION'):tr('对话规则','RULE'))]),
+  // Which expressions carry an effect: sending one always brings the effect along (RFC §7).
+  const carriers=(m,a)=>(m.bindings||[]).filter(b=>b.effects.includes(a.effect_id)).map(b=>'act' in b.target?gloss(s,b.target.act):(m.expressions.find(e=>e.revision_id===b.target.revision_id)?view(s,m.expressions.find(e=>e.revision_id===b.target.revision_id)).name:''));
+  const effectOf=(m,e)=>{const exact=(m.bindings||[]).find(b=>!('act' in b.target)&&b.target.revision_id===e.revision_id);const binding=exact||(m.bindings||[]).find(b=>'act' in b.target&&b.target.act===e.realizes);return binding&&(m.effects||[]).find(a=>a.effect_id===binding.effects[0]);};
+  const effectCard=(m,a,key)=>{const by=carriers(m,a).filter(Boolean);return ui.card({key,gap:0,children:[
+    ui.row([ui.label(lo(a.title,m.original_locale)),ui.badge(by.length?'info':'warning',by.length?tr('随表情发送','WITH EXPRESSIONS'):tr('未绑定','UNBOUND'))]),
     ui.body(effectText(s,a,m.original_locale)),
-    ui.caption(bound.length?tr('可随绑定的表情单次附带，或作为对话规则手动启用。','Can accompany its bound expressions once, or be enabled as a rule.'):tr('当前对话的预定义规则，需你手动启用。','A predefined rule for this conversation; you enable it yourself.')),
+    ui.caption(by.length?tr(`发送「${by.join('」「')}」时自动附上。`,`Applied whenever you send ${by.map(n=>`“${n}”`).join(', ')}.`):tr('没有绑定表情，不会生效。','Not bound to an expression, so it never applies.')),
   ]});};
   const page=s.marketPage||0,pages=release?Math.ceil(release.manifest.expressions.length/4):0;
   const found=c=>release?.manifest.expressions.find(e=>e.revision_id===c.ref.revision_id)||
@@ -33,7 +36,7 @@ export function marketView($,s,k) {
     s.marketFilterOpen&&ui.card({children:[
       select('market-act',tr('码位','Act'),s.marketFilters?.act||'',[['',tr('全部','All')],...ACTS.map(a=>[a.act,gloss(s,a.act,a.forms.h2a?'h2a':'a2h')])],v=>{s.marketFilters={...s.marketFilters,act:v};}),
       input('market-locale',tr('语言','Language'),s.marketFilters?.locale||'',v=>{s.marketFilters={...s.marketFilters,locale:v};}),
-      select('market-effects',tr('协作提示','Collaboration guidance'),s.marketFilters?.effects||'',[['',tr('全部','All')],['true',tr('包含提示','With guidance')],['false',tr('仅表情','Expressions only')]],v=>{s.marketFilters={...s.marketFilters,effects:v};}),
+      select('market-effects',tr('表情效果','Expression effects'),s.marketFilters?.effects||'',[['',tr('全部','All')],['true',tr('带表情效果','With effects')],['false',tr('仅表情','Expressions only')]],v=>{s.marketFilters={...s.marketFilters,effects:v};}),
     ]}),
     s.marketRows?.stale&&ui.status('warning',tr('当前展示离线缓存；发布状态可能已变化。','Showing cached results; publication status may have changed.')),
     packs.length>0&&ui.section(tr(`表情包 · ${packs.length}`,`PACKS · ${packs.length}`)),
@@ -72,17 +75,17 @@ export function marketView($,s,k) {
         current&&ui.badge('success',tr('● 已在你的表情库','● IN YOUR LIBRARY')),
         Link({href:release.share_url,children:[tr('网页查看 ↗','Web ↗')]}),
       ]),
-      ui.caption(tr('名称下方是 Claude 读到的固定语义。安装不会启用任何协作提示。','Under each name is the fixed meaning Claude reads. Installing never enables guidance.')),
+      ui.caption(tr('名称下方是 Claude 读到的固定语义。带效果的表情，发送时会自动附上效果。','Under each name is the fixed meaning Claude reads. Expressions with an effect always send it along.')),
       ui.section(tr(`表情 · ${m.expressions.length}`,`EXPRESSIONS · ${m.expressions.length}`)),
       ...m.expressions.slice(page*4,page*4+4).map(e=>{const x=view(s,e);return ui.card({key:'market-item:'+e.revision_id,gap:1,children:[
         showcase(s.marketPreviews?.[e.revision_id],x.name,[
           ui.label(x.name),ui.body(x.meaning,besideWidth(10)),
           facts([gloss(s,e.realizes,e.directions?.[0]),x.fallback!==x.name&&x.fallback,Object.keys(e.semantics).join('/'),e.rights?.license]),
+          effectOf(m,e)&&ui.caption(tr(`附带效果：${lo(effectOf(m,e).title,m.original_locale)}`,`With effect: ${lo(effectOf(m,e).title,m.original_locale)}`)),
         ],10,4),
         row([
           owned(e)&&Button({key:'market-send:'+e.revision_id,label:tr('发送','Send'),variant:'primary',onPress:()=>send($,s,e)}),
           !s.marketPending&&!owned(e)&&button('market-collect:'+e.revision_id,tr('只收藏这一个','Collect only this'),()=>acquire($,s,e)),
-          owned(e)&&button('market-guidance:'+e.revision_id,tr('配合提示发送','Send with guidance'),async()=>{s.guidanceExpression=e;await navigate($,s,'guidance');}),
         ]),
       ]});}),
       pages>1&&row([
@@ -90,16 +93,16 @@ export function marketView($,s,k) {
         ui.mono(`${page+1} / ${pages}`),
         page+1<pages&&button('market-next',tr('下一页 ›','Next ›'),async()=>{s.marketPage=page+1;await loadMarketImages($,s);}),
       ]),
-      (m.effects||[]).length>0&&ui.section(tr(`可选协作提示 · ${m.effects.length}`,`OPTIONAL GUIDANCE · ${m.effects.length}`)),
+      (m.effects||[]).length>0&&ui.section(tr(`表情效果 · ${m.effects.length}`,`EXPRESSION EFFECTS · ${m.effects.length}`)),
       ...(m.effects||[]).map(a=>effectCard(m,a,'market-effect:'+a.effect_revision_id)),
       s.marketBefore&&ui.card({selected:true,children:[
         ui.label(tr('更新预览','Review update')),
-        ui.caption(tr('采用后旧规则停用，新提示仍需确认。','Updating disables old rules. New guidance needs confirmation.')),
-        button('market-diff',tr(s.marketDiffOpen?'收起差异':'展开语义与提示差异',s.marketDiffOpen?'Hide changes':'Show meaning and guidance changes'),async()=>{s.marketDiffOpen=!s.marketDiffOpen;}),
+        ui.caption(tr('采用后，表情和它附带的效果都换成新版本。','Updating switches expressions and their effects to the new version.')),
+        button('market-diff',tr(s.marketDiffOpen?'收起差异':'展开语义与效果差异',s.marketDiffOpen?'Hide changes':'Show meaning and effect changes'),async()=>{s.marketDiffOpen=!s.marketDiffOpen;}),
         s.marketDiffOpen&&col([ui.mono(tr('原版本','PREVIOUS VERSION')),
           ...s.marketBefore.expressions.map(e=>ui.body(view(s,e).name+'：'+view(s,e).meaning)),
           ...(s.marketBefore.effects||[]).map(a=>ui.body(lo(a.title,s.marketBefore.original_locale)+'：'+effectText(s,a,s.marketBefore.original_locale))),
-          ui.caption(tr('新版本的语义与提示见上方。','The new meanings and guidance are shown above.'))]),
+          ui.caption(tr('新版本的语义与效果见上方。','The new meanings and effects are shown above.'))]),
       ]}),
     ]);
   };

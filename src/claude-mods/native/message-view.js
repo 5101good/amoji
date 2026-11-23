@@ -54,7 +54,11 @@ export function deliveryText(s) {
   const d = s.delivery;
   if (!d) return "";
   if (d.phase === "error") return d.error;
+  // An attached effect is named so the person sees what went with the expression.
+  const effect = !d.effect ? "" : d.effectStatus === "unknown"
+    ? L(s, ` · 不确定效果「${d.effect}」是否附上`, ` · Not sure “${d.effect}” went along`)
+    : L(s, ` · 附带效果「${d.effect}」`, ` · with “${d.effect}”`);
   if (d.phase === "waiting")
-    return L(s, `已发送「${d.name}」 · 等待 Claude 回复`, `Sent “${d.name}” · Waiting for Claude`);
-  return L(s, `正在发送「${d.name}」…`, `Sending “${d.name}”…`);
+    return L(s, `已发送「${d.name}」${effect} · 等待 Claude 回复`, `Sent “${d.name}”${effect} · Waiting for Claude`);
+  return L(s, `正在发送「${d.name}」${effect}…`, `Sending “${d.name}”${effect}…`);
 }

@@ -4,21 +4,21 @@
 
 Targets **Claude Desktop → Code → local sessions**, using native AbovePrompt, Pane and message rendering with the shared local Amoji library. Ordinary Claude Chat/MCP Apps is a separate host surface and is not covered by this adapter.
 
-See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. Version 2.0.0 adopts the Amoji 0.1 protocol and includes expressions, the marketplace, publishing and optional guidance. See the [2.0.0 release notes](releases/v2.0.0.md) for older library and pack compatibility.
+See the [plugin guide](../plugins/amoji-claude-mods/README.en.md) for installation and use. Version 2.1.0 adopts the Amoji 0.1 protocol and includes expressions, the marketplace, publishing and expression effects. See the [2.1.0 release notes](releases/v2.1.0.md) for older library and pack compatibility.
 
 ## Expression market and sharing
 
-The 2.0.0 Claude Mods ZIP includes the following marketplace and publishing capabilities.
+The 2.1.0 Claude Mods ZIP includes the following marketplace and publishing capabilities.
 
-1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and optional guidance. Install a pack or collect one expression without signing in. Downloads are verified; installation never enables guidance.
-2. Installed content works offline. Review old and new meanings and guidance before adopting an update. Removing a pack or collection does not rewrite message history.
+1. Open **Manage expressions → Expression market** to search and filter packs, inspect artwork, fixed meanings, attribution, licenses and expression effects. Install a pack or collect one expression without signing in. Downloads are verified; expressions that carry an effect say so in their details.
+2. Installed content works offline. Review old and new meanings and effects before adopting an update. Removing a pack or collection does not rewrite message history.
 3. Open **Share and publish**, connect your market account, verify the device code in your browser, then choose **I authorized it — check connection**. The plugin never receives your account password. Device credentials remain in the shared service's private local directory.
 4. Choose an imported pack, or select library expressions and **Create a pack**. Save and review the artwork, fixed meanings and license. Saved pack drafts can be resumed.
-5. Review the description, license, optional guidance and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
+5. Review the description, license, expression effects and full preview. Upload and validate first, then confirm distribution rights and submit for review. Content uploads directly from your computer to R2. Drafts survive disconnection; reconcile unknown outcomes rather than submitting twice. Resume uploads, read review feedback, withdraw pending releases and create revisions.
 
-**Collaboration guidance** is separate from fixed meaning. Explicitly enable up to two predefined conversation rules and confirm replacements within the same group. An installed expression's details also offer one-time guidance when available. Each submission revalidates exact source revisions; removed sources are disabled. Only user messages in the current main conversation receive guidance, never grants to other plugins, schedules or subagents. Re-enable after restarting or switching conversations.
+**Expression effects** are short requests to the AI bound to particular expressions; sending “Like what?”, for example, makes the AI give an example before explaining. An expression's details show its effect, and sending it always brings the effect along for Claude's next answer only; the status above the prompt names the effect that went with it. If you don't want the effect, pick another expression or type. Each submission revalidates the exact source; if it was removed, nothing is sent, so refresh and choose again. Effects travel only with expression messages you send from Amoji, never with typed text, other plugins, scheduled tasks or subagents.
 
-Guidance is attached as user text through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance. Disabling it sends an empty guidance snapshot with subsequent user messages; existing model responses and historical context cannot be undone.
+An effect is attached as user text to that one message through Claude's `prompt.submit.context`. It runs no arbitrary scripts, grants no tool permissions and cannot guarantee model compliance.
 
 
 ## Layer boundaries
@@ -33,7 +33,7 @@ src/application: interaction use cases, range browsing, confirmation and suggest
 SharedClient → shared service → LibraryStore / immutable assets and messages
 ```
 
-The shared layer imports no Claude `$`, controls, events, markers or model SDK. A future Codex adapter can reuse the use cases while implementing its own identity, presentation, submission and generation. The 2.0.0 dsh and Claude Mods adapters use the same protocol and library. There is no in-place migration for 1.x data. Version 2.0.0 uses `library-0.1.sqlite` in the same directory and preserves `library.sqlite`; stop the old service and back up the complete directory before upgrading.
+The shared layer imports no Claude `$`, controls, events, markers or model SDK. A future Codex adapter can reuse the use cases while implementing its own identity, presentation, submission and generation. The 2.1.0 dsh and Claude Mods adapters use the same protocol and library. There is no in-place migration for 1.x data. Version 2.1.0 uses `library-0.1.sqlite` in the same directory and preserves `library.sqlite`; stop the old service and back up the complete directory before upgrading.
 
 Mods statically follows `$` only inside one file, so readable modules in `src/claude-mods/native/` are bundled into `hooks/register.js`. Domain and Node code remain outside that restricted environment.
 
@@ -61,12 +61,12 @@ The bridge returns the frozen message’s presentation with the send result. Con
 
 Above the composer sit the Amoji mark, a thin divider and up to five recent expressions (this session's sends first, then the start of the library) on round backdrops, followed by the library's remaining count. Clicking one sends it; hovering shows its name and fixed meaning in the row's remaining room, at a fixed height that never moves the stickers. While sending or waiting, the strip shows the delivery status instead. The terminal keeps a text button.
 
-Panels share one visual kit: translucent cards with hairline outlines, theme-following status colors, a single accent and monospaced fact lines. Text size and weight need Claude Code 2.1.299 or later; older engines refuse them, so the plugin falls back to bold and dim hierarchy by engine version. Bilingual market names, descriptions and guidance show only the half matching the UI language.
+Panels share one visual kit: translucent cards with hairline outlines, theme-following status colors, a single accent and monospaced fact lines. Text size and weight need Claude Code 2.1.299 or later; older engines refuse them, so the plugin falls back to bold and dim hierarchy by engine version. Bilingual market names, descriptions and effects show only the half matching the UI language.
 
 ## Workflow aligned with dsh
 
 - **Picker**: open Expressions, switch packs (the chosen pack becomes preferred, so AI expressions use it too), filter by the five act families, optionally add a note, and click a picture or its name to send. The gallery scrolls continuously without pagination.
-- **Manage expressions**: a separate workspace for Library, Market, Guidance, Create, Publish, Preferences and Import/export, switched by a row of tabs with the current one highlighted. Returning to the picker keeps the search and family.
+- **Manage expressions**: a separate workspace for Library, Market, Create, Publish, Preferences and Import/export, switched by a row of tabs with the current one highlighted. Returning to the picker keeps the search and family.
 - **AI decisions and quick replies**: when the AI asks with `core:decide` or attaches quick replies, the options appear above the composer. Picking one states a preference, not an approval, and is saved before it is sent to Claude. If delivery fails the choice stays saved and “Send again” re-sends it without saving twice.
 - **Create and drafts**: explicitly create or resume a draft, describe one intent, choose a model and generate a suggestion. Adopting it shows a meaning summary; Edit meaning and source reveals the fields. Saving, previewing and reviewing still gate confirmation. Switching drafts lets you save, explicitly discard or keep editing unsaved changes.
 - **Host differences**: Claude owns fonts, native control colors and the pane shell. Files use local paths, animations use covers, and the picker remains open to avoid Desktop’s programmatic-close issue for expanded panes. Web popovers, file choosers and automatic collapsing are not claimed as supported Mods features.
@@ -85,7 +85,7 @@ Mods exposes no file chooser, so file input uses local paths. UI language follow
 
 ## Historical native verification
 
-These records retain their original dates and version context. They do not establish acceptance of the final 2.0.0 archive; see the [2.0.0 release notes](releases/v2.0.0.md) for this release’s scope.
+These records retain their original dates and version context. They do not establish acceptance of the final 2.1.0 archive; see the [2.1.0 release notes](releases/v2.1.0.md) for this release’s scope.
 
 On 2026-10-11, an isolated local project and Amoji library in Claude Desktop 2.31226.1 / embedded Claude Code 2.1.295 were tested with Haiku 5.5 at low effort:
 
@@ -112,4 +112,4 @@ A native file picker and animation playback remain outside the supported scope. 
 
 Desktop can expire native Button handles during focus redraws, logging `ui_press not handled`. The redesigned entry, navigation and action controls retain native appearance and keyboard access, while a keyed Client captures complete pointer gestures and dispatches through the current page’s action map. Stale pages and forged actions are rejected. A Client fault restores native buttons; Enter remains available. Inputs and selects continue to use the host controls. See [Claude Code #99211](https://github.com/anthropics/claude-code/issues/99211).
 
-On 2026-10-20, the market extension was checked in an isolated local Claude Desktop project: live catalog, visual previews, installation, device pairing/cancellation and the local publishing draft entry. A Haiku 5.5 / Low turn confirmed an expression with one-time guidance, its right-aligned image, a model reply and the host attachment receipt. This pass did not authorize a real creator account or submit real public content on the user's behalf. Shared-publisher and native-interaction tests cover upload, submission, interrupted-operation recovery, withdrawal and revision paths.
+On 2026-10-20, the market extension was checked in an isolated local Claude Desktop project: live catalog, visual previews, installation, device pairing/cancellation and the local publishing draft entry. A Haiku 5.5 / Low turn confirmed an expression with a one-time effect, its right-aligned image, a model reply and the host attachment receipt. This pass did not authorize a real creator account or submit real public content on the user's behalf. Shared-publisher and native-interaction tests cover upload, submission, interrupted-operation recovery, withdrawal and revision paths.

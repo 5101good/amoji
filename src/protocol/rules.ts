@@ -91,3 +91,29 @@ export function checkPackRules(pack: Pack, p: Problems): void {
   });
   checkNfc({ name: pack.name, description: pack.description, rights: pack.rights, effects: pack.effects }, p, 'pack');
 }
+
+/**
+ * Effects travel with expressions (RFC §7, draft 4). A pack being created or
+ * submitted binds every effect, gives each target one effect, and binds none
+ * to an interrupt act: stopping must never carry a request. Imported and
+ * already published packs are read with checkPackRules alone; their unbound
+ * effects simply never apply.
+ */
+export function checkAuthoredEffects(pack: Pack, p: Problems): void {
+  const bound = new Set<string>();
+  const targets = new Set<string>();
+  const acts = new Map(pack.expressions.map(e => [`${e.asset_id}:${e.revision_id}`, e.realizes]));
+  (pack.bindings ?? []).forEach((binding, index) => {
+    const where = `pack.bindings[${index}]`;
+    const key = 'act' in binding.target ? `act:${binding.target.act}` : `ref:${binding.target.asset_id}:${binding.target.revision_id}`;
+    if (targets.has(key)) p.add(`${where}.target`, '同一表情或码位只能绑定一个效果');
+    targets.add(key);
+    if (binding.effects.length !== 1) p.add(`${where}.effects`, '每个绑定只能指定一个效果');
+    const act = 'act' in binding.target ? binding.target.act : acts.get(`${binding.target.asset_id}:${binding.target.revision_id}`);
+    if (act && ACTS.get(act)?.authority === 'reduce') p.add(`${where}.target`, `中断类码位不能绑定效果：${act}`);
+    for (const id of binding.effects) bound.add(id);
+  });
+  (pack.effects ?? []).forEach((effect, index) => {
+    if (!bound.has(effect.effect_id)) p.add(`pack.effects[${index}]`, '效果必须绑定到包内的表情或码位');
+  });
+}

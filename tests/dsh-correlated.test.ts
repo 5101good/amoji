@@ -11,13 +11,14 @@ import {DshAdapter} from '../src/dsh/host.js';
 import {DshCollaboration} from '../src/dsh/collaboration.js';
 import type {HostPort,HistoryEntry} from '../src/dsh/contracts.js';
 import {fixture} from './helpers/dsh-correlated.js';
-test('生产发送链路：真实领取、单回合literal上下文、原生日志回执、重复请求无额外推理',async t=>{
+test('生产发送链路：真实领取、单回合literal上下文、原生日志回执、重复请求无额外推理，未带效果时由宿主补上',async t=>{
  const f=await fixture(t); const row=await f.apply({ref:f.ref,requestId:'apply',effect:f.effect}) as HistoryEntry;await f.live.whenIdle();
  const settled=(await f.call('history',{}) as HistoryEntry[])[0]!;assert.equal(settled.effect?.status,'attached');assert.ok(settled.effect?.digest);assert.ok(JSON.stringify(f.host.provider.requests[0]).includes('EXACT {{literal}} ACTION'));
  assert.ok(JSON.stringify(f.host.provider.requests[0]).includes(f.effect.release_id));assert.ok(f.host.provider.requests[0]!.messages.filter(m=>m.role==='system').every(m=>!JSON.stringify(m).includes('EXACT')));
  assert.equal((await f.apply({ref:f.ref,requestId:'apply',effect:f.effect}) as HistoryEntry).message.message_id,row.message.message_id);assert.equal(f.host.provider.requests.length,1);
- await assert.rejects(f.call('submit',{input:{ref:f.ref},requestId:'apply'}),/REQUEST_CONFLICT/);
- await f.call('submit',{input:{ref:f.ref},requestId:'plain'});await f.live.whenIdle();assert.equal(f.host.provider.requests.length,2);assert.equal((await f.call('history',{}) as HistoryEntry[])[1]!.effect,undefined);
+ // The host attaches the bound effect itself, so a bare retry is the same request.
+ assert.equal((await f.call('submit',{input:{ref:f.ref},requestId:'apply'}) as HistoryEntry).message.message_id,row.message.message_id);assert.equal(f.host.provider.requests.length,1);
+ await f.call('submit',{input:{ref:f.ref},requestId:'plain'});await f.live.whenIdle();assert.equal(f.host.provider.requests.length,2);assert.equal((await f.call('history',{}) as HistoryEntry[])[1]!.effect?.status,'attached');assert.ok(JSON.stringify(f.host.provider.requests[1]).includes('EXACT {{literal}} ACTION'));
  f.bridge.dispose();const recovered=new DshCollaboration(f.host.ctx,f.runtime,'profile');const adapter=new DshAdapter(f.ctx,f.runtime,'profile',recovered);
  assert.equal((await adapter.rpc('amoji/history',{sessionId:'session'},new AbortController().signal) as HistoryEntry[])[0]!.effect?.status,'attached');assert.equal(f.host.provider.requests.length,2);recovered.dispose();
 });
@@ -35,12 +36,13 @@ test('宿主未知结果核对原请求，不重发、不被另一输入领取',
  const retried=await f.apply({ref:f.ref,requestId:'unknown',effect:f.effect}) as HistoryEntry;assert.equal(retried.effect?.status,'unknown');assert.equal(prompts,1);
  f.live.followup(input('ordinary'));await f.live.whenIdle();assert.ok(!JSON.stringify(f.host.provider.requests).includes('EXACT {{literal}} ACTION'));
 });
-test('AI 工作时附带效果被拒绝，不留下记录也不被其他输入领取',async t=>{
+test('AI 工作时附带效果的表情像文字一样插话或排队，效果随它送达模型',async t=>{
  const f=await fixture(t);const {textResponse}=await import('./helpers/dsh-native.js');let release!:()=>void;const blocked=new Promise<void>(r=>release=r);let started!:()=>void;const ready=new Promise<void>(r=>started=r);
  f.host.provider.respond=async function*(_r,n){if(n===1){started();await blocked;}yield* textResponse();};
  f.live.followup(input('earlier'));await ready;
- try{await assert.rejects(f.apply({ref:f.ref,requestId:'during-work',effect:f.effect}),/EFFECT_UNAVAILABLE/);}finally{release();}
- await f.live.whenIdle();assert.equal((await f.call('history',{}) as HistoryEntry[]).length,0);assert.ok(!JSON.stringify(f.host.provider.requests).includes('EXACT {{literal}} ACTION'));
+ let row:HistoryEntry;try{row=await f.apply({ref:f.ref,requestId:'during-work',effect:f.effect}) as HistoryEntry;}finally{release();}
+ assert.notEqual(row.message.mode,'interrupt');assert.ok(row.effect);
+ await f.live.whenIdle();assert.equal((await f.call('history',{}) as HistoryEntry[]).length,1);assert.ok(JSON.stringify(f.host.provider.requests).includes('EXACT {{literal}} ACTION'));
 });
 test('生产链路组装后移除关联输入不留下孤立动作或推理',async t=>{
  const f=await fixture(t);let first=true;f.host.ctx.on('agent/pre-step',async(_p,next)=>{const decision=await next();if(first&&decision.kind==='enter'){first=false;return{...decision,messages:decision.messages.filter(m=>m.source.kind!=='user')};}return decision;});

@@ -618,3 +618,23 @@ test('撤回与同码位信号合并对模型可见：工作中立即告知，�
   const next = await send('core:ack', 'r-5');
   assert.match(f.prompts.find(p => p.requestId === `amoji:${next.message.message_id}`)!.content[0]!.text, new RegExp(`此前用户撤回了.*${idle.message.message_id}`));
 });
+
+test('桌面版被动历史读取与发送回执使用同一原生请求', async t => {
+  const f = await setup(t);
+  f.turns.clear();
+  const controller = f.ctx.sessionController;
+  delete controller.inspect;
+  controller.events = async ({ address, maxMessages }, signal) => {
+    signal.throwIfAborted();
+    assert.deepEqual(address, { kind: 'session', sessionId: f.a.id });
+    assert.ok(maxMessages > 50);
+    return { hasMore: false, records: f.a.snapshotEvents().map(event => ({ type: 'event', event })) };
+  };
+  const [expression] = await f.client.list();
+  assert.ok(expression);
+  const row = await submit(f.adapter, f.a.id, { asset_id: expression.asset_id, revision_id: expression.revision_id }, 'desktop-send') as HistoryEntry;
+  f.a.append('user/message', { id: 'desktop-message', source: { kind: 'user', rpcId: row.host!.requestId } });
+  const [observed] = await f.adapter.rpc('amoji/history', { sessionId: f.a.id }, signal()) as HistoryEntry[];
+  assert.equal(observed?.host?.hostMessageId, 'desktop-message');
+  assert.equal(f.prompts.length, 1);
+});

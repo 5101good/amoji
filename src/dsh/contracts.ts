@@ -4,7 +4,7 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import type { Expression, ExpressionRef } from '../protocol/index.js';
 import type { StoredMessage } from '../messages.js';
 
-/** Structural ports: only the public dsh 0.1.5-rc.2 methods actually consumed, not an SDK substitute. */
+/** Structural ports: only the public dsh methods actually consumed, not an SDK substitute. */
 export interface DshEvent { type: string; seq: number; data: unknown }
 export interface DshSession {
   id: string;
@@ -28,7 +28,8 @@ export interface HostPort {
   sessionController: {
     modelCatalog?(): Promise<import('@deepseek-ai/dsh-api-session-controller').ModelCatalog>;
     resolveAgent(id: string): Promise<{ agent: DshAgent } | { error: Error }>;
-    inspect(id: string, signal?: AbortSignal): Promise<{ events: readonly DshEvent[] }>;
+    events?(request: { address: { kind: 'session'; sessionId: string }; maxMessages: number }, signal: AbortSignal): Promise<{ records: readonly { type: 'event'; event: DshEvent }[]; hasMore: boolean }>;
+    inspect?(id: string, signal?: AbortSignal): Promise<{ events: readonly DshEvent[] }>;
     prompt(request: { sessionId: string; requestId: string; mode: 'queue' | 'steer'; content: readonly { type: 'text'; text: string }[] }, signal: AbortSignal): Promise<{ accepted: true }>;
     cancel?(request: { sessionId: string }, signal?: AbortSignal): Promise<{ accepted: true }>;
   };

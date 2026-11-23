@@ -8,6 +8,20 @@
 - Configure models in dsh. Sending a user expression starts a normal host conversation; AI suggestions use configured text models.
 - Linux/Windows path handling exists but has not completed live host validation. A successful build does not establish platform compatibility.
 
+## macOS Desktop 0.2.2-rc.5
+
+Build from a checkout containing desktop support. Run these commands at the repository root and paste the absolute path printed at the end into the desktop plugin manager. Enable the installed plugin, then open a workspace to see the picker beside the composer.
+
+```sh
+npm ci
+npm run build:dsh
+mkdir -p .local/desktop
+npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
+realpath .local/desktop/amoji-dsh-*.tgz
+```
+
+The package name in the manager should be `@amoji/dsh`. Installing the repository Git URL selects the development package `amoji` and fails with `not-bundle`.
+
 ## Install a release
 
 The first command initializes the custom `amoji` profile from the official Web template and prints help without starting a server. Initialize this template before installing into a new custom profile.

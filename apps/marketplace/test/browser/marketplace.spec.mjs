@@ -226,9 +226,11 @@ test("creator studio loads only on demand and saves a real local pack draft", as
   await page.reload();
   await expect(name).toHaveValue("我的协作表情");
   await page.getByRole("button", { name: "下一步", exact: true }).click();
-  await expect(
-    page.getByText("可选择保留包内协作效果。", { exact: false }),
-  ).toBeVisible();
+  const effect = page.getByRole("article").filter({
+    has: page.getByRole("heading", { name: "先结论后依据", exact: true }),
+  });
+  await effect.getByRole("button", { name: "不包含此效果" }).click();
+  await expect(effect).toHaveCount(0);
   await page.getByRole("button", { name: "下一步", exact: true }).click();
   await expect(page.getByRole("heading", { name: "本地预览" })).toBeVisible();
   await expect(

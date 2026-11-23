@@ -18,7 +18,7 @@ function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: 
     const abort = new AbortController();
     void rpc.history(sessionId, abort.signal).then(rows => {
       if (abort.signal.aborted) return;
-      const found = rows.find(value => value.message.direction === 'human_to_ai' && value.meta.messageId === messageId && value.host?.status === 'observed' && value.host.requestId === `amoji:${messageId}` && value.host.seq === seq);
+      const found = rows.find(value => value.message.direction === 'human_to_ai' && value.meta.messageId === messageId && value.host?.status === 'observed' && value.host.requestId === `amoji:${messageId}` && (seq === undefined || value.host.seq === seq));
       if (!found) throw new Error('表情关联不可用，保留原消息');
       setRow(found);
     }).catch(reason => { if (!abort.signal.aborted) setError(errorText(reason)); });
@@ -41,6 +41,8 @@ function UserMessage({ rpc, props, messageId, Original }: { rpc: DshRpc; props: 
 
 }
 
+const EmptyMessage = () => null;
+
 /** Public entry inspection + shadow priority; never copy the host's message UI. */
 export function mountUserMessages(slots: ClientPort['slots'], rpc: DshRpc, locale?: AmojiLocale): () => void {
   const name = 'conversation.chat.node'; const owners = new Map<string, { original: StoredEntry; component: React.ComponentType<any>; dispose(): void }>();
@@ -53,7 +55,19 @@ export function mountUserMessages(slots: ClientPort['slots'], rpc: DshRpc, local
       if (original === ours?.original) continue;
       ours?.dispose(); owners.delete(key);
       if (!original) continue; // Declaration may arrive before its shipped renderer.
-      if (original.children) throw new Error('Amoji cannot safely wrap a user renderer declaring child slots');
+      if (original.children) {
+        // Desktop owns the message bubble and its child declarations. Contribute
+        // to its chain only for our exact RPC IDs, leaving native rendering intact.
+        const before = 'conversation.chat.user.before';
+        if (key !== 'user' || !Object.hasOwn(original.children, before)) continue;
+        const Before = ({ sessionId, matched }: { sessionId: string; matched: string }) =>
+          <AmojiLocaleProvider locale={locale}><UserMessage key={matched} rpc={rpc}
+            props={{ sessionId, node: { data: {} } }} messageId={matched} Original={EmptyMessage}/></AmojiLocaleProvider>;
+        const dispose = slots.register({ name: before, select: ({ source }) =>
+          source?.kind === 'user' && source.rpcId?.startsWith('amoji:') ? source.rpcId.slice(6) : null }, Before);
+        owners.set(key, { original, component: Before, dispose });
+        continue;
+      }
       const Original = original.component as React.ComponentType<UserProps>;
       const Wrapped = (props: UserProps) => {
         const source = props.node.data.source;

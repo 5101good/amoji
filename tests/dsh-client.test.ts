@@ -25,7 +25,7 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 20));
 const zh = (e: Expression) => expressionText(e, 'zh-CN');
 const metaOf = (e: Expression, messageId: string): VisualMeta => ({ kind: 'amoji', messageId, act: e.realizes, direction: 'a2h', policy: 'keep', ref: { asset_id: e.asset_id, revision_id: e.revision_id }, visualHash: e.visual.primary.sha256, posterHash: e.visual.poster?.sha256 ?? null, alt: actGloss(e.realizes, 'a2h', 'zh-CN').text });
 
-test('真实 loader 产物与 0.1.5-rc.2 SlotRegistry：挂载生命周期、图片事件、动画封面、选择与会话切换', async t => {
+test('真实 loader 产物与 0.2.2-rc.5 SlotRegistry：挂载生命周期、图片事件、动画封面、选择与会话切换', async t => {
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost', runScripts: 'outside-only' });
   const previous = { window: globalThis.window, document: globalThis.document };
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });

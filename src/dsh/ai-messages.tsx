@@ -17,7 +17,7 @@ export const aiExpressionDefinition: ConversationNodeDefinition<null> = {
  buildViewNode(context){
   const end=[...context.matches].reverse().find(m=>m.event.type==='turn/end');if(!end)return null;
   const found=new Map<string,VisualMeta>();
-  for(const match of context.matches){const event=match.event;if(event.type!=='tool/result'||event.surfaceOp!=='append')continue;const result=event.data.message.content[0];if(result?.isError===true)continue;const meta=parseMeta(event.data.meta);if(meta)found.set(meta.messageId,meta);}
+  for(const match of context.matches){const event=match.event;if(event.type!=='tool/result'||event.surfaceOp!=='append')continue;if(event.data.message.isError===true)continue;const meta=parseMeta(event.data.meta);if(meta)found.set(meta.messageId,meta);}
   if(!found.size)return null;
   return {key:context.key,kind:'amoji-expressions',id:context.id,target:'chat',anchorSeq:end.event.seq,location:end.location,visibility:'visible',data:[...found.values()]} as ChatConversationViewNode;
  }

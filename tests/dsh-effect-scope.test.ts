@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './helpers/dsh-correlated.js';
 import { input } from './helpers/dsh-native.js';
-function snapshots(agent:any){return agent.session.snapshotEvents().flatMap((e:any)=>e.type==='user/message'&&e.data.source.kind==='plugin'?(e.data.source.sections??[]).filter((s:any)=>s.name==='amoji:collaboration').map((s:any)=>JSON.parse(s.text)):[]);}
+function snapshots(agent:any){return agent.session.snapshotEvents().flatMap((e:any)=>e.type==='user/message'&&e.data.source.kind==='runtime-context'?(e.data.source.sections??[]).filter((s:any)=>s.name==='amoji:collaboration').map((s:any)=>JSON.parse(s.text)):[]);}
 // RFC §7: an effect travels only with the expression that carries it.
 test('效果只跟随本条表情：下一次输入不再附上',async t=>{
  const f=await fixture(t);

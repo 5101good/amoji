@@ -116,15 +116,9 @@ export class DshAdapter {
   private async flush(session: DshSession): Promise<void> {
     if (!await this.ctx.sessions.flush(session)) fail('DSH_PERSISTENCE_UNAVAILABLE', '宿主未启用会话持久化；无法确认记录保存');
   }
-  private async inspect(sessionId: string, signal: AbortSignal): Promise<readonly DshEvent[]> {
+  private async readEvents(sessionId: string, signal: AbortSignal): Promise<readonly DshEvent[]> {
     signal.throwIfAborted();
     const controller = this.ctx.sessionController;
-    if (controller.inspect) {
-      const snapshot = await controller.inspect(sessionId, signal);
-      signal.throwIfAborted();
-      return snapshot.events;
-    }
-    if (!controller.events) fail('DSH_CONTEXT_UNAVAILABLE', '宿主未提供会话历史接口');
     // Desktop exposes the passive log as message-aligned pages. Request the full
     // cut so an older acknowledgement cannot be lost when reconciling a send.
     const page = await controller.events({ address: { kind: 'session', sessionId }, maxMessages: Number.MAX_SAFE_INTEGER }, signal);
@@ -185,7 +179,7 @@ export class DshAdapter {
     const method = endpoint.replace(/^amoji\//, ''); if (method.startsWith('marketplace.') || method.startsWith('publisher.')) allowed[method] = ['sessionId', 'args']; const keys = allowed[method]; if (!keys) fail('INVALID_ARGUMENT', '未知 Amoji RPC');
     const required = method === 'visual' ? ['sessionId', 'ref'] : method === 'search' ? ['sessionId', 'query'] : keys;
     const args = object(raw, keys, required); const sessionId = nonempty(args.sessionId);
-    const events = await this.inspect(sessionId, signal); const context = this.context(sessionId);
+    const events = await this.readEvents(sessionId, signal); const context = this.context(sessionId);
     if (method.startsWith('publisher.')) { await this.session(sessionId, signal); if (!this.publisher) fail('CAPABILITY_UNAVAILABLE', '发布能力不可用'); return this.publisher.call(method.slice(10), args.args); }
     if (method.startsWith('marketplace.')) { await this.session(sessionId, signal); if (!this.runtime.marketplace) fail('CAPABILITY_UNAVAILABLE', '市场能力不可用'); return this.runtime.marketplace.marketplace(method.slice(12), args.args); }
     if (method === 'reconnect') {
@@ -233,7 +227,7 @@ export class DshAdapter {
         await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji-retract:${message.message_id}`, mode: 'steer', content: [{ type: 'text', text: retractionText(message) }] }, signal);
         await this.flush(session);
       }
-      return this.rows(sessionId, await this.inspect(sessionId, signal));
+      return this.rows(sessionId, await this.readEvents(sessionId, signal));
     }
     if (method === 'choose') return this.choose(sessionId, nonempty(args.messageId), nonempty(args.option), signal);
     if (method === 'visual') {
@@ -293,12 +287,12 @@ export class DshAdapter {
     // option re-sends under the same request id until the host shows the user message.
     const message = await this.runtime.choose(context, messageId, option);
     const requestId = `amoji-choice:${messageId}`;
-    if (!(await this.inspect(sessionId, signal)).some(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === requestId)) {
+    if (!(await this.readEvents(sessionId, signal)).some(e => e.type.startsWith('user/') && record(record(e.data).source).rpcId === requestId)) {
       const text = choiceText(message);
       await this.ctx.sessionController.prompt({ sessionId, requestId, mode: this.openTurn(session) === undefined ? 'queue' : 'steer', content: [{ type: 'text', text }] }, signal);
       await this.flush(session);
     }
-    return this.rows(sessionId, await this.inspect(sessionId, signal));
+    return this.rows(sessionId, await this.readEvents(sessionId, signal));
   }
   private async submit(sessionId: string, input: SubmitInput, requestId: string, signal: AbortSignal): Promise<HistoryEntry> {
     const session = await this.session(sessionId, signal); const context = this.context(sessionId);
@@ -326,7 +320,7 @@ export class DshAdapter {
     const receive: ReceiveInput = { ...(input.ref ? { ref: input.ref } : { act }), ...(input.note ? { note: input.note } : {}), ...(input.anchor ? { anchor: input.anchor } : {}),
       ...(input.respondsTo ? { responds_to: input.respondsTo } : {}), ...(input.effect ? { effect: input.effect as EffectSelection } : {}), mode, ...(open !== undefined && mode !== 'turn' ? { sent_during: `turn:${open}` } : {}) };
     const message = await this.runtime.receive(context, receive, requestId); signal.throwIfAborted();
-    const row = async () => (await this.rows(sessionId, await this.inspect(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
+    const row = async () => (await this.rows(sessionId, await this.readEvents(sessionId, signal))).find(r => r.message.message_id === message.message_id)!;
     const existing = await row();
     if (existing.host!.status !== 'prepared' || (message.effect_intent?.checkpoint && existing.effect?.status === 'unknown')) return existing;
     await this.flush(session); signal.throwIfAborted();
@@ -345,7 +339,7 @@ export class DshAdapter {
       } else {
         if (message.effect_intent) this.collaboration!.dispatched(sessionId, message);
         const history = await this.runtime.messages(context);
-        const told = new Set((await this.inspect(sessionId, signal)).flatMap(e => { const id = e.type.startsWith('user/') ? record(record(e.data).source).rpcId : undefined; return typeof id === 'string' && id.startsWith('amoji-retract:') ? [id.slice('amoji-retract:'.length)] : []; }));
+        const told = new Set((await this.readEvents(sessionId, signal)).flatMap(e => { const id = e.type.startsWith('user/') ? record(record(e.data).source).rpcId : undefined; return typeof id === 'string' && id.startsWith('amoji-retract:') ? [id.slice('amoji-retract:'.length)] : []; }));
         const result = await this.ctx.sessionController.prompt({ sessionId, requestId: `amoji:${message.message_id}`, mode: message.mode === 'backchannel' ? 'steer' : 'queue', content: [{ type: 'text', text: expressionMessageText(message, history, told) }] }, signal);
         signal.throwIfAborted();
         if (result.accepted !== true) fail('DSH_NOT_ACCEPTED', '宿主未接受输入');

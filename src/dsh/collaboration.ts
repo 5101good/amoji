@@ -13,7 +13,7 @@ export class DshCollaboration {
   private pending:Promise<unknown>=Promise.resolve();
   readonly context: CollaborationContext;
   constructor(private readonly ctx: Context, private readonly runtime: AdapterRuntime, private readonly profile: string) { this.context=new CollaborationContext(ctx,profile,agent=>this.load(agent));
-    this.releases.push(ctx.on('agent/session-start',({agent,source})=>{if(source==='clear'){this.invalidated.add(agent);}}));
+    this.releases.push(ctx.on('agent/created',({agent,source})=>{if(source==='clear'){this.invalidated.add(agent);}}));
     // Persist terminal cancellation independently of a browser polling history.
     this.releases.push(ctx.on('agent/inbox/discarded', ({agent,message})=>{
       if(message.source.kind!=='user' || !('rpcId' in message.source))return;

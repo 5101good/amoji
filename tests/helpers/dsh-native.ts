@@ -8,7 +8,8 @@ import { SessionId } from '@deepseek-ai/dsh-session/types';
 import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection';
 import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { LlmRuntime, LlmAdapter, createUserMessage, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm';
-import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl';
+import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl';
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native';
 import { ToolRuntime } from '@deepseek-ai/dsh-tools';
 
 export class RecordingProvider extends LlmAdapter {
@@ -29,7 +30,7 @@ export async function* textResponse(): AsyncIterable<StreamChunk> {
 }
 export async function nativeHost(includeRuntimeContext = true, profile?: string) {
   const ctx = new Context();
-  const fibers = [ctx.plugin(SystemPrompt, { includeRuntimeContext }), ctx.plugin(SessionStore), ctx.plugin(SessionProjectionRegistry), ctx.plugin(AgentRegistry), ctx.plugin(LlmRuntime), ctx.plugin(ToolRuntime), ctx.plugin(AgentLoop, { agents: [] })];
+  const fibers = [ctx.plugin(SystemPrompt, { includeRuntimeContext }), ctx.plugin(SessionStore), ctx.plugin(SessionProjectionRegistry), ctx.plugin(AgentRegistry), ctx.plugin(LlmRuntime), ctx.plugin(ToolRuntime), ctx.plugin(NativeToolExecutor), ctx.plugin(AgentLoop, { agents: [] })];
   // Cordis publishes dependent services during microtask initialization.
   if (profile) fibers.push(ctx.plugin(JsonlSessionPersistence, { root: profile, compression: 'none' }));
   await new Promise<void>(resolve => setImmediate(resolve));
@@ -46,7 +47,7 @@ export async function nativeHost(includeRuntimeContext = true, profile?: string)
       for (const fiber of fibers.reverse()) await fiber.dispose();
       if (process.env.AMOJI_NATIVE_EVIDENCE) {
         await mkdir(dirname(process.env.AMOJI_NATIVE_EVIDENCE), { recursive: true });
-        await appendFile(process.env.AMOJI_NATIVE_EVIDENCE, JSON.stringify({ driver: '@deepseek-ai/dsh-agent-loop@0.1.5-rc.2', cost: 0, networkRequests: 0, events, requests: provider.requests.map(r => ({ session: r.sessionId, model: r.model, messages: r.messages })) }) + '\n');
+        await appendFile(process.env.AMOJI_NATIVE_EVIDENCE, JSON.stringify({ driver: '@deepseek-ai/dsh-agent-loop@0.2.2-rc.5', cost: 0, networkRequests: 0, events, requests: provider.requests.map(r => ({ session: r.sessionId, model: r.model, messages: r.messages })) }) + '\n');
       }
     } };
 }

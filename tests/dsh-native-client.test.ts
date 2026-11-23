@@ -22,7 +22,7 @@ test('原生用户 renderer 包装保留原组件全部 props、locale，卸载�
     'tool.call.toolview': { kind: 'keyed', scope: 'session' },
   } } as never, () => null);
   const Original = (props: any) => React.createElement('p', {}, `${props.node.data.content}|${props.attachment}|${props.reference}|${props.t}`);
-  core.register({ name: 'conversation.chat.node', key: 'user', locale: 'chat' } as never, Original);
+  core.register({ name: 'conversation.chat.node', key: 'steering', locale: 'chat' } as never, Original);
   const cleanup: Array<() => void> = [];
   const ctx = { slots: { register: core.register.bind(core), entries: core.entries.bind(core), subscribe: core.subscribe.bind(core), inject: (_key: string, factory: () => () => void) => factory() }, effect(factory: () => () => void) { cleanup.push(factory()); }, connection: { rpc: { call: async () => ({ ok: true, value: [] }) } } } as unknown as ClientPort;
   apply(ctx);
@@ -47,7 +47,7 @@ test('原生用户行按 rpcId 加图，普通消息不查库；只在正确图�
   const meta = visualMeta(message); const calls: string[] = [];
   const rpc = { history: async () => { calls.push('history'); return [{ message, meta, host: { status: 'observed', requestId: 'amoji:m1' } }]; }, visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }), display: async (_s: string, id: string) => { calls.push(id); } } as unknown as import('../src/dsh/contracts.js').DshRpc;
   const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
-  core.register({ name: 'conversation.chat.node', key: 'user' } as never, (props: any) => React.createElement('p', {}, props.node.data.content));
+  core.register({ name: 'conversation.chat.node', key: 'steering' } as never, (props: any) => React.createElement('p', {}, props.node.data.content));
   const { mountUserMessages } = await import('../src/dsh/messages.js');
   const release = mountUserMessages(core as unknown as ClientPort['slots'], rpc); t.after(release);
   const View = core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
@@ -86,7 +86,7 @@ test('真实 SlotRegistry 等待声明、随 owner collapse 清理并重新注�
   const mount = () => slots.register({ name: 'root', children: { 'conversation.input.left': { kind: 'list', scope: 'session' }, 'conversation.chat.node': { kind: 'keyed', scope: 'session' }, 'tool.call.toolview': { kind: 'keyed', scope: 'session' } } }, () => null);
   const first = mount();
   const original = () => null;
-  slots.register({ name: 'conversation.chat.node', key: 'user' }, original);
+  slots.register({ name: 'conversation.chat.node', key: 'steering' }, original);
   await Promise.resolve();
   assert.equal(slots.entries('conversation.input.left').length, 1);
   assert.notEqual(slots.entriesOfSlot('conversation.chat.node')[0].component, original);
@@ -149,7 +149,7 @@ test('核实后的用户表情只替换精确投影文本，原附件引用与�
   const row = { message, meta, host: { status: 'observed', requestId: 'amoji:confirmed', seq: 12 } };
   const rpc = { history: async () => [row], visual: async () => ({ expression: e, primary: 'data:image/png;base64,AAAA', poster: null }) } as any;
   const core = new SlotCore(); core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } } as never, () => null);
-  core.register({ name: 'conversation.chat.node', key: 'user' } as never, (props: any) => React.createElement('p', { 'data-native': true }, props.node.data.content.map((block: any) => block.type === 'text' ? block.text : '附件.pdf').join('|') + '|' + props.node.data.referenceLabels.join(',') + '|' + props.node.data.skillNames.join(',') + '|' + props.marker));
+  core.register({ name: 'conversation.chat.node', key: 'steering' } as never, (props: any) => React.createElement('p', { 'data-native': true }, props.node.data.content.map((block: any) => block.type === 'text' ? block.text : '附件.pdf').join('|') + '|' + props.node.data.referenceLabels.join(',') + '|' + props.node.data.skillNames.join(',') + '|' + props.marker));
   const release = mountUserMessages(core as unknown as ClientPort['slots'], rpc); t.after(release);
   const View = core.entriesOfSlot('conversation.chat.node')[0]!.component as React.ComponentType<any>;
   const content = [{ type: 'text', text: expressionMessageText(message) }, { type: 'text', text: '另外写给你的话' }, { type: 'file', file: { name: '附件.pdf' } }]; const original = JSON.stringify(content);

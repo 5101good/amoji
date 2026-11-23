@@ -399,9 +399,13 @@ test('accepted 必须在 prompt 后 flush 成功，且共享回执拒绝跨会�
 
 test('真实 Connection 允许网关 /api interceptor 与 Amoji exact routes 共存、派发与卸载', async t => {
   const { Context } = await import('@deepseek-ai/cordis');
-  const { HostConnectionService } = await import('@deepseek-ai/dsh-client-connection');
+  const { apply: mountConnection, HostConnectionService } = await import('@deepseek-ai/dsh-client-connection');
   const f = await setup(t); const context = new Context();
-  const connection = new HostConnectionService(context, [], {} as never);
+  context.provide('credentials', { modifyRecord: (_key: unknown, change: (current: undefined) => Promise<unknown>) => change(undefined) });
+  await mountConnection(context);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const connection = context.connection;
+  assert.ok(connection instanceof HostConnectionService);
   const gateway = connection.rpc.intercept('/api', endpoint => endpoint === 'session/native', async () => ({ ok: true, value: 'native gateway' }));
   t.after(gateway);
   f.ctx.connection = connection as unknown as HostPort['connection'];

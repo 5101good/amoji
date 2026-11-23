@@ -26,6 +26,22 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Resolve current DSH contracts
+        run: |
+          npm view @deepseek-ai/dsh dist-tags --json --registry=https://registry.npmjs.org
+          curl -fsSL --max-time 15 https://download.deepseek.com/dsh-desk/feeds/mac-arm64/nightly-mac.yml | head -12 || true
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json'));
+          delete pkg.overrides;
+          delete pkg.devDependencies['@deepseek-ai/dsh-client-ui-slots'];
+          for (const name of Object.keys(pkg.devDependencies)) if (name.startsWith('@deepseek-ai/dsh')) pkg.devDependencies[name] = '0.2.2-rc.5';
+          for (const name of ['@deepseek-ai/dsh-session-projection','@deepseek-ai/dsh-home-paths']) pkg.devDependencies[name] = '0.2.2-rc.5';
+          pkg.devDependencies['@deepseek-ai/cordis']='4.1.0';
+          fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+          JS
+          npm install --package-lock-only --ignore-scripts --no-audit --registry=https://registry.npmjs.org
+          gzip -cn package-lock.json | base64 -w 1600 | sed 's/^/LOCKPART:/'
       - name: Install locked dependencies
         run: npm ci --registry=https://registry.npmjs.org
       - name: Install marketplace locked dependencies

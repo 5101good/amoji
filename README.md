@@ -82,15 +82,7 @@ Amoji 的愿景，是让这套表达方式能够跨越模型与客户端。**2.1
 
 ## 安装
 
-Amoji 跟随 DSH 的 npm latest 和 macOS 桌面版 nightly。使用 Node.js 24 或更新版本，在仓库根目录构建插件。将最后一行输出的绝对路径粘贴到桌面版插件管理器，启用 @amoji/dsh。
-
-```sh
-npm ci
-npm run build:dsh
-mkdir -p .local/desktop
-npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
-realpath .local/desktop/amoji-dsh-2.1.0.tgz
-```
+将发行包链接粘贴到 DSH 桌面版插件管理器的「安装来源」，启用 `@amoji/dsh`，再打开工作区。[amoji-dsh-2.1.0.tgz](https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz)
 
 [CLI 安装与 profile 配置](docs/dsh-installation.md)
 

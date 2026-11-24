@@ -8,7 +8,7 @@
 
 Amoji 2.1.0 实现 [Amoji 0.1 协议](specs/amoji-0.1-rfc.md)：码位注册表、多语言固定语义与翻译来源、表情包与可选效果、AI 按码位表达、AI 工作时的纠偏信号与中断，以及决策选项和快捷回复。产品版本 `2.1.0`、协议 `0.1`、注册表 `0.1-r3`、共享 API `3` 和数据库 `1` 分别维护。
 
-已发布的 v2.1.0 归档支持 dsh **0.1.5-rc.2** 与支持 Mods 的 **Claude Desktop Code 本地会话**（Claude Code 基线 **2.1.295+**），均需要 **Node.js >=24**。[GitHub Release](https://github.com/5101good/amoji/releases/tag/v2.1.0) 提供 `amoji-dsh-2.1.0.tgz` 和 `amoji-claude-mods-2.1.0.zip`。依赖在安装时解析，发行包不捆绑 Node、宿主或原生依赖；这不是离线安装器或 npm registry 发布承诺。
+已发布的 v2.1.0 归档支持 dsh **0.2.2-rc.5 / 0.2.3-alpha.2** 与支持 Mods 的 **Claude Desktop Code 本地会话**（Claude Code 基线 **2.1.295+**），均需要 **Node.js >=24**。[GitHub Release](https://github.com/5101good/amoji/releases/tag/v2.1.0) 提供 `amoji-dsh-2.1.0.tgz` 和 `amoji-claude-mods-2.1.0.zip`。依赖在安装时解析，发行包不捆绑 Node、宿主或原生依赖；这不是离线安装器或 npm registry 发布承诺。
 
 两套适配器提供双向表情、个人库、草稿确认、版本与归档、包导入导出、AI 偏好和文字建议，并接入审核制表情包市场、账号连接、分享投稿和表情效果。经典与办公各 24 个表情、实现相同的 22 个码位；七套官方包作为独立 `.amoji` 附件分发。中英界面按语言回退显示多语言语义，不自动翻译用户内容。完整范围和安装命令见 [2.1.0 发布说明](releases/v2.1.0.md)。
 

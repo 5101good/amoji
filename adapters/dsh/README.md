@@ -6,7 +6,7 @@
 
 ## 安装与使用
 
-按[当前安装说明](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.md)构建插件，在生成的 tgz 所在目录运行以下命令。
+下载 [amoji-dsh-2.1.0.tgz](https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz)，在文件所在目录运行以下命令。
 
 ```sh
 npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help

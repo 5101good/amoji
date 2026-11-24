@@ -6,7 +6,7 @@ Native expressions for people and AI. The plugin follows the DSH npm latest rele
 
 ## Install and use
 
-Build the plugin using the [current installation guide](https://github.com/5101good/amoji/blob/main/docs/dsh-installation.en.md). From the tarball directory, run the commands below.
+Download [amoji-dsh-2.1.0.tgz](https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz), then run these commands from its directory.
 
 ```sh
 npx @deepseek-ai/dsh@latest --profile amoji --from-default-profile web --help

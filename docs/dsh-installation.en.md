@@ -10,6 +10,10 @@
 
 ## macOS Desktop
 
+Paste the release URL below into the desktop plugin manager. Once installed, enable `@amoji/dsh`.
+
+[amoji-dsh-2.1.0.tgz](https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz)
+
 Build from a checkout containing desktop support. Run these commands at the repository root and paste the absolute path printed at the end into the desktop plugin manager. Enable the installed plugin, then open a workspace to see the picker beside the composer.
 
 ```sh

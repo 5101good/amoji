@@ -82,15 +82,7 @@ Our vision is an expression system that can travel across models and clients. **
 
 ## Install
 
-Amoji follows the current DSH npm @latest release and macOS desktop nightly. From the repository root, build the plugin with Node.js 24+, then paste the absolute path printed below into the desktop plugin manager and enable @amoji/dsh.
-
-```sh
-npm ci
-npm run build:dsh
-mkdir -p .local/desktop
-npm pack ./adapters/dsh --ignore-scripts --pack-destination .local/desktop
-realpath .local/desktop/amoji-dsh-2.1.0.tgz
-```
+Download the release package and paste its URL into the DSH desktop plugin manager. Enable `@amoji/dsh`, then open a workspace. [amoji-dsh-2.1.0.tgz](https://github.com/5101good/amoji/releases/download/v2.1.0/amoji-dsh-2.1.0.tgz)
 
 [CLI installation and profiles](docs/dsh-installation.en.md)
 
